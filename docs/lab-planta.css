@@ -1,0 +1,20 @@
+/* Laboratório da planta viva: só a moldura da página. A faixa em si é de css/orcamento-planta.css.
+   A moldura tem altura FIXA em px (título, nota, botões): a troca de fonte (Sora chega depois da 1ª pintura) não pode reflui-la e empurrar a faixa,
+   senão o CLS medido seria o da moldura do laboratório e não o do desenho. */
+body { margin: 0; background: var(--bg); color: var(--t2); }
+.lab { max-width: 1136px; margin: 0 auto; padding: 24px 20px 72px; }
+.lab-kicker { font: 500 var(--fs-rotulo)/16px var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-3); margin: 0 0 10px; height: 16px; overflow: hidden; }
+.lab-h1 { font: 300 24px/28px var(--sans); color: var(--t1); letter-spacing: -.01em; margin: 0; height: 56px; overflow: hidden; }
+.lab-rodape { margin: 12px 0 0; font-size: 14px; line-height: 20px; color: var(--t3); height: 100px; overflow: hidden; }
+.lab-nichos { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 18px; }
+.lab-nichos .plv-btn { text-align: left; }
+.lab-nichos .plv-btn[aria-pressed="true"] { border-color: var(--ac); }
+.lab-faixa { margin: 0; }
+.lab-captura .plv-leitura { position: static; }
+@media (min-width: 760px) {
+  .lab { padding: 36px 32px 96px; }
+  .lab-h1 { font-size: 36px; line-height: 40px; height: 40px; }
+  .lab-rodape { height: 40px; }
+  .lab-nichos { flex-direction: row; }
+  .lab-nichos .plv-btn { flex: 0 0 160px; text-align: center; }
+}

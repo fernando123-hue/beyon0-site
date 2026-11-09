@@ -1,0 +1,32 @@
+{
+  "_defeito": "nivel",
+  "_camada": "forma",
+  "leitura": {
+    "eixos": [
+      {
+        "eixo": "volume",
+        "nivel": "muito",
+        "evidencia": "tem semana de agenda cheia"
+      },
+      {
+        "eixo": "repeticao",
+        "nivel": "deixou_claro",
+        "evidencia": "toda hora perguntam o horário"
+      },
+      {
+        "eixo": "urgencia",
+        "nivel": "nao_falou"
+      },
+      {
+        "eixo": "pessoas",
+        "nivel": "deixou_claro",
+        "evidencia": "só a recepcionista atende"
+      },
+      {
+        "eixo": "informacao",
+        "nivel": "comentou",
+        "evidencia": "anota num caderno"
+      }
+    ]
+  }
+}

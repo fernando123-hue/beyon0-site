@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Laboratório da planta viva (módulos reais)</title>
+  <!-- As fontes com preload, como index.html e orcamento.html já fazem: o laboratório representa a página (passo 0, notas C2 e proposta 4). -->
+  <link rel="preload" href="/assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/css/tokens.css" />
+  <link rel="stylesheet" href="/css/orcamento-planta.css" />
+  <link rel="stylesheet" href="/docs/lab-planta.css" />
+  <script src="/js/orcamento-planta-forma.js" defer></script>
+  <script src="/js/planta-pecas.js" defer></script>
+  <script src="/js/planta-layout.js" defer></script>
+  <script src="/js/planta-desenho.js" defer></script>
+  <script src="/docs/lab-planta.js" defer></script>
+</head>
+<body>
+  <!-- Laboratório (fora do deploy: docs/ não entra em cloudflare/montar-publico.mjs). Usa os módulos REAIS (js/planta-*.js) e os planos das fixtures
+       (docs/testes/fixtures/planta/*.json). Parâmetros: ?nicho=clinica|embalagens|loja  &estatico=1 (quadro final, sem animação)  &ajuste=1 (já ajustada)
+       &captura=1 (legenda sem o grude, para as fotos). A faixa está no alto da janela de propósito: é o pior caso para o CLS. -->
+  <main class="lab">
+    <header class="lab-topo">
+      <p class="lab-kicker">Laboratório · Planta viva</p>
+      <h1 class="lab-h1">A planta do seu site</h1>
+      <p class="lab-rodape">Laboratório com os módulos reais. A faixa é a última coisa da página de propósito: nada vem depois dela para se deslocar, então o CLS medido aqui é o do próprio desenho.</p>
+    </header>
+    <div class="lab-nichos" role="group" aria-label="Exemplo de caso">
+      <button type="button" class="plv-btn" data-nicho="clinica" aria-pressed="true">Clínica</button>
+      <button type="button" class="plv-btn" data-nicho="embalagens" aria-pressed="false">Embalagens</button>
+      <button type="button" class="plv-btn" data-nicho="loja" aria-pressed="false">Loja</button>
+    </div>
+    <section id="faixa" class="lab-faixa" aria-label="Planta do site"></section>
+  </main>
+</body>
+</html>

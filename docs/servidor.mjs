@@ -4,11 +4,17 @@ import http2 from 'node:http2';
 import { readFile, stat } from 'node:fs/promises';
 import { join, extname, resolve, relative, isAbsolute } from 'node:path';
 import { gzipSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
 import { lerHeaders, cabecalhosPara } from '../cloudflare/cabecalhos.mjs';
 
 const RAIZ = resolve(process.argv[2] || process.cwd());
 const PORTA = +(process.argv[3] || 8899);
 const COMPRIMIR = process.env.COMPRIMIR === '1';
+/* CACHE=1: como o Worker da Cloudflare serve os assets (ETag + max-age=0, must-revalidate, ou o Cache-Control do _headers,
+   hoje 300 s em /js e /css): o navegador guarda, revalida com 304 e monta o cache de código do V8. Sem isso (no-store) toda
+   travessia baixa e compila tudo de novo, pior que a real. Com CACHE=1 sirva a pasta MONTADA (cloudflare/montar-publico.mjs,
+   que põe o ?v no HTML): na raiz do repositório o HTML não tem ?v e um JS editado demora até 5 min para valer */
+const CACHE = process.env.CACHE === '1';
 const COMPRIMIVEL = /^(text\/|application\/(json|xml)|image\/svg)/;
 /* paridade com o deploy: os cabeçalhos das páginas vêm do _headers (a fonte única, a mesma que a Cloudflare aplica),
    lido pelo mesmo leitor dos testes (cloudflare/cabecalhos.mjs): CSP como header, nosniff, frame-ancestors… */
@@ -28,6 +34,8 @@ const TIPOS = {
    Aqui o banco é o de memória (BZ_LOCAL=1, api/_banco.mjs); a chave do painel vem de PAINEL_CHAVE. */
 process.env.BZ_LOCAL = '1';
 if (process.env.BZ_ENTREGA_LOCAL !== 'desligada') process.env.BZ_ENTREGA = 'ligada';   /* (só no servidor local: o interruptor da entrega, api/_material/interruptor.mjs; BZ_ENTREGA_LOCAL=desligada é a rodada do E2E sem a entrega) */
+/* a planta viva (PR 2c): a flag BZ_PLANTA (api/_vendas/planta.mjs) fica ligada no servidor local, para a página ser vista e medida com a faixa; BZ_PLANTA_LOCAL=desligada sobe a página como ela é com a flag desligada (a produção hoje), a outra ponta do A/B de docs/medir-planta.mjs e do E2E */
+if (process.env.BZ_PLANTA_LOCAL !== 'desligada') process.env.BZ_PLANTA = 'ligada'; else delete process.env.BZ_PLANTA;
 delete process.env.SUPABASE_URL;    /* (teste local nunca grava no banco de produção) */
 delete process.env.SUPABASE_CHAVE_SECRETA;
 delete process.env.SUPABASE_CHAVE_PUBLICA;
@@ -90,14 +98,21 @@ async function atender(req, res) {
     const dados = await readFile(alvo);
     const tipo = TIPOS[extname(alvo)] || 'application/octet-stream';
     const extra = { 'content-type': tipo, 'cache-control': 'no-store' };
+    const doHeaders = cabecalhos(caminho);
+    if (CACHE) {
+      /* sem CACHE_CC/CACHE_HTML_CC vale o Cache-Control do _headers (a Cloudflare o aplica por cima do padrão dela) */
+      extra['cache-control'] = (tipo.startsWith('text/html') && process.env.CACHE_HTML_CC) || process.env.CACHE_CC || doHeaders['cache-control'] || 'public, max-age=0, must-revalidate';
+      extra.etag = '"' + createHash('sha1').update(dados).digest('hex').slice(0, 16) + '"';
+      if (req.headers['if-none-match'] === extra.etag) { res.writeHead(304, { ...doHeaders, ...extra }); return res.end(); }
+    }
     /* COMPRIMIR=1: gzip como a Vercel (que serve brotli/gzip). Sem isso, rede lenta simulada pesa os bytes crus
        (o JS comentado ~3x maior) e a medição de carga sai pior que a real (docs/medir-carga.mjs) */
     if (COMPRIMIR && COMPRIMIVEL.test(tipo) && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
       const corpo = gzipSync(dados);
-      res.writeHead(200, Object.assign(cabecalhos(caminho), extra, { 'content-encoding': 'gzip', 'content-length': corpo.length, vary: 'accept-encoding' }));
+      res.writeHead(200, { ...doHeaders, ...extra, 'content-encoding': 'gzip', 'content-length': corpo.length, vary: 'accept-encoding' });
       return res.end(corpo);
     }
-    res.writeHead(200, Object.assign(cabecalhos(caminho), extra));
+    res.writeHead(200, { ...doHeaders, ...extra });
     res.end(dados);
   } catch (e) {
     res.writeHead(404); res.end('404');

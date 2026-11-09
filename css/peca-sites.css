@@ -44,7 +44,11 @@
 /* .is-viva vem do js/peca-sites.js (não do html.js: o site tira o html.js com movimento reduzido, e a peça
    tem de funcionar parada nesse caso). Sem JS: só o exemplo, impresso e parado */
 .planta { display: flex; flex-direction: column; gap: 12px; position: relative; z-index: 2; }
-.planta:not(.is-viva) :is(.planta__formatos, .planta__frase, .planta__regua, .planta__controles, .planta__medida) { display: none; }
+html:not(.js) .planta:not(.is-viva) :is(.planta__formatos, .planta__frase, .planta__regua, .planta__controles, .planta__medida) { display: none; }
+/* com JS (o html.js nasce no head, js/ancoras.js), os controles guardam o lugar invisíveis até a peça acordar: com
+   display:none eles entravam no fluxo no is-viva e empurravam o palco e o resto da página ~150 px para baixo (medido
+   2026-11-07: CLS 0,06 no celular com CPU 4×, docs/medir-sites-leve.mjs). Invisíveis também não recebem foco */
+html.js .planta:not(.is-viva) :is(.planta__formatos, .planta__frase, .planta__regua, .planta__controles, .planta__medida) { visibility: hidden; }
 .planta:not(.is-viva) .planta__moldura { transform: translate(-50%, -50%) scale(.28); }
 @media (max-width: 720px) { .planta:not(.is-viva) .planta__moldura { transform: translate(-50%, -50%) scale(.19); } }
 

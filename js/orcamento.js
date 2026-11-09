@@ -13,6 +13,9 @@
   'use strict';
   var API = window.BZOrcamento, PV = window.BZPrevia;
   var $ = function (id) { return document.getElementById(id); };
+  /* as perguntas da 1ª pintura (html.orc-nova, js/ancoras.js): daqui em diante quem as mostra e esconde é este script. Sai antes da guarda: sem um
+     módulo, as perguntas (sem botão funcionando) não ficam à vista. Numa visita nova o retomar() abaixo as abre na mesma tarefa: nenhum quadro sem elas */
+  document.documentElement.classList.remove('orc-nova');
   /* um script não chegou (rede, bloqueador): sem isso a página ficava morta sem dizer nada (auditoria 2026-10-09, F19) */
   if (!API || !PV || !window.BZVisor || !window.BZPerguntas || !window.BZDetalhes || !window.BZEspera || !window.BZAjustes) { semScripts(); return; }
   function semScripts() {
@@ -214,6 +217,7 @@
   /* (aria-disabled, não disabled: o botão desligado com o foco nele jogava o foco no body, A3; o "enviando" já protege) */
   function ocupado(sim) {
     enviando = sim; mostrar('o-pensando', sim); $('o-form').setAttribute('aria-busy', String(sim));
+    document.dispatchEvent(new CustomEvent('bz:pensando', { detail: { ativo: sim } }));   /* (o radar do escopo varre só enquanto o Zero pensa de verdade) */
     if (sim) $('o-enviar').setAttribute('aria-disabled', 'true'); else $('o-enviar').removeAttribute('aria-disabled');
   }
   /* o chip de atalho some depois da 1ª mensagem: se o foco estava nele, passa antes para outro lugar (A3).
@@ -231,9 +235,71 @@
 
   var visitantesNoServidor = function () { return E ? E.mensagens.filter(function (m) { return m.papel !== 'agente'; }).length : 0; };
 
+  /* o último envio que falhou sem a tela saber se o turno entrou: { texto, antes } (antes = quantas falas do visitante o estado tinha). O MESMO texto, mandado de novo (pela caixa, por
+     "Tentar de novo" ou por "Está certo"), relê antes e só dá o turno por entrado se o servidor tem, depois desse ponto, uma fala do visitante com o mesmo texto: a contagem sozinha não
+     basta (outra aba ou aparelho também escreve). Outro texto desarma a dúvida. Releitura que falha de novo: não reenvia (avisa e guarda o texto) */
+  var incerta = null;
+  var AVISO_INCERTO = 'Não consegui confirmar se a sua mensagem foi. Confira a conversa antes de mandar de novo.';
+  /* O servidor grava a fala REDIGIDA, não o texto enviado (api/_vendas/seguranca.mjs: limparMensagem + redigir): tira bytes de controle e invisíveis, troca dígitos de outros alfabetos pelos
+     comuns e troca e-mail, telefone, documento, número longo e dados de cartão por marcadores. A conferência tolera exatamente isso: igualdade simples, ou, se a fala guardada tem marcador,
+     o texto enviado tem de bater com o resto E ter, no lugar de cada marcador, algo do tipo que o marcador esconde (uma fala só de "[telefone]" não casa qualquer texto).
+     Sem regex com quantificador aninhado: busca por pedaços literais, com teto de passos (a mensagem tem até 2.000 caracteres). */
+  var MARCADOR = /\[(?:e-mail|telefone|documento|número|cartão)\]/g;
+  var DIGITOS_DE_FORA = [0x660, 0x6f0, 0x966, 0x9e6, 0xff10];
+  function normalizarFala(t) {
+    return String(t).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(/[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff\ue000-\uf8ff]/g, '')
+      .replace(/[\u0660-\u0669\u06f0-\u06f9\u0966-\u096f\u09e6-\u09ef\uff10-\uff19\uff20]/g, function (c) {
+        var n = c.charCodeAt(0), i;
+        if (n === 0xff20) return '@';
+        for (i = 0; i < DIGITOS_DE_FORA.length; i++) if (n >= DIGITOS_DE_FORA[i] && n <= DIGITOS_DE_FORA[i] + 9) return String(n - DIGITOS_DE_FORA[i]);
+        return c;
+      }).trim();
+  }
+  function comDigitos(minimo) { return function (trecho) { return trecho.replace(/\D/g, '').length >= minimo; }; }
+  var ESCONDE = { '[e-mail]': function (trecho) { return /@|arroba|\bat\b/i.test(trecho); }, '[telefone]': comDigitos(9), '[documento]': comDigitos(11), '[número]': comDigitos(10), '[cartão]': comDigitos(2) };
+  function falaConfere(guardada, enviada) {
+    var g = normalizarFala(guardada), e = normalizarFala(enviada), marcas = g.match(MARCADOR), pedacos, i, passos = 0, visto = {};
+    if (g === e) return true;
+    if (!marcas || marcas.length > 20) return false;
+    pedacos = g.split(MARCADOR);
+    for (i = 0; i < marcas.length; i++) if (marcas[i] === '[cartão]' && /\s$/.test(pedacos[i])) pedacos[i] = pedacos[i].slice(0, -1);   /* (o servidor põe um espaço antes do marcador do cartão) */
+    if (e.indexOf(pedacos[0]) !== 0) return false;
+    function casa(j, pos) {   /* o marcador j cobre e[pos..fim), com pelo menos 1 caractere, e o pedaço j+1 vem logo depois */
+      var p = pedacos[j + 1], fim;
+      if (visto[j + ':' + pos]) return false;
+      visto[j + ':' + pos] = true;
+      if (j === marcas.length - 1) {
+        fim = e.length - p.length;
+        return fim > pos && e.slice(fim) === p && ESCONDE[marcas[j]](e.slice(pos, fim));
+      }
+      for (fim = e.indexOf(p, pos + 1); fim >= 0; fim = e.indexOf(p, fim + 1)) {
+        if (++passos > 20000) return false;
+        if (ESCONDE[marcas[j]](e.slice(pos, fim)) && casa(j + 1, fim + p.length)) return true;
+      }
+      return false;
+    }
+    return casa(0, pedacos[0].length);
+  }
+  function entrouComTexto(velha) {
+    return !!E && E.mensagens.filter(function (m) { return m.papel !== 'agente'; }).slice(velha.antes).some(function (m) { return falaConfere(m.conteudo, velha.texto); });
+  }
   async function enviar(texto) {
-    if (enviando) return;   /* (Enter repetido não manda dois turnos) */
+    if (enviando) return false;   /* (Enter repetido não manda dois turnos) */
     limparAviso();
+    if (incerta && incerta.texto !== texto) incerta = null;
+    if (incerta) {
+      var velha = incerta, leu = true;
+      ocupado(true);
+      try { await recarregar(); } catch (x) { leu = false; /* a rede ainda não voltou */ }
+      ocupado(false);
+      if (!leu) {   /* não dá para saber se entrou: não manda de novo, e o texto não se perde */
+        if (!$('o-texto').value) $('o-texto').value = texto;
+        avisar(AVISO_INCERTO, function () { reenviar(texto); });
+        return false;
+      }
+      incerta = null;
+      if (entrouComTexto(velha)) { if ($('o-texto').value === texto) $('o-texto').value = ''; return true; }   /* (o render já redesenhou a conversa com o turno) */
+    }
     var antes = visitantesNoServidor(), totalAntes = E ? E.mensagens.length : 0;
     var minha = msg('visitante', texto);
     esconderAtalhos();
@@ -241,7 +307,7 @@
     anunciar('Analisando…');
     var r;
     try { r = await API.mensagem(texto); }
-    catch (e) { await falhaNoEnvio(e, texto, minha, antes); return; }
+    catch (e) { return await falhaNoEnvio(e, texto, minha, antes); }
     ocupado(false);
     /* a conversa no servidor agora tem +2 mensagens; se uma leitura de fundo já a redesenhou, não repete a resposta */
     var esperado = JSON.stringify(totalAntes + 2);
@@ -252,8 +318,11 @@
     if (r.diagnostico) mostrar('o-diagnostico', true);
     try { await recarregar(); } catch (e) { /* o turno já está gravado; a espera ou a próxima ação atualizam */ }
     if (r.pedir_contato && !$('o-contato').hidden) $('o-contato').scrollIntoView({ block: 'start' });   /* (sem tirar o foco: a resposta ainda está sendo lida) */
+    return true;
   }
-  /* a rede caiu ou o tempo estourou com a IA respondendo (F2): o turno pode ter sido gravado mesmo assim. A tela
+  /* enviar() devolve se o turno ENTROU (true) ou não (false: a conversa estava ocupada, ou o envio falhou sem gravar): quem manda por fora, como "Está certo" da planta
+     (js/orcamento-planta.js), só dá a ação por feita quando entrou. falhaNoEnvio devolve o mesmo.
+     A rede caiu ou o tempo estourou com a IA respondendo (F2): o turno pode ter sido gravado mesmo assim. A tela
      segue o servidor: relê o estado (render redesenha a conversa se ela mudou) e só devolve o texto à caixa se o
      turno NÃO entrou */
   async function falhaNoEnvio(e, texto, minha, antes) {
@@ -262,25 +331,26 @@
     try { await recarregar(); } catch (x) { /* sem conexão: decide pelo que já se sabe */ }
     ocupado(false);
     var gravada = visitantesNoServidor() > antes;
+    var respondendo = e.status === 409 && /respondendo/i.test(e.message || '');   /* (a mensagem anterior ainda está com a IA) */
+    incerta = !gravada && (repetivel(e) || respondendo) ? { texto: texto, antes: antes } : null;
     if (!gravada) {
       if (minha.isConnected) minha.remove();
       if (!$('o-texto').value) $('o-texto').value = texto;
     }
-    if (sessaoTerminou(e)) { anunciar(''); return avisarSessao(); }
-    if (gravada) { anunciar(ultimaDoAgente()); return; }   /* a resposta já está na conversa: nada a refazer */
+    if (sessaoTerminou(e)) { anunciar(''); avisarSessao(); return gravada; }
+    if (gravada) { anunciar(ultimaDoAgente()); return gravada; }   /* a resposta já está na conversa: nada a refazer */
     /* o sinal caiu enquanto o consultor respondia: a tela já mostra o projeto em produção; um erro ali só assustaria
        (revisões do PR 34) */
-    if (E && CONVERSA_ABERTA.indexOf(E.conversa.etapa) < 0) { anunciar(''); return; }
+    if (E && CONVERSA_ABERTA.indexOf(E.conversa.etapa) < 0) { anunciar(''); return gravada; }
     anunciar('');
-    var respondendo = e.status === 409 && /respondendo/i.test(e.message || '');   /* (a mensagem anterior ainda está com a IA) */
-    avisar(mensagemDe(e), repetivel(e) || respondendo ? function () { reenviar(texto, antes); } : null);
+    avisar(mensagemDe(e), repetivel(e) || respondendo ? function () { reenviar(texto); } : null);
+    return gravada;
   }
-  /* antes de mandar de novo, confere se o turno anterior chegou nesse meio-tempo (senão entraria duas vezes) */
-  async function reenviar(texto, antes) {
-    try { await recarregar(); } catch (x) { /* o envio diz se a rede voltou */ }
+  /* "Tentar de novo": o enviar() acima já confere se o turno anterior chegou nesse meio-tempo (senão entraria duas vezes), com uma releitura só */
+  async function reenviar(texto) {
+    if (enviando) return false;   /* (a conversa está ocupada: não mexe na caixa, o que a pessoa escreve fica) */
     if ($('o-texto').value === texto) $('o-texto').value = '';
-    if (visitantesNoServidor() > antes) return;
-    enviar(texto);
+    return enviar(texto);
   }
   /* Safari < 16 não tem requestSubmit (F14): o clique no botão de envio faz o mesmo caminho */
   function submeter(form, botaoEnvio) { if (typeof form.requestSubmit === 'function') form.requestSubmit(); else botaoEnvio.click(); }
@@ -338,6 +408,19 @@
       $('o-est-fase-valor').textContent = 'Estimativa da fase seguinte: ' + dinheiro(f.valor_estimado) + '.';
     }
     return dinheiro(c.valor_total);
+  }
+  /* "Já vem no pacote" do pedido salvo: com as perguntas abertas quem enche é o js/orcamento-perguntas.js (pelo catálogo); depois de recarregar
+     não há catálogo, e a fonte é a estimativa gravada (detalhes.formato.no_pacote, api/_vendas/precos.mjs listaDoPacote: a lista da tabela, em todo
+     formato; a estimativa gravada antes dela só tem formato.inclui, e só no Atelier). Sem a lista, não mexe em nada (nada inventado); só texto vira item */
+  function jaVemNoPacote(est) {
+    var d = est.detalhes || est, f = d && d.formato;
+    var fonte = f ? (Array.isArray(f.no_pacote) && f.no_pacote.length ? f.no_pacote : f.inclui) : null;
+    var inclui = Array.isArray(fonte) ? fonte.filter(function (t) { return typeof t === 'string' && t.trim() !== ''; }).map(function (t) { return t.trim(); }) : [];
+    if (!inclui.length || !mudou('inclui', inclui)) return;
+    var ul = $('o-est-inclui');
+    ul.textContent = '';
+    inclui.forEach(function (t) { ul.appendChild(el('li', '', t)); });
+    mostrar('o-est-inclui-caixa', true);
   }
   function sugestao(s) {
     $('o-sugestao-ideia').textContent = s.ideia;
@@ -668,19 +751,23 @@
   function render() {
     var et = E.conversa.etapa;
     identificar();
+    if (incerta && entrouComTexto(incerta)) incerta = null;   /* (o estado já mostra o turno: a dúvida acabou) */
     etapas();
     /* a conversa segue o servidor: redesenha quando o número de mensagens mudou (F2: resposta gravada com a rede caída) */
     if (mudou('conversa', E.mensagens.length)) conversa();
     verConversa();
     /* as perguntas: só numa conversa nova; com o preço gravado (ou a conversa já andando), ficam escondidas */
     if (!E.estimativa && E.mensagens.length === 0) iniciarPerguntas(); else mostrar('o-perguntas', false);
-    if (E.estimativa) investimento(E.estimativa, false);
+    if (E.estimativa) { investimento(E.estimativa, false); jaVemNoPacote(E.estimativa); }
     var aberta = CONVERSA_ABERTA.indexOf(et) >= 0;
     mostrar('o-form', aberta);
     $('o-texto').placeholder = Object.prototype.hasOwnProperty.call(DICA_DUVIDA, et) ? DICA_DUVIDA[et] : dicaPadrao;
     mostrar('o-conversa-fechada', !aberta);
     if (!aberta) $('o-atalhos').hidden = true;
     window.BZDetalhes.atualizar(E);   /* os detalhes, o pedido recebido ou o pedido encerrado (js/orcamento-detalhes.js) */
+    if (window.BZOrcPlanta) window.BZOrcPlanta.atualizar(E, { rolarAte: rolarAte, enviar: enviar });   /* a planta do site (js/orcamento-planta.js): só age com E.planta (flag BZ_PLANTA); sem o módulo a tela segue igual */
+    if (window.BZOrcEscopo) window.BZOrcEscopo.atualizar(E);   /* o radar do escopo (js/orcamento-escopo.js): só lê o estado; sem o módulo a tela segue igual */
+    if (window.BZPainel) window.BZPainel.atualizar(E.painel);   /* as peças da conversa: notas, ficha e caso (js/orcamento-painel.js); sem o módulo a tela segue igual */
     direcoes();
     mostrar('o-ajustes', (et === 'escolhida' || et === 'alteracoes') && !descartado());
     ajustes.atualizar(E);

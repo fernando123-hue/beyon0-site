@@ -91,7 +91,7 @@ test('recusas da lista: CPF (422), vazio e longo demais (422), chave a mais (400
 test('texto grande demais (mais de 2.000 caracteres, que o limpador de mensagem descartaria) é 422 mesmo com o contato do site: nunca vira "só o contato" em silêncio', async () => {
   const { n, c } = await noPasso({}, 'previa');
   for (const tam of [1501, 2001, 9000]) {
-    const r = await n.chamar('POST', 'previa-ajustes', { conversa_id: c, rodada_base: 0, texto: 'x'.repeat(tam), whatsapp: '(21) 97716-7944', autorizo: true });
+    const r = await n.chamar('POST', 'previa-ajustes', { conversa_id: c, rodada_base: 0, texto: 'x'.repeat(tam), whatsapp: '(21) 98888-0002', autorizo: true });
     assert.equal(r.status, 422, 'tam ' + tam); assert.match(r.corpo.erro, /1\.500/);
   }
   assert.equal((await ajustesDe(c)).length, 0, 'nada foi gravado');
@@ -127,25 +127,25 @@ test('M1: quebras de linha em branco entre os dígitos não escondem CPF nem tel
 
 test('M3 (22/10): o WhatsApp e o e-mail do site em campos PRÓPRIOS: normalizados, só com a autorização, gravados à parte do texto; o telefone escrito no texto livre continua apagado', async () => {
   const { n, c } = await noPasso({}, 'previa');
-  const r = await n.chamar('POST', 'previa-ajustes', { conversa_id: c, rodada_base: 0, texto: 'Trocar a foto. Ligue (21) 99999-0001.', whatsapp: '(21) 97716-7944', email: ' Contato@ClinicaSol.com.br ', autorizo: true });
+  const r = await n.chamar('POST', 'previa-ajustes', { conversa_id: c, rodada_base: 0, texto: 'Trocar a foto. Ligue (21) 99999-0001.', whatsapp: '(21) 98888-0002', email: ' Contato@ClinicaSol.com.br ', autorizo: true });
   assert.equal(r.status, 200, JSON.stringify(r.corpo));
   const a = (await ajustesDe(c))[0];
-  assert.deepEqual([a.contato_whatsapp, a.contato_email, a.contato_autorizacao_versao], ['+5521977167944', 'contato@clinicasol.com.br', ESQ.AUTORIZACAO.versao]);
-  assert.ok(!/99999-0001|97716/.test(a.texto) && /\[telefone\]/.test(a.texto), 'o telefone escrito no texto livre continua apagado: o lugar dele são os campos próprios');
-  assert.ok(!/97716|clinicasol/.test(JSON.stringify(await cen.estado(n, c))), 'o contato do site não volta à tela');
+  assert.deepEqual([a.contato_whatsapp, a.contato_email, a.contato_autorizacao_versao], ['+5521988880002', 'contato@clinicasol.com.br', ESQ.AUTORIZACAO.versao]);
+  assert.ok(!/99999-0001|98888/.test(a.texto) && /\[telefone\]/.test(a.texto), 'o telefone escrito no texto livre continua apagado: o lugar dele são os campos próprios');
+  assert.ok(!/98888|clinicasol/.test(JSON.stringify(await cen.estado(n, c))), 'o contato do site não volta à tela');
 });
 
 test('M3: só o contato do site, sem texto, vale; o contato exige autorizo:true (422); formato ou tamanho ruim, 422; tipo errado, 400; nada é gravado', async () => {
   const { n, c } = await noPasso({}, 'previa');
   const lista = corpo => n.chamar('POST', 'previa-ajustes', { conversa_id: c, rodada_base: 0, texto: 'Trocar a cor.', ...corpo });
-  const semAut = await lista({ whatsapp: '(21) 97716-7944' });
+  const semAut = await lista({ whatsapp: '(21) 98888-0002' });
   assert.equal(semAut.status, 422); assert.match(semAut.corpo.erro, /autorização/i);
   assert.equal((await lista({ email: 'contato@clinicasol.com.br', autorizo: false })).status, 422);
-  for (const ruim of [{ whatsapp: 'abc' }, { whatsapp: '21 87716-7944' }, { whatsapp: 'x'.repeat(200) }, { email: 'a@b' }, { email: 'a b@c.com' }, { email: 'x'.repeat(200) + '@a.com' }]) {
+  for (const ruim of [{ whatsapp: 'abc' }, { whatsapp: '21 88888-0002' }, { whatsapp: 'x'.repeat(200) }, { email: 'a@b' }, { email: 'a b@c.com' }, { email: 'x'.repeat(200) + '@a.com' }]) {
     const r = await lista({ ...ruim, autorizo: true });
     assert.equal(r.status, 422, JSON.stringify(ruim).slice(0, 40)); assert.match(r.corpo.erro, /WhatsApp|e-mail/);
   }
-  for (const tipo of [{ whatsapp: 21977167944 }, { email: ['a@b.com'] }, { autorizo: 'sim' }]) assert.equal((await lista(tipo)).status, 400, JSON.stringify(tipo));
+  for (const tipo of [{ whatsapp: 21988880002 }, { email: ['a@b.com'] }, { autorizo: 'sim' }]) assert.equal((await lista(tipo)).status, 400, JSON.stringify(tipo));
   assert.equal((await lista({ texto: '   ' })).status, 422, 'sem texto e sem contato');
   assert.equal(await doBanco(c, 'passo'), 'previa', 'nada foi gravado');
   const so = await lista({ texto: '', whatsapp: '(21) 3333-4444', autorizo: true });

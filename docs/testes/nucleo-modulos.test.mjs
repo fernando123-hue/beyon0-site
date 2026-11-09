@@ -54,3 +54,6 @@ test('nucleo: a lista do preload é exatamente o grafo de módulos da esfera', (
   assert.deepEqual(faltam, [], 'módulos que a esfera importa e o preload não pede (chegariam em série): ' + faltam.join(', '));
   assert.deepEqual(sobram, [], 'módulos no preload que ninguém importa (bytes à toa, ou 404): ' + sobram.join(', '));
 });
+
+/* o fundo do site sem máscara pela CPU da GPU a cada quadro (docs/testes/campo-camada.test.mjs): o testar do package.json é lista fechada, então ele roda daqui */
+import './campo-camada.test.mjs';

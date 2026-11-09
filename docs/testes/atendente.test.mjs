@@ -29,7 +29,9 @@ test('nenhuma página de venda tem link, botão ou número de WhatsApp da Beyon 
     assert.doesNotMatch(h, /\sdata-wa(=|\s|>)/, p + ': data-wa');
     assert.doesNotMatch(h, /data-wa-padrao/, p + ': data-wa-padrao');
     assert.doesNotMatch(h, /class="(wa|barra__wa)"/, p + ': botão de WhatsApp flutuante ou da barra');
-    assert.doesNotMatch(h, /5521977167944|97716-7944/, p + ': o número do dono');
+    /* (o número do dono saiu do repositório, que é público; a guarda agora é GENÉRICA: nenhum celular completo nas páginas de venda,
+       fora o exemplo "99999-0000" do campo do formulário) */
+    assert.doesNotMatch(h, /\(?\b\d{2}\)?(?:&nbsp;|\s)*9(?!9999-?000)\d{4}-?\d{4}\b/, p + ': um número de celular completo');
     assert.doesNotMatch(h, /<(a|button)\b[^>]*>[^<]*WhatsApp[^<]*<\/(a|button)>/, p + ': link ou botão que fala de WhatsApp');
   }
 });

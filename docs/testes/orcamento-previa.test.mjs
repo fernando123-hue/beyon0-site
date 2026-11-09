@@ -95,9 +95,9 @@ test('validarLista: vazia sem contato, só espaço, com CPF/CNPJ e acima de 1.50
 
 test('M3 (22/10): validarContato usa a MESMA regra do servidor (ESQ.contatoDoSite) e exige a autorização de uso quando algum dos dois campos está preenchido', () => {
   assert.equal(B.validarContato('', '', false), null, 'os dois campos são opcionais');
-  assert.equal(B.validarContato('(21) 97716-7944', 'contato@clinicasol.com.br', true), null);
+  assert.equal(B.validarContato('(21) 98888-0002', 'contato@clinicasol.com.br', true), null);
   assert.match(B.validarContato('abc', '', true), /WhatsApp/); assert.match(B.validarContato('', 'a@b', true), /e-mail/);
-  assert.match(B.validarContato('(21) 97716-7944', '', false), /autorização/i, 'trocar o contato exige a mesma autorização de uso do material');
+  assert.match(B.validarContato('(21) 98888-0002', '', false), /autorização/i, 'trocar o contato exige a mesma autorização de uso do material');
   assert.match(B.validarContato('', 'contato@clinicasol.com.br', false), /autorização/i);
 });
 
@@ -105,7 +105,7 @@ test('as frases de recusa do contato na tela são as da API (api/_vendas/fluxo-p
   const { FRASES } = await import('../../api/_vendas/fluxo-previa.mjs');
   assert.equal(B.validarContato('abc', '', true), FRASES.whatsapp);
   assert.equal(B.validarContato('', 'a@b', true), FRASES.email);
-  assert.equal(B.validarContato('(21) 97716-7944', '', false), FRASES.autorizacao);
+  assert.equal(B.validarContato('(21) 98888-0002', '', false), FRASES.autorizacao);
 });
 
 test('a seção #o-previa: aprovar num <dialog> (nunca confirm), o campo único com o aviso, o prazo parado (D4), o link seguro e UM só recado ("Outra dúvida?")', () => {
@@ -113,7 +113,7 @@ test('a seção #o-previa: aprovar num <dialog> (nunca confirm), o campo único 
   assert.ok(s.length > 500, 'a seção existe');
   assert.match(s, /<dialog class="orc-dialogo" id="o-prv-dialogo"/); assert.ok(!/window\.confirm|\bconfirm\(/.test(semComentario(FONTE)));
   assert.match(texto(s), /Depois de aprovar, o próximo passo é pôr o site no ar\./);
-  assert.match(texto(s), /Escreva tudo de uma vez/); assert.match(texto(s), /Enquanto espero a sua lista de ajustes, o prazo fica parado\./);
+  assert.match(texto(s), /Escreva tudo de uma vez/); assert.match(texto(s), /Enquanto esperamos a sua lista de ajustes, o prazo fica parado\./);
   assert.match(texto(s), /Não escreva CPF, CNPJ nem dados de outras pessoas\./);
   assert.match(texto(s), /Telefone e e-mail escritos aqui são apagados\. Para trocar os do site, use os campos abaixo\./);   /* M3: a lista de texto livre é redigida no servidor; a tela avisa antes e aponta os campos */
   assert.equal((s.match(/id="o-prv-aviso"/g) || []).length, 1); assert.ok(!/id="o-prv-apaga"/.test(s), 'o aviso do CPF e o do telefone são UMA nota só');
@@ -218,10 +218,10 @@ test('criar: enviar a lista -> a API recebe texto aparado, a rodada que a tela v
   const t = montar(); t.P.atualizar(estado());
   await t.el['o-prv-ajustes'].disparar('click');
   assert.equal(t.el['o-prv-form'].hidden, false); assert.equal(t.el['o-prv-botoes'].hidden, true); assert.equal(t.foco(), 'o-prv-lista');
-  preencher(t, { lista: '  Trocar a foto da capa.  ', wa: '(21) 97716-7944', autoriza: true });
+  preencher(t, { lista: '  Trocar a foto da capa.  ', wa: '(21) 98888-0002', autoriza: true });
   t.ctx.proximo = estado('ajustes', { usadas: 1, max: 2 });
   await t.el['o-prv-form'].disparar('submit');
-  assert.deepEqual(t.ctx.chamadas, [['ajustes', 'Trocar a foto da capa.', 0, { whatsapp: '(21) 97716-7944', email: '', autorizo: true }]]);
+  assert.deepEqual(t.ctx.chamadas, [['ajustes', 'Trocar a foto da capa.', 0, { whatsapp: '(21) 98888-0002', email: '', autorizo: true }]]);
   assert.deepEqual(['o-prv-lista', 'o-prv-wa', 'o-prv-email'].map(i => t.el[i].value), ['', '', '']); assert.equal(t.el['o-prv-autoriza'].checked, false);
   assert.equal(t.ctx.recargas, 1); assert.equal(t.foco(), 'o-prv-titulo');
   assert.equal(t.el['o-prv-titulo'].textContent, 'Recebemos a sua lista'); assert.equal(t.el['o-prv-form'].hidden, true);
@@ -254,7 +254,7 @@ test('criar: lista vazia ou contato sem autorização não chamam a API: a frase
   const t = montar(); t.P.atualizar(estado()); await t.el['o-prv-ajustes'].disparar('click');
   preencher(t, { lista: '   ' }); await t.el['o-prv-form'].disparar('submit');
   assert.match(t.el['o-prv-erro-form'].textContent, /^Escreva/); assert.equal(t.foco(), 'o-prv-lista');
-  preencher(t, { wa: '(21) 97716-7944', autoriza: false }); await t.el['o-prv-form'].disparar('submit');
+  preencher(t, { wa: '(21) 98888-0002', autoriza: false }); await t.el['o-prv-form'].disparar('submit');
   assert.match(t.el['o-prv-erro-form'].textContent, /autorização/); assert.equal(t.foco(), 'o-prv-autoriza');
   preencher(t, { wa: 'abc', autoriza: true }); await t.el['o-prv-form'].disparar('submit');
   assert.match(t.el['o-prv-erro-form'].textContent, /WhatsApp/); assert.equal(t.foco(), 'o-prv-wa');
@@ -403,7 +403,7 @@ test('criar: o dialog aberto fecha sozinho se a seção deixa de estar ativa ou 
   v.P.atualizar(estado()); assert.equal(v.el['o-prv-erro'].textContent, 'Sem conexão.', 'uma releitura igual NÃO apaga o aviso');
   v.P.atualizar(estado('previa', { usadas: 1, max: 2 })); assert.equal(v.el['o-prv-erro'].textContent, '', 'outra prévia: o aviso velho some');
   /* formulário */
-  const w = montar(); w.P.atualizar(estado()); await w.el['o-prv-ajustes'].disparar('click'); preencher(w, { wa: '(21) 97716-7944', autoriza: true });
+  const w = montar(); w.P.atualizar(estado()); await w.el['o-prv-ajustes'].disparar('click'); preencher(w, { wa: '(21) 98888-0002', autoriza: true });
   w.P.atualizar(estado('aprovada'));
   assert.deepEqual(['o-prv-lista', 'o-prv-wa', 'o-prv-email'].map(i => w.el[i].value), ['', '', '']); assert.equal(w.el['o-prv-autoriza'].checked, false); assert.equal(w.el['o-prv-form'].hidden, true);
   /* uma releitura da mesma prévia NÃO fecha a lista que a pessoa escreve */
@@ -432,13 +432,13 @@ test('a API do navegador: previaAjustes manda por POST o corpo que o servidor ac
   const { API, pedidos, CONV } = carregarApi();
   const ACEITOS = ['conversa_id', 'texto', 'rodada_base', 'whatsapp', 'email', 'autorizo'];   /* = soCom(corpo, [...]) de api/_vendas/fluxo-previa.mjs */
   await API.previaAjustes('Trocar a foto.', 1, null);
-  await API.previaAjustes('Trocar a foto.', 0, { whatsapp: '(21) 97716-7944', email: '', autorizo: true });
+  await API.previaAjustes('Trocar a foto.', 0, { whatsapp: '(21) 98888-0002', email: '', autorizo: true });
   await API.previaAjustes('', 0, { whatsapp: '', email: 'contato@clinicasol.com.br', autorizo: true });
   await API.previaAprovar(1);
   const corpos = pedidos.map(p => JSON.parse(p.init.body));
   assert.deepEqual(corpos, [
     { conversa_id: CONV, texto: 'Trocar a foto.', rodada_base: 1 },
-    { conversa_id: CONV, texto: 'Trocar a foto.', rodada_base: 0, whatsapp: '(21) 97716-7944', autorizo: true },
+    { conversa_id: CONV, texto: 'Trocar a foto.', rodada_base: 0, whatsapp: '(21) 98888-0002', autorizo: true },
     { conversa_id: CONV, texto: '', rodada_base: 0, email: 'contato@clinicasol.com.br', autorizo: true },
     { conversa_id: CONV, rodada_base: 1 }]);
   for (const c of corpos) for (const k of Object.keys(c)) assert.ok(ACEITOS.includes(k), 'campo que o servidor recusaria: ' + k);

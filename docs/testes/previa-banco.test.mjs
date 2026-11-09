@@ -75,14 +75,14 @@ test('corrida: a versão ou a rodada que a tela viu não batem com o banco → 4
 
 test('M3 (22/10): o WhatsApp e o e-mail do site chegam em campos PRÓPRIOS, conferidos no banco, guardados à parte do texto e só com a autorização; nada disso volta à tela nem ao funil', async () => {
   const c = await entregaEm(db, 'previa');
-  const r = await lista(c, { whatsapp: '+5521977167944', email: 'contato@clinicasol.com.br', autorizacao_versao: '2026-10-22' });
+  const r = await lista(c, { whatsapp: '+5521988880002', email: 'contato@clinicasol.com.br', autorizacao_versao: '2026-10-22' });
   assert.deepEqual(r, { ok: true, rodada: 1 });
   const a = await um('select a.* from app.entrega_ajustes a join app.entregas e on e.id = a.entrega_id where e.conversa_id = $1', [c.conversa_id]);
-  assert.deepEqual([a.contato_whatsapp, a.contato_email, a.contato_autorizacao_versao], ['+5521977167944', 'contato@clinicasol.com.br', '2026-10-22']);
+  assert.deepEqual([a.contato_whatsapp, a.contato_email, a.contato_autorizacao_versao], ['+5521988880002', 'contato@clinicasol.com.br', '2026-10-22']);
   assert.ok(a.contato_autorizado_em, 'a data da autorização é a do servidor');
   assert.equal(a.texto, 'Trocar a foto da capa e o telefone do rodapé.', 'o texto livre segue à parte, sem o contato');
   const fora = JSON.stringify([await rpc('vendas_estado', base(c)), (await um("select dados from app.eventos_funil where conversa_id = $1 and tipo = 'previa_ajustes'", [c.conversa_id])).dados]);
-  assert.ok(!/5521977167944|clinicasol/.test(fora), 'o contato do site não volta à tela nem vai para o funil');
+  assert.ok(!/5521988880002|clinicasol/.test(fora), 'o contato do site não volta à tela nem vai para o funil');
 });
 
 test('M3: só o contato do site, sem texto, é uma lista válida; sem texto e sem contato, não', async () => {
@@ -96,7 +96,7 @@ test('M3: WhatsApp e e-mail fora do formato (as MESMAS listas da tela e do servi
   const semEspaco = v => v === v.trim();   /* (a função apara os espaços das pontas, como a tela; o formato "puro" é provado na tabela, em previa-esquema.test.mjs) */
   for (const w of WHATSAPP_RUINS.filter(semEspaco)) assert.equal((await erroDe(lista(c, { whatsapp: w, autorizacao_versao: '2026-10-22' }))).codigo, '22023', 'WhatsApp ' + JSON.stringify(w));
   for (const m of EMAIL_RUINS.filter(semEspaco)) assert.equal((await erroDe(lista(c, { email: m, autorizacao_versao: '2026-10-22' }))).codigo, '22023', 'e-mail ' + JSON.stringify(m));
-  assert.equal((await erroDe(lista(c, { whatsapp: '+5521977167944' }))).codigo, '22023', 'sem a versão da autorização');
+  assert.equal((await erroDe(lista(c, { whatsapp: '+5521988880002' }))).codigo, '22023', 'sem a versão da autorização');
   assert.equal((await erroDe(lista(c, { email: 'contato@clinicasol.com.br', autorizacao_versao: 'x'.repeat(21) }))).codigo, '22023', 'versão grande demais');
   assert.equal((await um('select count(*)::int n from app.entrega_ajustes a join app.entregas e on e.id = a.entrega_id where e.conversa_id = $1', [c.conversa_id])).n, 0, 'nada foi gravado');
 });

@@ -28,8 +28,11 @@ export const RESPOSTAS_PAGAMENTO = {
 };
 
 /* ---------- normalização ---------- */
-const INVISIVEIS = /[­​-‏‪-‮⁠-⁩﻿]/g;
-const PARECIDAS = { 'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'х': 'x', 'у': 'y', 'і': 'i', 'ј': 'j', 'ѕ': 's', 'ԁ': 'd', 'ο': 'o', 'α': 'a', 'ε': 'e', 'ι': 'i', 'ρ': 'p' };
+/* os que não se veem: hífen mole, espaços de largura zero e marcas de direção (U+00AD, U+200B a U+200F, U+202A a U+202E, U+2060 a U+2069, U+FEFF) e,
+   da rodada de 04/11, os "preenchimentos" que parecem vazios dentro de uma palavra: U+034F, U+061C, U+115F/1160, U+17B4/17B5, U+180E,
+   seletores de variação U+FE00 a U+FE0F, U+3164, U+FFA0, o braille em branco U+2800 e os caracteres de etiqueta U+E0000 a U+E007F */
+const INVISIVEIS = /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2069\u2800\u3164\uFE00-\uFE0F\uFEFF\uFFA0]|[\u{E0000}-\u{E007F}]/gu;
+const PARECIDAS = { 'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'х': 'x', 'у': 'y', 'і': 'i', 'ј': 'j', 'ѕ': 's', 'ԁ': 'd', 'ο': 'o', 'α': 'a', 'ε': 'e', 'ι': 'i', 'ρ': 'p', 'ν': 'v', 'ѵ': 'v', 'ɑ': 'a' };
 export const DIGITO_LETRA = Object.freeze({ '0': 'o', '1': 'i', '3': 'e', '4': 'a' });
 /* (teto: a resposta mostrada tem até 1.500 caracteres e a pergunta até 2.000; acima disso algumas regras crescem
    com o quadrado do tamanho) */
@@ -37,7 +40,7 @@ const TETO = 2000;
 /* (também a do selo de texto suspeito, api/_vendas/seguranca.mjs → pareceInjecao) */
 export function normalizar(texto) {
   return String(texto).slice(0, TETO).replace(INVISIVEIS, '').normalize('NFKC').toLowerCase()
-    .replace(/[Ͱ-ӿԀ-ԯ]/g, c => PARECIDAS[c] || c)
+    .replace(/[\u0370-\u04FF\u0500-\u052F\u0250-\u02AF]/g, c => PARECIDAS[c] || c)
     .normalize('NFD').replace(/[̀-ͯ]/g, '').slice(0, TETO);
 }
 /* só para procurar palavras: dígito no meio de palavra vira letra ("c0nfirmado"), letras soltas se juntam

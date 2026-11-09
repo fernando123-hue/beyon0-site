@@ -173,8 +173,8 @@ test('logo: as páginas usam a logo em SVG, sem estilo nem cor embutidos e com o
   }
   const tokens = readFileSync(new URL('css/tokens.css', RAIZ), 'utf8');
   for (const peca of ['aro', 'lente', 'entrada', 'saida', 'nucleo', 'nome', 'zero']) assert.ok(tokens.includes('.marca__' + peca), 'tokens.css sem a cor de .marca__' + peca);
-  /* no ouro (html.is-ouro, .is-brasa) e na volta (.is-frio) as duas cores próprias da logo trocam junto */
-  for (const bloco of [/html\.is-ouro, \.is-brasa \{([^}]*)\}/, /\.is-frio \{([^}]*)\}/]) {
+  /* no ouro (html.is-ouro > body, .is-brasa) e na volta (.is-frio) as duas cores próprias da logo trocam junto */
+  for (const bloco of [/html\.is-ouro > body, \.is-brasa \{([^}]*)\}/, /\.is-frio \{([^}]*)\}/]) {
     const corpo = (tokens.match(bloco) || [])[1] || '';
     assert.match(corpo, /--logo-entrada:[^;]+;[\s\S]*--logo-nucleo:/, 'tokens.css: o ouro não alcança a entrada e o núcleo da logo em ' + bloco);
   }

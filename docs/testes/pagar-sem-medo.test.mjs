@@ -45,7 +45,8 @@ const PERMITIDAS = ['Posso desistir?', 'Quando fica pronto?', 'Quantos ajustes?'
 /* frases barradas: as que só entram com a parte delas (3b-2, 3b-3) ou com dado do dono, e as que o dono revisou e nunca entram (D2, D5) */
 const AINDA_NAO = [
   [/O que eu recebo/i, 'com o dado do dono (domínio e hospedagem)'],
-  [/Nota fiscal/i, 'quando a spec trouxer (há decisão de 11/10, Decisões.md: sem nota por enquanto; a spec §4 deixa a pergunta para depois)'],
+  /* (o Zero cita "nota fiscal" só na lista do que NÃO confirma, 31/10; o que fica barrado é prometer ou oferecer a nota) */
+  [/(emit\w*|damos?|fornec\w*|inclu\w*|com|faz\w*|entreg\w*)\s+(a\s+|uma\s+)?nota fiscal|nota fiscal\s+(inclu[ií]da|garantida|em todo)/i, 'quando a spec trouxer (há decisão de 11/10, Decisões.md: sem nota por enquanto; a spec §4 deixa a pergunta para depois)'],
   [/(conta|vale) como aprovad|considerad\w* (como )?aprovad|aprova(d\w*|ção)? (sozinh|automátic|automatic)|sem resposta[^.]{0,40}aprovad/i, 'NUNCA (D5, 21/10): sem resposta o projeto para; nada é aprovado sozinho'],
   [/quantos precisar|sem limite de ajustes/i, 'NUNCA (D2, 21/10): são 2 listas de ajuste'],
 ];
@@ -96,7 +97,7 @@ test('D4 (21/10): a regra do prazo é a mesma no contrato, no consultor, em /con
   assert.match(consultor, /contados do sinal pago e do material recebido/);
   assert.match(texto(ler('condicoes.html')), /contados do pagamento da entrada e do envio do seu material/);
   assert.ok(perguntas().includes('Quando fica pronto?'), perguntas().join(' | '));
-  assert.ok(texto(antes()).includes('O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto espero a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, eu aviso que estou aguardando e o projeto fica parado.'), texto(antes()));
+  assert.ok(texto(antes()).includes('O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto esperamos a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, nós avisamos que estamos aguardando e o projeto fica parado.'), texto(antes()));
   assert.ok(texto(antes()).includes('Se a Beyon Zero não entregar no prazo combinado, você recebe a entrada inteira de volta, mesmo depois dos 7 dias.'), texto(antes()));
 });
 

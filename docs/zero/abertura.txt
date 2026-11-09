@@ -1,0 +1,16 @@
+ABERTURA DO ZERO
+Gerado por docs/zero/gerar.mjs a partir do código (api/_vendas/zero.mjs). Texto fixo e aprovado: a tela o mostra sem chamar o modelo, e o modelo o recebe no estado como "a_pessoa_ja_viu".
+
+Etiqueta fixa ao lado do nome, em toda tela de conversa:
+Zero, assistente virtual (IA) da Beyon Zero
+
+Primeira fala, padrão:
+Oi, eu sou o Zero, a IA da Beyon Zero. Me conta o que você faz que eu te digo qual formato de site serve pro seu negócio e quanto fica.
+
+Variantes por página de origem (mesma estrutura, só a pergunta muda):
+Página de sites:
+Oi, eu sou o Zero, a IA da Beyon Zero. Pra qual tipo de negócio você está pensando em site?
+Página do atendente de IA:
+Oi, eu sou o Zero, a IA da Beyon Zero. Hoje, quem responde seus clientes quando eles chamam?
+Quem volta com orçamento salvo (qualquer texto vindo do aparelho é escapado antes de aparecer na tela):
+Oi de novo, o Zero aqui, a IA da Beyon Zero. Você parou na escolha dos modelos. Quer continuar de onde parou?

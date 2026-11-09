@@ -125,7 +125,7 @@ async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, convers
   /* 3. a lista de ajustes: CPF recusado antes de enviar; a boa vai, o prazo volta a correr ("Previsão") e o dono a lê como DADO */
   await A.p.click('#o-prv-ajustes');
   ok(/Esta é a lista 1 de 2\./.test(await A.p.textContent('#o-prv-lista-n')), 'ajustes: "esta é a lista 1 de 2"');
-  ok(/Enquanto espero a sua lista de ajustes, o prazo fica parado\./.test(await A.p.textContent('#o-prv-prazo')), 'ajustes: D4, o prazo fica parado');
+  ok(/Enquanto esperamos a sua lista de ajustes, o prazo fica parado\./.test(await A.p.textContent('#o-prv-prazo')), 'ajustes: D4, o prazo fica parado');
   ok(/Telefone e e-mail escritos aqui são apagados\./.test(await A.p.textContent('#o-prv-aviso')) && /use os campos abaixo\./.test(await A.p.textContent('#o-prv-aviso')), 'ajustes: M3, o aviso de que telefone e e-mail escritos na lista são apagados e a saída pelos campos');
   await A.p.fill('#o-prv-lista', 'Meu CPF é 123.456.789-09'); await A.p.click('#o-prv-enviar');
   ok(/CPF/.test(await A.p.textContent('#o-prv-erro-form')), 'ajustes: CPF recusado na tela');
@@ -134,7 +134,7 @@ async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, convers
   await A.p.fill('#o-prv-lista', 'Trocar a foto da capa e pôr o horário de sábado.');
   await A.p.fill('#o-prv-wa', 'abc'); await A.p.click('#o-prv-enviar');
   ok(/WhatsApp/.test(await A.p.textContent('#o-prv-erro-form')), 'ajustes: WhatsApp fora do formato é recusado na tela');
-  await A.p.fill('#o-prv-wa', '(21) 97716-7944'); await A.p.fill('#o-prv-email', 'contato@clinicasol.com.br'); await A.p.click('#o-prv-enviar');
+  await A.p.fill('#o-prv-wa', '(21) 98888-0002'); await A.p.fill('#o-prv-email', 'contato@clinicasol.com.br'); await A.p.click('#o-prv-enviar');
   ok(/autorização/i.test(await A.p.textContent('#o-prv-erro-form')), 'ajustes: trocar o contato exige a autorização de uso');
   const frase = await A.p.evaluate(() => window.BZMaterialEsquema.AUTORIZACAO.texto);
   const fraseNaTela = (await A.p.textContent('#o-prv-autoriza-texto')).trim();
@@ -152,7 +152,7 @@ async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, convers
   const lista = (await painel('GET', '?ajustes-previa=' + codigo)).corpo;
   const aj = (lista.ajustes || [])[0] || {};
   ok((lista.ajustes || []).length === 1 && aj.suspeito === false && /Trocar a foto/.test(aj.texto || ''), 'ajustes: o dono lê a lista como dado, sem selo de suspeito');
-  ok(!!aj.contato && aj.contato.whatsapp === '+5521977167944' && aj.contato.email === 'contato@clinicasol.com.br' && !!aj.contato.autorizado_em && !/97716|clinicasol/.test(aj.texto || ''), 'ajustes (M3): telefone e e-mail chegam ao dono como dado à parte do texto, com a autorização');
+  ok(!!aj.contato && aj.contato.whatsapp === '+5521988880002' && aj.contato.email === 'contato@clinicasol.com.br' && !!aj.contato.autorizado_em && !/98888|clinicasol/.test(aj.texto || ''), 'ajustes (M3): telefone e e-mail chegam ao dono como dado à parte do texto, com a autorização');
   ok((await painel('POST', '', { previa: codigo, url: PREVIA2 })).status === 200, 'o dono publica a 2ª prévia');
   await voltaAba(A.p);
   await A.p.waitForFunction(() => /Esta é a lista 2 de 2\./.test(document.getElementById('o-prv-lista-n').textContent), null, { timeout: ESPERA });
@@ -203,7 +203,7 @@ async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, convers
   ok(/Seu site está no ar/.test(await B.p.textContent('#o-noar-titulo')), 'no ar: o título');
   ok(await B.p.locator('#o-noar-endereco').textContent() === SITE, 'no ar: o endereço do site em texto');
   ok(await B.p.getAttribute('#o-noar-abrir', 'href') === SITE && /noopener/.test(await B.p.getAttribute('#o-noar-abrir', 'rel')) && await B.p.getAttribute('#o-noar-abrir', 'target') === '_blank', 'no ar: "Abrir o site" abre em outra aba, seguro');
-  ok(/Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, o site sai do ar até o pagamento\./.test(await B.p.textContent('#o-noar')), 'no ar: a frase da D4 (3 dias, 22/10) exata');
+  ok(/Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, o site sai do ar até o pagamento\./.test(await B.p.textContent('#o-noar')), 'no ar: a frase da D4 (3 dias, 22/10) exata');
   ok(await B.p.evaluate(() => { const n = document.getElementById('o-noar'), p = document.getElementById('o-pagamento'); return !p.hidden && !!(n.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING); }), 'restante: o Pix vem depois do "no ar" no DOM e está visível');
   ok(await escondido(B.p, '#o-previa') && await escondido(B.p, '#o-fim'), 'no ar: a prévia e o fim não aparecem');
   ok(await escondido(B.p, '#o-pag-metodos') && await escondido(B.p, '#o-pix-trocar'), 'restante: só Pix (o seletor de cartão e o "trocar" ficam escondidos)');

@@ -1,0 +1,28 @@
+/* As peças da conversa (js/orcamento-painel.js): notas e ficha do pedido, no cartão ao lado da conversa.
+   Traço nítido de 1px, sem blur nem brilho; o único movimento é o fade de opacidade de um item novo (compositor), desligado
+   em movimento reduzido. Celular primeiro: tudo empilha em 390px e não cria rolagem lateral. */
+.orc-peca { display: grid; gap: 1.1rem; }
+.orc-peca[hidden] { display: none; }
+.orc-peca__bloco + .orc-peca__bloco { border-top: 1px solid var(--line); padding-top: 1rem; }
+.orc-peca__titulo { margin: 0 0 .6rem; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); font-weight: 500; line-height: 1.4; }
+
+.orc-peca__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.orc-peca__item { position: relative; padding-left: 1.5rem; font-size: var(--fs-s); line-height: 1.45; color: var(--t1); overflow-wrap: anywhere; }
+/* o visto é desenhado com bordas (nada de imagem nem brilho) */
+.orc-peca__item::before { content: ""; position: absolute; left: .15rem; top: .22em; width: .38rem; height: .72rem; border: solid var(--ac); border-width: 0 2px 2px 0; transform: rotate(40deg); }
+
+.orc-peca__ficha { margin: 0; display: grid; }
+.orc-peca__linha { display: grid; gap: .1rem; padding: .55rem 0; border-top: 1px solid var(--line); }
+.orc-peca__linha:first-child { border-top: 0; padding-top: 0; }
+.orc-peca__linha dt { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.orc-peca__linha dd { margin: 0; font-size: var(--fs-s); color: var(--t1); overflow-wrap: anywhere; }
+
+.orc-peca .is-novo { animation: orc-peca-entra .35s ease-out both; }
+@keyframes orc-peca-entra { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .orc-peca .is-novo { animation: none; } }
+
+@media (min-width: 900px) {
+  /* a coluna da direita fica presa ao rolar (orcamento.css) e abre pelo radar do escopo (css/orcamento-escopo.css): com os detalhes e as peças
+     ela passa da tela, então rola por dentro (o tabindex de quando rola é do BZPainel.focavel) */
+  .orc-painel { max-height: calc(100vh - var(--nav-h) - 2rem); overflow-y: auto; }
+}

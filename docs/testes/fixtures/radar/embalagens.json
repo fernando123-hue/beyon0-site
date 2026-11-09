@@ -1,0 +1,9 @@
+{
+  "eixos": [
+    { "eixo": "volume", "nivel": "nao_falou" },
+    { "eixo": "repeticao", "nivel": "comentou", "evidencia": "muito pedido parecido" },
+    { "eixo": "urgencia", "nivel": "deixou_claro", "evidencia": "preciso disso antes da feira" },
+    { "eixo": "pessoas", "nivel": "comentou", "evidencia": "o comercial responde tudo" },
+    { "eixo": "informacao", "nivel": "deixou_claro", "evidencia": "as medidas ficam em planilhas" }
+  ]
+}

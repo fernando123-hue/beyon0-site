@@ -94,3 +94,6 @@ test('CORP cross-origin SÓ no arquivo do balão (Worker/_headers e vercel.json)
   }
   assert.equal(cabecalhosPara(REGRAS, '/js/atendente-balao.js').get('x-content-type-options'), 'nosniff');
 });
+
+/* a trava da travessia: cache de /js e /css e o ?v=<hash> da montagem (fora da lista fechada do package.json) */
+import './travessia-cache.test.mjs';

@@ -212,7 +212,11 @@
      misturada para o ouro conforme k — só para as três cores de energia (ac, ac-2, ac-3); prata, metal e
      branco voltam iguais (estrutura fria, energia quente). Uma string por cor por valor de k: nada aloca por
      chamada no mesmo quadro */
-  var ouro = { k: 0, h: 0, carga: 0, estado: 'frio' };
+  /* a página que nasce no meio do ouro (js/ancoras.js pôs html.is-ouro no <head>; o js/ouro.js retoma o reinado):
+     k = 1 já no 1º quadro, senão os canvases desenhariam um quadro ciano antes de o ouro.js rodar. A leitura dos pares
+     abaixo continua ciano porque os tokens do ouro moram em html.is-ouro > body (css/tokens.css), não no <html> */
+  var naVolta = html.classList.contains('is-ouro');
+  var ouro = { k: naVolta ? 1 : 0, h: naVolta ? 0.1 : 0, carga: 0, estado: 'frio' };
   /* os pares ciano→ouro vêm dos tokens (css/tokens.css): se a paleta mudar, a mistura acompanha */
   var ALVO_OURO = {}, BRASA = [255, 250, 235], DEGRAUS = 24;   /* (k em 24 degraus: os sprites de texto dos canvases são por cor; um por quadro era um por k) */
   (function () {

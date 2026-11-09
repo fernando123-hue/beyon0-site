@@ -6,7 +6,7 @@
 ## Decisões
 - **Público:** geral (qualquer projeto de site).
 - **Portfólio:** nenhum real ainda → vitrine de conceitos/estilos criados no mesmo visual (honesto, não finge serem clientes).
-- **Contato:** WhatsApp — `wa.me/5521977167944` com mensagem pré-preenchida. Botão flutuante + CTAs.
+- **Contato:** WhatsApp — `wa.me/[número removido]` com mensagem pré-preenchida. Botão flutuante + CTAs.
 - **Escopo:** one-page, scroll.
 - **Stack:** HTML + CSS + JS puro, sem build. Deploy grátis (Netlify/Vercel/GitHub Pages).
 

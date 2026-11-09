@@ -75,7 +75,7 @@
     var classes = [[], [], []], faixa = [0, TAU];
     var RUMOS = [];
     for (var ri = 0; ri < 12; ri++) RUMOS.push(('00' + (((ri * 30 + 90) % 360) || 360)).slice(-3));
-    var aneis = [], vis = { rMin: 0, rMax: 0, a0: 0, a1: TAU, cheio: true };
+    var aneis = [], vis = { rMin: 0, rMax: 0, a0: 0, a1: TAU, cheio: true, W: 0, H: 0, topo: 0 };
     var ondas = [], pacotes = [], marcas = [], rotas = [];
     var mira = { ativa: false, a: 0, r: 0, f: 0, alvoA: 0, alvoR: 0 };
     var rumo = { a: 0, alvo: 0, f: 0, ligado: false, rotulo: '' };
@@ -119,6 +119,7 @@
       vis.rMin = dentro ? 0 : polar(cx, cy).r;
       vis.rMax = rMax;
       vis.cheio = dentro;
+      vis.W = W; vis.H = H; vis.topo = topo;
       if (!dentro) {
         var am = polar(W / 2, (topo + H) / 2).a, lo = 0, hi = 0;
         for (i = 0; i < 4; i++) { var d = difAng(polar(cs[i][0], cs[i][1]).a, am); lo = Math.min(lo, d); hi = Math.max(hi, d); }
@@ -234,35 +235,95 @@
     }
 
     /* ---------- desenho ---------- */
-    function arco(r, a0, a1) {
-      ctx.moveTo(px(r, a0), py(r, a0));
-      ctx.ellipse(G.ox, G.oy, r, r * SY, 0, a0, a1);
+    function arcoEm(c, r, a0, a1) {
+      c.moveTo(px(r, a0), py(r, a0));
+      c.ellipse(G.ox, G.oy, r, r * SY, 0, a0, a1);
     }
+    function arco(r, a0, a1) { arcoEm(ctx, r, a0, a1); }
     function faixaAng() { faixa[0] = vis.cheio ? 0 : vis.a0; faixa[1] = vis.cheio ? TAU : vis.a1; return faixa; }
     function cor(c, a) { return 'rgba(' + B.tom(c) + ',' + limitar(a).toFixed(3) + ')'; }   /* (B.tom: no ouro, ciano vira dourado) */
 
-    function desenharAneis(resp) {
+    /* os anéis, traçados no contexto `c` com a respiração `resp` */
+    function tracarAneis(c, resp) {
       var f = faixaAng(), i, an;
       classes[0].length = classes[1].length = classes[2].length = 0;
       for (i = 0; i < aneis.length; i++) {
         an = aneis[i];
-        if (an.r < vis.rMin - 2) continue;
         if (an.r > vis.rMax + 2) break;
-        classes[an.ramo ? 2 : an.maior ? 1 : 0].push(an.r);
+        if (anelNaTela(an.r)) classes[an.ramo ? 2 : an.maior ? 1 : 0].push(an.r);
       }
       var alfas = [0.075, 0.13, 0.2];
-      ctx.lineWidth = 1;
+      c.lineWidth = 1;
       for (var cl = 0; cl < 3; cl++) {
         var lista = classes[cl];
         if (!lista.length) continue;
         /* nasce suave na borda do vão: os 2 primeiros anéis em degraus */
         for (var j = 0; j < lista.length; j++) {
           var r = lista[j];
-          desenhados++;
-          ctx.strokeStyle = cor(C.AC, alfas[cl] * nasce(r) * resp * MAIS);
-          ctx.beginPath(); arco(r, f[0], f[1]); ctx.stroke();
+          c.strokeStyle = cor(C.AC, alfas[cl] * nasce(r) * resp * MAIS);
+          c.beginPath(); arcoEm(c, r, f[0], f[1]); c.stroke();
         }
       }
+    }
+    /* A CAMADA DOS ANÉIS (2026-11-07). Com o canvas em 1,5 px por px CSS, o traço de 1 px vira 1,5 px do aparelho
+       e deixa de ser "linha fina" para o Skia: cada arco grande vira uma máscara desenhada pela CPU do processo da GPU
+       e enviada como textura, a cada quadro (rastreio: SurfaceDrawContext::internalDrawPath + GrGpu::writePixels,
+       ~5 ms por quadro só nos anéis, num processo que o celular não acelera). Os anéis não mudam de forma entre um
+       quadro e outro: só a origem (rolagem) e a respiração (alfa). Eles são traçados UMA vez, com o mesmo código, numa
+       camada fora da página com folga acima e abaixo da tela, e cada quadro só a carimba no pixel inteiro do aparelho
+       (sem reamostrar: nada fica borrado) com a respiração no globalAlpha. Retraça quando a origem passa da folga, muda
+       de lado, de escala, de cor (o ouro), de tamanho, ou para fora do pixel exato (refeita assim que a origem para). */
+    var CAMADA = { folga: 0.25 };   /* fração da altura da tela acima e abaixo */
+    /* a camada e o que ela guarda: a origem, a cor, a escala e a tela com que foi traçada (fd: a folga em px do aparelho) */
+    var camada = { cv: null, c: null, valida: false, ox: 0, oy: 0, fd: 0, tom: '', Q: 0, W: 0, H: 0, topo: 0, d: 0, oyAntes: null, tomAntes: '' };
+    function anelNaTela(r) { return r >= vis.rMin - 2 && r <= vis.rMax + 2; }
+    function contarAneis() {
+      for (var i = 0, n = 0; i < aneis.length && aneis[i].r <= vis.rMax + 2; i++) if (anelNaTela(aneis[i].r)) n++;
+      return n;
+    }
+    function novaCamada() {
+      camada.cv = document.createElement('canvas');
+      camada.c = camada.cv.getContext('2d');
+      /* o navegador pode descartar o contexto (memória, aba em segundo plano): volta limpo e tem de ser retraçado */
+      if (camada.cv.addEventListener) camada.cv.addEventListener('contextrestored', function () { camada.valida = false; });
+    }
+    function refazerCamada(d, tom) {
+      var W = vis.W, H = vis.H, topo = vis.topo;
+      var fd = Math.round(Math.round(H * CAMADA.folga) * d), w = Math.round(W * d), h = Math.round(H * d) + 2 * fd;
+      camada.valida = false;
+      if (!camada.cv) novaCamada();
+      if (!camada.c || w < 1 || h < 1) return;   /* (sem contexto fora da página ou tela sem tamanho: direto, como antes) */
+      if (camada.cv.width !== w || camada.cv.height !== h) { camada.cv.width = w; camada.cv.height = h; }
+      var c = camada.c;
+      c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, w, h);
+      c.setTransform(d, 0, 0, d, 0, fd);   /* (a linha y da tela fica fd px do aparelho abaixo do topo da camada) */
+      visivel(W, H + fd / d, topo - fd / d);
+      try { tracarAneis(c, 1); } finally { visivel(W, H, topo); }
+      camada.valida = true; camada.ox = G.ox; camada.oy = G.oy; camada.fd = fd;
+      camada.tom = tom; camada.Q = G.Q; camada.W = W; camada.H = H; camada.topo = topo; camada.d = d;
+    }
+    /* `assentado`: o quadro fica na tela (movimento reduzido: não vem outro para acertar o pixel) */
+    function desenharAneis(resp, assentado) {
+      desenhados += contarAneis();
+      var d = ctx.__dpr || 1, tom = B.tom(C.AC), tomMexeu = camada.tomAntes !== '' && tom !== camada.tomAntes;
+      camada.tomAntes = tom;
+      /* 1 px por px CSS: o traço é linha fina, barato direto. A cor mudando a cada quadro (a ignição e o
+         resfriamento do ouro): retraçar a camada todo quadro custaria mais que o traço direto */
+      if (d <= 1 || tomMexeu) { tracarAneis(ctx, resp); return; }
+      if (camada.c && camada.c.isContextLost && camada.c.isContextLost()) camada.valida = false;
+      var dx = (G.ox - camada.ox) * d, dy = (G.oy - camada.oy) * d, parou = camada.oyAntes === G.oy;
+      var inteiro = Math.abs(dy - Math.round(dy)) < 0.01;
+      camada.oyAntes = G.oy;
+      var velha = !camada.valida || tom !== camada.tom || G.Q !== camada.Q || vis.W !== camada.W || vis.H !== camada.H || vis.topo !== camada.topo || d !== camada.d;
+      /* rolando, o carimbo pode cair a meio pixel do aparelho do lugar exato (1 pixel físico num celular de 3x, só
+         enquanto a página anda); parada, a camada é retraçada no lugar exato */
+      if (velha || Math.abs(dx) > 0.01 || Math.abs(dy) > camada.fd || (!inteiro && (parou || assentado))) { refazerCamada(d, tom); dy = 0; }
+      if (!camada.valida) { tracarAneis(ctx, resp); return; }
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = resp;
+      ctx.drawImage(camada.cv, 0, Math.round(dy) - camada.fd);
+      ctx.restore();
     }
     function desenharRaios(resp) {
       ctx.lineWidth = 1;
@@ -277,24 +338,37 @@
         var alfa = (pas === 0 ? 0.2 : b === 1 ? 0.13 : 0.09) * MAIS;
         if (pas === 1 && b === 0) continue;
         ctx.strokeStyle = cor(C.AC, alfa * resp);
-        ctx.beginPath();
+        abrir();
         for (var i = 0; i < N; i++) {
           var fund = i % Math.pow(2, b) === 0;
           if (fund !== (pas === 0)) continue;
           var a = (b === 0 ? G.rotor : G.giro) + i * TAU / N;
           if (!angVisivel(a)) continue;
-          ctx.moveTo(px(r0, a), py(r0, a)); ctx.lineTo(px(r1, a), py(r1, a));
+          traco(px(r0, a), py(r0, a), px(r1, a), py(r1, a));
         }
-        ctx.stroke();
+        fechar();
         }
       }
     }
+    /* UM traço reto por caminho (2026-11-07): um caminho com muitos segmentos e mais de 1 px do aparelho de largura
+       vira máscara pela CPU do processo da GPU, do tamanho da caixa que ele ocupa (a tela inteira, nos raios); um
+       caminho de um segmento só o Skia desenha como retângulo na própria GPU. Mesmos pontos, mesma cor, mesma largura;
+       os segmentos de uma passada não se cruzam (nada se soma). Muda só o antisserrilhado da borda, no último tom
+       (medido: alfa total do traço igual a menos de 1%). Com 1 px por px CSS o traço é linha fina e o caminho único já
+       é barato: lá segue um caminho por passada, como antes (sem centenas de stroke() a mais no fio principal) */
+    var separado = false;
+    function largo() { return (ctx.__dpr || 1) > 1; }
+    function abrir() { separado = largo(); if (!separado) ctx.beginPath(); }
+    function fechar() { if (!separado) ctx.stroke(); }
+    function traco(x0, y0, x1, y1) { if (separado) ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); if (separado) ctx.stroke(); }
+    /* um losango por caminho, fechado (convexo e fechado: a GPU o traça sem máscara) */
+    function losango(x, y, s) { if (separado) ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s, y); ctx.lineTo(x, y + s); ctx.lineTo(x - s, y); ctx.closePath(); if (separado) ctx.stroke(); }
     /* os nós das ramificações (losangos) e as marcas nos anéis fortes */
     function desenharNos(resp) {
       ctx.lineWidth = 1;
       var b, i, a, x, y, livre = op.livre;
       ctx.strokeStyle = cor(C.AC2, 0.6 * resp);
-      ctx.beginPath();
+      abrir();
       for (b = 0; b <= BMAX && G.Q * Math.pow(2, b) < vis.rMax; b++) {
         var r = G.Q * Math.pow(2, b), N = 12 * Math.pow(2, b), s = b === 0 ? 3 : 2.5;
         if (r < vis.rMin - 4) continue;
@@ -303,13 +377,13 @@
           if (!angVisivel(a)) continue;
           x = px(r, a); y = py(r, a);
           if (livre && !livreLargo(livre, x, y, cel)) continue;   /* nó nenhum dentro nem colado no texto (lia como acento) */
-          ctx.moveTo(x, y - s); ctx.lineTo(x + s, y); ctx.lineTo(x, y + s); ctx.lineTo(x - s, y); ctx.closePath();
+          losango(x, y, s);
         }
       }
-      ctx.stroke();
+      fechar();
       /* as marcas: um traço curto no sentido do raio, onde cada raio cruza um anel forte */
       ctx.strokeStyle = cor(C.PRATA, 0.34 * resp);
-      ctx.beginPath();
+      abrir();
       for (var k = 0; k < aneis.length; k++) {
         var an = aneis[k];
         if (an.r < vis.rMin - 6) continue;
@@ -321,10 +395,10 @@
           if (!angVisivel(a)) continue;
           var l = i % 2 ? 3 : 5;
           if (livre && !livreLargo(livre, px(an.r, a), py(an.r, a), cel)) continue;
-          ctx.moveTo(px(an.r - l, a), py(an.r - l, a)); ctx.lineTo(px(an.r + l, a), py(an.r + l, a));
+          traco(px(an.r - l, a), py(an.r - l, a), px(an.r + l, a), py(an.r + l, a));
         }
       }
-      ctx.stroke();
+      fechar();
     }
     function desenharEscrita(resp, livre) {
       if (cel) return;
@@ -392,6 +466,14 @@
         }
       }
     }
+    /* a ONDA anda a cada quadro (não cabe na camada): com o reator na tela o anel dela é a elipse inteira FECHADA, que
+       o Skia traça na GPU (convexa e fechada) em vez de uma máscara pela CPU do tamanho da tela; fora dela (ou com
+       1 px por px CSS, linha fina), o arco de antes */
+    function anelDaOnda(r, f) {
+      ctx.beginPath();
+      if (vis.cheio && largo()) { ctx.ellipse(G.ox, G.oy, r, r * SY, 0, 0, TAU); ctx.closePath(); } else arco(r, f[0], f[1]);
+      ctx.stroke();
+    }
     function desenharOndas() {
       var f = faixaAng();
       ctx.lineWidth = 1;
@@ -404,14 +486,14 @@
           if (atras < 0) break;
           if (atras > ONDA.rastro || an.r < vis.rMin) continue;
           ctx.strokeStyle = cor(C.AC, 0.2 * (1 - atras / ONDA.rastro));
-          ctx.beginPath(); arco(an.r, f[0], f[1]); ctx.stroke();
+          anelDaOnda(an.r, f);
         }
         ctx.strokeStyle = cor(C.AC2, cel ? 0.7 : ONDA.alfa[0]);
-        ctx.beginPath(); arco(rf, f[0], f[1]); ctx.stroke();
+        anelDaOnda(rf, f);
         ctx.strokeStyle = cor(C.AC, ONDA.alfa[1]);
-        ctx.beginPath(); arco(rf - ONDA.borda[0], f[0], f[1]); ctx.stroke();
+        anelDaOnda(rf - ONDA.borda[0], f);
         ctx.strokeStyle = cor(C.AC, ONDA.alfa[2]);
-        ctx.beginPath(); arco(rf - ONDA.borda[1], f[0], f[1]); ctx.stroke();
+        anelDaOnda(rf - ONDA.borda[1], f);
       }
     }
     function desenharRotas() {
@@ -514,7 +596,7 @@
     var desenhados = 0;
     function desenhar(resp, vivo) {
       desenhados = 0;
-      desenharAneis(resp);
+      desenharAneis(resp, !vivo);
       desenharRaios(resp);
       desenharNos(resp);
       desenharEscrita(resp, op.livre);

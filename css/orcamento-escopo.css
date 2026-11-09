@@ -1,0 +1,145 @@
+/* ==========================================================================
+   O RADAR DO ESCOPO (js/orcamento-escopo*.js; direção docs/design/radar-escopo-2026-11-07.md; prévia docs/design/radar-escopo/).
+   Só tokens do site. Traço de 1 px e cor chapada: SEM desfoque, sem brilho, sem sombra, sem filtro, sem gradiente (regra do dono).
+   Paleta de estados: grafite = pendente; ciano = identificado; branco = confirmado no pedido; ouro = proposta confirmada (só ela).
+   A altura do cartão é RESERVADA aqui, antes de qualquer JS: o desenho tem aspect-ratio 1, cada canto guarda 2 linhas e o botão de
+   detalhes guarda o lugar mesmo invisível; nada empurra a página quando o desenho monta ou o estado muda.
+   Movimento contínuo só por @keyframes de transform (o ponteiro, e só com atividade); o resto é transição única ou a Web Animations API
+   (js/orcamento-escopo.js). Movimento reduzido: o ponteiro não existe e nada transiciona.
+   ========================================================================== */
+.rde { container-type: inline-size; box-sizing: border-box; padding: 16px; border: 1px solid var(--line-2); border-radius: var(--raio); background: var(--s1); color: var(--t2); }
+.rde *, .rde *::before, .rde *::after { box-sizing: border-box; }
+
+/* ---- o topo: o título (o nome do painel inteiro, aria-labelledby do <aside>) e o selo do estado ---- */
+.rde__topo { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.rde__titulo { margin: 0; max-width: none; font: 500 var(--fs-rotulo)/1.3 var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.rde__titulo:focus { outline: none; }
+.rde__titulo:focus-visible { outline: 2px solid var(--ac); outline-offset: 3px; }
+.rde__selo { display: inline-flex; align-items: center; gap: 6px; margin: 0; min-height: 24px; padding: 3px 9px; border: 1px solid var(--line-hi); border-radius: 999px; font: 500 var(--fs-rotulo)/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ac); max-width: 100%; }
+.rde__selo::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.rde[data-estado="aguardando"] .rde__selo { border-color: var(--line-2); color: var(--t3); }
+.rde__selo.is-atualizada { border-color: var(--ac); color: var(--t1); background: rgb(var(--ac-rgb) / .08); }
+.rde__selo.is-ouro { border-color: rgb(var(--ouro-rgb) / .6); color: rgb(var(--ouro-rgb)); background: none; }
+@container (min-width: 25rem) { .rde__topo { flex-direction: row; justify-content: space-between; align-items: center; } }
+
+/* ---- a caixa: o desenho no meio e os 4 rótulos nos cantos (HTML: quebram linha, crescem com a lupa) ---- */
+.rde-caixa { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "entrega escopo" "desenho desenho" "prazo integracoes"; column-gap: 12px; margin-top: 12px; }
+.rde-desenho { grid-area: desenho; position: relative; width: 100%; max-width: 272px; aspect-ratio: 1; margin: 2px auto; container-type: inline-size; }
+.rde-svg { position: absolute; left: 0; top: 0; display: block; width: 100%; height: 100%; max-width: none; }
+.rde-canto { display: flex; flex-direction: column; gap: 3px; min-width: 0; min-height: calc(.625rem * 1.2 + 3px + 2 * 1.3 * .8125rem);   /* o nome e 2 linhas do valor: o texto que chega não empurra nada */ margin: 0; }
+.rde-canto--entrega { grid-area: entrega; justify-content: flex-end; }
+.rde-canto--escopo { grid-area: escopo; justify-content: flex-end; align-items: flex-end; text-align: right; }
+.rde-canto--prazo { grid-area: prazo; }
+.rde-canto--integracoes { grid-area: integracoes; align-items: flex-end; text-align: right; }
+.rde-canto__nome { font: 500 .625rem/1.2 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--t3); }
+.rde-canto__valor { font-size: .8125rem; line-height: 1.3; color: var(--t3); overflow-wrap: anywhere; hyphens: auto; }
+.rde-canto.is-identificada .rde-canto__nome { color: var(--ac); }
+.rde-canto.is-identificada .rde-canto__valor { color: var(--t2); }
+.rde-canto.is-confirmada .rde-canto__nome, .rde-canto.is-confirmada .rde-canto__valor { color: var(--t1); }
+/* o cartão largo (tablet, painel de uma coluna): os rótulos ao lado do desenho, como na prévia do computador */
+@container (min-width: 32.5rem) {
+  .rde-caixa { grid-template-columns: minmax(0, 1fr) minmax(0, 272px) minmax(0, 1fr); grid-template-areas: "entrega desenho escopo" "prazo desenho integracoes"; grid-template-rows: 1fr 1fr; }
+  .rde-canto { padding: 4px 0; }
+  .rde-canto--entrega { justify-content: flex-start; align-items: flex-end; text-align: right; }
+  .rde-canto--escopo { justify-content: flex-start; align-items: flex-start; text-align: left; }
+  .rde-canto--prazo { justify-content: flex-end; align-items: flex-end; text-align: right; }
+  .rde-canto--integracoes { justify-content: flex-end; align-items: flex-start; text-align: left; }
+}
+
+/* ---- o núcleo: o investimento em HTML por cima do desenho (cqi = a largura do desenho) ---- */
+.rde-miolo { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.4cqi; text-align: center; pointer-events: none; }
+.rde-miolo__rot { font: 500 max(9px, 3.1cqi)/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--t3); }
+.rde-miolo__valor { font: 300 max(18px, 9cqi)/1.1 var(--mono); letter-spacing: -.02em; color: var(--t1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rde-miolo__valor.is-vazio { color: var(--t3); }
+.rde-miolo__estado { max-width: 46cqi; font: 500 max(9px, 2.9cqi)/1.25 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ac); }
+.rde[data-estado="aguardando"] .rde-miolo__estado { color: var(--t3); }
+
+/* ---- o desenho (SVG decorativo; as classes vêm de js/orcamento-escopo-desenho.js) ---- */
+.rde-marcas { fill: none; stroke: var(--stroke); stroke-width: 1; }
+.rde-aro { fill: none; stroke: var(--line-2); stroke-width: 1; }
+.rde-progresso { fill: none; stroke: var(--ac); stroke-width: 2; stroke-linecap: round; }
+.rde-progresso.is-vazio { opacity: 0; }
+.rde-marco { fill: var(--s1); stroke: var(--stroke); stroke-width: 1; }
+.rde-marco.is-feito { fill: var(--ac); stroke: var(--ac); }
+.rde-marco.is-agora { fill: var(--bg); stroke: var(--t1); stroke-width: 1.5; }
+.rde-dim { fill: none; stroke: var(--line-2); stroke-width: 4; transition: stroke .8s cubic-bezier(.16, 1, .3, 1), stroke-width .8s cubic-bezier(.16, 1, .3, 1); }
+.rde-dim.is-identificada { stroke: var(--ac); stroke-width: 2; }
+.rde-dim.is-confirmada { stroke: var(--t1); stroke-width: 2; }
+.rde-no { fill: var(--stroke); transform-box: fill-box; transform-origin: center; transition: fill .8s cubic-bezier(.16, 1, .3, 1); }
+.rde-no.is-identificada { fill: var(--ac); }
+.rde-no.is-confirmada { fill: var(--t1); }
+.rde-no-aro { fill: none; stroke: var(--t1); stroke-width: 1; opacity: 0; transition: opacity .8s cubic-bezier(.16, 1, .3, 1); }
+.rde-no-aro.is-confirmada { opacity: 1; }
+.rde-guia { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; }
+.rde-guia.is-identificada { stroke: rgb(var(--ac-rgb) / .45); }
+.rde-guia.is-confirmada { stroke: rgb(242 244 244 / .45); }
+.rde-nucleo { fill: var(--bg); stroke: var(--line-2); stroke-width: 1; }
+.rde-nucleo-anel { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 1 4; }
+.rde-fecho { fill: none; stroke: rgb(var(--ouro-rgb)); stroke-width: 1.5; }
+/* o ponteiro: só existe na tela com atividade real; gira por transform (compositor), nenhuma variável muda por quadro */
+.rde-varre { display: none; transform-box: view-box; transform-origin: 160px 160px; }
+.rde-g.is-ativo .rde-varre { display: inline; animation: rde-gira 2.4s linear infinite; }
+@keyframes rde-gira { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.rde-ponteiro { stroke: var(--ac); stroke-width: 1.5; }
+.rde-eco { stroke: var(--ac); stroke-width: 1; }
+.rde-eco--1 { opacity: .45; }
+.rde-eco--2 { opacity: .22; }
+.rde-eco--3 { opacity: .1; }
+/* a proposta confirmada: o ouro do site, só aqui */
+.rde-g.is-ouro .rde-progresso, .rde-g.is-ouro .rde-dim, .rde-g.is-ouro .rde-no-aro, .rde-g.is-ouro .rde-nucleo, .rde-g.is-ouro .rde-marco { stroke: rgb(var(--ouro-rgb)); }
+.rde-g.is-ouro .rde-no, .rde-g.is-ouro .rde-marco { fill: rgb(var(--ouro-rgb)); }
+.rde-g.is-ouro .rde-guia { stroke: rgb(var(--ouro-rgb) / .45); }
+.rde.is-ouro .rde-miolo__valor, .rde.is-ouro .rde-miolo__estado { color: rgb(var(--ouro-rgb)); }
+
+/* ---- a trilha dos 5 marcos (o texto do aro); no cartão estreito só o nome do marco atual aparece (os outros seguem para o leitor de tela) ---- */
+.rde-trilha { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 14px 0 0; padding: 0; list-style: none; }
+.rde-trilha li { position: relative; min-height: 28px; padding-top: 15px; font: 500 .5625rem/1.3 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--t3); text-align: center; white-space: nowrap; }
+.rde-trilha li::before { content: ''; position: absolute; top: 4px; left: 0; right: 0; height: 1px; background: var(--line-2); }
+.rde-trilha li:first-child::before { left: 50%; }
+.rde-trilha li:last-child::before { right: 50%; }
+.rde-trilha__marca { position: absolute; top: 0; left: 50%; width: 9px; height: 9px; margin-left: -5px; border: 1px solid var(--stroke); border-radius: 50%; background: var(--s1); }
+.rde-trilha li.is-feito { color: var(--t2); }
+.rde-trilha li.is-feito .rde-trilha__marca { border-color: var(--ac); background: var(--ac); }
+.rde-trilha li.is-agora { color: var(--t1); }
+.rde-trilha li.is-agora .rde-trilha__marca { border: 1.5px solid var(--t1); background: var(--bg); }
+.rde-trilha li.is-ouro { color: rgb(var(--ouro-rgb)); }
+.rde-trilha li.is-ouro .rde-trilha__marca { border-color: rgb(var(--ouro-rgb)); background: rgb(var(--ouro-rgb)); }
+.rde-trilha__nome { display: block; }
+@container (max-width: 18.75rem) {   /* (300 px com a fonte normal; em rem, a fonte grande também cai aqui) */
+  .rde-trilha li .rde-trilha__nome { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .rde-trilha li.is-agora .rde-trilha__nome, .rde-trilha li.is-ouro:last-child .rde-trilha__nome { position: static; width: max-content; height: auto; overflow: visible; clip: auto; margin-left: 50%; transform: translateX(-50%); }
+}
+
+/* ---- "Ver como o valor é formado": o lugar fica reservado mesmo sem valor (sem CLS quando o preço chega) ---- */
+.rde-abrir { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; margin-top: 10px; padding: 0; border: 0; border-top: 1px solid var(--line); background: none; color: var(--t2); font: 500 var(--fs-ctrl)/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; text-align: left; cursor: pointer; }
+.rde-abrir::after { content: '+'; margin-left: auto; color: var(--ac); font-size: 16px; line-height: 1; }
+.rde-abrir[aria-expanded="true"]::after { content: '−'; }
+.rde-abrir:hover { color: var(--t1); }
+.rde-abrir:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.rde-abrir__nota { color: var(--t3); letter-spacing: .04em; text-transform: none; }
+.rde-abrir.is-vazio { visibility: hidden; }
+
+/* ---- a barra do escopo no celular (js/orcamento-escopo-barra.js): presa sob o menu, entra por transform ---- */
+.rde-barra { position: fixed; top: var(--nav-h); left: 0; right: 0; z-index: 40; display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 var(--pad); border-bottom: 1px solid var(--line-2); background: var(--s1); transform: translateY(-110%); visibility: hidden; transition: transform .5s cubic-bezier(.16, 1, .3, 1), visibility 0s linear .5s; }
+.rde-barra.is-visivel { transform: none; visibility: visible; transition: transform .5s cubic-bezier(.16, 1, .3, 1), visibility 0s; }
+.rde-anel { flex: none; width: 40px; height: 40px; }
+.rde-anel__trilho { fill: none; stroke: rgb(205 212 212 / .18); stroke-width: 2; }
+.rde-anel__progresso { fill: none; stroke: var(--ac); stroke-width: 2; stroke-linecap: round; }
+.rde-anel.is-vazio .rde-anel__progresso { opacity: 0; }
+.rde-anel.is-ouro .rde-anel__progresso { stroke: rgb(var(--ouro-rgb)); }
+.rde-barra__txt { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; margin: 0; }
+.rde-barra__estado { overflow: hidden; font: 500 9.5px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ac); white-space: nowrap; text-overflow: ellipsis; }
+.rde-barra__valor { font: 400 17px/1.2 var(--mono); color: var(--t1); font-variant-numeric: tabular-nums; }
+.rde-barra.is-ouro .rde-barra__estado, .rde-barra.is-ouro .rde-barra__valor { color: rgb(var(--ouro-rgb)); }
+.rde-barra__ver { flex: none; min-height: 40px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 999px; background: none; color: var(--t2); font: 500 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
+.rde-barra__ver:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+@media (min-width: 900px) { .rde-barra { display: none; } }
+@media (max-width: 899px) { html.tem-barra-escopo { scroll-padding-top: calc(var(--nav-h) + 56px + 16px); } }
+
+/* ---- movimento reduzido (o sistema e o interruptor do rodapé): sem ponteiro, sem transição ---- */
+@media (prefers-reduced-motion: reduce) {
+  .rde-g.is-ativo .rde-varre { display: none; animation: none; }
+  .rde-dim, .rde-no, .rde-no-aro, .rde-barra, .rde-barra.is-visivel { transition: none; }
+}
+html.menos-movimento .rde-g.is-ativo .rde-varre { display: none; animation: none; }
+html.menos-movimento .rde-dim, html.menos-movimento .rde-no, html.menos-movimento .rde-no-aro, html.menos-movimento .rde-barra, html.menos-movimento .rde-barra.is-visivel { transition: none; }

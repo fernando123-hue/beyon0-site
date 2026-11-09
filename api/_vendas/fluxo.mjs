@@ -8,7 +8,7 @@
    Falha de IA: nada é inventado; a resposta é a recuperação elegante pedida
    na especificação, e o que a pessoa já contou continua no banco.
    ========================================================================== */
-import { executarTurno } from './agente.mjs';
+import { executarTurno, nichoDaSessao } from './agente.mjs';
 import { estimar, LANDING_GRANDE, CHAVE as CHAVE_EXTRA } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
 import { montarEscopo } from './escopo.mjs';
@@ -22,6 +22,7 @@ import { criarFreio, ipDe } from '../_freio.mjs';
 import { chaveDoIp, chaveDoIp48 } from './ip.mjs';
 import { AuthIndisponivel } from '../_supabase.mjs';
 import { ETAPAS_SO_DUVIDAS, precoAberto } from './consultor.mjs';
+import { montarPainel } from './painel.mjs';
 import { classificar } from '../_classificador/index.mjs';
 import { catalogoPublico, respostasParaBriefing, nomeDeTela, landingMaxExtras } from './catalogo.mjs';
 import { limparAtualizacao } from './briefing.mjs';
@@ -36,6 +37,7 @@ import { criarAcoesDoLink } from './fluxo-link.mjs';
 import { criarAcoesDaPrevia } from './fluxo-previa.mjs';
 import { criarAcoesDoRecado } from './fluxo-recado.mjs';
 import { entregaLigada, FRASE_DESLIGADA } from '../_material/interruptor.mjs';
+import { plantaLigada, semChavesDaPlanta, montarPlanta, leituraParaTela } from './planta.mjs';
 
 import { ORG } from './org.mjs';
 export { ORG };
@@ -268,7 +270,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   async function turno(vid, conversaId, est, regras, msg) {
     let r;
     try {
-      r = await executarTurno({ ia, direcoes: modo, metodos: pagamentos?.metodos, regras: regras.regras, conversa: { etapa: est.conversa.etapa, pedido_status: est.pedido?.status, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
+      r = await executarTurno({ ia, direcoes: modo, metodos: pagamentos?.metodos, planta: plantaLigada(env), regras: regras.regras, conversa: { etapa: est.conversa.etapa, turnos: est.conversa.turnos, pedido_status: est.pedido?.status, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
     } catch (e) {
       await somarCusto(conversaId, vid, e && e.custo_usd);   /* (as rodadas pagas antes da falha, de qualquer tipo de erro) */
       if (e instanceof ErroIA) await banco('vendas_registrar_evento', { conversa_id: conversaId, visitante_id: vid, tipo: 'ia_falhou', dados: { motivo: e.motivo } }).catch(() => {});
@@ -280,6 +282,16 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     await banco('vendas_registrar_turno', { conversa_id: conversaId, visitante_id: vid, mensagem_visitante: redigir(msg), mensagem_agente: r.resposta,
       ...(soDuvidas ? {} : { briefing: r.briefing, confianca: r.confianca }), custo_usd: r.custo_usd })
       .catch(async e => { await somarCusto(conversaId, vid, r.custo_usd); throw e; });
+    /* (planta viva) o log do Worker é da Cloudflare e o agente não o alcança; mesmo assim cada desenho gravado deixa uma linha JSON, sem texto de ninguém:
+       origem, versão, tentativas e os códigos dos motivos (a medição de verdade é pelo banco, que guarda os mesmos campos) */
+    const gravada = r.briefing && r.briefing.planta;
+    if (!soDuvidas && gravada && Number(gravada.versao) > (Number(est.conversa.briefing && est.conversa.briefing.planta && est.conversa.briefing.planta.versao) || 0)) {
+      console.log(JSON.stringify({ origem: 'vendas', nivel: 'info', request_id: requestId || null, evento: 'planta', planta_origem: gravada.origem, versao: gravada.versao, tentativas: gravada.tentativas, motivos: gravada.motivos }));
+    }
+    /* (radar) o que o validador desceu na leitura deste turno: só códigos (eixo, nível de e para, motivo), nunca texto de ninguém; a rodada real mede por aqui quanto o modelo infla */
+    if (!soDuvidas && r.leitura_rebaixos && r.leitura_rebaixos.length) {
+      console.log(JSON.stringify({ origem: 'vendas', nivel: 'info', request_id: requestId || null, evento: 'leitura', rebaixos: r.leitura_rebaixos.map(x => [x.eixo, x.de, x.para, x.motivo]) }));
+    }
     /* a estimativa e o formulário só até a confirmação do pedido (ETAPAS_COM_PRECO, e pedido ainda não confirmado: a
        conversa volta a "contato" com o pedido confirmado se as três direções falham): o agente já não os devolve depois,
        e o banco recusa a estimativa (55000); esta é a camada do meio, para o estado que o turno leu no começo */
@@ -349,7 +361,16 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* (PR 2a) a tela oferece o recado ANTES dos detalhes quando a fila do dono está cheia; o número em si é interno */
       /* (PR 3b-2, M5) a entrega só aparece com o interruptor ligado; desligado, a tela mostra a saída pelo recado */
       if (!entregaLigada(env)) delete e.entrega;
-      return { ...e, fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
+      /* (peças da conversa, fatia 1) o painel é derivado do briefing, em esquema fechado, a cada leitura: nada novo no banco */
+      /* (planta viva, PR 2a) planta, leitura e planta_pedidos NUNCA saem de conversa.briefing (flag ligada ou não): plano gravado com a flag desligada não pode
+         aparecer na resposta. Com a flag ligada o estado devolve, ao lado do painel, a planta e a leitura REVALIDADAS (motivos e tentativas ficam no banco)
+         e planta_editavel (o preço ainda aberto). Sem nenhuma das chaves no briefing, o objeto é o mesmo de antes: a resposta é byte a byte a de hoje */
+      const briefingBruto = e.conversa?.briefing;
+      const briefingLimpo = semChavesDaPlanta(briefingBruto);
+      if (e.conversa && briefingLimpo !== briefingBruto) e.conversa = { ...e.conversa, briefing: briefingLimpo };
+      const planta = plantaLigada(env) ? ((regulado) => ({ planta: montarPlanta(briefingBruto, { regulado, turnos: e.conversa?.turnos, mensagensNaJanela: (e.mensagens || []).length }), leitura: leituraParaTela(briefingBruto, { regulado }), planta_editavel: precoAberto(e.conversa?.etapa, e.pedido?.status) }))(!!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens })) : null;
+      return { ...e, painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env),
+        ...(planta ? { ...(planta.planta ? { planta: planta.planta } : {}), ...(planta.leitura ? { leitura: planta.leitura } : {}), planta_editavel: planta.planta_editavel } : {}) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
     },
 
     /* o catálogo público da tabela ativa (o "Quer ajustar?"): só com a sessão e a conversa deste visitante, antes do contato */
@@ -422,7 +443,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       if (pareceInjecao(msg)) await banco('vendas_registrar_evento', { conversa_id: corpo.conversa_id, visitante_id: vid, tipo: 'tentativa_bloqueada' }).catch(() => {});
       await reservarIa(corpo.conversa_id, vid, request);
       try {
-        return await comReserva(corpo.conversa_id, vid, 'conversa', () => turno(vid, corpo.conversa_id, est, regras, msg));
+        /* (planta viva) todo turno com a flag ligada e o preço aberto reserva o pior caso de 4 chamadas (a planta e a leitura, que já vem no 1º turno, dividem as rodadas); os outros, a reserva de sempre */
+        const papelDaReserva = plantaLigada(env) && precoAberto(est.conversa.etapa, est.pedido?.status) ? 'conversa_planta' : 'conversa';
+        return await comReserva(corpo.conversa_id, vid, papelDaReserva, () => turno(vid, corpo.conversa_id, est, regras, msg));
       } finally {
         await banco('vendas_liberar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid }).catch(() => {});
       }

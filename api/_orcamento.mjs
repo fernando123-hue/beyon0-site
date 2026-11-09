@@ -1,6 +1,6 @@
 /* ==========================================================================
    ORÇAMENTO DE SUBPEDIDOS POR EXECUÇÃO (plano da migração para a Cloudflare, A8; limite lido em 21/10/2026).
-   No plano grátis da Cloudflare um Worker pode fazer no máximo 50 subpedidos (fetch, banco, ntfy…) por invocação; o
+   No plano grátis da Cloudflare um Worker pode fazer no máximo 50 subpedidos (fetch, banco…) por invocação; o
    que passar disso falha. As duas rotinas agendadas (reconciliação dos pagamentos e a rotina diária) contam cada
    chamada e PARAM antes: o resto fica para a próxima execução, com aviso no log e `parcial: true` no resumo.
    • O contador é POR EXECUÇÃO (criado em cada chamada, nunca no módulo): o isolado atende pedidos ao mesmo tempo.

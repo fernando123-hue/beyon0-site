@@ -155,10 +155,12 @@ test('controle positivo: no modo da API a geração chama o modelo (o espião en
 
 test('modo manual: a fila não depende dos tetos de gasto da IA (não há gasto de API na fila)', async () => {
   /* revisão técnica: o disjuntor aberto ou o teto da conversa não podem barrar quem acabou de deixar o WhatsApp */
-  /* (acima do teto da conversa, US$ 1,50, e longe do teto do dia, US$ 25, que valeria para os outros testes) */
+  /* (acima do teto da conversa, TETOS.conversa_usd, e longe do teto do dia, TETOS.dia_usd, que valeria para os outros testes) */
+  const { TETOS } = await import('../../api/_ia/config.mjs');
+  const acima = TETOS.conversa_usd + 0.1;
   const { n, c } = await ateAFila();
   const api = await ateAFila('api');
-  await local.db.exec(`update app.conversas set custo_ia_usd = 1.6 where id in ('${c}', '${api.c}')`);
+  await local.db.exec(`update app.conversas set custo_ia_usd = ${acima} where id in ('${c}', '${api.c}')`);
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });
   assert.equal(g.status, 200, JSON.stringify(g.corpo));
   assert.equal((await api.n.chamar('POST', 'gerar', { conversa_id: api.c })).status, 429, 'no modo da API o teto segue valendo');
@@ -207,22 +209,47 @@ test('comando local: o pedido para o modelo NUNCA leva nome, telefone ou e-mail 
 
 test('comando local (revisão de segurança + M4): a chave só vai para o host EXATO certo, por https', async () => {
   const { validarBase } = await import('../../scripts/direcoes.mjs');
+  const { DOMINIO } = await import('./dominio.mjs');
   const SUB = 'irineu';   /* subdomínio de TESTE: o verdadeiro é o SUB_CONTA, que só o dono informa (P3) */
-  for (const ok of ['https://beyonzero.com.br', 'https://beyonzero.com.br/', 'https://beyon-zero-site-previa.irineu.workers.dev', 'https://beyon0-site.vercel.app', 'http://127.0.0.1:8897', 'http://localhost:8899'])
+  for (const ok of [DOMINIO, DOMINIO + '/', 'https://beyon-zero-site-previa.irineu.workers.dev', 'https://beyon0-site.vercel.app', 'http://127.0.0.1:8897', 'http://localhost:8899'])
     assert.doesNotThrow(() => validarBase(ok, SUB), ok);
-  assert.equal(validarBase('https://beyonzero.com.br/x?y=1', SUB), 'https://beyonzero.com.br');
-  for (const ruim of ['http://beyonzero.com.br', 'https://beyonzero.com.br.evil.com', 'https://www.beyonzero.com.br', 'https://beyon-zero-site-previa.outra.workers.dev',
+  assert.equal(validarBase(DOMINIO + '/x?y=1', SUB), DOMINIO);
+  for (const ruim of [DOMINIO.replace('https:', 'http:'), DOMINIO + '.evil.com', DOMINIO.replace('//', '//www.'), 'https://beyon-zero-site-previa.outra.workers.dev',
     'https://x-beyon-zero-site-previa.irineu.workers.dev', 'https://beyon-zero-site.irineu.workers.dev', 'https://beyon-zero-site-previa.irineu.workers.dev.evil.com',
-    'https://usuario:senha@beyonzero.com.br', 'https://beyonzero.com.br:8443', 'https://beyon-zero-site-previa.irineu.workers.dev:8443',
+    'https://usuario:senha@' + new URL(DOMINIO).host, DOMINIO + ':8443', 'https://beyon-zero-site-previa.irineu.workers.dev:8443',
     'https://beyon0-site.vercel.app.evil.com', 'https://beyon0-site-x-beyond0.vercel.app', 'https://beyon0-site-git-fila-beyond0.vercel.app', 'http://beyon0-site.vercel.app',
-    'https://beyon0-site.vercel.app@evil.com', 'https://evil.com', 'ftp://127.0.0.1', '', 'beyonzero.com.br'])
+    'https://beyon0-site.vercel.app@evil.com', 'https://evil.com', 'ftp://127.0.0.1', '', new URL(DOMINIO).host])
     assert.throws(() => validarBase(ruim, SUB), /BZ_BASE/, ruim);
   assert.throws(() => validarBase('https://beyon-zero-site-previa.irineu.workers.dev', null), /BZ_BASE/, 'SUB_CONTA nulo: o staging fica fechado para a chave do painel');
 });
 
+/* C3: fechado por padrão, com o SUB_CONTA REAL do repositório (sem passar o sub de teste). Enquanto o dono não preenche o P3
+   (docs/acesso.mjs), nenhum *.workers.dev recebe a chave do painel; depois de preenchido, só o staging fixo da conta dele.
+   (O plano pedia também as prévias de branch; ficam de fora de propósito: rodam código ainda não revisado, ver o comentário
+   de HOST_SITE em scripts/direcoes.mjs e a decisão da revisão do PR B.) */
+test('comando local (C3): com o SUB_CONTA real, nenhum workers.dev recebe a chave enquanto o P3 não for preenchido; depois, só o staging fixo', async () => {
+  const { validarBase, hostsPermitidos } = await import('../../scripts/direcoes.mjs');
+  const { SUB_CONTA, hostDoStaging } = await import('../../docs/acesso.mjs');
+  const candidatos = ['https://beyon-zero-site-previa.irineu.workers.dev', 'https://minha-branch-beyon-zero-site-previa.irineu.workers.dev',
+    'https://beyon-zero-site.irineu.workers.dev', 'https://beyon-zero-site-previa.workers.dev', 'https://workers.dev'];
+  if (SUB_CONTA === null) {
+    assert.deepEqual(hostsPermitidos().filter(h => h.endsWith('workers.dev')), [], 'SUB_CONTA nulo: nenhum host workers.dev na lista');
+    for (const c of candidatos) assert.throws(() => validarBase(c), /BZ_BASE/, c);
+  } else {
+    assert.deepEqual(hostsPermitidos().filter(h => h.endsWith('workers.dev')), [hostDoStaging(SUB_CONTA)], 'preenchido: só o staging fixo');
+    assert.doesNotThrow(() => validarBase('https://' + hostDoStaging(SUB_CONTA)));
+    for (const c of candidatos.slice(1)) assert.throws(() => validarBase(c), /BZ_BASE/, c);
+  }
+  /* subdomínio inválido (vazio, maiúscula, ponto, espaço, tipo errado) equivale a nulo: fechado */
+  for (const ruim of ['', 'Irineu', 'a.b', 'a b', '-a', 'a-', 'x/y', 5, {}, false])
+    assert.throws(() => validarBase('https://beyon-zero-site-previa.irineu.workers.dev', ruim), /BZ_BASE/, 'sub ' + JSON.stringify(ruim));
+  assert.equal(validarBase('https://beyon-zero-site-previa.irineu.workers.dev', 'irineu'), 'https://beyon-zero-site-previa.irineu.workers.dev', 'com o sub certo abre');
+});
 test('comando local (M4): hosts permitidos são nomes exatos; o host da Vercel só existe enquanto existir o vercel.json', async () => {
   const { hostsPermitidos, HOSTS_VERCEL, HOST_SITE } = await import('../../scripts/direcoes.mjs');
   const { SUB_CONTA } = await import('../../docs/acesso.mjs');
+  const { HOST_DO_DOMINIO } = await import('./dominio.mjs');
+  assert.equal(HOST_SITE, HOST_DO_DOMINIO, 'o host da chave do painel é o domínio único (C1)');
   assert.deepEqual(hostsPermitidos('irineu'), [HOST_SITE, 'beyon-zero-site-previa.irineu.workers.dev', ...HOSTS_VERCEL]);
   assert.deepEqual(hostsPermitidos(null), [HOST_SITE, ...HOSTS_VERCEL], 'sem SUB_CONTA, nenhum staging');
   for (const h of hostsPermitidos('irineu')) assert.match(h, /^[a-z0-9.-]+$/, 'só nome exato, nunca expressão: ' + h);

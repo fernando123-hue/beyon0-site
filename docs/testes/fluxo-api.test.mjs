@@ -61,6 +61,7 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   let e = (await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo;
   assert.equal(e.conversa.etapa, 'direcoes');
   assert.equal(e.conversa.custo_ia_usd, undefined, 'custo é métrica interna');
+  assert.ok(e.painel && e.painel.anotamos.length >= 1 && e.painel.ficha.some(f => f.rotulo === 'Segmento'), 'o estado traz o painel da conversa, derivado do briefing');
   const segunda = e.direcoes.find(d => d.numero === 2);
   assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: segunda.id })).status, 200);
   const cores = await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: { operacao: 'usar_paleta_de', direcao: 1 } });
@@ -94,6 +95,8 @@ test('fluxo incompleto: quem abandona e volta encontra a conversa onde parou (to
   assert.equal(e.mensagens.length, 2);
   assert.equal(e.estimativa.valor_total, 2900);
   assert.equal(e.conversa.briefing.negocio.segmento, 'advocacia');
+  assert.deepEqual(e.painel.ficha.find(f => f.rotulo === 'Segmento'), { rotulo: 'Segmento', valor: 'advocacia' }, 'o painel mostra o que foi anotado, e só isso');
+  assert.deepEqual(Object.keys(e.painel).sort(), ['anotamos', 'caso', 'ficha'].filter(k => k in e.painel), 'o painel só tem chaves do esquema fechado');
   const funil = (await local.db.query('select tipo from app.eventos_funil where conversa_id = $1', [s.conversa_id])).rows.map(x => x.tipo);
   assert.ok(funil.includes('estimativa_mostrada') && !funil.includes('contato_informado'), 'parou depois da estimativa');
   assert.equal((await n.chamar('POST', 'renovar', { refresh: s.refresh })).status, 401, 'refresh usado não vale de novo');
@@ -413,13 +416,14 @@ test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com 
   chamadas = 0;
   const r0 = await Promise.all(g0.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
   assert.equal(chamadas, 3, 'com US$ 0,60 gastos, as 3 chamam o modelo — status: ' + JSON.stringify(r0.map(x => x.status)));
-  /* perto do teto: US$ 1,20 de 1,50 → 1,20 e 1,45 ainda começam; a 3ª (1,70 comprometidos) não */
-  await local.db.query('update app.conversas set custo_ia_usd = 1.2 where id = $1', [c]);
+  /* perto do teto: US$ 0,30 abaixo dele (1,70 de 2,00, com o teto de TETOS.conversa_usd) → 1,70 e 1,95 ainda começam; a 3ª (2,20 comprometidos) não */
+  const { TETOS } = await import('../../api/_ia/config.mjs');
+  await local.db.query('update app.conversas set custo_ia_usd = $2 where id = $1', [c, TETOS.conversa_usd - 0.3]);
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });
   assert.equal(g.status, 200, JSON.stringify(g.corpo));
   chamadas = 0; picoEmVoo = 0;
   const r = await Promise.all(g.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
-  assert.equal(chamadas, 2, 'com US$ 1,20 gastos, só 2 chamam o modelo — status: ' + JSON.stringify(r.map(x => x.status)));
+  assert.equal(chamadas, 2, 'com US$ 0,30 abaixo do teto, só 2 chamam o modelo — status: ' + JSON.stringify(r.map(x => x.status)));
   assert.equal(r.filter(x => x.status === 429).length, 1, 'a 3ª: limite, com WhatsApp');
   assert.ok(r.filter(x => x.status === 429).every(x => x.corpo.recado === true));
   /* a reserva some depois da chamada: nada fica preso */

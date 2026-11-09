@@ -66,7 +66,7 @@ test('o aviso da tela (22/10: 3 dias do aviso "no ar", lembretes do dono no 2º 
   }
   assert.match(R.avisoDoRestante(12, 3, 'suspensa'), /saiu do ar/); assert.match(R.avisoDoRestante(12, 3, 'suspensa'), /quando o pagamento cair/i);
   assert.match(R.avisoDoRestante(null, 3, 'suspensa'), /saiu do ar/, 'suspensa mostra o aviso mesmo sem a contagem');
-  assert.match(texto(NOAR), /Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, o site sai do ar até o pagamento\./);
+  assert.match(texto(NOAR), /Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, o site sai do ar até o pagamento\./);
   for (const d of [2, 3, 4]) assert.doesNotMatch(R.avisoDoRestante(d, 3, 'no_ar'), /\d+\s*horas|fique à vontade|solução|Prezad/i);
 });
 

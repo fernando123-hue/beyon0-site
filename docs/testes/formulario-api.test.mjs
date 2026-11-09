@@ -84,6 +84,37 @@ test('confirmar-pacote grava uma vez, com a versão da tabela; versão velha →
   assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 409, 'depois do contato o pacote não muda por aqui');
 });
 
+/* "Já vem no pacote" depois de recarregar (dono, 07/11, opção A): a lista é gravada com a estimativa, em todo formato, e vem SÓ da tabela
+   ativa do servidor. Antes ela só voltava no Atelier (o único formato em que a tabela abate algo, formato.inclui de api/_vendas/precos.mjs).
+   Ponta a ponta: o servidor grava pelo confirmar-pacote, o estado devolve como na recarga, e o js/orcamento.js REAL desenha a caixa */
+async function caixaDoPacoteDepoisDeRecarregar(corpoConfirmar) {
+  const n = navegador(), c = await n.iniciar();
+  const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, formato: corpoConfirmar.formato });
+  const ok = await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao, ...corpoConfirmar });
+  assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
+  const e = await n.chamar('GET', 'estado', undefined, '&conversa=' + c);
+  assert.equal(e.status, 200, JSON.stringify(e.corpo));
+  const { criarPagina } = await import('./planta-pagina-falsa.mjs');
+  const p = criarPagina({ estimativa: e.corpo.estimativa, escondidos: ['o-est-inclui-caixa'] });
+  assert.ok(await p.pronta(), 'a página leu o estado e desenhou');
+  return { itens: p.doc.getElementById('o-est-inclui').children.map(li => li.textContent), escondida: p.doc.getElementById('o-est-inclui-caixa').hidden, estimativa: e.corpo.estimativa };
+}
+
+test('recarregar com pedido salvo de site institucional: "Já vem no pacote" volta, com a lista da tabela', async () => {
+  const r = await caixaDoPacoteDepoisDeRecarregar({ formato: 'institucional' });
+  assert.deepEqual(r.itens, TABELA.formatos.institucional.inclui, 'a lista do formato, na ordem da tabela');
+  assert.equal(r.escondida, false);
+  const l = await caixaDoPacoteDepoisDeRecarregar({ formato: 'landing_page' });
+  assert.deepEqual(l.itens, TABELA.formatos.landing_page.inclui, '1 página também');
+});
+
+test('o navegador não injeta itens na lista do pacote: só o que a tabela tem é gravado', async () => {
+  const r = await caixaDoPacoteDepoisDeRecarregar({ formato: 'institucional', inclui: ['Hospedagem grátis para sempre'], no_pacote: ['Suporte vitalício'],
+    estimativa: { detalhes: { formato: { inclui: ['Injetado'] } } }, detalhes: { formato: { no_pacote: ['Injetado'] } } });
+  assert.deepEqual(r.itens, TABELA.formatos.institucional.inclui);
+  assert.ok(!/grátis|vitalício|Injetado/.test(JSON.stringify(r.estimativa)), 'nada do corpo chega à estimativa gravada');
+});
+
 test('catálogo com sessão e sem nada interno; sessao-config diz se há consultor', async () => {
   const n = navegador(), c = await n.iniciar();
   const cat = await n.chamar('GET', 'catalogo', undefined, '&conversa=' + c + '&formato=institucional&ramo=saude');

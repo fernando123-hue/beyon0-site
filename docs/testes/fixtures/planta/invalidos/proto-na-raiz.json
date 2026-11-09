@@ -1,0 +1,76 @@
+{
+  "_defeito": "chave_proibida",
+  "_camada": "forma",
+  "plano": {
+    "__proto__": { "polluted": true },
+    "topologia": "laco",
+    "chegada": {
+      "origens": [
+        "busca",
+        "mapa",
+        "indicacao"
+      ],
+      "titulo": "Busca, mapa e indicação",
+      "frase": "A pessoa chega pela busca, pelo mapa ou porque alguém indicou."
+    },
+    "etapas": [
+      {
+        "id": "pagina",
+        "tipo": "pagina",
+        "verbo": "Recebe",
+        "titulo": "Uma página para cada tratamento",
+        "frase": "Cai na página do tratamento que procurava, com a resposta que quer ler primeiro."
+      },
+      {
+        "id": "conversa",
+        "tipo": "conversa",
+        "verbo": "Conduz",
+        "decisao": true,
+        "titulo": "Pergunta o que incomoda e a urgência",
+        "frase": "A conversa entende o que incomoda e quão urgente é, sem formulário."
+      },
+      {
+        "id": "horario",
+        "tipo": "agenda",
+        "verbo": "Agenda",
+        "titulo": "Escolhe o horário da avaliação",
+        "frase": "Mostra só os horários livres e a pessoa escolhe um ali mesmo."
+      },
+      {
+        "id": "confirma",
+        "tipo": "confirmacao",
+        "verbo": "Confirma",
+        "titulo": "Confirmação na hora da marcação",
+        "frase": "Assim que marca, a pessoa recebe a confirmação com endereço e como chegar."
+      },
+      {
+        "id": "vespera",
+        "tipo": "lembrete",
+        "verbo": "Lembra",
+        "titulo": "Lembrete na véspera",
+        "frase": "Na véspera chega o lembrete, para a pessoa não esquecer a hora."
+      },
+      {
+        "id": "pos",
+        "tipo": "mensagem",
+        "verbo": "Responde",
+        "titulo": "Dúvidas depois da consulta",
+        "frase": "Quem ficou com dúvida volta à conversa e encontra a resposta."
+      },
+      {
+        "id": "revisao",
+        "tipo": "retoma",
+        "verbo": "Reativa",
+        "retorno": true,
+        "titulo": "Chama de volta na hora da revisão",
+        "frase": "Chegou a época da revisão: o site chama a pessoa de volta."
+      }
+    ],
+    "fim": {
+      "titulo": "Avaliação marcada",
+      "frase": "A avaliação já aparece na agenda da clínica, com o horário combinado."
+    },
+    "fecho": "A pessoa chegou, foi entendida, marcou e vai ser lembrada. A clínica entra só no dia.",
+    "rotulo_retorno": "o site continua"
+  }
+}

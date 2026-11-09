@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 import { randomInt } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
 import { higienizar, ESTRATEGIAS, ESQUEMA_DIRECAO } from '../api/_vendas/direcao.mjs';
-import { SISTEMA_GERACAO, REGRA_BRIEFING, briefingDelimitado } from '../api/_vendas/gerador.mjs';
+import { SISTEMA_GERACAO, REGRA_BRIEFING, briefingDelimitado, briefingParaGeracao } from '../api/_vendas/gerador.mjs';
 import { redigir } from '../api/_vendas/seguranca.mjs';
 import { configSessao, comandoSessao, instrucoesSessao, linhaDoDono } from './sessao-isolada.mjs';
 import { cabecalhosDeAcesso, hostDoStaging, SUB_CONTA } from '../docs/acesso.mjs';
@@ -213,7 +213,7 @@ export function pedidoParaModelo(p) {
     /* (revisão de segurança do lote 1, auditoria 2026-10-09) a mesma marca e o mesmo escape do gerador automático: o
        visitante não fecha a marca para escrever fora dela; a regra vem antes do briefing */
     regra: REGRA_BRIEFING,
-    briefing: briefingDelimitado(limparProfundo(p.briefing || {}, apagador(p.contato))),
+    briefing: briefingDelimitado(limparProfundo(briefingParaGeracao(p.briefing), apagador(p.contato))),
     formato_e_escopo: { formato: p.fatores?.formato || null, paginas: p.fatores?.paginas || null, adicionais: p.fatores?.adicionais || {} },
     direcoes: (p.direcoes || []).map(d => ({ id: d.id, numero: d.numero, estrategia: d.estrategia, status: d.status, instrucao: ESTRATEGIAS[d.estrategia] || null }))
   };

@@ -117,7 +117,7 @@ test('proteções da revisão de segurança', async () => {
   assert.ok(barrou, '61º pedido no mesmo minuto é freado');
   assert.ok(!freado('9.9.9.9', 1000 + 61e3), 'minuto seguinte libera');
   assert.equal(validarPacote(base({ codigo: ['K7Q4M'] }), AGORA), null, 'lista não passa como código');
-  const r = validarPacote(base({ campanha: 'promo-maria@gmail.com', termo: '21 97716-7944', fonte: 'news' }), AGORA);
+  const r = validarPacote(base({ campanha: 'promo-maria@gmail.com', termo: '21 98888-0002', fonte: 'news' }), AGORA);
   assert.equal(r.pagina.campanha, null, 'e-mail na campanha é descartado');
   assert.equal(r.pagina.termo, null, 'telefone no termo é descartado');
   assert.equal(r.pagina.fonte, 'news');

@@ -29,3 +29,8 @@ test('o atendente é vendido como chat no site (Decisões 28/10): sem teste grá
     assert.doesNotMatch(html, /a Meta cobra/i, p);
   }
 });
+
+/* o ouro entre páginas: o testar do package.json é lista fechada, então ele roda daqui (docs/testes/ouro-entre-paginas.test.mjs) */
+import './ouro-entre-paginas.test.mjs';
+/* a planta do hero de /sites sem salto e sem custo fora de vista (docs/testes/sites-leve.test.mjs), pelo mesmo motivo */
+import './sites-leve.test.mjs';

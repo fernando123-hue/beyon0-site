@@ -17,7 +17,7 @@
   if (!API || !$('o-perguntas')) return;
 
   var ESPERA_MS = 300;   /* o preço ao vivo espera a pessoa parar de marcar (o servidor freia 60 cálculos por hora por conversa) */
-  var NOMES = { landing_page: 'Site de uma página', institucional: 'Site com várias páginas', sob_medida: 'Site com visual exclusivo', loja_plataforma: 'Loja virtual' };
+  var NOMES = { landing_page: 'Site de uma página', institucional: 'Site com várias páginas', sob_medida: 'Atelier (site com visual exclusivo)', loja_plataforma: 'Loja virtual' };
   var ASSUMIDO = { ramo: 'o seu ramo', objetivos: 'o que o site precisa trazer', site_atual: 'se já tem site', material: 'se já tem logo e textos' };
   var FALHA_CALCULO = 'Não consegui calcular agora. Tente de novo ou deixe um recado.';
   var FALHA_GRAVAR = 'Não consegui guardar agora. Tente de novo.';
@@ -31,7 +31,7 @@
   var extras = {}, iniciais = {};     /* chave → quantidade; iniciais: a quantidade que a recomendação trouxe */
   var conhecidos = false;             /* a tela já sabe quais extras a recomendação traz (veio um preço com valor no formato recomendado) */
   var urgencia = false, catalogo = null, catalogoDe = null;
-  var seq = 0, emVoo = null, adiado = null, gravando = false, gravado = false, opcoes = {};
+  var seq = 0, ultimaDeu = false, emVoo = null, adiado = null, gravando = false, gravado = false, opcoes = {};
   var mostrado = null;   /* as escolhas do último preço que deu certo ({formato, extras, urgencia}): para onde a tela volta se a conta falhar */
   var valido = null;     /* o pedido e a versão do último preço mostrado; null sem preço ou com diagnóstico. É o que "Quero" grava */
   var sugerido = null;   /* o formato que o servidor indicou na recusa (a landing grande demais) */
@@ -108,11 +108,15 @@
   /* o erro vai para onde a pessoa está olhando: as perguntas ou o cartão do preço. No cartão, a recusa que indica outro
      formato (a landing passou de 3 páginas) ganha o botão para ver esse formato */
   function erro(msg, formatoIndicado) {
-    var noCartao = $('o-perguntas').hidden;
-    $('o-p-erro').textContent = noCartao ? '' : msg;
-    $('o-est-erro').textContent = noCartao ? msg : '';
+    /* (o 1º preço em voo: as perguntas saíram só por enquanto e a falha volta a elas. A mensagem fica guardada e o "Ver o preço" a escreve quando
+       elas estiverem à vista: o #o-p-erro é role="alert", e um alerta escrito num bloco escondido não é anunciado pelo leitor de tela) */
+    erroGuardado = perguntandoPreco ? msg : '';
+    var texto = perguntandoPreco ? '' : msg;
+    var noCartao = $('o-perguntas').hidden && !perguntandoPreco;
+    $('o-p-erro').textContent = noCartao ? '' : texto;
+    $('o-est-erro').textContent = noCartao ? texto : '';
     /* (a conta que falhou já devolveu a tela ao formato mostrado: se é o indicado, o botão não levaria a lugar nenhum) */
-    sugerido = noCartao && msg && NOMES[formatoIndicado] && formatoIndicado !== formato ? formatoIndicado : null;
+    sugerido = noCartao && texto && NOMES[formatoIndicado] && formatoIndicado !== formato ? formatoIndicado : null;
     $('o-est-sugerido').hidden = !sugerido;
     if (sugerido) $('o-est-sugerido').textContent = 'Ver o ' + NOMES[sugerido].toLowerCase();
   }
@@ -151,7 +155,10 @@
   }
 
   /* ---------- o preço (servidor) ---------- */
-  function ocupado(sim) { if (sim) $('o-est').setAttribute('aria-busy', 'true'); else $('o-est').removeAttribute('aria-busy'); }
+  function ocupado(sim) {
+    if (sim) $('o-est').setAttribute('aria-busy', 'true'); else $('o-est').removeAttribute('aria-busy');
+    document.dispatchEvent(new CustomEvent('bz:calculando', { detail: { ativo: sim } }));   /* (o radar do escopo varre só com a conta em voo) */
+  }
   /* uma conta por vez vale: a resposta de um pedido mais velho que o último é descartada. Devolve se deu certo */
   function calcular() {
     var meu = ++seq;
@@ -162,11 +169,12 @@
     emVoo = (async function () {
       try {
         var res = await API.simular(pedido);
-        if (meu !== seq) return false;
+        /* (superada por outra conta: responde o que a ÚLTIMA responder, para quem espera não tratar como falha uma conta que só foi trocada) */
+        if (meu !== seq) return emVoo || ultimaDeu;
         var fmt = formato || res.recomendacao.formato;
         if (catalogoDe !== fmt) {
           var cat = await API.catalogo(fmt, r.ramo);
-          if (meu !== seq) return false;
+          if (meu !== seq) return emVoo || ultimaDeu;
           catalogo = cat; catalogoDe = fmt;
           if ($('o-ajustar').hidden === false) montarExtras();
         }
@@ -178,10 +186,13 @@
         }
         mostrado = escolhas;
         valido = res.estimativa ? { pedido: pedido, versao: res.versao } : null;
-        desenhar(res);
+        desenhar(res, pedido.urgencia);
+        ultimaDeu = true;
         return true;
       } catch (e) {
-        if (meu === seq) contaFalhou(e);
+        if (meu !== seq) return emVoo || ultimaDeu;
+        contaFalhou(e);
+        ultimaDeu = false;
         return false;
       } finally { if (meu === seq) { ocupado(false); emVoo = null; } }
     })();
@@ -208,7 +219,7 @@
     return deu;
   }
 
-  function desenhar(res) {
+  function desenhar(res, comUrgencia) {
     if (gravado) return;   /* (o pacote já foi gravado: uma conta atrasada não reabre os controles) */
     var rec = res.recomendacao;
     var atual = formato || rec.formato;   /* (a recomendar: o da recomendação) */
@@ -217,8 +228,11 @@
     var assumidos = (rec.assumido || []).map(function (k) { return ASSUMIDO[k]; }).filter(Boolean);
     $('o-est-assumido').hidden = !assumidos.length;
     $('o-est-assumido').textContent = assumidos.length ? 'Escolhi por você: ' + assumidos.join(', ') + '. Dá para trocar em "Mudar as respostas".' : '';
-    /* o cartão (e o pacote que pede conversa) é desenhado por js/orcamento.js, o mesmo do resto da página */
-    document.dispatchEvent(new CustomEvent('bz:preco', { detail: { estimativa: res.estimativa, diagnostico: res.diagnostico } }));
+    /* o cartão (e o pacote que pede conversa) é desenhado por js/orcamento.js, o mesmo do resto da página; o radar do escopo
+       (js/orcamento-escopo.js) lê também a recomendação, o formato da tela, a urgência DESTA conta e o que o catálogo diz do formato */
+    var fmtCat = catalogo ? catalogo.formatos.filter(function (x) { return x.chave === atual; })[0] : null;
+    document.dispatchEvent(new CustomEvent('bz:preco', { detail: { estimativa: res.estimativa, diagnostico: res.diagnostico, recomendacao: rec, formato: atual, urgencia: comUrgencia,
+      paginas_incluidas: fmtCat ? fmtCat.paginas_incluidas : null, urgencia_pct: catalogo && catalogo.urgencia ? catalogo.urgencia.acrescimo_percentual : null } }));
     if (res.estimativa && NOMES[atual]) $('o-est-formato').textContent = NOMES[atual];   /* (as palavras da tela, as mesmas dos vizinhos) */
     vizinhos(rec, atual);
     incluidos(atual);
@@ -297,20 +311,40 @@
   }
 
   /* ---------- os botões ---------- */
+  /* "Ver o preço": as perguntas saem NO TOQUE e o painel (o radar "Identificando", pelo bz:calculando) fica à vista enquanto a conta voa. Se elas
+     saíssem só com a resposta, um servidor lento (> 500 ms, o perdão do navegador depois de uma ação) fazia a mesa subir sem toque recente: CLS 0,32
+     a 0,43 medido com 900 ms de atraso. Na falha, tudo volta como antes: as perguntas, a mensagem de sempre nelas (o `perguntandoPreco` faz o erro()
+     escrever lá, e não no cartão) e o foco no botão */
+  var perguntandoPreco = false, erroGuardado = '';
   $('o-p-ver-preco').addEventListener('click', async function () {
     var b = this;
     if (b.getAttribute('aria-disabled') === 'true') return;
     b.setAttribute('aria-disabled', 'true');
     b.textContent = 'Calculando…';
-    var deu = await calcular();
-    b.removeAttribute('aria-disabled');
-    b.textContent = 'Ver o preço';
-    if (!deu) return;
+    perguntandoPreco = true;
     $('o-perguntas').hidden = true;
-    var t = $('o-est-titulo');
-    t.closest('.orc-painel').scrollIntoView({ block: 'start' });
+    var t = $('o-est-titulo'), painel = t.closest('.orc-painel');
+    /* enquanto a 1ª conta voa: o cartão de baixo ("o preço aparece aqui") sai e o painel guarda a altura da tela (css/orcamento.css, .is-1o-preco).
+       Assim, quando o preço chega, as ações e o cartão cheio ENTRAM no espaço vazio, sem empurrar nada que já estava à vista (o cartão e o
+       rodapé desciam: CLS 0,15 a 390 px com 900 ms de atraso) */
+    painel.classList.add('is-1o-preco');
+    $('o-est').hidden = true;
+    painel.scrollIntoView({ block: 'start' });
     t.setAttribute('tabindex', '-1');
     t.focus({ preventScroll: true });
+    var deu = await calcular();
+    perguntandoPreco = false;
+    painel.classList.remove('is-1o-preco');
+    $('o-est').hidden = false;
+    if (window.BZPainel && typeof window.BZPainel.focavel === 'function') window.BZPainel.focavel();   /* (a altura do painel mudou: no computador ele pode passar a rolar por dentro, e o tabindex segue isso) */
+    b.removeAttribute('aria-disabled');
+    b.textContent = 'Ver o preço';
+    if (deu) return;
+    $('o-perguntas').hidden = false;
+    $('o-p-erro').textContent = erroGuardado;   /* (com as perguntas já à vista: o alerta é anunciado) */
+    erroGuardado = '';
+    b.scrollIntoView({ block: 'center' });
+    b.focus({ preventScroll: true });
   });
   $('o-ajustar-abrir').addEventListener('click', function () {
     var abrir = $('o-ajustar').hidden;

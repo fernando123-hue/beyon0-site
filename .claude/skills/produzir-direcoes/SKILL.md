@@ -9,7 +9,7 @@ Decisão do dono (2026-10-08): enquanto não há verba para a API, as três dire
 
 ## Todo pedido novo entra direto na fila (30/10: sem WhatsApp e sem confirmação)
 
-- O cliente preenche os detalhes na página e recebe um código **`BZ-XXXXX`**. O pedido **já entra na fila de produção na hora**: não há mensagem de WhatsApp, nem clique de confirmação do dono, nem lista de "esperando confirmação", nem expiração de 72 horas. O dono recebe um aviso pelo celular (ntfy) de "Pedido novo na fila", sem dado do cliente.
+- O cliente preenche os detalhes na página e recebe um código **`BZ-XXXXX`**. O pedido **já entra na fila de produção na hora**: não há mensagem de WhatsApp, nem clique de confirmação do dono, nem lista de "esperando confirmação", nem expiração de 72 horas. Aviso no celular: ainda sem canal (app próprio em desenvolvimento); por ora o dono vê o pedido novo na fila no painel.
 - As travas que sobraram no lugar da confirmação: o anti-robô da sessão, o limite por IP, por telefone e por conversa, e o **teto de 10 pedidos na fila**. Curioso ou pedido sem sentido: o dono toca em **"Descartar"** no painel antes de produzir.
 - A fila (`node "<repo>/scripts/direcoes.mjs" fila`) mostra os pedidos novos, cada linha com o id curto (os 8 primeiros caracteres, que os comandos pedem) e o código `BZ-XXXXX` (o mesmo que o cliente vê na tela "Pedido recebido"). "avisar" é o pedido com as 3 prontas e ainda sem aviso (vem primeiro); "produzir" é o resto.
 - O teto é de **10 pedidos na fila**: ao chegar nele, o painel mostra o alarme e a página oferece o **recado** (não o WhatsApp) no lugar dos detalhes.

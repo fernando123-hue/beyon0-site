@@ -2383,7 +2383,7 @@ por:
   await page.waitForSelector('#o-confirmar:not([hidden])', { timeout: 15000 });
   const codigo = (await page.textContent('#o-confirmar-codigo')).trim();
   ok(/^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/.test(codigo), 'o código do pedido no formato BZ-XXXXX: ' + codigo);
-  ok(await page.getAttribute('#o-confirmar-wa', 'href') === 'https://wa.me/5521977167944?text=' + encodeURIComponent('Meu pedido é ' + codigo), 'o botão abre o WhatsApp da Beyon Zero com "Meu pedido é ' + codigo + '"');
+  ok(await page.getAttribute('#o-confirmar-wa', 'href') === 'https://wa.me/5521988880002?text=' + encodeURIComponent('Meu pedido é ' + codigo), 'o botão abre o WhatsApp da Beyon Zero com "Meu pedido é ' + codigo + '"');
   ok(await page.locator('#o-confirmar[data-sem-medicao]').count() === 1, 'confirmar não conta como conversão (só pedido confirmado conta, D6)');
   ok((await page.textContent('#o-codigo-v')).trim() === codigo, 'o código no topo é o do pedido');
   ok(/72|expira/i.test(await page.textContent('#o-confirmar-prazo')), 'o prazo de 72 h para confirmar, com data');
@@ -2437,7 +2437,7 @@ Expected: a linha `FALHA detalhes: o botão diz "Quero os três modelos"` e um t
     <section class="orc-bloco" id="o-contato" aria-labelledby="o-contato-titulo" hidden>
       <h2 id="o-contato-titulo">Para quem vou desenhar?</h2>
       <p class="orc-bloco__lead" id="o-contato-lead">Conte um pouco do seu negócio. Leva uns 2 minutos, e é com isso que eu desenho três modelos de site: um feito para trazer pedidos, um que passa confiança e um mais moderno e chamativo.</p>
-      <p class="orc-aviso orc-fila-cheia" id="o-fila-cheia" hidden>Muita procura agora: a fila de modelos está cheia. Fale com a Beyon Zero pelo <a data-wa="quero os três modelos do meu site (a fila estava cheia)" href="https://wa.me/5521977167944">WhatsApp</a> e a gente segue por lá.</p>
+      <p class="orc-aviso orc-fila-cheia" id="o-fila-cheia" hidden>Muita procura agora: a fila de modelos está cheia. Fale com a Beyon Zero pelo <a data-wa="quero os três modelos do meu site (a fila estava cheia)" href="https://wa.me/5521988880002">WhatsApp</a> e a gente segue por lá.</p>
       <form class="orc-form" id="o-detalhes-form" novalidate>
         <p class="orc-nota orc-nota--aviso">Não escreva CPF, telefone ou dados de outras pessoas nos campos de texto.</p>
         <label for="o-d-negocio">Nome do negócio <span class="orc-opcional">(obrigatório)</span></label>
@@ -2488,7 +2488,7 @@ Expected: a linha `FALHA detalhes: o botão diz "Quero os três modelos"` e um t
       <p class="orc-rotulo">Código do pedido</p>
       <p class="orc-codigo-grande" id="o-confirmar-codigo"></p>
       <p class="orc-nota">Tire um print desta tela: o código identifica o seu pedido.</p>
-      <a class="btn btn--primary" id="o-confirmar-wa" href="https://wa.me/5521977167944" target="_blank" rel="noopener noreferrer">Confirmar pelo WhatsApp<span class="sr-only"> (abre em nova aba)</span></a>
+      <a class="btn btn--primary" id="o-confirmar-wa" href="https://wa.me/5521988880002" target="_blank" rel="noopener noreferrer">Confirmar pelo WhatsApp<span class="sr-only"> (abre em nova aba)</span></a>
       <p class="orc-nota" id="o-confirmar-prazo"></p>
     </section>
 
@@ -2498,7 +2498,7 @@ Expected: a linha `FALHA detalhes: o botão diz "Quero os três modelos"` e um t
       <p class="orc-bloco__lead" id="o-pedido-fim-texto"></p>
       <div class="orc-aviso__acoes">
         <button class="btn btn--sm" type="button" id="o-pedido-recomecar">Fazer um orçamento novo</button>
-        <a class="btn btn--sm btn--ghost" data-wa="quero retomar o meu pedido de modelos" href="https://wa.me/5521977167944">Falar pelo WhatsApp</a>
+        <a class="btn btn--sm btn--ghost" data-wa="quero retomar o meu pedido de modelos" href="https://wa.me/5521988880002">Falar pelo WhatsApp</a>
       </div>
     </section>
 ```
@@ -2527,7 +2527,7 @@ E trocar `<script src="js/orcamento.js" defer></script>` por:
   var API = window.BZOrcamento;
   var $ = function (id) { return document.getElementById(id); };
   if (!API || !$('o-detalhes-form')) return;
-  var TEL = window.BEYON_TEL || '5521977167944';   /* (reserva consciente, como em js/pagina.js: grep 5521977167944) */
+  var TEL = window.BEYON_TEL || '5521988880002';   /* (reserva consciente, como em js/pagina.js: grep 5521988880002) */
   var CODIGO = /^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/;
   /* sugestões pelo ramo das perguntas (o "segmento" do briefing é o nome de tela do ramo, api/_vendas/catalogo.mjs) */
   var SUGESTOES = {
@@ -3337,7 +3337,7 @@ Servidor reiniciado, com `BZ_SEM_CONSULTOR=1` e `PAINEL_CHAVE`: E2E duas vezes (
 | PR2a-D | decisões aprovadas por omissão (plano `docs/superpowers/plans/2026-10-13-orcamento-sem-ia-pr2a.md`): D1 teto 10; D2 confirmação também com IA; D3 nome opcional e sem e-mail; D4 as cinco redes por 60 dias, escrito em /privacidade; D5 estilo por imagem no PR 3; D6 confirmar fora da conversão do Ads; D7 nada guardado no navegador | dono pode rever |
 | PR2a-recontato | quem volta depois da retenção de 12 meses (contato anonimizado) não informa o contato de novo pela tela: o pagar pede o WhatsApp, e o dono não tem ainda a ação no painel para recolocar o contato | PR 3: uma tela de contato reduzida (só WhatsApp e aceite) ou a ação do dono no painel |
 | PR2a-banco | `vendas_iniciar_geracao` ainda aceita a conversa sem pedido (só a API recusa) | 2b: exigir o pedido confirmado também no banco, depois de conferir que nenhuma conversa antiga em produção depende disso |
-| PR2a-alarme | o alarme da fila e dos pendentes aparece no painel, não no aviso diário do ntfy | se o dono quiser o aviso no celular: um tipo novo em `rotinas_conferir` |
+| PR2a-alarme | o alarme da fila e dos pendentes aparece no painel, não em aviso no celular (ntfy removido em 31/10/2026) | se o dono quiser o aviso no celular (ainda sem canal: app próprio em desenvolvimento): um tipo novo em `rotinas_conferir` |
 | PR2a-selo | o selo de texto suspeito herda os falsos positivos do `pareceInjecao` (PR34-S5: "tem desconto?") | junto do PR34-S5 |
 ```
 

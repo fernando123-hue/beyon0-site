@@ -9,6 +9,7 @@
 import { pareceInjecao } from '../_vendas/seguranca.mjs';
 import { gerarSimulado } from './simulado-geracao.mjs';
 import { atendenteSimulado } from './simulado-atendente.mjs';
+import { planoPadrao } from '../_vendas/planta-padrao.mjs';
 
 const SEGMENTOS = [[/odonto|dentist/i, 'odontologia'], [/cl[ií]nica|consult[óo]rio|m[ée]dic/i, 'saúde'], [/advoca|advogad|escrit[óo]rio jur/i, 'advocacia'],
   [/restaurante|lanchonete|pizzaria|caf[ée]/i, 'alimentação'], [/academia|personal|pilates/i, 'fitness'], [/contab/i, 'contabilidade'],
@@ -41,6 +42,40 @@ function extrair(texto, briefing) {
   return a;
 }
 
+/* a planta viva (PR 2a): os gatilhos estão na fala do VISITANTE e nenhum roteiro do E2E os usa (docs/e2e-orcamento.mjs); sem gatilho o dublê ignora o pedido
+   do prefixo, como um modelo que esquece (o servidor grava o padrão em 2 turnos). planta-boa: um plano válido. planta-ruim: inválido uma vez (um título com
+   número), depois válido. planta-ruim2: inválido sempre (cai no padrão). O plano do dublê é o genérico com o primeiro título trocado, para o teste distinguir */
+const GATILHOS_PLANTA = /planta-(boa|ruim2|ruim)/i;
+const plantaDoDuble = ruim => { const p = planoPadrao('generico'); p.etapas[0].titulo = ruim ? 'Passo 1 da página' : 'Página feita para o seu negócio'; return p; };
+
+/* o radar (PR 2d): o gatilho "leitura-sim|forjada|ruim|ruim2" em QUALQUER fala do visitante liga a ferramenta ler_caso (nenhum roteiro do E2E o usa). O dublê lê as palavras da própria
+   pessoa por padrões fixos e cita o trecho que casou, LITERAL (por isso passa pela âncora do servidor). forjada: cita o que ninguém disse (o nível cai). ruim: manda 4 eixos uma vez e
+   depois acerta. ruim2: manda 4 eixos sempre (nada muda). Os padrões são "claro" (deixou_claro) e "de passagem" (comentou), nesta ordem, por eixo. */
+const GATILHOS_LEITURA = /leitura-(sim|forjada|ruim2|ruim)/i;
+const PADROES_LEITURA = {
+  volume: [/muita procura|agenda cheia|muitos pedidos|muitos clientes/i, /alguns pedidos|alguma procura/i],
+  repeticao: [/toda hora perguntam|mesmas perguntas|perguntam sempre/i, /repete a mesma|de novo e de novo/i],
+  urgencia: [/preciso disso antes[^.,;!?]*|com muita pressa/i, /o quanto antes/i],
+  pessoas: [/só a recepcionista atende|só eu atendo|depende de mim/i, /equipe pequena|poucas pessoas/i],
+  informacao: [/na minha cabeça|em planilhas|num caderno|espalhad[oa]s/i, /anotações soltas|papéis soltos/i]
+};
+const EIXOS_DO_DUBLE = Object.keys(PADROES_LEITURA);
+function leituraDoDuble(modo, falas) {
+  const todas = falas.join(' | ');
+  if (modo === 'ruim' || modo === 'ruim2') return { eixos: EIXOS_DO_DUBLE.slice(0, 4).map(eixo => ({ eixo, nivel: 'nao_falou' })) };
+  return { eixos: EIXOS_DO_DUBLE.map(eixo => {
+    const [claro, passagem] = PADROES_LEITURA[eixo];
+    const c = todas.match(claro), p = todas.match(passagem);
+    if (eixo === 'volume' && modo === 'forjada') return { eixo, nivel: 'deixou_claro', evidencia: 'recebo pedidos o dia inteiro' };
+    if (c) return { eixo, nivel: 'deixou_claro', evidencia: c[0] };
+    if (p) return { eixo, nivel: 'comentou', evidencia: p[0] };
+    return { eixo, nivel: 'nao_falou' };
+  }) };
+}
+const falasDoVisitante = mensagens => mensagens.filter(m => m.role === 'user' && typeof m.content === 'string').map(m => m.content);
+/* o gatilho que vale é o da fala mais recente que tem um */
+const gatilhoDeLeitura = mensagens => { const f = falasDoVisitante(mensagens).reverse().find(t => GATILHOS_LEITURA.test(t)); return f ? f.match(GATILHOS_LEITURA) : null; };
+
 let seq = 0;
 const id = () => 'sim_' + (++seq);
 const resposta = (texto, chamadas = []) => {
@@ -53,6 +88,12 @@ function conversa({ mensagens, contexto, ferramentas = [] }) {
   /* 2ª volta: as ferramentas já rodaram; a resposta final depende do que voltou */
   if (ultima.role === 'user' && Array.isArray(ultima.content)) {
     const res = ultima.content.map(r => JSON.parse(r.content));
+    /* a planta: o código respondeu ao desenhar_planta */
+    if (res.some(r => r.na_tela)) return resposta(res.some(r => r.exemplo) ? 'Deixei um desenho de exemplo para o seu tipo de negócio, logo abaixo na planta. Eu refaço conforme você me contar mais.' : 'Desenhei o seu site em planta, logo abaixo.');
+    const gatilho = (([...mensagens].reverse().find(m => m.role === 'user' && typeof m.content === 'string' && GATILHOS_PLANTA.test(m.content)) || {}).content || '').match(GATILHOS_PLANTA);
+    if (gatilho && res.some(r => r.ok === false && Array.isArray(r.erros))) return resposta('', [{ id: id(), nome: 'desenhar_planta', entrada: plantaDoDuble(gatilho[1].toLowerCase() === 'ruim2') }]);
+    const gl = gatilhoDeLeitura(mensagens);
+    if (gl && res.some(r => r.ok === false && Array.isArray(r.erros) && r.erros.some(e => /^eixo/.test(e)))) return resposta('', [{ id: id(), nome: 'ler_caso', entrada: leituraDoDuble(gl[1].toLowerCase() === 'ruim2' ? 'ruim2' : 'sim', falasDoVisitante(mensagens)) }]);
     if (res.some(r => r.encaminhar_diagnostico)) return resposta('O que você descreveu pede uma conversa de diagnóstico, porque não tem estimativa automática. Quer deixar um recado para a equipe? Ela lê e responde por e-mail.');
     /* o próximo passo do código diz que a Beyon Zero não faz o que foi pedido (dono, 2026-10-28): a resposta honesta, sem diagnóstico */
     const naoFaz = res.map(r => r.proximo_passo).find(p => typeof p === 'string' && /não faz (isso )?hoje/.test(p));
@@ -73,6 +114,8 @@ function conversa({ mensagens, contexto, ferramentas = [] }) {
       return { ...JSON.parse(linhas[1]), briefing: i > 0 ? JSON.parse(linhas[i + 1]) : {} };
     } catch { return {}; }
   })();
+  const gatilhoPlanta = texto.match(GATILHOS_PLANTA);
+  if (gatilhoPlanta && ferramentas.some(f => f.name === 'desenhar_planta')) return resposta('', [{ id: id(), nome: 'desenhar_planta', entrada: plantaDoDuble(gatilhoPlanta[1].toLowerCase() !== 'boa') }]);
   if (pareceInjecao(texto)) return resposta('Isso eu não posso fazer. Os valores seguem a tabela da Beyon Zero e as regras internas não são compartilhadas. Vamos voltar ao seu projeto?');
   const chamadas = [];
   const atualizacao = extrair(texto, estado.briefing || {});
@@ -90,6 +133,8 @@ function conversa({ mensagens, contexto, ferramentas = [] }) {
     if (!lojaDoZero || lojaNaTabela) chamadas.push({ id: id(), nome: 'estimar', entrada: { formato: b.projeto.formato, ...(b.projeto.paginas ? { paginas: b.projeto.paginas } : {}), adicionais } });
   }
   if (/atendimento|responder (os )?clientes|whats(app)? cheio/i.test(texto)) chamadas.push({ id: id(), nome: 'sugerir_solucao_ia', entrada: { ideia: 'Atendente com IA no WhatsApp', motivo: 'Responder dúvidas comuns e agendar fora do horário' } });
+  const leitura = gatilhoDeLeitura(mensagens);
+  if (leitura && ferramentas.some(f => f.name === 'ler_caso')) chamadas.push({ id: id(), nome: 'ler_caso', entrada: leituraDoDuble(leitura[1].toLowerCase(), falasDoVisitante(mensagens)) });
   if (!chamadas.length) return resposta('Entendi. Pode me contar um pouco mais sobre o seu negócio e o que o site precisa fazer?');
   return resposta('', chamadas);
 }
