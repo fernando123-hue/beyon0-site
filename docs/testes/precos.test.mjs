@@ -55,7 +55,7 @@ test('tabela de 2026-10-28: nada fora do automático; área restrita, sistema e 
     const e = estimar({ formato: 'institucional', adicionais: { [k]: 1 } }, REGRAS);
     assert.deepEqual([e.erros, e.encaminhar_diagnostico, e.valor_total], [['adicional desconhecido: ' + k], undefined, undefined], k + ': recusado, sem preço e sem diagnóstico');
   }
-  assert.match(REGRAS._status, /área restrita, o sistema sob medida e a loja em código próprio/);
+  assert.match(V4._status, /área restrita, o sistema sob medida e a loja em código próprio/);
 });
 
 test('casos de referência (os números do REGRAS-RASCUNHO.md)', () => {
@@ -91,7 +91,7 @@ test('com teto de 10 dias, o que não cabe vai para a fase seguinte, na ordem de
 test('tabela de 2026-10-28: sem trava de prazo nem de valor, o projeto sai numa entrega só', () => {
   assert.equal(REGRAS.prazo_max_dias, 60, 'o máximo do validador e do banco (app.estimativas.prazo_dias de 1 a 60)');
   assert.deepEqual([REGRAS.limites.valor_max_automatico, REGRAS.limites.valor_max_projeto], [1e7, 1e7]);
-  assert.match(REGRAS._status, /sem trava de prazo/);
+  assert.match(V4._status, /sem trava de prazo/);
   /* experiência com 12 páginas, todos os adicionais gerais no máximo e complexidade alta: 19900 + 8 × 350 + 15 × 350 +
      250 + 3 × 300 + 450 + 900 + 1500 + 3 × 900 + 2 × 800 = 36250, × 1,25 = 45312,5 → 45310; prazo 10 + 4 + 3,75 + 0,5 +
      1,5 + 1 + 2 + 3 + 3 + 4 = 32,75 → 33 dias */
@@ -260,7 +260,7 @@ test('fase seguinte longa diz em quantas fases de até 10 dias ela se divide', a
 
 test('rascunho: a entrada é 40% (decisão do dono de 20/10, Decisões.md, "O site vende sozinho", 1 D; PR 3b-1). A tabela ativa o dono aplica', () => {
   assert.equal(REGRAS.sinal_percentual, 40);
-  assert.match(REGRAS._status, /40%/, 'o _status diz de onde veio o 40');
+  assert.match(V4._status, /40%/, 'o _status diz de onde veio o 40');
 });
 
 /* o consultor só fala de fase quando o motor ainda pode gerar uma (prazo_max_dias menor que a maior soma possível) */
@@ -297,7 +297,7 @@ test('v3: o Atelier substitui a experiência digital (id interno igual, para nã
   assert.ok(b.inclui.some(x => /2 interações de assinatura/i.test(x) && /animações de entrada e rolagem no site todo/i.test(x)), 'duas interações de assinatura e as animações do site todo já vêm na base');
   assert.ok(b.inclui.some(x => /textos/i.test(x) && /todas as páginas/i.test(x)) && b.inclui.some(x => /imagens/i.test(x) && /formulário/i.test(x)), 'textos de todas as páginas, imagens e formulário com etapas já vêm na base');
   assert.match(REGRAS.multiplicadores.complexidade_alta.descricao, /integrações ou regras de negócio/i, 'complexidade alta não cobra de novo as interações que o Atelier já inclui');
-  assert.doesNotMatch(REGRAS._status, /R\$ 300\/h/, 'o relatório Lucro real não define faixa por hora: a frase saiu');
+  assert.doesNotMatch(V4._status, /R\$ 300\/h/, 'o relatório Lucro real não define faixa por hora: a frase saiu');
   assert.ok(!b.inclui.some(x => /acompanhamento|suporte|manuten/i.test(x)), 'sem acompanhamento pós-entrega (dono, 03/11)');
   assert.ok(!JSON.stringify(REGRAS.formatos).includes('Experiência digital'), 'o nome antigo saiu da tabela');
   assert.deepEqual(validarRegras(REGRAS), { ok: true });
@@ -504,11 +504,16 @@ test('v4: o SQL de ativação arquiva a v3, grava a v4 como ativa e é o mesmo q
   assert.equal(sql, sqlDeAtivacao(json, 'aprovada pelo dono em 2026-11-08 (chat): Confirmo, pode excluir o Atelier.'), 'o arquivo não ficou para trás da tabela-rascunho');
   assert.throws(() => sqlDeAtivacao(JSON.stringify({ moeda: 'BRL' }), 'x'), /Tabela inválida/);
   assert.throws(() => sqlDeAtivacao(json, "o dono's"), /aspas simples/);
+  for (const ruim of ['a\\b', 'a\nb', 'a\rb', '']) assert.throws(() => sqlDeAtivacao(json, ruim), /Fontes/, JSON.stringify(ruim));
+  assert.doesNotMatch(sql, /fundador|11º cliente|Decisões\.md/, 'o histórico longo do _status não vai para o SQL público nem para o banco');
   const db = await novoBanco();
+  const { erroDe } = await import('./_banco.mjs');
+  assert.match((await erroDe(db.exec(sql)))?.msg || '', /beyon-zero não existe/, 'sem a organização, aborta');
   const ORG = '99999999-0000-4000-8000-000000000099';
   await db.query(`insert into app.organizacoes (id, slug, nome) values ($1, 'beyon-zero', 'Beyon Zero')`, [ORG]);
   await db.query(`insert into app.regras_comerciais (org_id, versao, status, regras, aprovada_em) values ($1, 3, 'ativa', $2::jsonb, now())`, [ORG, JSON.stringify(REGRAS)]);
   await db.exec(sql);
+  assert.match((await erroDe(db.exec(sql)))?.msg || '', /já está ativa/, 'rodar de novo aborta sem gravar outra versão');
   const linhas = (await db.query(`select versao, status, regras -> 'formatos' ? 'sob_medida' as atelier, regras from app.regras_comerciais order by versao`)).rows;
   assert.deepEqual(linhas.map(l => [l.versao, l.status, l.atelier]), [[3, 'arquivada', true], [4, 'ativa', false]]);
   assert.deepEqual(validarRegras(linhas[1].regras), { ok: true }, 'o que ficou no banco passa na validação do servidor');
