@@ -268,6 +268,108 @@ test('acesso no Playwright: o token vai só nos pedidos do próprio staging (rot
   assert.equal(await autorizarContexto(sem, BASE, { CF_ACCESS_CLIENT_ID: 'só o id' }, SUB), false);
 });
 
+/* o Playwright só chama a rota no 1º endereço de um redirecionamento: o seguinte saía SEM o token e caía no login do
+   Access (08/11: /index.html → 307 / no staging derrubava 9 dos 12 alvos do verificar) */
+function rotaDeTeste() {
+  const registrado = [];
+  return { ctx: { route: async (_padrao, fn) => { registrado.push(fn); } }, fn: () => registrado[0] };
+}
+const respostaFalsa = (status, local = '') => ({ status: () => status, headers: () => (local ? { location: local } : {}) });
+function pedidoFalso(url, respostas, buscados, entregues) {
+  return { request: () => ({ url: () => url, method: () => 'GET', headers: () => ({ accept: 'text/html' }) }),
+    fetch: async op => { buscados.push(op); return respostas.shift(); }, fulfill: async op => { entregues.push(op); } };
+}
+test('acesso no Playwright: redirecionamento na MESMA origem é seguido com o token; a resposta final é a entregue', async () => {
+  const BASE = 'https://beyon-zero-site-previa.irineu.workers.dev';
+  const { ctx, fn } = rotaDeTeste();
+  await autorizarContexto(ctx, BASE, TOKEN, SUB);
+  const final = respostaFalsa(200); const buscados = []; const entregues = [];
+  await fn()(pedidoFalso(BASE + '/index.html', [respostaFalsa(307, '/'), final], buscados, entregues));
+  assert.equal(buscados.length, 2);
+  assert.equal(buscados[1].url, BASE + '/');
+  assert.deepEqual(buscados[1].headers, { accept: 'text/html', ...DOIS });
+  assert.equal(buscados[1].maxRedirects, 0);
+  assert.equal(entregues.length, 1); assert.equal(entregues[0].response, final);
+});
+test('acesso no Playwright: redirecionamento para OUTRO host é entregue como está (o token nunca vai para fora)', async () => {
+  const BASE = 'https://beyon-zero-site-previa.irineu.workers.dev';
+  const { ctx, fn } = rotaDeTeste();
+  await autorizarContexto(ctx, BASE, TOKEN, SUB);
+  const login = respostaFalsa(302, 'https://beyon.cloudflareaccess.com/cdn-cgi/access/login'); const buscados = []; const entregues = [];
+  await fn()(pedidoFalso(BASE + '/', [login], buscados, entregues));
+  assert.equal(buscados.length, 1);
+  assert.equal(entregues[0].response, login);
+});
+test('acesso no Playwright: laço de redirecionamento para depois de 5 saltos e entrega o último', async () => {
+  const BASE = 'https://beyon-zero-site-previa.irineu.workers.dev';
+  const { ctx, fn } = rotaDeTeste();
+  await autorizarContexto(ctx, BASE, TOKEN, SUB);
+  const respostas = Array.from({ length: 10 }, () => respostaFalsa(307, '/a')); const buscados = []; const entregues = [];
+  await fn()(pedidoFalso(BASE + '/a', respostas, buscados, entregues));
+  assert.equal(buscados.length, 6);
+  assert.equal(entregues.length, 1);
+});
+test('acesso no Playwright: Location adversarial ou malformado nunca leva o token para fora e nunca derruba a rota (revisão 08/11)', async () => {
+  const BASE = 'https://beyon-zero-site-previa.irineu.workers.dev';
+  const fora = ['//outro.example/x', 'http://beyon-zero-site-previa.irineu.workers.dev/', 'https://beyon-zero-site-previa.irineu.workers.dev:8443/',
+    'https://beyon-zero-site-previa.irineu.workers.dev.evil.com/', 'javascript:alert(1)', 'http://[', 'https://x:porta/'];
+  for (const local of fora) {
+    const { ctx, fn } = rotaDeTeste();
+    await autorizarContexto(ctx, BASE, TOKEN, SUB);
+    const r = respostaFalsa(302, local); const buscados = []; const entregues = [];
+    await fn()(pedidoFalso(BASE + '/', [r], buscados, entregues));
+    assert.equal(buscados.length, 1, local); assert.equal(entregues[0].response, r, local);
+  }
+});
+test('acesso no Playwright: host em maiúsculas e cadeia de 2 saltos relativos seguem com o token; 3xx sem Location é entregue', async () => {
+  const BASE = 'https://beyon-zero-site-previa.irineu.workers.dev';
+  let { ctx, fn } = rotaDeTeste();
+  await autorizarContexto(ctx, BASE, TOKEN, SUB);
+  let buscados = []; let entregues = [];
+  await fn()(pedidoFalso(BASE + '/a.html', [respostaFalsa(301, 'HTTPS://BEYON-ZERO-SITE-PREVIA.IRINEU.WORKERS.DEV/a'), respostaFalsa(307, 'b'), respostaFalsa(200)], buscados, entregues));
+  assert.equal(buscados.length, 3);
+  assert.equal(buscados[2].url, BASE + '/b');
+  assert.deepEqual(buscados[2].headers, { accept: 'text/html', ...DOIS });
+  ({ ctx, fn } = rotaDeTeste());
+  await autorizarContexto(ctx, BASE, TOKEN, SUB);
+  buscados = []; entregues = [];
+  const r304 = respostaFalsa(304);
+  await fn()(pedidoFalso(BASE + '/', [r304], buscados, entregues));
+  assert.equal(buscados.length, 1); assert.equal(entregues[0].response, r304);
+});
+test('acesso no Playwright: só GET/HEAD seguem o redirecionamento (POST é entregue como veio)', async () => {
+  const BASE = 'https://beyon-zero-site-previa.irineu.workers.dev';
+  const { ctx, fn } = rotaDeTeste();
+  await autorizarContexto(ctx, BASE, TOKEN, SUB);
+  const r = respostaFalsa(302, '/'); const buscados = []; const entregues = [];
+  const pedido = pedidoFalso(BASE + '/api/x', [r], buscados, entregues);
+  const req = pedido.request(); pedido.request = () => ({ ...req, method: () => 'POST' });
+  await fn()(pedido);
+  assert.equal(buscados.length, 1); assert.equal(entregues[0].response, r);
+});
+test('acesso no Playwright: erro de rede com "closed" na mensagem sobe (não é confundido com contexto fechado)', async () => {
+  const BASE = 'https://beyon-zero-site-previa.irineu.workers.dev';
+  const { ctx, fn } = rotaDeTeste();
+  await autorizarContexto(ctx, BASE, TOKEN, SUB);
+  const socket = { request: () => ({ url: () => BASE + '/', headers: () => ({}) }),
+    fetch: async () => { throw new Error('socket has been closed'); }, fulfill: async () => {} };
+  await assert.rejects(fn()(socket), /socket has been closed/);
+  const disposto = { request: () => ({ url: () => BASE + '/', headers: () => ({}) }),
+    fetch: async () => { throw new Error('route.fetch: Request context disposed.'); }, fulfill: async () => {} };
+  await fn()(disposto);
+});
+test('acesso no Playwright: contexto já fechado no meio do pedido não derruba a rodada; outro erro sobe', async () => {
+  const BASE = 'https://beyon-zero-site-previa.irineu.workers.dev';
+  const { ctx, fn } = rotaDeTeste();
+  await autorizarContexto(ctx, BASE, TOKEN, SUB);
+  const fechado = { request: () => ({ url: () => BASE + '/api/x', headers: () => ({}) }),
+    fetch: async () => { const e = new Error('route.fetch: Request context disposed.'); e.name = 'TargetClosedError'; throw e; }, fulfill: async () => {} };
+  await fn()(fechado);
+  const outro = { request: () => ({ url: () => BASE + '/api/x', headers: () => ({}) }),
+    fetch: async () => { throw new Error('rede caiu'); }, fulfill: async () => {} };
+  await assert.rejects(fn()(outro), /rede caiu/);
+});
+
 /* ---- revisão do PR B, BAIXOs de código ---- */
 test('corpo cortado no meio pelo cliente: 500 genérico com x-request-id (a leitura está dentro do try), nunca uma rejeição crua (BAIXO-1)', async () => {
   const cortado = new Request('https://x/api/eco', { method: 'POST', duplex: 'half',
