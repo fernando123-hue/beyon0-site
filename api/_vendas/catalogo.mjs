@@ -98,7 +98,9 @@ function extra(chave, def) {
 }
 function sugestoes(formato, ramo, principais) {
   const pode = new Set(principais.filter(x => x.valor != null && !x.fale_comigo).map(x => x.chave));
-  const ordem = (formato === 'loja_plataforma' ? SUGESTAO_LOJA : SUGESTAO_RAMO[ramo] || []).concat(SUGESTAO_SEMPRE);
+  /* (o ramo vem do visitante: só a chave própria, nunca "constructor" ou "__proto__" do protótipo) */
+  const doRamo = typeof ramo === 'string' && Object.hasOwn(SUGESTAO_RAMO, ramo) ? SUGESTAO_RAMO[ramo] : [];
+  const ordem = (formato === 'loja_plataforma' ? SUGESTAO_LOJA : doRamo).concat(SUGESTAO_SEMPRE);
   return [...new Set(ordem)].filter(k => pode.has(k)).slice(0, MAX_SUGESTOES);
 }
 

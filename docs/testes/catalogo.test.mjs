@@ -158,6 +158,10 @@ test('sugestões: até 3, pelo ramo e pelo formato, só do que dá para contrata
   }
   /* o que está em preparo (o atendente de IA) nunca é sugerido */
   assert.ok(!de('institucional', 'servicos').recomendados.some(k => /^atendente_ia/.test(k)));
+  /* o ramo vem do visitante (?ramo=): nome de propriedade do Object não derruba a rota, cai no "sem ramo" (revisão do #127) */
+  for (const ramo of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+    assert.deepEqual(de('landing_page', ramo).recomendados, ['textos', 'imagens', 'interacao_leve'], 'ramo ' + ramo);
+  }
 });
 
 test('cada extra tem nome curto e benefício para o cartão; o nome da tabela segue como estava', () => {

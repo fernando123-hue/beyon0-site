@@ -240,8 +240,9 @@
     $('o-est-acoes').hidden = false;
     /* as sugestões (refeitas quando o catálogo muda: outro formato, outro ramo) e as marcas dos dois lugares */
     if (catalogo && sugestoesDe !== catalogoDe) montarSugestoes();
-    $('o-reco').hidden = !res.estimativa || !$('o-reco-lista').children.length;
     if (catalogo) atualizarExtras();
+    /* (depois das marcas: se o "requer" escondeu todos os cartões, o título não fica sozinho) */
+    $('o-reco').hidden = !res.estimativa || !$('o-reco-lista').querySelector('.orc-reco__item:not([hidden])');
   }
   /* os formatos ao lado (âncora honesta): a alternativa da recomendação e, fora dela, o próprio recomendado */
   function vizinhos(rec, atual) {
@@ -349,7 +350,7 @@
     var fmt = formato || catalogoDe;   /* (a recomendar: o do catálogo, que é o recomendado) */
     todosExtras().forEach(function (x) {
       var visivel = !x.requer || x.requer.some(function (q) { return q === fmt || extras[q] > 0; });
-      todos('[data-extra="' + x.chave + '"]').forEach(function (c) {
+      todos('[data-extra="' + CSS.escape(x.chave) + '"]').forEach(function (c) {
         c.checked = extras[x.chave] > 0;
         c.closest('.orc-extra, .orc-reco__item').hidden = !visivel;
       });
