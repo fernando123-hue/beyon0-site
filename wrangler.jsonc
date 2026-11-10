@@ -17,7 +17,11 @@
     "not_found_handling": "404-page"
   },
   "triggers": { "crons": ["23 */3 * * *", "41 6 * * *"] },
-  "vars": { "BZ_AMBIENTE": "producao", "MP_AMBIENTE": "producao", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "" },
+  "vars": { "BZ_AMBIENTE": "producao", "MP_AMBIENTE": "producao", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "",
+    // o aviso ao dono por e-mail (api/_aviso.mjs) até existir o app com push; o remetente (avisos@ do domínio) fica no código; o destino é o e-mail público da empresa e precisa estar
+    // verificado no Email Routing da zona. Só a produção avisa: o staging (env.previa) não tem o binding nem estes endereços
+    "AVISO_PARA": "contato.beyon.zero@gmail.com" },
+  "send_email": [{ "name": "AVISO_EMAIL", "destination_address": "contato.beyon.zero@gmail.com" }],
   "observability": { "enabled": true, "logs": { "enabled": true, "head_sampling_rate": 1 }, "traces": { "enabled": true } },
   "env": {
     // o Worker das PRÉVIAS (mesma conta): main = staging fixo (publicado com --env previa); outras branches = versões de prévia, também com --env previa

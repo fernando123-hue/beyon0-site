@@ -4,7 +4,7 @@
    servidor o HMAC do telefone e a chave do IP (o banco nunca recebe nenhum dos dois em claro para os freios) e
    grava por app.vendas_registrar_detalhes, que aplica os freios numa transação: uma vez por conversa, IP,
    telefone e o teto da fila do dono. O pedido nasce confirmado (migration 20261030120000: sem WhatsApp e sem clique do dono) e o dono recebe o aviso
-   "Pedido novo na fila" pelo aviso ao dono (api/_aviso.mjs; ainda sem canal).
+   "Pedido novo na fila" pelo aviso ao dono (api/_aviso.mjs: e-mail até o app).
    ========================================================================== */
 import { Recusa } from './recusa.mjs';
 import { ErroBanco } from './transporte.mjs';
