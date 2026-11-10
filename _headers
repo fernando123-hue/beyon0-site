@@ -2,12 +2,13 @@
 # caractere; docs/testes/cabecalhos.test.mjs confere a paridade e as CSPs de cada página. A API NÃO passa por aqui:
 # o _headers não vale para resposta do Worker; os cabeçalhos dela vêm de cloudflare/rotas.mjs.
 # Mais de uma regra para o mesmo cabeçalho SOMA os valores: por isso as regras específicas começam com "! Nome"
-# (tira o que veio da regra geral) e põem o valor próprio.
+# (tira o que veio da regra geral) e põem o valor próprio. A ORDEM em que a Cloudflare aplica as regras não é garantida
+# (no ar, "/" foi aplicada antes de "/*"): docs/testes/cabecalhos.test.mjs exige o mesmo resultado na ordem do arquivo
+# e na alfabética.
 # Exceção à paridade: o Cache-Control de /js/* e /css/* só vale aqui (a montagem da Cloudflare põe o ?v=<hash> no HTML; a
 # Vercel, legado, não tem essa montagem e segue sem ele).
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
@@ -15,8 +16,19 @@
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
 
+# A CSP geral NÃO fica em "/*" (que casa também "/"): fica em ":trecho" (um trecho NÃO vazio, sem "/"), que casa todo
+# caminho menos a raiz. "/:trecho" cobre as páginas de um trecho e o 404 de um trecho (/condicoes, /qualquer-coisa,
+# /favicon.ico); "/:trecho/*" cobre o resto (/js/*, /vendor/*, /assets/*, o 404 mais fundo). As páginas com CSP própria
+# de um trecho (/sites, /automacao, /orcamento, /painel) ainda tiram esta com "! Nome": medido no ar em 10/11, ali funciona.
+/:trecho
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+
+/:trecho/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+
+# A raiz tem a CSP só desta regra: nenhuma outra regra com CSP casa "/", então ela não depende do "! Nome" (que no ar
+# não tirava a CSP de "/*" da raiz: saíam duas e o navegador aplicava a interseção, bloqueando o Turnstile do recado).
 /
-  ! Content-Security-Policy
   Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://challenges.cloudflare.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://challenges.cloudflare.com https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
 
 /sites
