@@ -263,7 +263,12 @@
     if ((B.agitacao || 0) < 0.2) degrauAgitado = 0;
     posicionar();
     /* o fôlego do reator move o campo: expirar solta a onda; inspirar recolhe */
-    if (faseAntes < F.inspira && x >= F.inspira) { if (usaCampo()) campo.soltarOnda(); if (trilho) trilho.soltarOnda(); expirouQuadro = true; }
+    if (faseAntes < F.inspira && x >= F.inspira) {
+      var forte = B.pulso ? B.pulso.forte(B.pulso.numero(t)) : false;   /* (um a cada 4: js/core.js) */
+      if (usaCampo()) campo.soltarOnda(forte);
+      if (trilho) trilho.soltarOnda();
+      expirouQuadro = true;
+    }
     /* a coleta parte ANTES do lampejo do reator (x = 0), escalonada: a
        mediana dos pacotes chega junto com ele (causa antes do efeito) */
     if (faseAntes < COLETA.fase && x >= COLETA.fase) coletar();

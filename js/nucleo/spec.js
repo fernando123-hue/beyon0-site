@@ -75,7 +75,7 @@ export const SPEC = {
      que então bate (`batida`). O canal fica aceso (`base`): o pulso corre
      num trilho, não flutua. `largura` fora, `ponta` dentro (piso de 1 px);
      `cauda`: o rastro, em fração do comprimento */
-  raios: { n: 12, de: 0.9, ate: 0.16, largura: 0.012, ponta: 0.006, puxa: 1.6, cauda: 0.24, cor: 'ac', alfa: 0.95, base: 0.2, batida: 0.12,
+  raios: { n: 12, de: 0.9, ate: 0.16, largura: 0.012, ponta: 0.006, puxa: 1.6, cauda: 0.24, cor: 'ac', alfa: 0.95, base: 0.2, batida: 0.2,
     /* a injeção: onde cada raio toca o portal, um lampejo discreto na partida
        de cada pulso (forte, lia como rebites — rodada 6) */
     lampejo: { alfa: 0.3, dura: 0.4, escala: 0.055 } },
@@ -142,9 +142,12 @@ export const SPEC = {
      (8 longas, mais fortes), as curtas discretas. `marca`: largura (piso) */
   regua: { raio: 1.13, n: 120, longa: 15, cor: 'ac', alfa: 0.2, alfaLonga: 0.45, marca: 0.004 },
 
-  /* a onda: um anel de 1 px que sai do núcleo (raio de/ate) em `dura` s, a
-     cada `periodo` s; nunca uma mancha */
-  onda: { periodo: 8, dura: 1.4, raio: [0.4, 1.6], alfa: 0.35, cor: 'ac' },
+  /* a onda: um anel de 1 px que sai do núcleo (raio de/ate) em `dura` s, NO
+     PULSO (a expiração do fôlego, junto com a batida); nunca uma mancha. O
+     pulso (dono, 2026-11-10: "eu não sinto ele ocorrendo") ficou mais firme:
+     a batida dos raios foi de 0,12 a 0,2 e a onda de 0,35 a 0,55; o FORTE
+     (um a cada 4) multiplica as duas por `forte` */
+  onda: { dura: 1.4, raio: [0.4, 1.6], alfa: 0.55, forte: 1.5, cor: 'ac' },
 
   /* a respiração (pedido do dono: "sempre em movimento, praticamente
      respirando; leve, suave, quase hipnotizante"). Um fôlego a cada

@@ -244,11 +244,18 @@
     return t;
   }
 
+  var FOLEGO = { periodo: 7, inspira: 0.42 };
   window.BEYON = {
     S: S, largura: largura, texto: texto, textoMono: textoMono, pixel: pixel, ouro: ouro, tom: tom, add: add, remove: remove, on: on, off: off, emit: emit, iniciar: iniciar, pausar: pausar, reduzir: reduzir,
     reduced: reduced, sistemaReduz: mqReduce.matches, num: num, relogio: relogio,
     /* o fôlego: os mesmos números de SPEC.respira do reator (7 s, inspira em 42%) */
-    FOLEGO: { periodo: 7, inspira: 0.42 }
+    FOLEGO: FOLEGO,
+    /* O PULSO (dono, 2026-11-10: frequente, sem cansar): sai do núcleo a cada expiração (fase FOLEGO.inspira); o
+       número dele no relógio e o FORTE, um a cada 4 (o reator, a onda, a página e o som acentuam juntos) */
+    pulso: {
+      numero: function (t) { return Math.round((t - FOLEGO.periodo * FOLEGO.inspira) / FOLEGO.periodo); },
+      forte: function (n) { return ((n % 4) + 4) % 4 === 3; }
+    }
   };
 
   /* BOOT: 'booted' só depois que TODO script `defer` rodou (DOMContentLoaded),

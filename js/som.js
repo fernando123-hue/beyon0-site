@@ -38,31 +38,41 @@
   var B = window.BEYON;
 
   /* AS ESCOLHAS DO DONO: trocar = mudar uma linha (ouvir as opções em docs/sons/previa.html).
-     pulso 'A' batida grave | 'B' pulso de vidro · card 'A' vidro | 'B' seco · carga 'proposta' (sobe e trava) |
+     fundo 'cabine' (2026-11-10, o acorde aberto) | 'hoje' (o zumbido de 110 Hz, "pesado") ·
+     pulso 'luzSonar' (2026-11-10: uma batida só, o corpo macio e o ping de vidro com eco) | 'A' batida grave | 'B' pulso de vidro · card 'A' vidro | 'B' seco · carga 'proposta' (sobe e trava) |
      'hoje' (só o sino no cheio) · clique 'proposta' (tecla) | 'hoje' · ouro 'A' ignição completa | 'B' contida ·
      travessia true | false · intensidade 0,5–1,5 (todas as vozes; o fundo fica como está) */
-  var ESCOLHA = { pulso: 'A', card: 'A', carga: 'proposta', clique: 'proposta', ouro: 'A', travessia: true, intensidade: 1 };
+  var ESCOLHA = { fundo: 'cabine', pulso: 'luzSonar', card: 'A', carga: 'proposta', clique: 'proposta', ouro: 'A', travessia: true, intensidade: 1 };
 
   var CHAVE = 'bz-som', VISITA = 'bz-som-visita', VIVO = 'bz-som-vivo';
   /* o ganho de cada voz, calibrado por medida na prévia (pico e RMS de 50 ms; docs/sons/medir.mjs confere) */
-  var VOL = { fundo: 0.05, pulso: 0.22, pulsoSuave: 0.66, tic: 0.8, ticSeco: 1.4, carga: 1.5, trava: 0.25, clique: 0.32, ouro: 0.34, passagem: 1.5 };
+  var VOL = { pulso: 0.22, pulsoLuz: 0.45, estacao: 0.32, ignicao: 0.32, descarga: 0.22, pulsoSuave: 0.66, tic: 0.8, ticSeco: 1.4, carga: 1.5, trava: 0.25, clique: 0.32, ouro: 0.34, passagem: 1.5 };
   var SOBE = { primeira: 8, seguintes: 2, travessia: 0.8 };   /* s da subida do fundo: 1ª página, as outras, chegando pela travessia */
   var DESCE = 0.4;                            /* s até o silêncio ao desligar */
   var PISO = 0.0001;                          /* "quase nada": a rampa exponencial não parte do zero */
   var ACORDA_MS = 500;                        /* ms em que o contexto ainda acordando conta como tocando (tocando) */
   var ADIANTE = 0.01;                         /* s: a voz é agendada um pouco à frente (começar no passado estala) */
-  var FUNDO = {
-    notas: [[110, 'triangle', 1, 0], [165, 'sine', 0.5, 3], [220, 'sine', 0.35, -4]],   /* Hz, forma, peso, desafinação em cents */
-    filtro: { inspira: 900, expira: 600 },   /* Hz do passa-baixa: abre ao inspirar, fecha ao expirar */
-    folego: { inspira: 1.15, expira: 0.85 }  /* volume do fundo relativo a VOL.fundo */
+  /* O FUNDO (prévia: docs/sons/previa-2.html). Cada nota: [Hz, forma, peso, desafinação em cents, s do balanço (0 =
+     parado)]; coro: as duas vozes de cada nota, a ±coro cents (o batimento lento que dá o "vivo"); ar: o ruído
+     filtrado bem baixo; filtro: Hz do passa-baixa ao expirar e ao inspirar. A cabine (dono, 2026-11-10: "Sci-Fi
+     confortador") troca o grave de 110 Hz, o "pesado", por um acorde aberto em lá maior no meio */
+  var FUNDOS = {
+    hoje:   { vol: 0.05, notas: [[110, 'triangle', 1, 0, 0], [165, 'sine', 0.5, 3, 0], [220, 'sine', 0.35, -4, 0]], filtro: { expira: 600, inspira: 900 }, ar: 0, coro: 0 },
+    cabine: { vol: 0.034, notas: [[220, 'sine', 1, 0, 0], [329.63, 'sine', 0.7, 0, 11], [493.88, 'sine', 0.32, 0, 13], [554.37, 'sine', 0.22, 0, 17]], filtro: { expira: 1500, inspira: 2400 }, ar: 0.006, coro: 5 }
   };
+  var FUNDO = FUNDOS[ESCOLHA.fundo] || FUNDOS.cabine;
+  var FOLEGO_VOL = { inspira: 1.15, expira: 0.85 };   /* volume do fundo relativo a FUNDO.vol */
+  /* o PULSO: a nota anda por uma frase de 4 (lá, si, fá#, ré: sem tensão) e o 4º acentua; nunca o mesmo som em loop */
+  var FRASE = [1, 1.122, 0.891, 1.335], ACENTO = 1.35;
   /* por tipo: [s mínimos entre duas, quantas soam juntas, s que cada uma ocupa]. Passar o mouse por dez cards não
      vira ruído nem estoura; os quatro cards de uma estação que enchem juntos travam uma vez só */
-  var LIMITE = { card: [0.06, 3, 0.3], clique: [0.04, 3, 0.3], trava: [0.15, 2, 1], pulso: [2, 1, 0.7], carga: [0.06, 1, 0.1] };
+  var LIMITE = { card: [0.06, 3, 0.3], clique: [0.04, 3, 0.3], trava: [0.15, 2, 1], pulso: [2, 1, 0.7], carga: [0.06, 1, 0.1],
+    estacaoEnche: [0.5, 1, 2], estacaoConecta: [1, 1, 1.5], estacaoSurto: [0.5, 1, 0.6], estacaoSolta: [0.5, 1, 0.6], ignicao: [0.3, 1, 0.4], descarga: [1.2, 1, 0.5] };
   var UMA = [0, 1, 0.3];                      /* o resto (ouro, travessia): uma de cada vez */
   var ENCHE = 3.2, CHEIO = 0.995;             /* os de js/carga.js: a carga segue o alvo a 3,2/s e enche em 99,5% */
   var OURO_CARGA = 1.8, OURO_ESFRIA = 2.2;    /* s, os de js/ouro.js (T.carga, T.esfria): na página vale o B.ouro.T de agora */
   var CARDS = '.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .spec__item, .cenario';   /* os mesmos de js/carga.js */
+  var OCUPADO = '.is-carregando, .is-carregado';   /* o cursor parado num card (js/carga.js); o mesmo de js/pulso.js */
   var CLICAVEIS = 'a, button, summary, [role="button"]';
 
   var html = document.documentElement;
@@ -71,7 +81,7 @@
   var ligado = lerPreferencia();
   var ctx = null, mestre = null, sobe = null, fundo = null, motor = null;
   var subiu = false, semAudio = false, saindo = false, timerFolego = 0, timerPulso = 0, pulsoDepois = 0, acordaAte = 0;
-  var ultimo = {}, vivas = {}, carga = null, ouro = { sobe: null, reina: null };
+  var ultimo = {}, vivas = {}, carga = null, enche = null, ouro = { sobe: null, reina: null };
   /* o gancho dos testes (docs/testes/som-imersao.test.mjs, docs/sons/medir.mjs, docs/sons/contar.mjs): só com
      ?som=teste na URL, e nas páginas seguintes da mesma aba (a travessia é contada na página que chega) */
   var teste = null;
@@ -160,6 +170,56 @@
         osc('sine', 220, t, 0.05, 0.16, 0.9, out, 196);
         osc('sine', 440, t, 0.04, 0.05, 0.6, out, 392);
         ruido(t, 0.08, 0.035, 0.5, out, { tipo: 'lowpass', f: 900, q: 0.5, fFim: 300 });
+      },
+      /* luzSonar (dono, 2026-11-10: "misture os melhores elementos do 1 e 2, sem o tum-tum"): UMA batida, o corpo
+         macio do batimento de luz (196 Hz que cai pouco) e o ping de vidro do sonar com o eco longo; k: a nota da frase */
+      pulsoLuz: function (t, k, forte) {
+        var out = saida(0.6, 0, VOL.pulsoLuz * (forte ? ACENTO : 1));
+        osc('sine', 196 * k, t, 0.012, 0.28, 0.45, out, 174.6 * k);
+        osc('sine', 880 * k, t, 0.004, 0.14, 1.2, out);
+        osc('sine', 1320 * k, t, 0.004, 0.03, 0.6, out);
+      },
+      /* O AI CORE MÉDIO (js/estacao.js). Acopla e enche: um tom que sobe com a carga; quem o corta é a conexão ou a soltura */
+      estacaoEnche: function (t, dura) {
+        var out = saida(0.35, 0, VOL.estacao), fl = c.createBiquadFilter(), g = c.createGain();
+        fl.type = 'lowpass'; fl.frequency.setValueAtTime(500, t); fl.frequency.exponentialRampToValueAtTime(2600, t + dura); fl.connect(g); g.connect(out);
+        var nivel = subida(g, t, t + dura * 0.8, PISO);
+        g.gain.setValueAtTime(1, t + dura); g.gain.exponentialRampToValueAtTime(PISO, t + dura + 0.15);
+        var os = [[220, 'triangle'], [221.2, 'sine']].map(function (n) {
+          var o = c.createOscillator(), gv = c.createGain(); gv.gain.value = 0.12;
+          o.type = n[1]; o.frequency.setValueAtTime(n[0], t); o.frequency.exponentialRampToValueAtTime(n[0] * 2, t + dura);
+          o.connect(gv); gv.connect(fl); o.start(t); o.stop(t + dura + 0.2); return o;
+        });
+        return { parar: function (tt) { fechar(g, os, nivel, PISO, tt, 0.12); } };
+      },
+      /* conectada: o acorde que abre (lá maior com 9ª), sem pressa */
+      estacaoConecta: function (t) {
+        var out = saida(0.55, 0, VOL.estacao * 1.3);
+        [[440, 0], [554.37, 0.05], [659.25, 0.1], [987.77, 0.16]].forEach(function (n, i) { osc('sine', n[0], t + n[1], 0.01, 0.09 - i * 0.015, 1.4, out); });
+        osc('sine', 220, t, 0.02, 0.07, 1.2, out);
+      },
+      /* o pulso chega aos cards dela: um tique de vidro por card, do mais perto ao mais longe, alternando o lado */
+      estacaoSurto: function (t, n) {
+        for (var i = 0; i < Math.min(n || 4, 6); i++) osc('sine', NOTAS[i % NOTAS.length], t + i * 0.07, 0.003, 0.05, 0.22, saida(0.4, (i % 2 ? 1 : -1) * 0.5, VOL.estacao * 0.8));
+      },
+      /* solta: a carga desce e apaga */
+      estacaoSolta: function (t) {
+        var out = saida(0.3, 0, VOL.estacao);
+        osc('sine', 659.25, t, 0.01, 0.07, 0.5, out, 329.63);
+        osc('triangle', 329.63, t, 0.01, 0.04, 0.45, out, 164.81);
+      },
+      /* o mini encaixa na borda do botão (js/mini-docas.js): o zip curto e o ping da ignição */
+      ignicao: function (t) {
+        var out = saida(0.3, 0, VOL.ignicao);
+        ruido(t, 0.005, 0.06, 0.12, out, { f: 1800, q: 2, fFim: 6000 });
+        osc('sine', 1318.5, t + 0.1, 0.004, 0.07, 0.35, out);
+        osc('sine', 1975.5, t + 0.13, 0.004, 0.03, 0.3, out);
+      },
+      /* a descarga da palavra (js/energia-texto.js): faíscas curtas, altas e baixinhas */
+      descarga: function (t) {
+        var out = saida(0.25, 0, VOL.descarga);
+        for (var i = 0; i < 7; i++) ruido(t + i * 0.045 + Math.random() * 0.02, 0.001, 0.035 + Math.random() * 0.02, 0.03, out, { f: 4000 + Math.random() * 3000, q: 6 });
+        osc('sine', 2637, t + 0.34, 0.004, 0.03, 0.25, out);
       },
       /* o card: A vidro, com a nota do card e o lado da tela; B seco */
       card: function (t, i, pan) {
@@ -311,22 +371,35 @@
 
   function montarFundo(c, para) {
     var saida = c.createGain(), filtro = c.createBiquadFilter();
-    saida.gain.value = VOL.fundo;
+    saida.gain.value = FUNDO.vol;
     filtro.type = 'lowpass';
     filtro.frequency.value = FUNDO.filtro.expira;
-    filtro.Q.value = 0.7;
+    filtro.Q.value = FUNDO.coro ? 0.5 : 0.7;
     filtro.connect(saida);
     saida.connect(para);
     FUNDO.notas.forEach(function (n) {
-      var o = c.createOscillator(), g = c.createGain();
-      o.type = n[1];
-      o.frequency.value = n[0];
-      o.detune.value = n[3];
-      g.gain.value = n[2];
-      o.connect(g);
+      var cents = FUNDO.coro ? [-FUNDO.coro, FUNDO.coro] : [n[3]], g = c.createGain();
+      g.gain.value = n[2] / cents.length;
       g.connect(filtro);
-      o.start();
+      /* o balanço: a nota sobe e desce devagar (um LFO no ganho), cada uma no seu tempo, para o acorde nunca parar igual */
+      if (n[4]) {
+        var lfo = c.createOscillator(), prof = c.createGain();
+        lfo.frequency.value = 1 / n[4]; prof.gain.value = g.gain.value * 0.45;
+        lfo.connect(prof); prof.connect(g.gain); lfo.start();
+      }
+      cents.forEach(function (d) {
+        var o = c.createOscillator();
+        o.type = n[1]; o.frequency.value = n[0]; o.detune.value = d;
+        o.connect(g); o.start();
+      });
     });
+    if (FUNDO.ar) {   /* o ar: ruído em faixa larga, muito baixo, que dá o espaço sem chiar */
+      var n = Math.round(c.sampleRate * 2), b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0);
+      for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      var s = c.createBufferSource(), bp = c.createBiquadFilter(), ga = c.createGain();
+      s.buffer = b; s.loop = true; bp.type = 'bandpass'; bp.frequency.value = 2600; bp.Q.value = 0.6; ga.gain.value = FUNDO.ar / FUNDO.vol;
+      s.connect(bp); bp.connect(ga); ga.connect(saida); s.start();
+    }
     return { saida: saida, filtro: filtro };
   }
 
@@ -334,13 +407,13 @@
      janela toca quando ele rodar; sem ela, o 1º toque no celular e o pouso da travessia se perdiam) */
   function tocando() { return ligado && subiu && ctx && !document.hidden && (ctx.state === 'running' || (ctx.state === 'suspended' && Date.now() < acordaAte)); }
   /* TODA voz passa por aqui: só com o som ligado e acordado, e dentro do limite do tipo dela */
-  function soa(tipo, toca) {
+  function soa(tipo, toca, info) {
     if (!tocando()) return false;
     var lim = LIMITE[tipo] || UMA, agora = ctx.currentTime, v = vivas[tipo] || (vivas[tipo] = []);
     while (v.length && v[0] <= agora) v.shift();
     if (agora - (tipo in ultimo ? ultimo[tipo] : -1e9) < lim[0] || v.length >= lim[1]) return false;
     ultimo[tipo] = agora; v.push(agora + lim[2]);
-    if (teste) { teste.vozes[tipo] = (teste.vozes[tipo] || 0) + 1; if (teste.log.push({ tipo: tipo, t: agora, relogio: B.relogio ? B.relogio() : 0 }) > 500) teste.log.shift(); }
+    if (teste) { teste.vozes[tipo] = (teste.vozes[tipo] || 0) + 1; if (teste.log.push(Object.assign({ tipo: tipo, t: agora, relogio: B.relogio ? B.relogio() : 0 }, info)) > 500) teste.log.shift(); }
     toca(agora + ADIANTE);
     return true;
   }
@@ -355,9 +428,9 @@
     if (ctx.state !== 'running') return;
     var t = ctx.currentTime, tIn = periodo() * inspira(), tEx = periodo() - tIn;
     fundo.filtro.frequency.setTargetAtTime(FUNDO.filtro.inspira, t, tIn / 3);
-    fundo.saida.gain.setTargetAtTime(VOL.fundo * FUNDO.folego.inspira, t, tIn / 3);
+    fundo.saida.gain.setTargetAtTime(FUNDO.vol * FOLEGO_VOL.inspira, t, tIn / 3);
     fundo.filtro.frequency.setTargetAtTime(FUNDO.filtro.expira, t + tIn, tEx / 3);
-    fundo.saida.gain.setTargetAtTime(VOL.fundo * FUNDO.folego.expira, t + tIn, tEx / 3);
+    fundo.saida.gain.setTargetAtTime(FUNDO.vol * FOLEGO_VOL.expira, t + tIn, tEx / 3);
     respirarEmFase();
   }
   /* cada fôlego começa quando o do reator recomeça (recalculado a cada ciclo: timers encadeados derivavam) */
@@ -376,10 +449,18 @@
     if (falta < 0.02) falta += P;
     timerPulso = setTimeout(pulsar, falta * 1000);
   }
+  /* o número deste pulso no relógio do reator (B.pulso, js/core.js: o mesmo da página e do reator): a vez dele na frase
+     de 4 e o forte. (Sem B.pulso, a mesma conta aqui) */
+  function numeroDoPulso() { var P = periodo(); return B.pulso ? B.pulso.numero(B.relogio()) : Math.round((B.relogio() - P * inspira()) / P); }
   function pulsar() {
     pulsarEmFase();
-    if (reduzido() || saindo || html.classList.contains('passagem-chega') || !ctx || ctx.currentTime < pulsoDepois) return;
-    soa('pulso', function (t) { if (ESCOLHA.pulso === 'B') motor.pulsoSuave(t); else motor.pulso(t); });
+    /* (com o cursor carregando um card, ou o card já cheio sob ele, a vez é da pessoa: o pulso cala. O sinal é o
+       mesmo da página, js/pulso.js: as classes de js/carga.js; a voz da carga cobre o instante antes delas) */
+    if (reduzido() || saindo || carga || document.querySelector(OCUPADO) || html.classList.contains('passagem-chega') || !ctx || ctx.currentTime < pulsoDepois) return;
+    var n = numeroDoPulso(), i = ((n % 4) + 4) % 4, forte = i === 3, k = FRASE[i];
+    soa('pulso', function (t) {
+      if (ESCOLHA.pulso === 'B') motor.pulsoSuave(t); else if (ESCOLHA.pulso === 'A') motor.pulso(t); else motor.pulsoLuz(t, k, forte);
+    }, { forte: forte, nota: k });
   }
   /* resume() fora de gesto pode falhar no Safari: sem reclamar, o próximo gesto tenta de novo */
   function retomar() { if (ctx.state !== 'running') { acordaAte = Date.now() + ACORDA_MS; ctx.resume().catch(function () { /* o próximo gesto tenta */ }); } }
@@ -520,8 +601,17 @@
       if (ESCOLHA.travessia) soa('passagem', function (t) { motor.passagem(t); });
     });
     B.on('passagem:desfeita', function () { saindo = false; });
+
+    /* O AI CORE MÉDIO (js/estacao.js) e as interações especiais (js/mini-docas.js, js/energia-texto.js) */
+    B.on('estacao:acopla', function (d) { pararEnche(); soa('estacaoEnche', function (t) { enche = motor.estacaoEnche(t, (d && d.dura) || 2); }); });
+    B.on('estacao:conecta', function () { pararEnche(); soa('estacaoConecta', function (t) { motor.estacaoConecta(t); }); });
+    B.on('estacao:surto', function (d) { soa('estacaoSurto', function (t) { motor.estacaoSurto(t, d && d.n); }); });
+    B.on('estacao:solta', function () { pararEnche(); soa('estacaoSolta', function (t) { motor.estacaoSolta(t); }); });
+    B.on('mini:ignicao', function () { soa('ignicao', function (t) { motor.ignicao(t); }); });
+    B.on('energia:descarga', function () { soa('descarga', function (t) { motor.descarga(t); }); });
     B.on('passagem:chegou', function () { if (ESCOLHA.travessia && veioComSom) soa('pouso', function (t) { motor.pouso(t); }); });
   }
+  function pararEnche() { if (enche && ctx) enche.parar(ctx.currentTime + ADIANTE); enche = null; }
   function tempoOuro(k) { return B.ouro && B.ouro.T && B.ouro.T[k] > 0 ? B.ouro.T[k] : 0; }
   function pararSubida() { if (ouro.sobe && ctx) ouro.sobe.parar(ctx.currentTime + ADIANTE); ouro.sobe = null; }
   function pararOuro() { pararSubida(); if (ouro.reina && ctx) ouro.reina.parar(ctx.currentTime + ADIANTE); ouro.reina = null; }
