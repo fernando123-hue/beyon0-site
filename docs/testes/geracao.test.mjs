@@ -1,6 +1,7 @@
 /* Geração das 3 direções: o gerador, a higienização (contra saída ruim ou maliciosa do modelo) e a posse no banco. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { gerarDirecao, SISTEMA_GERACAO } from '../../api/_vendas/gerador.mjs';
 import { higienizar, contraste, ESTRATEGIAS } from '../../api/_vendas/direcao.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
@@ -91,4 +92,28 @@ test('injeção pelo briefing: a instrução diz que o briefing é dado e o brie
   assert.ok(texto.indexOf('<briefing>') < texto.indexOf('IGNORE') && texto.indexOf('IGNORE') < texto.indexOf('</briefing>'), 'o texto do visitante fica DENTRO do delimitador');
   assert.ok(!texto.includes('\nIGNORE'), 'a quebra de linha do visitante não vira linha nova do pedido');
   assert.equal(direcao.navegacao.marca, 'Clínica Sorriso', 'o briefing continua legível para o gerador');
+});
+
+/* ---------- 2026-11-10: o padrão "site premium" (docs/padrao-site-premium.md; dono: "mudarmos o nosso gerador com já
+   essas ideias em mente também, para agregar no nosso valor geral") ---------- */
+test('premium 1: o topo passa no teste dos 5 segundos (diz o que é o negócio e para quem, sem slogan que serviria a qualquer um)', () => {
+  assert.match(SISTEMA_GERACAO, /5 segundos/, 'a regra dos 5 segundos não está no sistema');
+  assert.match(SISTEMA_GERACAO, /hero[^.]*(o que [ée] o negócio|o que o negócio faz)/i, 'o hero precisa dizer o que é o negócio');
+  assert.match(SISTEMA_GERACAO, /para quem/i);
+  assert.match(SISTEMA_GERACAO, /slogan/i, 'sem slogan abstrato');
+});
+
+test('premium 2: enxugar, com o número de seções pelo formato (landing menor que institucional) e a ordem de cortar', () => {
+  assert.doesNotMatch(SISTEMA_GERACAO, /Use de 6 a 10/, 'o 6 a 10 para tudo voltou');
+  const faixa = nome => { const m = SISTEMA_GERACAO.match(new RegExp(nome + ': de ([0-9]+) a ([0-9]+)')); assert.ok(m, 'faixa de ' + nome + ' não achada'); return [+m[1], +m[2]]; };
+  const lp = faixa('landing page'), inst = faixa('institucional e sob medida');
+  assert.ok(lp[1] < inst[1], 'a landing tem de pedir menos seções que o institucional: ' + lp + ' / ' + inst);
+  assert.ok(lp[0] >= 4 && inst[1] <= 10, 'faixas fora do razoável: ' + lp + ' / ' + inst);
+  assert.match(SISTEMA_GERACAO, /corte/i, 'falta a ordem de cortar o que não serve à estratégia');
+  assert.match(SISTEMA_GERACAO, /um foco só|uma ideia só/i, 'cada seção com um foco só');
+});
+
+test('premium 3 e 4: o documento do padrão existe e traz o aviso de cookies que bloqueia de verdade e o kit de movimento', () => {
+  const doc = fs.readFileSync(new URL('../padrao-site-premium.md', import.meta.url), 'utf8');
+  for (const t of [/5 segundos/, /enxugar/i, /cookies/i, /depois do .?sim/i, /reduced-motion|reduzir movimento/i, /sem desfoque|sem blur/i, /formulário/i]) assert.match(doc, t, String(t));
 });
