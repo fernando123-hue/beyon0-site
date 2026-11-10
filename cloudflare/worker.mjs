@@ -3,6 +3,6 @@ import { rotear } from './rotas.mjs';
 import { agendar } from './agenda.mjs';
 
 export default {
-  fetch(request, env) { return rotear(request, env); },
+  fetch(request, env, ctx) { return rotear(request, env, ctx); },
   scheduled(controller, env, ctx) { ctx.waitUntil(agendar(controller.cron, env)); }
 };
