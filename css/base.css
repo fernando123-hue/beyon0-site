@@ -276,6 +276,18 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
 .hero__status .dot { width: 6px; height: 6px; margin-top: .45em; border-radius: 50%; background: var(--ac-3); box-shadow: 0 0 0 3px rgb(var(--ac-3-rgb) / .18); flex: none; }
 .hero__title { margin-bottom: 1.2rem; margin-left: -.04em; }
 .hero__title em { transition: color .6s var(--ease); }
+/* O GIRO do h1 da home (dono 09/11): três frases no mesmo lugar, trocadas por glitch (js/giro.js). Todas ficam
+   empilhadas na mesma célula: o h1 reserva a altura da maior e nada abaixo dele pula na troca. Sem JS fica a 1ª. */
+.hero__title--giro { display: grid; }
+.giro__frase, .giro__camada { grid-area: 1 / 1; align-self: end; }
+.giro__frase:not(.is-ativa):not(:first-child) { visibility: hidden; }
+/* a 1ª é a frase lida (as outras têm aria-hidden): fora da vez some só da vista, nunca da árvore de acessibilidade */
+.giro__frase:first-child:not(.is-ativa) { opacity: 0; user-select: none; }
+.giro__camada { pointer-events: none; user-select: none; }
+.giro__camada--eco, .giro__camada--eco em { color: var(--ac); }
+.giro__fatia--1 { clip-path: inset(0 0 62% 0); }
+.giro__fatia--2 { clip-path: inset(38% 0 30% 0); }
+.giro__fatia--3 { clip-path: inset(70% 0 0 0); }
 .hero__sub { color: var(--t2); max-width: 38ch; font-size: clamp(1rem, .9rem + .5vw, 1.3125rem); line-height: 1.5; margin-bottom: 1.4rem; }
 /* o hero longo (Automação): h1 de 4 linhas em 390 em vez de 5 */
 .hero--longo h1 { font-size: clamp(2.25rem, 9.4vw, 3rem); line-height: 1.04; letter-spacing: -.028em; }
@@ -365,6 +377,22 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   .hero--longo .hero__title { max-width: 21ch; }
   .hero--longo .hero__arte > .janela, .hero--longo .hero__arte > .instrumento { align-self: center; margin-top: 0; }
   .hero__sub { max-width: 50ch; font-size: clamp(1.0625rem, .95rem + .45vw, 1.25rem); margin-bottom: 1.6rem; }
+}
+
+/* o Início com o h1 que gira (dono 09/11): o título é curto (2 linhas) e a arte é bem mais alta. Duas linhas
+   elásticas (1fr) em cima e embaixo centram o bloco kicker + título + texto na altura da arte; sem elas a sobra
+   virava um vão entre o título e o texto */
+@media (min-width: 861px) {
+  .hero:has(.hero__title--giro) { grid-template-areas: none; grid-template-rows: 1fr auto auto auto 1fr auto; }
+  .hero:has(.hero__title--giro) .hero__status { grid-row: 2; grid-column: 1; }
+  .hero:has(.hero__title--giro) .hero__title { grid-row: 3; grid-column: 1; }
+  .hero:has(.hero__title--giro) .hero__main { grid-row: 4; grid-column: 1; }
+  .hero:has(.hero__title--giro) .hero__arte { grid-row: 1 / 6; grid-column: 2; }
+  .hero:has(.hero__title--giro) .hero__rail { grid-row: 6; grid-column: 1 / -1; }
+}
+@media (min-width: 981px) {
+  .hero:has(.hero__title--giro) :is(.hero__status, .hero__title, .hero__main) { grid-column: 1 / 8; }
+  .hero:has(.hero__title--giro) .hero__arte { grid-column: 8 / -1; }
 }
 
 /* ---- GRADE DE 12 COLUNAS (desktop, rodada 5) ----

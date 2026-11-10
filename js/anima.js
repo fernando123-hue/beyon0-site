@@ -71,7 +71,7 @@
     /* (títulos que voltam ao DOM original: as margens das linhas somando certo, css/motion.css — a altura
        dividida = a normal. Antes o h2 dividido ficava 40–55 px mais alto e, ao reverter no meio da rolagem, a
        página pulava) */
-    var volta = el.tagName !== 'H1', alturaAntes = volta ? el.offsetHeight : 0;
+    var volta = !el.closest('h1'), alturaAntes = volta ? el.offsetHeight : 0;
     if (volta) el.classList.add('partindo', tipo === 'words' ? 'partindo--palavras' : 'partindo--linhas');
     /* uma quebra só do desktop (<br class="br-l">, escondida no celular) o SplitText quebra mesmo escondida:
        no celular o título ganhava uma linha ("Três serviços, / um / padrão…"). Enquanto dividido ela vira um
@@ -201,6 +201,19 @@
 
   /* ---------- BOOT DO HERO: a luz passa e imprime ---------- */
   var feito = false;
+  /* o h1 que gira (js/giro.js): cada frase se divide sozinha; dividido inteiro, o SplitText cortava as frases
+     em pedaços por linha e o empilhamento delas (css/base.css) se desfazia (a página pulava a cada troca) */
+  function partirTitulo(titulo) {
+    var frases = titulo.querySelectorAll('.giro__frase');
+    if (!frases.length) return partir(titulo, 'words');
+    var palavras = [];
+    for (var i = 0; i < frases.length; i++) {
+      var s = partir(frases[i], 'words');
+      if (s && s.words) palavras = palavras.concat(s.words);
+    }
+    return { words: palavras };
+  }
+
   function heroEntra() {
     if (feito) return;
     feito = true;
@@ -274,7 +287,7 @@
       }, tEm(marca));
 
       if (titulo) {
-        var sp = partir(titulo, 'words');
+        var sp = partirTitulo(titulo);
         if (sp && sp.words && sp.words.length) {
           /* O TÍTULO É O LCP: 78% já pintado no primeiro quadro. Cada palavra
              sobe quando a luz chega nela; palavras na mesma coluna sobem

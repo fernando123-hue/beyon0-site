@@ -363,6 +363,21 @@ await cenario('medicao-recado-orc', DESKTOP, async page => {
   return { ok: r.contato.length === 1 && d.origem_botao === 'orcamento-perguntas' && d.pagina === '/orcamento' && r.orc === 0 && !r.google && !r.aviso,
     info: `contatos=${r.contato.length} origem=${d.origem_botao} pagina=${d.pagina} inicios=${r.orc} google=${r.google} aviso=${r.aviso}` };
 });
+/* o GIRO do h1 (js/giro.js): menos movimento ligado no meio da entrada da frase nova volta à 1ª frase, sem camadas,
+   e o h1 segue com nome para o leitor de tela (revisão do PR: a troca em andamento mostrava a frase 2 depois) */
+await cenario('giro-reduz', CELULAR, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.waitForSelector('.giro__camada--eco', { state: 'attached', timeout: 25000 });
+  const nomeNaTroca = await page.locator('#hero-titulo').ariaSnapshot();
+  await page.evaluate(() => window.BEYON.reduzir(true, false));
+  await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => ({
+    ativa: [...document.querySelectorAll('.giro__frase')].findIndex(f => f.classList.contains('is-ativa')),
+    camadas: document.querySelectorAll('.giro__camada').length
+  }));
+  const nome = /heading "O cliente chama\. Seu site responde\."/.test(nomeNaTroca);
+  return { ok: r.ativa === 0 && r.camadas === 0 && nome, info: `frase=${r.ativa + 1} camadas=${r.camadas} nome-na-troca=${nome}` };
+});
 
 await navegador.close();
 console.log(falhou ? '\nAlguma coisa falhou — leia acima.' : '\nTudo certo.');

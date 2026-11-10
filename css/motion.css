@@ -41,6 +41,11 @@ html.has-gsap:not(.menos-movimento) h2:not(.is-lit) em { color: var(--t1); }
    animação e a luz passava de novo na saída — revisão do PR) */
 html:not(.menos-movimento) :is(.marca--nav.is-lit, .nav__logo:hover .marca, .nav__logo:focus-visible .marca) .marca__pulso-in { animation: marca-entra 4.8s cubic-bezier(.5, 0, 1, 1) both; }
 html:not(.menos-movimento) :is(.marca--nav.is-lit, .nav__logo:hover .marca, .nav__logo:focus-visible .marca) .marca__pulso-out { animation: marca-sai 4.8s cubic-bezier(0, 0, .3, 1) both; }
+/* o NOME: a luz que sai do núcleo segue e atravessa o "Beyon" como um reflexo na prata (dono 09/11: "uma animação bem
+   minimalista para o Beyon"). Faixa fina de borda reta, recortada nas letras, que inverte a prata por onde passa (o branco vira prata e a prata vira branco). Mesma
+   passada da logo (boot, cursor, foco), nunca em laço. Só transform e opacity. */
+@keyframes marca-reflexo { 0%, 29% { transform: translateX(0) skewX(-18deg); opacity: 0; } 29.5% { opacity: 1; } 44% { transform: translateX(480px) skewX(-18deg); opacity: 1; } 44.5%, 100% { transform: translateX(480px) skewX(-18deg); opacity: 0; } }
+html:not(.menos-movimento) :is(.marca--nav.is-lit, .nav__logo:hover .marca, .nav__logo:focus-visible .marca) .marca__brilho { animation: marca-reflexo 4.8s cubic-bezier(.77, 0, .175, 1) both; }
 html.js .hero__rail-aresta { transform: scaleX(0); }
 /* o console já imprime linha a linha: a varredura extra competia com o feixe e saiu (rodada 6) */
 html.js .console.is-in::after { animation: none; }
@@ -121,7 +126,7 @@ html.js .spec.is-in .spec__item:nth-child(6) h3::before { transition-delay: .3s;
   html.js .spec__item h3::before { transform: rotate(45deg); }
   html.js .laudo__n, html.js .fluxo li, html.js .fluxo li:last-child { transform: none; opacity: 1; }
   html.has-gsap .hero__title em, html.has-gsap h2 em { color: var(--ac); }
-  .marca__pulso-in, .marca__pulso-out { animation: none !important; }
+  .marca__pulso-in, .marca__pulso-out, .marca__brilho { animation: none !important; }
   .hero__rail-aresta { animation: none; }
   .feixe__linha, .hero__status .dot, .painel::after, .celula::before, .console::after, .console__led { animation: none; }
   .feixe { display: none; }
