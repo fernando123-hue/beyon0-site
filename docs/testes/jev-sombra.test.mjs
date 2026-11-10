@@ -9,7 +9,7 @@ import { VERSAO_POLITICA } from '../../api/_classificador/politica.mjs';
 import { criarDisjuntor } from '../../api/_classificador/index.mjs';
 import { corpoDoPedido, chamarHaiku, criarMotorHaiku, INSTRUCOES, VERSAO_INSTRUCAO, MODELO_DO_MOTOR } from '../../api/_classificador/motor-haiku.mjs';
 import { lerCodigo, detectores } from '../../api/_classificador/sinais-de-codigo.mjs';
-import { configSombra, criarSombra, sombraDoAmbiente, TETO_DIA_USD_PADRAO, PRAZO_SOMBRA_MS } from '../../api/_classificador/sombra.mjs';
+import { configSombra, criarSombra, sombraDoAmbiente, criarGastoLocal, TETO_DIA_USD_PADRAO, PRAZO_SOMBRA_MS, FALHAS_DE_REGISTRO_MAX } from '../../api/_classificador/sombra.mjs';
 import { DETECTORES, NICHO_DE_TESTE } from '../../scripts/detectores-do-gabarito.mjs';
 import { nichoRegulado } from '../../api/_vendas/zero.mjs';
 import { criarRoteador, ROTAS } from '../../cloudflare/rotas.mjs';
@@ -127,7 +127,8 @@ function fabricaFalsa({ responder = p => respostaUniforme(p.tarefa), custo = 0.0
   return { criarMotor, pedidos };
 }
 const silencio = () => {};
-const sombraDeTeste = (extra = {}) => criarSombra({ config: LIGADA, disjuntor: criarDisjuntor(), sortear: () => 0, adiar: async () => {}, log: silencio, ...extra });
+/* cada teste com o seu disjuntor, o seu disjuntor do registro e o seu gasto local (os padrões são do isolado inteiro) */
+const sombraDeTeste = (extra = {}) => criarSombra({ config: LIGADA, disjuntor: criarDisjuntor(), disjuntorDoRegistro: criarDisjuntor({ falhas: FALHAS_DE_REGISTRO_MAX }), gastoLocal: criarGastoLocal(), sortear: () => 0, adiar: async () => {}, log: silencio, ...extra });
 const TURNO = Object.freeze({
   conversaId: '11111111-1111-4111-8111-111111111111', visitanteId: '22222222-2222-4222-8222-222222222222', requestId: '33333333-3333-4333-8333-333333333333',
   mensagem: 'Sou a Ana, ana@exemplo.com, (62) 98888-7777. Tenho uma clínica odontológica e quero falar com o dono.',
@@ -204,6 +205,37 @@ test('teto do dia: gasto já no teto = nenhuma chamada; perto do teto, para no m
   const r = await sombraDeTeste({ banco: perto.banco, criarMotor: f.criarMotor }).observar(TURNO);
   assert.equal(r.chamadas, 2, '0,2995 + 0,0003 = 0,2998 < 0,30 → 2ª chamada; 0,3001 ≥ teto → para');
   assert.equal(r.motivo, 'teto');
+});
+
+/* (revisão de segurança da F3, MÉDIA) o teto não pode depender só do gasto GRAVADO: registro que falha não pode virar gasto sem limite */
+test('registro recusado seguidas vezes: o disjuntor do registro abre, as leituras param e sai um alarme sem texto', async () => {
+  const b = bancoFalso({ falhaRegistro: true }), f = fabricaFalsa();
+  const linhas = [];
+  const sombra = sombraDeTeste({ banco: b.banco, criarMotor: f.criarMotor, log: l => linhas.push(l) });
+  assert.equal(FALHAS_DE_REGISTRO_MAX, 3);
+  await sombra.observar(TURNO);
+  assert.equal(f.pedidos.length, 3, '3 leituras, 3 registros recusados');
+  const r = await sombra.observar(TURNO);
+  assert.equal(r.chamadas, 0);
+  assert.equal(r.motivo, 'registro fora');
+  assert.equal(f.pedidos.length, 3, 'com o registro fora, nenhuma leitura nova (nenhum gasto que o teto não veja)');
+  const alarme = linhas.find(l => /alarme/.test(l.evento));
+  assert.ok(alarme, 'o alarme sai no log');
+  assert.ok(!JSON.stringify(linhas).includes('Ana'));
+});
+
+test('o teto também conta o gasto LOCAL do isolado: com o banco dizendo 0 (gravação perdida), as leituras param no teto', async () => {
+  const gastoLocal = criarGastoLocal();
+  const f = fabricaFalsa({ custo: 0.0004 });
+  const sombra = sombraDeTeste({ config: { ...LIGADA, tetoDiaUsd: 0.001 }, banco: bancoFalso({ gasto: 0 }).banco, criarMotor: f.criarMotor, gastoLocal, hoje: () => '2026-11-10' });
+  await sombra.observar(TURNO);
+  assert.equal(f.pedidos.length, 3, '0 → 0,0004 → 0,0008 → 0,0012: a 3ª passa, a 4ª não');
+  const r = await sombra.observar(TURNO);
+  assert.equal(r.motivo, 'teto');
+  assert.equal(f.pedidos.length, 3);
+  const amanha = sombraDeTeste({ config: { ...LIGADA, tetoDiaUsd: 0.001 }, banco: bancoFalso({ gasto: 0 }).banco, criarMotor: f.criarMotor, gastoLocal, hoje: () => '2026-11-11' });
+  await amanha.observar(TURNO);
+  assert.equal(f.pedidos.length, 6, 'no dia seguinte o gasto local zera');
 });
 
 test('amostragem: fora da amostra, nenhuma chamada; dentro, chama', async () => {

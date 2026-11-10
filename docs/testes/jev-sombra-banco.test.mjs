@@ -123,6 +123,22 @@ test('registrar: só para a conversa do próprio visitante; valores fora do comb
   }
 });
 
+/* (revisão de segurança da F3) texto livre em cada coluna de texto ou JSON: a checagem da tabela recusa (23514), nunca grava */
+test('texto livre em qualquer coluna é recusado pela checagem (23514)', async () => {
+  const { v, c } = await conversaNova();
+  const frase = 'Sou a Ana, meu telefone é 21 98888-7777';
+  const casos = {
+    request_id: { request_id: frase }, tarefa: { tarefa: frase }, alvo: { alvo: frase }, motivo: { disponivel: false, sinais: null, motivo: frase }, modelo: { modelo: frase },
+    divergencias: { divergencias: [frase] },
+    'sinais.escolha': { sinais: { nicho_saude: { escolha: frase, p: 0.9 } } }, 'sinais.p_sim': { sinais: { promete_desconto: { p_sim: frase } } },
+    'sinais.nota': { sinais: { irritacao: { nota: frase, p: 0.5 } } }, 'sinais.chave': { sinais: { [frase]: { p_sim: 0.5 } } },
+    codigo: { codigo: { promete_desconto: frase } }, 'codigo.chave': { codigo: { [frase]: 'sim' } },
+    versoes: { versoes: { perguntas: frase } }, mascarados: { mascarados: { email: frase } }, 'mascarados.chave': { mascarados: { [frase]: 1 } }
+  };
+  for (const [coluna, ruim] of Object.entries(casos)) assert.equal(await falhaDe(local.rpc('vendas_sombra_registrar', registro(c, v, ruim))), '23514', coluna);
+  assert.equal((await linhasDa(c)).length, 0);
+});
+
 test('gasto do dia: soma só o de hoje (horário de Brasília) e só da organização', async () => {
   const antes = Number((await local.rpc('vendas_sombra_gasto_dia', { org_slug: 'beyon-zero' })).custo_usd);
   const { v, c } = await conversaNova();

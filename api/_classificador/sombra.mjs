@@ -7,6 +7,8 @@
    • Desligado por padrão: liga só com JEV_SOMBRA=1 E a chave da Anthropic.
    • Teto do dia (US$ 0,30, JEV_SOMBRA_TETO_DIA_USD) lido do banco antes de cada
      turno e somado a cada leitura; bateu, para até o dia seguinte (Brasília).
+     Vale o maior entre o do banco e o gasto local do isolado (gravação perdida
+     não some da conta); registro que falha 3 vezes seguidas para as leituras.
      O que pode passar: as leituras já em voo ao mesmo tempo (~US$ 0,0003 cada).
    • Amostragem opcional (JEV_SOMBRA_AMOSTRA, 0 a 1; padrão 1 = todo turno).
    • Lê três textos: a mensagem do visitante, a saída do modelo ANTES das travas
@@ -45,8 +47,25 @@ export function configSombra(env = {}) {
   };
 }
 
-/* um disjuntor por isolado do Worker: 3 falhas seguidas param a sombra por 10 minutos */
+/* um disjuntor por isolado do Worker: 3 falhas seguidas do MOTOR param a sombra por 10 minutos */
 const DISJUNTOR = criarDisjuntor();
+/* (revisão de segurança da F3) o REGISTRO também tem disjuntor: o teto lê o gasto gravado, então gravação que falha sem parar
+   (checagem que recusa, banco fora) deixaria o teto cego. N falhas seguidas de registro param as leituras por 10 minutos, com alarme */
+export const FALHAS_DE_REGISTRO_MAX = 3;
+const DISJUNTOR_DO_REGISTRO = criarDisjuntor({ falhas: FALHAS_DE_REGISTRO_MAX });
+
+/* o gasto do dia que ESTE isolado já fez, gravado ou não: o teto usa o maior entre ele e o do banco. Não substitui o banco
+   (outros isolados gastam também); só impede que uma gravação perdida suma da conta */
+export function criarGastoLocal() {
+  let dia = '', usd = 0;
+  return {
+    de: d => (d === dia ? usd : 0),
+    somar(d, valor) { if (d !== dia) { dia = d; usd = 0; } usd += Number.isFinite(valor) && valor > 0 ? valor : 0; }
+  };
+}
+const GASTO_LOCAL = criarGastoLocal();
+const HOJE_EM_BRASILIA = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' });
+const hojeEmBrasilia = () => HOJE_EM_BRASILIA.format(new Date());
 const logPadrao = dados => console.error(JSON.stringify({ origem: 'jev_sombra', nivel: 'erro', ...dados }));
 /* a próxima volta do relógio (macrotarefa): nada da sombra roda no caminho da resposta, nem como microtarefa */
 const proximaVolta = () => new Promise(r => setTimeout(r, 0));
@@ -79,7 +98,14 @@ function alvosDo(turno) {
 }
 
 /* criarMotor(aoMedir) → { nome, modelo, chamar }: um motor por leitura, para o custo medido ser o DESTA leitura */
-export function criarSombra({ config, banco, criarMotor, disjuntor = DISJUNTOR, sortear = Math.random, adiar = proximaVolta, log = logPadrao, prazoMs = PRAZO_SOMBRA_MS }) {
+export function criarSombra({ config, banco, criarMotor, disjuntor = DISJUNTOR, disjuntorDoRegistro = DISJUNTOR_DO_REGISTRO, gastoLocal = GASTO_LOCAL, hoje = hojeEmBrasilia,
+  sortear = Math.random, adiar = proximaVolta, log = logPadrao, prazoMs = PRAZO_SOMBRA_MS }) {
+  function registroFalhou(e) {
+    disjuntorDoRegistro.falhou();
+    const abriu = disjuntorDoRegistro.aberto();
+    log({ evento: abriu ? 'alarme: o registro da sombra falhou ' + FALHAS_DE_REGISTRO_MAX + ' vezes seguidas; leituras paradas por 10 minutos' : 'registro não gravado', codigo: e?.codigo ?? null });
+  }
+
   async function ler(turno, tarefa, alvo, texto) {
     const medida = { custo_usd: 0 };
     const { rotulos, politica } = lerCodigo(tarefa, texto, { nicho: turno.nicho });
@@ -87,13 +113,14 @@ export function criarSombra({ config, banco, criarMotor, disjuntor = DISJUNTOR, 
     const t0 = Date.now();
     const r = await sinalizar(tarefa, texto, { motor, sinaisDeCodigo: politica, prazoMs, disjuntor });
     const custo = !r.disponivel && r.motivo === 'prazo' ? Math.max(medida.custo_usd, PIOR_CASO_USD) : medida.custo_usd;
+    gastoLocal.somar(hoje(), custo);   /* (antes de gravar: o que foi gasto conta no teto mesmo se a gravação falhar) */
     const sinais = r.disponivel ? r.sinais : null;
     await banco('vendas_sombra_registrar', {
       conversa_id: turno.conversaId, visitante_id: turno.visitanteId, request_id: turno.requestId || null, tarefa, alvo,
       disponivel: r.disponivel, motivo: r.disponivel ? null : r.motivo, sinais, codigo: rotulos, divergencias: divergencias(rotulos, sinais),
       versoes: { perguntas: VERSAO_PERGUNTAS[tarefa], protecao: VERSAO_PROTECAO, politica: VERSAO_POLITICA, instrucao: VERSAO_INSTRUCAO },
       modelo: String(motor.modelo ?? MODELO_DO_MOTOR).slice(0, 60), custo_usd: Number(custo.toFixed(6)), ms: Date.now() - t0, cortado: r.cortado, mascarados: r.mascarados
-    }).catch(e => log({ evento: 'registro não gravado', codigo: e?.codigo ?? null }));
+    }).then(() => disjuntorDoRegistro.deuCerto(), registroFalhou);
     return custo;
   }
 
@@ -104,11 +131,13 @@ export function criarSombra({ config, banco, criarMotor, disjuntor = DISJUNTOR, 
       if (!config?.ligada || !turno) return { chamadas, motivo: 'desligada' };
       await adiar();
       if (!(sortear() < config.amostra)) return { chamadas, motivo: 'amostra' };
+      if (disjuntorDoRegistro.aberto()) return { chamadas, motivo: 'registro fora' };
       const gasto = await banco('vendas_sombra_gasto_dia', { org_slug: ORG }).catch(e => { log({ evento: 'gasto do dia não lido', codigo: e?.codigo ?? null }); return null; });
       let usado = Number(gasto?.custo_usd);
       if (gasto === null || !Number.isFinite(usado)) return { chamadas, motivo: 'gasto ilegível' };
       for (const [tarefa, alvo, texto] of alvosDo(turno)) {
-        if (usado >= config.tetoDiaUsd) { log({ evento: 'teto do dia', nivel: 'info' }); return { chamadas, motivo: 'teto' }; }
+        if (disjuntorDoRegistro.aberto()) return { chamadas, motivo: 'registro fora' };
+        if (Math.max(usado, gastoLocal.de(hoje())) >= config.tetoDiaUsd) { log({ evento: 'teto do dia', nivel: 'info' }); return { chamadas, motivo: 'teto' }; }
         chamadas++;
         usado += await ler(turno, tarefa, alvo, texto);
       }

@@ -25,9 +25,10 @@ begin
     for c in select jsonb_object_keys(v) loop
       if c not in ('p_sim', 'p', 'escolha', 'nota') then return false; end if;
     end loop;
-    if v ? 'p_sim' and (jsonb_typeof(v -> 'p_sim') <> 'number' or (v ->> 'p_sim')::numeric not between 0 and 1) then return false; end if;
-    if v ? 'p' and (jsonb_typeof(v -> 'p') <> 'number' or (v ->> 'p')::numeric not between 0 and 1) then return false; end if;
-    if v ? 'nota' and (jsonb_typeof(v -> 'nota') <> 'number' or (v ->> 'nota')::numeric not between 1 and 5) then return false; end if;
+    -- (o cast só dentro do case: o Postgres não garante a ordem de um OR, e texto convertido em número daria erro em vez de "não")
+    if v ? 'p_sim' and not coalesce(case when jsonb_typeof(v -> 'p_sim') = 'number' then (v ->> 'p_sim')::numeric between 0 and 1 end, false) then return false; end if;
+    if v ? 'p' and not coalesce(case when jsonb_typeof(v -> 'p') = 'number' then (v ->> 'p')::numeric between 0 and 1 end, false) then return false; end if;
+    if v ? 'nota' and not coalesce(case when jsonb_typeof(v -> 'nota') = 'number' then (v ->> 'nota')::numeric between 1 and 5 end, false) then return false; end if;
     if v ? 'escolha' and (jsonb_typeof(v -> 'escolha') <> 'string' or (v ->> 'escolha') !~ '^[a-z_]{1,20}$') then return false; end if;
   end loop;
   return true;
@@ -51,8 +52,8 @@ $$;
 create function privado.jev_sombra_contagens_ok(j jsonb) returns boolean
 language sql immutable set search_path = '' as $$
   select jsonb_typeof(j) = 'object' and pg_column_size(j) <= 256
-    and not exists (select 1 from jsonb_each(j) e where e.key not in ('email', 'telefone', 'documento') or jsonb_typeof(e.value) <> 'number'
-                    or (e.value #>> '{}')::numeric not between 0 and 1000)
+    and not exists (select 1 from jsonb_each(j) e where e.key not in ('email', 'telefone', 'documento')
+                    or not coalesce(case when jsonb_typeof(e.value) = 'number' then (e.value #>> '{}')::numeric between 0 and 1000 end, false))
 $$;
 
 create table app.jev_sombra (

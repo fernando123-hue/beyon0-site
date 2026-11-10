@@ -12,6 +12,8 @@ import { custoUsd } from '../_ia/config.mjs';
 
 export const MODELO_DO_MOTOR = 'claude-haiku-5-5';
 export const ESFORCO_DO_MOTOR = 'low';
+/* (modo sombra do JEV) estas versões são gravadas em app.jev_sombra.versoes: a checagem da migration 20261110120000_jev_sombra.sql
+   (privado.jev_sombra_versoes_ok) só aceita minúsculas, números, ponto e hífen, até 20 caracteres. Versão nova fora disso: ajuste a checagem */
 export const VERSAO_INSTRUCAO = 'v2';   /* a escolhida na F2 (docs/gabarito/classificador/medicoes/LEIA-ME.md) */
 const MAX_TOKENS = 2000;
 /* fora da linha nada passa de 8 s (o mesmo teto de sinalizar), e sem nova tentativa: a sombra não insiste */
