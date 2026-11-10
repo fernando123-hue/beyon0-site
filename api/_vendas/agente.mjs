@@ -231,5 +231,8 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   if (!soDuvidas) resposta = garantirValor(resposta, { mensagem, estimativa: estimativa || conversa.estimativa }).texto;
   const { confianca, faltam } = avaliar(briefing);
   /* o teto de 1.500 corta em fim de frase (as trocas de resultado e garantia somam até ~500 caracteres sobre os 1.100 do modelo; um corte seco deixaria meia frase na tela) */
-  return { resposta: cortarEmFrase(resposta, 1500), briefing, confianca, faltam, estimativa, pedir_contato: pedirContato, diagnostico, sugestoes_ia: sugestoes, leitura_rebaixos: rebaixos, custo_usd: custo, pronto_estimar: prontoParaEstimar(briefing) };
+  /* sombra: só para o modo sombra do JEV medir (api/_classificador/sombra.mjs): a saída do modelo ANTES das travas e o nicho da sessão.
+     O fluxo não devolve isto à tela nem grava o texto; nada aqui muda a resposta */
+  return { resposta: cortarEmFrase(resposta, 1500), briefing, confianca, faltam, estimativa, pedir_contato: pedirContato, diagnostico, sugestoes_ia: sugestoes, leitura_rebaixos: rebaixos, custo_usd: custo, pronto_estimar: prontoParaEstimar(briefing),
+    sombra: { textoDoModelo: texto, nicho: nichoFinal } };
 }

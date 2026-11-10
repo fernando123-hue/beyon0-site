@@ -129,6 +129,12 @@ test('condições: indicação sem pagamento; a troca do preço de fundador é d
   assert.ok(!/eu pago a você|recompensa|5%|30%/.test(texto), 'a indicação paga sobrou');
 });
 
+/* (revisão de segurança da F3 do JEV) o modo sombra: um 2º modelo da Anthropic lê a conversa só para medir; só números e rótulos ficam */
+test('privacidade: diz que um segundo modelo pode ler a conversa só para medir a qualidade, e que nenhum texto é guardado dessa leitura', () => {
+  for (const trecho of ['também podem ser lidas por um segundo modelo da Anthropic, só para medir a qualidade das respostas', 'com os mesmos marcadores no lugar de contato e documento',
+    'dessa leitura ficam guardados só números e rótulos, nunca o texto']) assert.ok(priv.includes(trecho), 'privacidade sem: ' + trecho);
+});
+
 test('condições: a vaga é confirmada na conversa, antes do "ok"', () => {
   assert.match(texto, /A vaga é confirmada na conversa, antes do seu “ok”\./);
 });

@@ -157,7 +157,10 @@ function landingGrandeDemais(formato, adicionais, tabela) {
 const publicaRec = rec => ({ formato: rec.formato, alternativa: rec.alternativa, fale_comigo: rec.fale_comigo, sugestoes: rec.sugestoes,
   motivo: rec.motivo, assumido: rec.assumido });
 
-export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId, direcoes, env, limitesPedido = PEDIDOS, armazem }) {
+/* o segundo plano padrão (servidor local, testes): a promessa segue sozinha; no Worker, vendas.mjs entrega o ctx.waitUntil */
+const soltar = p => { Promise.resolve(p).catch(() => {}); };
+
+export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId, direcoes, env, limitesPedido = PEDIDOS, armazem, sombra = null, segundoPlano = soltar }) {
   /* as direções: geradas pela API na hora, ou na FILA MANUAL (o dono produz no Claude Code, em até 24 horas úteis;
      decisão do dono 2026-10-08). Os testes passam o modo; o site lê BZ_DIRECOES */
   const modo = direcoes === 'manual' || direcoes === 'api' ? direcoes : 'manual';
@@ -302,7 +305,21 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
         valor_total: r.estimativa.valor_total, sinal: r.estimativa.sinal, prazo_dias: r.estimativa.prazo_dias, fase: r.estimativa.fase, detalhes: r.estimativa });
       estimativa = cartao(r.estimativa);
     }
-    return { resposta: r.resposta, estimativa, pedir_contato: !soDuvidas && comPreco && r.pedir_contato, diagnostico: r.diagnostico, sugestoes_ia: r.sugestoes_ia, confianca: r.confianca };
+    const saida = { resposta: r.resposta, estimativa, pedir_contato: !soDuvidas && comPreco && r.pedir_contato, diagnostico: r.diagnostico, sugestoes_ia: r.sugestoes_ia, confianca: r.confianca };
+    observarNaSombra({ conversaId, vid, msg, r });
+    return saida;
+  }
+
+  /* (F3 do JEV) o modo sombra: o Haiku lê o turno em SEGUNDO PLANO, depois de tudo gravado, e só mede (app.jev_sombra, sem texto).
+     Desligada (o padrão), sombra é null e nada acontece. Nunca lança, nunca espera: a resposta acima já está pronta */
+  function observarNaSombra({ conversaId, vid, msg, r }) {
+    if (!sombra) return;
+    try {
+      segundoPlano(sombra.observar({ conversaId, visitanteId: vid, requestId, mensagem: msg, textoDoModelo: r.sombra?.textoDoModelo ?? null,
+        respostaFinal: r.sombra ? r.resposta : null, nicho: r.sombra?.nicho ?? null }));
+    } catch (e) {
+      console.error(JSON.stringify({ origem: 'jev_sombra', nivel: 'erro', request_id: requestId || null, evento: 'segundo plano recusou', erro: e?.name ?? 'erro' }));
+    }
   }
 
   /* respostas + escolhas → recomendação e estimativa pelo motor, contra a tabela ATIVA (nada grava aqui) */

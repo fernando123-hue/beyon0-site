@@ -10,6 +10,8 @@
 import { redigir, limparMensagem, semInvisiveis, MSG_MAX } from '../_vendas/seguranca.mjs';
 
 export const TAREFAS_DE_SINAL = Object.freeze(['saida_do_zero', 'entrada_do_visitante']);
+/* (modo sombra do JEV) estas versões são gravadas em app.jev_sombra.versoes: a checagem da migration 20261110120000_jev_sombra.sql
+   (privado.jev_sombra_versoes_ok) só aceita minúsculas, números, ponto e hífen, até 20 caracteres. Versão nova fora disso: ajuste a checagem */
 export const VERSAO_PERGUNTAS = Object.freeze({ saida_do_zero: 'saida-1', entrada_do_visitante: 'entrada-1' });
 export const VERSAO_PROTECAO = 'p1';
 
