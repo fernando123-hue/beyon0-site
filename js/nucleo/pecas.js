@@ -550,6 +550,10 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     fluxoJatos.uFrente.value = xs < 0 ? 2 : 1 - xs * J.solta;
     fluxoJatos.uPulso.value = xs < 0 ? 0 : suave(xs / 0.04) * (1 - xs);
     const chegou = xs < 0 ? 99 : xs * (1 - insp) * RS.periodo;   /* s desde a chegada */
+    /* o pulso FORTE, um a cada 4: a conta é a de B.pulso (js/core.js), a mesma da página e do som, tomada no
+       instante da expiração deste ciclo (sem B.pulso, a mesma conta aqui) */
+    const ciclo = Math.floor((t - RS.nucleo[0]) / RS.periodo), BP = window.BEYON && window.BEYON.pulso;
+    const forte = BP ? BP.forte(BP.numero(RS.nucleo[0] + (ciclo + insp) * RS.periodo)) : ((ciclo % 4) + 4) % 4 === 3;
     /* a CHEGADA da rede (a onda do fundo do hero chega ao portal no começo do
        fôlego): os 12 canais acendem juntos (a faísca nos pontos de entrada é
        desenhada pela rede, js/rede.js; o flash no núcleo estava no lugar
@@ -558,7 +562,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     /* + a energia que o CAMPO entrega (js/rede.js → boot.js): o ciclo fecha no reator */
     /* ...e no encaixe da trava (a chegada ao núcleo) os 12 canais piscam juntos */
     fluxoRaios.uBase.value = R.base * (1 + 1.8 * chegada + TV.pisca * 5 * Math.exp(-chegou * 6)) + 0.08 * (e.entrega || 0);
-    const batida = (1 + R.batida * Math.exp(-chegou * 5) * ig) * (1 + (TQ.batida + (tq.amp || 0)) * envBatida);
+    const batida = (1 + R.batida * (forte ? O.forte : 1) * Math.exp(-chegou * 5) * ig) * (1 + (TQ.batida + (tq.amp || 0)) * envBatida);
     const inspira = 1 + respira(t, RS.nucleo);
     /* o lampejo: a energia entra pelo portal no começo do fôlego */
     const lampejo = desde < A.raios ? 0 : LP.alfa * Math.max(0, 1 - (x * RS.periodo) / LP.dura) * forca;
@@ -592,14 +596,18 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     }
 
     /* a onda: um anel de 1 px que sai do núcleo e se desfaz; a primeira na
-       própria ignição, depois a cada `periodo` s. O sprite de escala 1 tem
-       o anel a 0,97 da metade: escala = 2·raio/0,97 */
-    const p = desde < 0 ? 1 : (desde % O.periodo) / O.dura;
+       própria ignição, depois NO PULSO, junto com a batida (2026-11-10: antes
+       corria a cada 8 s, fora do compasso de 7 s do fôlego, e o pulso não se
+       sentia); a do pulso forte (um a cada 4, B.pulso) sai mais acesa. O
+       sprite de escala 1 tem o anel a 0,97 da metade: escala = 2·raio/0,97 */
+    /* (a mais nova das duas: com a ignição até 1,4 s antes de uma expiração a onda dela acabava e a do pulso
+       reaparecia a meio caminho, piscando; com o mínimo, a do pulso só a substitui ao nascer) */
+    const p = desde < 0 ? 1 : Math.min(desde / O.dura, chegou / O.dura);
     onda.material.visible = p < 1;
     if (p < 1) {
       const k = 1 - (1 - p) ** 3;
       onda.scale.setScalar((2 * mistura(O.raio[0], O.raio[1], k)) / 0.97);
-      onda.material.opacity = O.alfa * (1 - p) * forca;
+      onda.material.opacity = Math.min(1, O.alfa * (forte ? O.forte : 1)) * (1 - p) * forca;
     }
   }
 

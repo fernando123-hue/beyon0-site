@@ -273,7 +273,7 @@
           if (st.acopla.t > CARGA.teto) st.carga = 1;   /* rede de segurança: nunca passa do teto */
           pressionar(st);
           /* cheia: conecta e solta o surto; a sobrecarga entra card a card quando ele chega (abaixo) */
-          if (st.carga >= 1 && st.acopla.t >= CARGA.minimo) { st.conectada = true; st.conectadaHa = 0; turbinar(st); }
+          if (st.carga >= 1 && st.acopla.t >= CARGA.minimo) { st.conectada = true; st.conectadaHa = 0; turbinar(st); B.emit('estacao:conecta', st); }
         } else {
           /* conectada: carga cheia e turbo contínuo (a rede branca, os pacotes rápidos) */
           st.carga = 1; st.turboHa = Math.min(st.turboHa, 0.4);
@@ -285,6 +285,7 @@
         st.alim.s += dt * ALIMENTA.v;
         if (st.alim.de + st.alim.s >= st.yd - R.carga) {
           st.alim = null; st.carga = Math.min(0.97, st.carga + ALIMENTA.carga); st.pulso = Math.max(st.pulso, 0.6); surto(st, false);
+          B.emit('estacao:surto', { n: st.raios.length });   /* os tiques de vidro, card a card (js/som.js) */
         }
       }
       st.pulso = Math.max(0, st.pulso - dt * 1.6);
@@ -572,6 +573,8 @@
     acoplar: function (st) {
       if (B.reduced || st.acopla) return;
       st.acopla = { t: 0, c0: st.carga }; st.todos = false;
+      /* o tom que sobe com a carga (js/som.js): o tempo até encher é o do passo (CARGA.enche por 1, no mínimo CARGA.minimo) */
+      B.emit('estacao:acopla', { dura: Math.max(CARGA.minimo, (1 - st.carga) * CARGA.enche) });
       /* os cards em letras já, no ocioso: a ignição (em ~3 s) não paga o SplitText de todos num quadro só */
       if (B.carga && B.carga.preparar) for (var i = 0; i < st.raios.length; i++) B.carga.preparar(st.raios[i].el);
     },

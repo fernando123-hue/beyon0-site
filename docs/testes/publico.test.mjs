@@ -46,6 +46,7 @@ test('nunca sobe: código, docs, banco, segredo, configuração', () => {
 /* ---- PR C, C1: domínio único. O endereço antigo (Vercel) não pode sobrar em nada que sobe como asset; canonical, og,
    dados estruturados, sitemap e robots usam o DOMINIO de docs/testes/dominio.mjs ---- */
 import { DOMINIO, HOST_DO_DOMINIO } from './dominio.mjs';
+const PERFIS_OFICIAIS = ['https://www.instagram.com/beyonzero.br/'];
 const saidaTexto = () => {
   const destino = fs.mkdtempSync(path.join(os.tmpdir(), 'publico-dom-'));
   const arquivos = montarPublico({ raiz: RAIZ, destino, arquivos: versionados }).filter(a => /\.(html|xml|txt|css|js|mjs|json)$|^_headers$/.test(a));
@@ -79,7 +80,9 @@ test('domínio único (C1): os dados estruturados (JSON-LD) só apontam para o D
       blocos += 1;
       const dados = JSON.parse(m[1]);
       const urls = []; const anda = (v, chave) => { if (chave === '@context') return; if (typeof v === 'string') { if (/^https?:\/\//.test(v)) urls.push(v); } else if (v && typeof v === 'object') Object.entries(v).forEach(([k, x]) => anda(x, k)); };
-      anda(dados);
+      /* a única exceção: sameAs aponta para os perfis OFICIAIS da marca (lista fechada; SEO, 10/11/2026) */
+      for (const perfil of [dados.sameAs ?? []].flat()) assert.ok(PERFIS_OFICIAIS.includes(perfil), arq + ': sameAs fora da lista: ' + perfil);
+      anda({ ...dados, sameAs: undefined });
       total += urls.length;
       for (const u of urls) assert.ok(u === DOMINIO + '/' || u.startsWith(DOMINIO + '/'), arq + ': ' + u);
     }

@@ -1,0 +1,21 @@
+:root { --bg:#0a0c0d; --linha:#22292b; --texto:#e6eceb; --suave:#8d9a99; --ac:#49e5dd; }
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--texto); font-family:system-ui,sans-serif; font-weight:300; }
+main { max-width:720px; margin:0 auto; padding:28px 18px 80px; }
+.mono { font-family:ui-monospace,Consolas,monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--suave); }
+h1 { font-weight:300; font-size:28px; line-height:1.15; margin:10px 0 12px; }
+h1 em { font-style:normal; color:var(--ac); }
+p { color:var(--suave); line-height:1.55; margin:0 0 12px; font-size:15px; }
+section { border-top:1px solid var(--linha); padding:22px 0 8px; }
+h2 { font-weight:400; font-size:19px; margin:6px 0 6px; }
+.quando { font-size:14px; color:var(--suave); margin-bottom:14px; }
+.linha { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 14px; }
+button { font:inherit; color:var(--texto); background:transparent; border:1px solid var(--linha); border-radius:2px; padding:12px 16px; min-height:46px; cursor:pointer; text-align:left; }
+button .mono { display:block; margin-bottom:3px; }
+button:hover { border-color:#3a4648; }
+button.prop { border-color:#2b5654; }
+button.prop .mono { color:var(--ac); }
+button.tocando { border-color:var(--ac); background:rgba(73,229,221,.06); }
+#pulso-vis { height:2px; background:var(--linha); margin:8px 0 0; position:relative; overflow:hidden; }
+#pulso-vis i { position:absolute; inset:0; background:var(--ac); opacity:0; transition:opacity .9s ease; }
+#pulso-vis i.on { opacity:1; transition:none; }

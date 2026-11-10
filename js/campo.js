@@ -43,7 +43,10 @@
      de 96+ raios quase paralelos liam como grade torta). Depois do teto os
      raios se espaçam com a distância e os anéis viram a estrutura */
   var BANDA_MAX = { desk: 2, cel: 1 };
-  var ONDA = { borda: [8, 20], alfa: [0.5, 0.22, 0.1], rastro: 170 };   /* px atrás da frente; alfas da frente e dos ecos */
+  /* px atrás da frente; alfas da frente e dos ecos; px/s; o forte (um pulso a cada 4, B.pulso). 2026-11-10 (dono: "eu
+     não sinto [o pulso] ocorrendo"): a onda cruzava a tela em menos de 1 s (1150 px/s) a 0,5; agora anda a 700
+     (620 no celular), mais nítida, e dá tempo de ver */
+  var ONDA = { borda: [8, 20], alfa: [0.7, 0.3, 0.12], rastro: 170, vel: { desk: 700, cel: 620 }, forte: 1.4 };
   var PACOTE = { cabeca: 14, cauda: 46, acel: 900 };   /* px, px, px/s² */
   var MIRA = { arco: 90, raio: 80, segue: 12 };        /* px de cada lado; 1/s */
   var ROTA = { anda: 0.28 };                           /* s para o traço da rota chegar ao raio */
@@ -136,7 +139,7 @@
     function nasce(r) { return limitar((r - G.Q) / (G.Q * 0.45)) * 0.7 + 0.3; }
 
     /* ---------- energia ---------- */
-    function soltarOnda() { ondas.push({ r: G.Q, rAntes: G.Q, v: cel ? 900 : 1150 }); }
+    function soltarOnda(forte) { ondas.push({ r: G.Q, rAntes: G.Q, v: cel ? ONDA.vel.cel : ONDA.vel.desk, k: forte ? ONDA.forte : 1 }); }
     /* um pacote no raio de ângulo `a`, a partir do raio `r`, correndo para o núcleo */
     function pacote(r, a, forte) {
       if (pacotes.length > 40 || r <= G.Q) return null;
@@ -478,21 +481,21 @@
       var f = faixaAng();
       ctx.lineWidth = 1;
       for (var i = 0; i < ondas.length; i++) {
-        var rf = ondas[i].r;
+        var rf = ondas[i].r, kf = ondas[i].k || 1;
         if (rf < vis.rMin - ONDA.rastro || rf > vis.rMax + 30) continue;
         /* os anéis que a frente acabou de passar acendem e apagam */
         for (var k = 0; k < aneis.length; k++) {
           var an = aneis[k], atras = rf - an.r;
           if (atras < 0) break;
           if (atras > ONDA.rastro || an.r < vis.rMin) continue;
-          ctx.strokeStyle = cor(C.AC, 0.2 * (1 - atras / ONDA.rastro));
+          ctx.strokeStyle = cor(C.AC, Math.min(1, 0.2 * kf * (1 - atras / ONDA.rastro)));
           anelDaOnda(an.r, f);
         }
-        ctx.strokeStyle = cor(C.AC2, cel ? 0.7 : ONDA.alfa[0]);
+        ctx.strokeStyle = cor(C.AC2, Math.min(1, (cel ? 0.85 : ONDA.alfa[0]) * kf));
         anelDaOnda(rf, f);
-        ctx.strokeStyle = cor(C.AC, ONDA.alfa[1]);
+        ctx.strokeStyle = cor(C.AC, Math.min(1, ONDA.alfa[1] * kf));
         anelDaOnda(rf - ONDA.borda[0], f);
-        ctx.strokeStyle = cor(C.AC, ONDA.alfa[2]);
+        ctx.strokeStyle = cor(C.AC, Math.min(1, ONDA.alfa[2] * kf));
         anelDaOnda(rf - ONDA.borda[1], f);
       }
     }
