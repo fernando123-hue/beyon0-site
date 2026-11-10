@@ -92,18 +92,29 @@ html.js .passos.is-in .passo:nth-child(4)::after { transition-delay: 1.75s; }
    último passo a cada 8 s e o círculo do fim pisca ao chegar; com o mouse na seção ele some (o caminho manda).
    Só CSS: transições de cor no hover; o pulso e o LED são @keyframes de transform/opacity. ---- */
 @media (min-width: 821px) and (hover: hover) and (pointer: fine) {
-  .passo::before { transition: transform .5s var(--ease-io), background-color .25s var(--ease); }
+  /* (html.js: a mesma força das regras da sequência acima, que declaram só transform; os atrasos da sequência ficam
+     no transform e a cor responde na hora: um valor de atraso por propriedade) */
+  html.js .passo::before { transition: transform .5s var(--ease-io), background-color .25s var(--ease); }
   .passo h3, .passo p, .passo__n { transition: color .25s var(--ease); }
-  .passo::after { z-index: 1; transition: transform .5s var(--ease-pop), background-color .25s var(--ease), border-color .25s var(--ease); }
+  html.js .passo::after { z-index: 1; transition: transform .5s var(--ease-pop), background-color .25s var(--ease), border-color .25s var(--ease); }
+  html.js .passos.is-in .passo:nth-child(1)::after { transition-delay: .1s, 0s, 0s; }
+  html.js .passos.is-in .passo:nth-child(1)::before { transition-delay: .2s, 0s; }
+  html.js .passos.is-in .passo:nth-child(2)::after { transition-delay: .65s, 0s, 0s; }
+  html.js .passos.is-in .passo:nth-child(2)::before { transition-delay: .75s, 0s; }
+  html.js .passos.is-in .passo:nth-child(3)::after { transition-delay: 1.2s, 0s, 0s; }
+  html.js .passos.is-in .passo:nth-child(3)::before { transition-delay: 1.3s, 0s; }
+  html.js .passos.is-in .passo:nth-child(4)::after { transition-delay: 1.75s, 0s, 0s; }
   .passo:has(~ .passo:hover)::before { background: var(--ac); }
   .passo:hover .passo__n { color: var(--ac-3); }
   .passo:hover::after { background: var(--ac-3); border-color: var(--ac-3); }
   .passo:hover ~ .passo h3, .passo:hover ~ .passo p, .passo:hover ~ .passo .passo__n { color: var(--t3); }
-  .passo:hover ~ .passo::after { border-color: var(--t3); }
+  .passo:hover ~ .passo::after { border-color: var(--t3); background: var(--bg); }
 }
 @media (min-width: 821px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   /* a pista do pulso tem o comprimento da linha (do 01 ao centro do último círculo); o traço mora na ponta esquerda
-     dela e anda o comprimento dela (translate em % da própria caixa: o compositor resolve, sem medir nada) */
+     dela e anda o comprimento dela (translate em % da própria caixa: o compositor resolve, sem medir nada). Deslocada,
+     a caixa transparente passa da lista; quem a corta é o overflow-x: clip do body (css/tokens.css): sem ele a
+     página ganharia rolagem lateral (regra 10 do CLAUDE.md) */
   html.js:not(.menos-movimento) .passos::after {
     content: ""; position: absolute; left: 0; top: 5px; z-index: 0; height: 1px; pointer-events: none;
     width: calc((100% + var(--passos-vao)) * (var(--passos, 3) - 1) / var(--passos, 3) + 6px);
