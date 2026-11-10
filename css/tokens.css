@@ -345,3 +345,4 @@ main[tabindex="-1"]:focus { outline: none; }   /* o alvo do skip-link recebe o f
 .marca__aro, .marca__lente, .marca__entrada, .marca__saida, .marca__zero, .marca__nucleo { transition: fill .8s var(--ease); }
 .marca__pulso-in { fill: var(--ac); opacity: 0; }
 .marca__pulso-out { fill: var(--t1); opacity: 0; }
+.marca__brilho { fill: url(#marca-prata-inversa-nav) #FFFFFF; opacity: 0; }   /* o reflexo do nome (css/motion.css): a prata invertida, borda reta, sem desfoque */
