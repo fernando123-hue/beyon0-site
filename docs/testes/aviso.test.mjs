@@ -50,6 +50,24 @@ test('aviso: com o canal, manda UM e-mail com o texto fixo e o link do painel, s
   }
 });
 
+test('aviso: fila cheia e alertas de teto mandam no máximo 1 e-mail por hora por tipo; recado e pedido não têm freio (revisão técnica)', async () => {
+  let t = Date.UTC(2026, 10, 10, 12);
+  const canal = canalFalso();
+  const deps = { EmailMessage: EmailFalso, agora: () => t, memoria: new Map() };
+  assert.equal(await avisarDono(ENV_OK(canal), 'fila_cheia', deps), true);
+  assert.equal(await avisarDono(ENV_OK(canal), 'fila_cheia', deps), false, 'segundo no mesmo hora: não manda');
+  assert.equal(await avisarDono(ENV_OK(canal), 'atendente_global', deps), true, 'outro tipo tem o seu próprio freio');
+  assert.equal(await avisarDono(ENV_OK(canal), 'recado', deps), true);
+  assert.equal(await avisarDono(ENV_OK(canal), 'recado', deps), true, 'cada recado avisa');
+  t += 61 * 60e3;
+  assert.equal(await avisarDono(ENV_OK(canal), 'fila_cheia', deps), true, 'passada a hora, avisa de novo');
+  assert.equal(canal.enviados.length, 5);
+  for (const m of canal.enviados) {
+    const palavra = m.bruto.match(/^Subject: (\S+)\r\n/m)[1];
+    assert.ok(palavra.length <= 75, 'assunto cabe numa palavra codificada da RFC 2047: ' + palavra.length);
+  }
+});
+
 test('aviso: tipo desconhecido, endereço com quebra de linha ou envio que falha: devolve false e nunca lança', async () => {
   const canal = canalFalso();
   assert.equal(await avisarDono(ENV_OK(canal), 'qualquer', { EmailMessage: EmailFalso }), false);

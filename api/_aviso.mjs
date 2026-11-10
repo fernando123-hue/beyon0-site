@@ -24,7 +24,16 @@ const ENDERECO = /^[A-Za-z0-9._+-]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
 
 const base64 = s => Buffer.from(s, 'utf8').toString('base64');
 const linhas76 = s => s.match(/.{1,76}/g).join('\r\n');
-const assuntoDe = texto => '[Beyon Zero] ' + texto.split('.')[0];
+/* assunto curto: cabe numa palavra codificada da RFC 2047 (até 75 caracteres; revisão técnica) */
+const ASSUNTO_MAX = 36;
+const assuntoDe = texto => { const s = texto.split('.')[0]; return s.length <= ASSUNTO_MAX ? s : s.slice(0, ASSUNTO_MAX - 1).replace(/\s+\S*$/, '') + '…'; };
+
+/* os avisos de alerta (fila cheia, tetos) mandam no máximo 1 e-mail por hora por tipo: com a fila cheia, cada tentativa de pedido
+   chamaria o aviso (revisões técnica e de segurança). A memória é do isolado do Worker: freio de melhor esforço, que basta
+   para não encher a caixa; recado e pedido avisam sempre (cada um já tem os freios por IP e no banco) */
+const COM_FREIO = new Set(['fila_cheia', 'atendente_cliente', 'atendente_contatos', 'atendente_global']);
+const FREIO_MS = 60 * 60e3;
+const ULTIMO_AVISO = new Map();
 
 /* a mensagem crua (RFC 5322): cabeçalhos em ASCII, assunto e corpo em UTF-8 codificados em base64 */
 export function montarEmail({ de, para, texto, agora = Date.now(), id = crypto.randomUUID() }) {
@@ -48,9 +57,12 @@ export async function avisarDono(env, tipo, deps = {}) {
   const texto = AVISOS[tipo];
   const canal = env?.AVISO_EMAIL, de = DE, para = String(env?.AVISO_PARA ?? '');
   if (!texto || typeof canal?.send !== 'function' || !ENDERECO.test(para)) return false;
+  const agora = (deps.agora ?? Date.now)(), memoria = deps.memoria ?? ULTIMO_AVISO;
+  if (COM_FREIO.has(tipo) && agora - (memoria.get(tipo) ?? -Infinity) < FREIO_MS) return false;
   try {
     const EmailMessage = deps.EmailMessage ?? (await import('cloudflare:email')).EmailMessage;
-    await canal.send(new EmailMessage(de, para, montarEmail({ de, para, texto, agora: (deps.agora ?? Date.now)() })));
+    await canal.send(new EmailMessage(de, para, montarEmail({ de, para, texto, agora })));
+    if (COM_FREIO.has(tipo)) memoria.set(tipo, agora);
     return true;
   } catch (e) {
     /* sem endereço no log: só o tipo do aviso e o começo da mensagem de erro */
