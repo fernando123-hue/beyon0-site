@@ -141,13 +141,14 @@
       dc.mira.classList.add('is-viva');
       dc.el.classList.add('is-turbinado');
       B.rede.acender(dc.el, true);
+      B.emit('mini:ignicao', dc.el);   /* o som do encaixe (js/som.js) */
       /* o rótulo leva a descarga quando as duas frentes se encontram */
       clearTimeout(dc.carga);
       dc.carga = setTimeout(function () {
         if (!dc.el.classList.contains('is-turbinado') || !B.energizar) return;
         var no = [].filter.call(dc.el.childNodes, function (n) { return n.nodeType === 3 && n.textContent.trim(); })[0];
-        if (no) B.energizar(no, { ms: 520 });
-        else { var rot = dc.el.querySelector(':scope > span:not([data-seta]):not(.e-no)'); if (rot) B.energizar(rot, { ms: 520 }); }
+        if (no) B.energizar(no, { ms: 520, mudo: true });
+        else { var rot = dc.el.querySelector(':scope > span:not([data-seta]):not(.e-no)'); if (rot) B.energizar(rot, { ms: 520, mudo: true }); }
         ctx.pulsar(1);
       }, CARGA_MS);
     }

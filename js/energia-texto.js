@@ -81,6 +81,9 @@
     op = op || {};
     if (!alvo || reduzido()) return;
     if (alvo.nodeType === 1 && (alvo.classList.contains('e-no') || alvo.querySelector('.energizando'))) return;   /* (já em descarga) */
+    if (alvo.nodeType === 3 && !alvo.textContent.trim()) return;
+    /* o som da descarga (js/som.js); mudo quando quem chama já tem o seu (a ignição do mini, js/mini-docas.js) */
+    if (!op.mudo && B.emit) B.emit('energia:descarga', alvo);
     if (alvo.nodeType === 3) {
       if (!alvo.textContent.trim()) return;
       var s = document.createElement('span');

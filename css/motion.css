@@ -200,3 +200,19 @@ html.has-gsap:not(.menos-movimento) .split-word.is-tinta { color: var(--ac); tra
   .cta__alvo:hover .btn__canto:nth-of-type(4) { transform: translate(-3px, -3px); }
 }
 @media (max-width: 620px) { .cta__alvo { display: block; } }
+
+/* ---- O PULSO NO SITE INTEIRO (js/pulso.js; dono, 2026-11-10). A onda passa e os detalhes ciano na tela acendem um
+   instante, de cima para baixo; o forte (um a cada 4) dura mais. Animações curtas por classe (o JS tira a classe no
+   fim, as durações são as de DURA lá): a cor volta sozinha ao valor de antes (keyframe só com o "de"). O núcleo da
+   marca bate (transform). Sem JS, com movimento reduzido ou "menos movimento", o JS nem põe a classe. ---- */
+.kicker.is-pulso b { animation: pulso-tinta .9s var(--ease); }
+.kicker.is-pulso-forte b { animation: pulso-tinta 1.4s var(--ease); }
+.passo.is-pulso::after { animation: pulso-no .9s var(--ease); }
+.passo.is-pulso-forte::after { animation: pulso-no 1.4s var(--ease); }
+.marca__nucleo { transform-box: fill-box; transform-origin: center; }
+.marca--nav.is-pulso .marca__nucleo { animation: pulso-nucleo .9s var(--ease); }
+.marca--nav.is-pulso-forte .marca__nucleo { animation: pulso-nucleo-forte 1.4s var(--ease); }
+@keyframes pulso-tinta { from { color: var(--ac); } }
+@keyframes pulso-no { from { background-color: var(--ac); border-color: var(--ac); } }
+@keyframes pulso-nucleo { 0% { transform: scale(1); } 14% { transform: scale(1.22); } 100% { transform: scale(1); } }
+@keyframes pulso-nucleo-forte { 0% { transform: scale(1); } 10% { transform: scale(1.34); } 100% { transform: scale(1); } }

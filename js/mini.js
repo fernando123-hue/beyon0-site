@@ -126,7 +126,9 @@
   var passeio = { estado: 'doca', espera: acaso(5, 9), pos: null, dest: null, fica: 0 };
   var quer = { alvo: null, f: 0, a: 0, prox: 0, n: 0 };   /* a opção sob o cursor */
   var sugestao = { ultima: -99, alvo: null, t: -1 };
-  var insiste = 0, festa = 0, atencaoAntes = 0, toque = null, mergulho = false;
+  var insiste = 0, festa = 0, batida = 0, atencaoAntes = 0, toque = null, mergulho = false;
+  /* o pulso do reator: só o pulinho (a festa e o encaixe mandam mais; parado de vez, nada) */
+  B.on('pulso', function () { if (!B.reduced) batida = 1; });
   var relogioMini = 0, espera = -1;   /* espera: s desde o último pulso de espera (−1: nenhum) */
   var giro = 0, giroV = 0.35;         /* o ângulo dos arcos, integrado: mudar a velocidade não salta o ângulo */
   var ESPERA = { dura: 0.55, abre: 5, alfa: 0.3 };   /* o anel de espera: legível, curto (crítica rodada 2) */
@@ -558,6 +560,9 @@
       alvoY -= Math.abs(Math.sin(relogioMini * Math.PI * hz)) * alto * (passeio.estado === 'doca' ? 0.6 : 1);
     }
     alvoY -= Math.sin(festa * Math.PI) * CRIANCA.festa;
+    /* o pulso do reator (js/pulso.js): um pulinho, um terço do de festa, no compasso de todo o site */
+    batida = Math.max(0, batida - dt * 3);
+    alvoY -= Math.sin(batida * Math.PI) * CRIANCA.festa * 0.33;
     /* mergulhando na passagem: direto para o centro da tela (com o laço pausado no voo, só se o voo for desfeito) */
     if (mergulho) { alvoX = W / 2; alvoY = H / 2; }
     /* na estação, encaixado ou no trajeto de um encaixe: exatamente no lugar (o trajeto já é suave; a mola por cima dava atraso e um salto no fim) */
