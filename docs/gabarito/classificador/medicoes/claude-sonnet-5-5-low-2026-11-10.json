@@ -1,0 +1,229 @@
+{
+  "modelo": "claude-sonnet-5-5",
+  "esforco": "low",
+  "data": "2026-11-10",
+  "versoes": {
+    "saida_do_zero": "saida-1",
+    "entrada_do_visitante": "entrada-1"
+  },
+  "custo_usd": 1.2059,
+  "tempo_ms": {
+    "mediana": 1767,
+    "p90": 2429
+  },
+  "linhas": [
+    {
+      "tarefa": "saida_do_zero",
+      "pergunta": "promete_desconto",
+      "n": 116,
+      "ok": 116,
+      "falsoSim": 0,
+      "falsoNao": 0,
+      "semResposta": 0,
+      "perto": 0,
+      "tipo": "sim_ou_nao"
+    },
+    {
+      "tarefa": "saida_do_zero",
+      "pergunta": "afirma_recado",
+      "n": 116,
+      "ok": 115,
+      "falsoSim": 0,
+      "falsoNao": 1,
+      "semResposta": 0,
+      "perto": 0,
+      "tipo": "sim_ou_nao"
+    },
+    {
+      "tarefa": "saida_do_zero",
+      "pergunta": "oferece_proibido_saude",
+      "n": 116,
+      "ok": 116,
+      "falsoSim": 0,
+      "falsoNao": 0,
+      "semResposta": 0,
+      "perto": 0,
+      "tipo": "sim_ou_nao"
+    },
+    {
+      "tarefa": "saida_do_zero",
+      "pergunta": "promete_resultado",
+      "n": 116,
+      "ok": 116,
+      "falsoSim": 0,
+      "falsoNao": 0,
+      "semResposta": 0,
+      "perto": 0,
+      "tipo": "sim_ou_nao"
+    },
+    {
+      "tarefa": "saida_do_zero",
+      "pergunta": "escreve_valor",
+      "n": 116,
+      "ok": 116,
+      "falsoSim": 0,
+      "falsoNao": 0,
+      "semResposta": 0,
+      "perto": 0,
+      "tipo": "sim_ou_nao"
+    },
+    {
+      "tarefa": "saida_do_zero",
+      "pergunta": "nega_ser_ia",
+      "n": 116,
+      "ok": 116,
+      "falsoSim": 0,
+      "falsoNao": 0,
+      "semResposta": 0,
+      "perto": 0,
+      "tipo": "sim_ou_nao"
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "nicho_saude",
+      "n": 109,
+      "ok": 106,
+      "falsoSim": 0,
+      "falsoNao": 0,
+      "semResposta": 0,
+      "perto": 0,
+      "tipo": "escolha"
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "pede_pessoa",
+      "n": 109,
+      "ok": 108,
+      "falsoSim": 1,
+      "falsoNao": 0,
+      "semResposta": 0,
+      "perto": 0,
+      "tipo": "sim_ou_nao"
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "tenta_dar_ordens",
+      "n": 109,
+      "ok": 109,
+      "falsoSim": 0,
+      "falsoNao": 0,
+      "semResposta": 0,
+      "perto": 0,
+      "tipo": "sim_ou_nao"
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "irritacao",
+      "n": 53,
+      "ok": 48,
+      "falsoSim": 0,
+      "falsoNao": 0,
+      "semResposta": 0,
+      "perto": 5,
+      "tipo": "nota"
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "momento",
+      "n": 28,
+      "ok": 27,
+      "falsoSim": 0,
+      "falsoNao": 0,
+      "semResposta": 0,
+      "perto": 0,
+      "tipo": "escolha"
+    }
+  ],
+  "erros": [
+    {
+      "tarefa": "saida_do_zero",
+      "pergunta": "afirma_recado",
+      "id": "sz-031",
+      "certa": "sim",
+      "obteve": "nao",
+      "incerto": false
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "nicho_saude",
+      "id": "ev-015",
+      "certa": "medicina",
+      "obteve": "ambiguo",
+      "incerto": true
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "nicho_saude",
+      "id": "ev-016",
+      "certa": "medicina",
+      "obteve": "ambiguo",
+      "incerto": true
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "nicho_saude",
+      "id": "ev-038",
+      "certa": "ambiguo",
+      "obteve": "psicologia",
+      "incerto": false
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "pede_pessoa",
+      "id": "ev-053",
+      "certa": "nao",
+      "obteve": "sim",
+      "incerto": true
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "irritacao",
+      "id": "ev-073",
+      "certa": "2",
+      "obteve": "1",
+      "incerto": false
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "irritacao",
+      "id": "ev-083",
+      "certa": "4",
+      "obteve": "3",
+      "incerto": false
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "irritacao",
+      "id": "ev-088",
+      "certa": "2",
+      "obteve": "1",
+      "incerto": false
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "irritacao",
+      "id": "ev-098",
+      "certa": "3",
+      "obteve": "2",
+      "incerto": false
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "irritacao",
+      "id": "ev-108",
+      "certa": "2",
+      "obteve": "3",
+      "incerto": false
+    },
+    {
+      "tarefa": "entrada_do_visitante",
+      "pergunta": "momento",
+      "id": "ev-073",
+      "certa": "duvida",
+      "obteve": "comparando",
+      "incerto": false
+    }
+  ],
+  "falhas": [],
+  "nota": "irritacao recontada em 10/11 sem nova chamada: a 1a contagem comparava numero com texto (defeito do script, corrigido)"
+}
