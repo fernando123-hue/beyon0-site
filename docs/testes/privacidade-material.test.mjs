@@ -16,7 +16,7 @@ test('o item do material existe uma vez, com a âncora #material, e o #orcamento
 });
 
 test('o item diz: quem lê (inclusive a Anthropic), onde fica, os prazos, o hash do link', () => {
-  for (const frase of ['Supabase', 'Anthropic', 'fundador', 'Estados Unidos', 'hash', 'não os aceita',
+  for (const frase of ['Supabase', 'Anthropic', 'Quem lê o material: a Beyon Zero', 'Estados Unidos', 'hash', 'não os aceita',
     '7 dias depois de ir para a produção', '30 dias depois do fim do pedido', 'no dia seguinte, se você desistir', '24 horas']) assert.ok(ITEM.includes(frase), frase);
   assert.ok(!/\bCPF\b[^.]*guardamos/i.test(ITEM), 'não promete guardar CPF');
 });
