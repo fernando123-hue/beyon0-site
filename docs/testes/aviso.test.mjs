@@ -1,5 +1,5 @@
-/* O aviso ao dono (api/_aviso.mjs): hoje NÃO existe canal de aviso no celular (o app próprio com push ainda vai ser feito).
-   avisarDono é um no-op que devolve false; os textos fixos continuam sem dado de cliente; nada tenta rede.  npm run testar */
+/* O aviso ao dono (api/_aviso.mjs): e-mail pelo binding send_email da Cloudflare até existir o app do dono com push (dono, 10/11).
+   Textos fixos, sem dado de cliente; sem canal ou com endereço estranho não envia; falha nunca lança.  npm run testar */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -11,18 +11,75 @@ test('aviso: os textos são fixos e não carregam dado de ninguém', () => {
   assert.deepEqual(Object.keys(AVISOS).sort(), ['atendente_cliente', 'atendente_contatos', 'atendente_global', 'fila_cheia', 'pedido', 'recado']);
 });
 
-test('aviso: é no-op (devolve false, não chama envio nenhum, não faz fetch), com ou sem variáveis antigas e para qualquer tipo', async () => {
+/* canal de e-mail (dono, 10/11: "Primeiro e mail até termos o APP, depois disso exclua o email"): binding send_email da Cloudflare */
+class EmailFalso { constructor(de, para, bruto) { Object.assign(this, { de, para, bruto }); } }
+const canalFalso = () => { const enviados = []; return { enviados, send: async m => { enviados.push(m); } }; };
+const ENV_OK = (canal) => ({ AVISO_EMAIL: canal, AVISO_PARA: 'dono@exemplo.com' });
+const corpoDe = bruto => Buffer.from(bruto.split('\r\n\r\n')[1].replace(/\r\n/g, ''), 'base64').toString('utf8');
+
+test('aviso: sem o canal configurado não envia nada, não faz fetch e devolve false', async () => {
   const salvo = globalThis.fetch;
-  let rede = 0, enviou = 0;
+  let rede = 0;
   globalThis.fetch = async () => { rede++; return new Response('x'); };
   try {
-    const enviar = () => { enviou++; };
-    for (const env of [undefined, {}, { ALERTA_NTFY_TOPICO: 'abcdefghijklmnopqrstuvwxyz012345' }]) {
-      for (const tipo of [...Object.keys(AVISOS), 'qualquer']) assert.equal(await avisarDono(env, tipo, { enviar }), false, tipo);
+    const canal = canalFalso();
+    for (const env of [undefined, {}, { AVISO_EMAIL: canal }, { AVISO_EMAIL: canal, AVISO_PARA: '' }, { AVISO_PARA: 'c@d.com' }]) {
+      for (const tipo of Object.keys(AVISOS)) assert.equal(await avisarDono(env, tipo, { EmailMessage: EmailFalso }), false, tipo);
     }
+    assert.equal(canal.enviados.length, 0);
     assert.equal(rede, 0, 'nenhum fetch');
-    assert.equal(enviou, 0, 'nenhum envio');
   } finally { globalThis.fetch = salvo; }
+});
+
+test('aviso: com o canal, manda UM e-mail com o texto fixo e o link do painel, sem dado de cliente', async () => {
+  for (const tipo of Object.keys(AVISOS)) {
+    const canal = canalFalso();
+    assert.equal(await avisarDono(ENV_OK(canal), tipo, { EmailMessage: EmailFalso, agora: () => Date.UTC(2026, 10, 10, 12) }), true, tipo);
+    assert.equal(canal.enviados.length, 1);
+    const m = canal.enviados[0];
+    assert.equal(m.de, 'avisos@beyonzero.com.br'); assert.equal(m.para, 'dono@exemplo.com');
+    assert.match(m.bruto, /^From: Beyon Zero <avisos@beyonzero\.com\.br>\r\n/m);
+    assert.match(m.bruto, /^To: dono@exemplo\.com\r\n/m);
+    assert.match(m.bruto, /^Subject: =\?UTF-8\?B\?[A-Za-z0-9+/=]+\?=\r\n/m);
+    assert.match(m.bruto, /^Message-ID: <[a-z0-9.-]+@beyonzero\.com\.br>\r\n/m);
+    assert.match(m.bruto, /^Date: Tue, 10 Nov 2026 12:00:00 GMT\r\n/m);
+    assert.match(m.bruto, /^Content-Type: text\/plain; charset=utf-8\r\n/m);
+    const corpo = corpoDe(m.bruto);
+    assert.ok(corpo.startsWith(AVISOS[tipo]), corpo);
+    assert.match(corpo, /https:\/\/beyonzero\.com\.br\/painel/);
+  }
+});
+
+test('aviso: fila cheia e alertas de teto mandam no máximo 1 e-mail por hora por tipo; recado e pedido não têm freio (revisão técnica)', async () => {
+  let t = Date.UTC(2026, 10, 10, 12);
+  const canal = canalFalso();
+  const deps = { EmailMessage: EmailFalso, agora: () => t, memoria: new Map() };
+  assert.equal(await avisarDono(ENV_OK(canal), 'fila_cheia', deps), true);
+  assert.equal(await avisarDono(ENV_OK(canal), 'fila_cheia', deps), false, 'segundo no mesmo hora: não manda');
+  assert.equal(await avisarDono(ENV_OK(canal), 'atendente_global', deps), true, 'outro tipo tem o seu próprio freio');
+  assert.equal(await avisarDono(ENV_OK(canal), 'recado', deps), true);
+  assert.equal(await avisarDono(ENV_OK(canal), 'recado', deps), true, 'cada recado avisa');
+  t += 61 * 60e3;
+  assert.equal(await avisarDono(ENV_OK(canal), 'fila_cheia', deps), true, 'passada a hora, avisa de novo');
+  assert.equal(canal.enviados.length, 5);
+  for (const m of canal.enviados) {
+    const palavra = m.bruto.match(/^Subject: (\S+)\r\n/m)[1];
+    assert.ok(palavra.length <= 75, 'assunto cabe numa palavra codificada da RFC 2047: ' + palavra.length);
+  }
+});
+
+test('aviso: tipo desconhecido, endereço com quebra de linha ou envio que falha: devolve false e nunca lança', async () => {
+  const canal = canalFalso();
+  assert.equal(await avisarDono(ENV_OK(canal), 'qualquer', { EmailMessage: EmailFalso }), false);
+  for (const ruim of ['a@b.com\r\nBcc: x@y.com', 'sem-arroba', 'a@b.com, c@d.com']) {
+    assert.equal(await avisarDono({ ...ENV_OK(canal), AVISO_PARA: ruim }, 'recado', { EmailMessage: EmailFalso }), false, ruim);
+  }
+  assert.equal(canal.enviados.length, 0);
+  const quebrado = { send: async () => { throw new Error('destino não verificado'); } };
+  const quebradoComEndereco = { send: async () => { throw new Error('destination dono@exemplo.com not verified'); } };
+  const erros = []; const salvo = console.error; console.error = (...a) => erros.push(a.join(' '));
+  try { assert.equal(await avisarDono(ENV_OK(quebrado), 'recado', { EmailMessage: EmailFalso }), false); assert.equal(await avisarDono(ENV_OK(quebradoComEndereco), 'recado', { EmailMessage: EmailFalso }), false); } finally { console.error = salvo; }
+  assert.equal(erros.length, 2); for (const e of erros) assert.doesNotMatch(e, /dono@exemplo/, 'o log não leva o endereço');
 });
 
 test('aviso: o código da API não fala mais com ntfy.sh nem lê as variáveis antigas', () => {
@@ -35,7 +92,7 @@ test('aviso: o código da API não fala mais com ntfy.sh nem lê as variáveis a
   }
 });
 
-test('recado: grava, chama o aviso com o tipo fixo (sem o conteúdo) e o aviso no-op não muda a resposta', async () => {
+test('recado: grava, chama o aviso com o tipo fixo (sem o conteúdo) e o aviso sem canal não muda a resposta', async () => {
   const vistos = [];
   const mk = avisar => criarAcoesDoRecado({ banco: async () => ({ ok: true }), visitantes: () => null, segredoFreio: 'x'.repeat(32), env: { BZ_LOCAL: '1', VERCEL: '' }, avisar });
   const corpo = { texto: 'Meu telefone é 21 99999-0000, ana@exemplo.com', email: 'ana@exemplo.com', origem: 'orcamento' };
@@ -46,7 +103,7 @@ test('recado: grava, chama o aviso com o tipo fixo (sem o conteúdo) e o aviso n
   assert.deepEqual(r2, { ok: true });
 });
 
-/* o pedido: o aviso sai depois de gravar; a recusa por fila cheia/limite avisa com o texto urgente; recusa comum não avisa; o aviso (no-op) não muda a resposta */
+/* o pedido: o aviso sai depois de gravar; a recusa por fila cheia/limite avisa com o texto urgente; recusa comum não avisa; o aviso sem canal não muda a resposta */
 import { criarAcoesDoPedido } from '../../api/_vendas/fluxo-pedido.mjs';
 const UUID = '11111111-1111-4111-8111-111111111111';
 const corpoPedido = () => ({ conversa_id: UUID, negocio: 'Clínica Sol', vende: 'Consultas e exames', telefone: '(21) 98765-4321', nome: 'Rita', aceite: true });
@@ -73,7 +130,7 @@ test('pedido: fila cheia e limite por hora avisam "fila_cheia" e dão a saída d
   assert.deepEqual(tipos, []);
 });
 
-test('pedido: com o aviso real (no-op, sem canal) o pedido grava e a resposta não muda, sem nenhum fetch', async () => {
+test('pedido: com o aviso real sem canal configurado o pedido grava e a resposta não muda, sem nenhum fetch', async () => {
   const salvo = globalThis.fetch;
   let rede = 0;
   globalThis.fetch = async () => { rede++; return new Response('x'); };
