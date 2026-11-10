@@ -98,22 +98,36 @@ test('injeção pelo briefing: a instrução diz que o briefing é dado e o brie
    essas ideias em mente também, para agregar no nosso valor geral") ---------- */
 test('premium 1: o topo passa no teste dos 5 segundos (diz o que é o negócio e para quem, sem slogan que serviria a qualquer um)', () => {
   assert.match(SISTEMA_GERACAO, /5 segundos/, 'a regra dos 5 segundos não está no sistema');
-  assert.match(SISTEMA_GERACAO, /hero[^.]*(o que [ée] o negócio|o que o negócio faz)/i, 'o hero precisa dizer o que é o negócio');
-  assert.match(SISTEMA_GERACAO, /para quem/i);
-  assert.match(SISTEMA_GERACAO, /slogan/i, 'sem slogan abstrato');
+  const hero = SISTEMA_GERACAO.split('\n').find(l => /5 segundos/.test(l)) || '';
+  assert.match(hero, /o que [ée] o negócio|o que o negócio faz/i, 'o hero precisa dizer o que é o negócio');
+  assert.match(hero, /para quem/i);
+  assert.match(hero, /slogan/i, 'sem slogan abstrato');
+  /* revisão do PR 126: cidade e diferencial no topo só os que o briefing trouxer (zero invenção), e nenhum exemplo de
+     título pronto que o modelo copie para outro negócio */
+  assert.match(hero, /s[óo] os que o briefing trouxer/i, 'a cidade e o diferencial só do briefing');
+  assert.doesNotMatch(hero, /Implante|Campinas/, 'o exemplo pronto de título voltou (vira dado inventado)');
 });
 
 test('premium 2: enxugar, com o número de seções pelo formato (landing menor que institucional) e a ordem de cortar', () => {
   assert.doesNotMatch(SISTEMA_GERACAO, /Use de 6 a 10/, 'o 6 a 10 para tudo voltou');
-  const faixa = nome => { const m = SISTEMA_GERACAO.match(new RegExp(nome + ': de ([0-9]+) a ([0-9]+)')); assert.ok(m, 'faixa de ' + nome + ' não achada'); return [+m[1], +m[2]]; };
-  const lp = faixa('landing page'), inst = faixa('institucional e sob medida');
+  const regra = SISTEMA_GERACAO.split('\n').find(l => /Quantas usar/.test(l)) || '';
+  /* (pelo id do formato, o que o pedido traz: não depende de como o nome amigável foi escrito) */
+  const faixa = id => { const m = regra.match(new RegExp('\\(' + id + '[^)]*\\): de ([0-9]+) a ([0-9]+)')); assert.ok(m, 'faixa de ' + id + ' não achada: ' + regra); return [+m[1], +m[2]]; };
+  const lp = faixa('landing_page'), inst = faixa('institucional'), loja = faixa('loja_plataforma');
   assert.ok(lp[1] < inst[1], 'a landing tem de pedir menos seções que o institucional: ' + lp + ' / ' + inst);
-  assert.ok(lp[0] >= 4 && inst[1] <= 10, 'faixas fora do razoável: ' + lp + ' / ' + inst);
-  assert.match(SISTEMA_GERACAO, /corte/i, 'falta a ordem de cortar o que não serve à estratégia');
-  assert.match(SISTEMA_GERACAO, /um foco só|uma ideia só/i, 'cada seção com um foco só');
+  for (const f of [lp, inst, loja]) assert.ok(f[0] >= 4 && f[1] <= 10 && f[0] < f[1], 'faixa fora do razoável: ' + f);
+  assert.match(regra, /sem formato: de [0-9]+ a [0-9]+/, 'sem formato no pedido, sem faixa');
+  assert.match(regra, /convers[ãa]o[^;.]*m[íi]nimo/i, 'a estratégia decide dentro da faixa (conversão perto do mínimo)');
+  assert.match(SISTEMA_GERACAO, /corte a se[çc][ãa]o, o item ou a frase/i, 'falta a ordem de cortar o que não serve à estratégia');
+  assert.match(SISTEMA_GERACAO, /um foco só/i, 'cada seção com um foco só');
 });
 
-test('premium 3 e 4: o documento do padrão existe e traz o aviso de cookies que bloqueia de verdade e o kit de movimento', () => {
+test('premium 3 e 4: o documento do padrão traz o aviso de cookies que bloqueia de verdade e o kit de movimento', () => {
   const doc = fs.readFileSync(new URL('../padrao-site-premium.md', import.meta.url), 'utf8');
-  for (const t of [/5 segundos/, /enxugar/i, /cookies/i, /depois do .?sim/i, /reduced-motion|reduzir movimento/i, /sem desfoque|sem blur/i, /formulário/i]) assert.match(doc, t, String(t));
+  const secao = n => (doc.split(/\n## /).find(s => s.startsWith(n + '.')) || '');
+  const cookies = secao('3'), kit = secao('4');
+  for (const t of [/depois do .?sim/i, /recusar/i, /mudar de ideia|revogar/i, /mapa/i, /v[íi]deo|YouTube/i, /fontes/i]) assert.match(cookies, t, 'cookies: ' + t);
+  for (const t of [/prefers-reduced-motion|reduzir movimento/i, /sem desfoque|sem blur/i, /formulário/i, /transform/]) assert.match(kit, t, 'kit: ' + t);
+  assert.match(secao('1'), /5 segundos/);
+  assert.match(secao('2'), /cort/i);
 });

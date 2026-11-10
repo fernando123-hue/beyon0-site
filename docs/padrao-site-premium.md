@@ -1,8 +1,8 @@
 # Padrão "site premium" dos sites de clientes
 
 Decisão do dono, 2026-11-10 (`01 Empresa/Decisões.md`): "mudarmos o nosso gerador com já essas ideias em mente
-também, para agregar no nosso valor geral". Origem: a análise do vídeo "A Psicologia de um Site Premium" (Gustavo
-Campelo). As ideias do vídeo que o nosso processo ainda não escrevia viraram estas 4 regras. Valem para as 3
+também, para agregar no nosso valor geral". Origem: a análise de um vídeo sobre "a psicologia de um site premium".
+As ideias do vídeo que o nosso processo ainda não escrevia viraram estas 4 regras. Valem para as 3
 direções (o gerador, `api/_vendas/gerador.mjs`, e a fila manual, que usa o mesmo `SISTEMA_GERACAO`) e para a
 construção do site escolhido.
 
@@ -27,9 +27,10 @@ Se a resposta vier errada, o título está errado, não a pessoa.
 "A perfeição vem quando não há mais nada para tirar." IA tende a encher a tela, e isso deixa o site com cara de
 barato.
 
-- Seções pelo formato: landing page de 5 a 7; institucional e sob medida de 6 a 9; loja de 5 a 8. Fique no
-  menor número que a estratégia aguenta.
-- Antes de entregar: releia e corte a seção, o item ou a frase que não leva o visitante ao contato.
+- Seções pelo formato: landing page de 5 a 7; institucional de 6 a 9; loja de 5 a 8. Dentro da faixa, a
+  estratégia decide: a de conversão fica perto do mínimo; autoridade e experiência podem usar a faixa inteira,
+  porque o espaço e a narrativa são a estratégia delas. Nunca seção sem motivo.
+- Antes de entregar: releia e corte a seção, o item ou a frase que não serve à estratégia escolhida.
 - Uma seção, um foco. Nenhuma tela vira mural de cartões: de 3 a 6 itens por seção.
 - Na construção, a mesma pergunta em cada tela do celular: "para onde a pessoa olha primeiro?". Se não tiver
   resposta, sobra coisa.
@@ -38,15 +39,26 @@ barato.
 
 Lei (LGPD), não enfeite. Um aviso bonito que não bloqueia nada é pior que nenhum.
 
-- Site do cliente **sem** Google Analytics, pixel ou outro rastreador: não leva aviso de cookies (não há o que
+- Site do cliente **sem** rastreador e **sem** conteúdo de terceiros: não leva aviso de cookies (não há o que
   consentir). Só o aviso de privacidade do formulário, com o mínimo de dados.
 - Site **com** Analytics, pixel do Instagram/Facebook ou Google Ads: os scripts de rastreio **só carregam
-  depois do "sim"** da pessoa. Recusar vale tanto quanto aceitar (mesmo peso visual, sem truque). A escolha fica
-  guardada no aparelho e há um link no rodapé para mudar de ideia.
+  depois do "sim"** da pessoa. Recusar vale tanto quanto aceitar (mesmo peso visual, sem truque). A escolha,
+  inclusive a recusa, fica guardada no aparelho, e há um link no rodapé para mudar de ideia.
+- **Conteúdo de terceiros também conta:**
+  - **Mapa incorporado** (a seção de localização): por padrão, imagem estática com o link "Abrir no mapa". O mapa
+    interativo só carrega depois de um clique da pessoa.
+  - **Vídeo do YouTube:** a capa e o botão de tocar; o vídeo só carrega no clique (de preferência pelo domínio
+    `youtube-nocookie.com`).
+  - **Fontes:** hospedadas no próprio site, nunca carregadas do Google Fonts.
 - Modelo: o nosso, `js/medicao.js` (nada sai do aparelho sem o "sim"; reabrir pelo `[data-consentimento-abrir]`).
-  Não precisamos de ferramenta paga para isso.
-- Como conferir: com a aba Rede do navegador aberta, recuse e navegue. Nenhuma chamada para google-analytics,
-  googletagmanager, facebook ou doubleclick.
+  Ele cobre o Google (GA4 e Ads). Para o pixel da Meta, adaptar o mesmo bloqueio, que é ponto de partida e não
+  peça pronta. Não precisamos de ferramenta paga para isso.
+- O aviso não substitui a página de privacidade: o site do cliente tem a dele, dizendo o que coleta e para quê.
+- Como conferir, com a aba Rede do navegador aberta, nos três caminhos:
+  - **Recusar e navegar:** nenhuma chamada para google-analytics, googletagmanager, facebook ou doubleclick, nem
+    depois de recarregar.
+  - **Aceitar:** as chamadas aparecem.
+  - **Mudar de ideia pelo link do rodapé:** recusar e recarregar; as chamadas não voltam.
 
 ## 4. O kit de movimento mínimo (na construção)
 
