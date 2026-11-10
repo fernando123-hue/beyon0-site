@@ -26,6 +26,7 @@ import { criarFreio, ipDe } from './_freio.mjs';
 import { randomUUID } from 'node:crypto';
 import { criarArmazem } from './_material/armazem.mjs';
 import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
+import { sombraDoAmbiente } from './_classificador/sombra.mjs';
 
 export const ACOES = {
   GET: { estado: 'estado', pagamento: 'pagamento', 'pagamento-config': 'pagamentoConfig', 'sessao-config': 'sessaoConfig', catalogo: 'catalogo' },
@@ -54,7 +55,8 @@ const log = (nivel, dados) => console[nivel === 'erro' ? 'error' : 'log'](JSON.s
 export const GET = request => atender(request, process.env, 'GET');
 export const POST = request => atender(request, process.env, 'POST');
 
-export async function atender(request, env, metodo, deps) {
+/* ctx: o do Worker (cloudflare/rotas.mjs, rota com ctx: true); o waitUntil dele leva a sombra do JEV para depois da resposta */
+export async function atender(request, env, metodo, deps, ctx) {
   const requestId = randomUUID();
   const responder = (dados, status) => json(dados, status, requestId);
   const query = new URL(request.url).searchParams;
@@ -90,6 +92,9 @@ export async function atender(request, env, metodo, deps) {
     if (cfg.ativo) d.pagamentos = criarServicoPagamentos({ banco: d.banco, cfg });
     else if (cfg.motivo) log('erro', { request_id: requestId, evento: 'pagamentos desligados', motivo: cfg.motivo });
   }
+  /* (F3 do JEV) o modo sombra, só no turno do Zero e só com JEV_SOMBRA=1 e a chave: senão null, zero chamadas */
+  if (!deps && acao === 'mensagem' && d.banco) d.sombra = sombraDoAmbiente(env, { banco: d.banco });
+  const segundoPlano = (deps && deps.segundoPlano) || (ctx && typeof ctx.waitUntil === 'function' ? p => ctx.waitUntil(p) : undefined);
   if (!d.banco || !d.visitantes) { log('erro', { request_id: requestId, evento: 'banco ou autenticação não configurados' }); return responder({ erro: 'Serviço indisponível.' }, 503); }
   if (PRECISA_IA.has(acao) && !d.ia) { log('erro', { request_id: requestId, evento: 'IA não configurada (ANTHROPIC_API_KEY)' }); return responder({ erro: 'O consultor está indisponível agora. Deixe um recado para a equipe.', recado: true }, 503); }
 
@@ -108,7 +113,7 @@ export async function atender(request, env, metodo, deps) {
   }
 
   try {
-    return responder(await criarFluxo({ ...d, env: d.env || env, direcoes: d.direcoes || modoDirecoes(env), requestId })[acao]({ request, query, corpo }));
+    return responder(await criarFluxo({ ...d, env: d.env || env, direcoes: d.direcoes || modoDirecoes(env), requestId, segundoPlano })[acao]({ request, query, corpo }));
   } catch (e) {
     const r = traduzirErro(e);
     /* a falha passageira (IA, Auth, banco lento) também fica no log, com o motivo técnico (a pessoa só lê a frase) */

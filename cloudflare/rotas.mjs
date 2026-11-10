@@ -20,7 +20,9 @@ import { normalizarIp } from '../api/_vendas/ip.mjs';
 const BYTES_POR_UNIDADE = 3;
 const LIMITE_ROTINAS = 4096;
 export const ROTAS = Object.freeze({
-  vendas:     { limite: BYTES_POR_UNIDADE * vendas.LIMITE_BYTES, GET: (r, e) => vendas.atender(r, e, 'GET'), POST: (r, e) => vendas.atender(r, e, 'POST') },
+  /* ctx: true = a rota recebe o ctx do Worker como 3º argumento (só a de vendas: a sombra do JEV roda em waitUntil). As outras
+     não recebem: pagamentos e rotinas leem o 3º argumento como dependências de teste */
+  vendas:     { limite: BYTES_POR_UNIDADE * vendas.LIMITE_BYTES, ctx: true, GET: (r, e) => vendas.atender(r, e, 'GET'), POST: (r, e, c) => vendas.atender(r, e, 'POST', undefined, c) },
   pagamentos: { limite: BYTES_POR_UNIDADE * pagamentos.LIMITE_BYTES, GET: pagamentos.receber, POST: pagamentos.receber },
   rotinas:    { limite: LIMITE_ROTINAS, GET: rotinas.executar, POST: rotinas.executar },
   evento:     { limite: BYTES_POR_UNIDADE * LIMITE_EVENTO, POST: evento.receber },
@@ -75,7 +77,8 @@ const comCabecalhosDaApi = resposta => {
 };
 
 export function criarRoteador(rotas = ROTAS) {
-  return async function rotear(request, env) {
+  /* ctx: o do Worker (waitUntil), entregue só às rotas com ctx: true. No servidor local não há ctx */
+  return async function rotear(request, env, ctx) {
     const url = new URL(request.url);
     const m = /^\/api\/([a-z]+)\/?$/.exec(url.pathname);
     const rota = m && Object.hasOwn(rotas, m[1]) ? rotas[m[1]] : null;
@@ -93,7 +96,7 @@ export function criarRoteador(rotas = ROTAS) {
       }
       /* um Request NOVO: o corpo já foi lido; o handler lê o dele normalmente */
       const novo = new Request(url, { method: request.method, headers, body: corpo && corpo.byteLength ? corpo : undefined });
-      return comCabecalhosDaApi(await fn(novo, env));
+      return comCabecalhosDaApi(await (rota.ctx === true ? fn(novo, env, ctx) : fn(novo, env)));
     } catch (e) {
       const id = randomUUID();
       log({ request_id: id, rota: m[1], erro: e && e.name ? e.name : 'erro' });   /* (sem mensagem: pode ter dado pessoal) */

@@ -13,6 +13,8 @@
    ========================================================================== */
 import { perguntasDe } from './perguntas.mjs';
 
+/* (modo sombra do JEV) estas versões são gravadas em app.jev_sombra.versoes: a checagem da migration 20261110120000_jev_sombra.sql
+   (privado.jev_sombra_versoes_ok) só aceita minúsculas, números, ponto e hífen, até 20 caracteres. Versão nova fora disso: ajuste a checagem */
 export const VERSAO_POLITICA = 'pol-1';
 export const LIMIAR_PADRAO = 0.8;
 export const NIVEL_MAXIMO = 2;

@@ -509,6 +509,13 @@ export const SABOTAGENS = [
     de: "if (a.momento === 'no_ar' && a.passo !== 'no_ar') return null;", para: "/* sem a segunda trava */" },
   { nome: "o terminal manda avisar o \"site no ar\" com a entrega suspensa", fonte: "scripts/entregas-lib.mjs", testes: ['docs/testes/entregas-dono-previa.test.mjs'],
     de: "if (it.aviso_no_ar_pendente && it.passo === 'no_ar') a.push(", para: "if (it.aviso_no_ar_pendente) a.push(" },
+  /* ---- 10/11: o modo sombra do JEV (F3): registro só de rótulos e números, tabela fechada ---- */
+  { nome: "a sombra grava na conversa de OUTRO visitante", arquivo: '20261110120000_jev_sombra.sql', testes: ['docs/testes/jev-sombra-banco.test.mjs'],
+    de: "and visitante_id = (p ->> 'visitante_id')::uuid;", para: ";" },
+  { nome: "a sombra aceita texto livre no que o código disse", arquivo: '20261110120000_jev_sombra.sql', testes: ['docs/testes/jev-sombra-banco.test.mjs'],
+    de: "or (e.value #>> '{}') not in ('sim', 'nao', 'regulado', 'livre'))", para: ")" },
+  { nome: "a tabela da sombra abre a leitura para o anon", arquivo: '20261110120000_jev_sombra.sql', testes: ['docs/testes/jev-sombra-banco.test.mjs'],
+    acrescentar: '\ngrant usage on schema app to anon;\ngrant select on app.jev_sombra to anon;\n' },
   /* ---- 29/10: o recado, o único lugar de feedback do site ---- */
   { nome: "o recado liga a conversa de OUTRO visitante (vaza que ela existe e mistura recados)", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs'],
     de: "and visitante_id = (p ->> 'visitante_id')::uuid and org_id = v_org", para: "and org_id = v_org" },
