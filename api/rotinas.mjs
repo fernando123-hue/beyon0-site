@@ -13,7 +13,7 @@
          D5: nada aqui muda o passo de uma entrega; o pedido parado esperando o material nunca é encerrado
      3. a SAÚDE: app.rotinas_conferir grava a execução e os alertas do dia
         (pagamento que pede uma pessoa, teto de IA, IA falhando, freio por IP,
-        rotina que falhou). O resumo fica no log e no banco (o painel mostra); aviso no celular: ainda sem canal
+        rotina que falhou). O resumo fica no log e no banco (o painel mostra); aviso: e-mail (api/_aviso.mjs) até o app
         (app próprio em desenvolvimento), então a rotina não envia nada a ninguém.
    A reconciliação de pagamentos segue no seu cron (/api/pagamentos?acao=reconciliar).
    ORÇAMENTO (Cloudflare grátis: 50 subpedidos por invocação, api/_orcamento.mjs): cada chamada ao banco e às métricas é

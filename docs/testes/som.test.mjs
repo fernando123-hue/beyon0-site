@@ -56,3 +56,6 @@ test('som.js: se o áudio falhar ao nascer, desiste quieto (sem erro a cada gest
   assert.match(js, /if \(!ligado \|\| semAudio/, 'acordar() desiste quando não há áudio');
   assert.match(js, /if \(!montar\(\)\) return;/, 'acordar() não segue com o contexto quebrado');
 });
+
+/* o pulso no site inteiro (2026-11-10): roda daqui pelo mesmo motivo do som-imersao */
+import './pulso.test.mjs';

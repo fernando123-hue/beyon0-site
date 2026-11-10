@@ -101,7 +101,7 @@ test('as escolhas do dono ficam numa constante só, no topo do som.js, com os pa
   const m = fonte.match(/var ESCOLHA = \{([^}]*)\}/);
   assert.ok(m, 'var ESCOLHA = { … } não achada');
   const esc = m[1];
-  for (const [k, v] of [['pulso', "'A'"], ['card', "'A'"], ['carga', "'proposta'"], ['clique', "'proposta'"], ['ouro', "'A'"], ['travessia', 'true'], ['intensidade', '1']]) {
+  for (const [k, v] of [['pulso', "'luzSonar'"], ['fundo', "'cabine'"], ['card', "'A'"], ['carga', "'proposta'"], ['clique', "'proposta'"], ['ouro', "'A'"], ['travessia', 'true'], ['intensidade', '1']]) {
     assert.match(esc, new RegExp('\\b' + k + ':\\s*' + v + '(?=[,\\s])'), k + ' = ' + v);
   }
   assert.ok(fonte.indexOf('var ESCOLHA') < fonte.search(/\bfunction [a-zA-Z]/), 'no topo, antes das funções');
@@ -244,4 +244,66 @@ test('o ouro esfria com a aba escondida: o acorde fecha curto, não faz a queda 
   const novas = ctx.paradas.slice(antes);
   assert.ok(novas.length > 0, 'o acorde não foi fechado');
   assert.ok(Math.max(...novas) < e.t + 1, 'o acorde ficou com a queda longa agendada: ' + Math.max(...novas).toFixed(2) + ' s');
+});
+
+/* ---------- 2026-11-10: o fundo confortável, o pulso que se sente e o AI Core médio com som ----------
+   Dono: o fundo "passa uma sensação pesada" (era um zumbido de 110 Hz) e deve ser "Sci-Fi confortador"; o pulso do AI
+   Core "deve ocorrer e deverá ter um som próprio", "frequente, mas não [...] chato ou enjoativo"; sons para o AI Core
+   médio e as interações especiais. Escolhas na docs/sons/previa-2.html (Decisões, 2026-11-10). */
+test('o fundo é a Cabine calma: sem o grave pesado de 110 Hz, um acorde aberto no meio', () => {
+  const m = fonte.match(/var FUNDOS = \{[\s\S]*?\n  \};/);
+  assert.ok(m, 'var FUNDOS = { … } não achada');
+  const cab = m[0].match(/cabine:\s*\{[^\n]*notas:\s*\[([^\n]*?)\]\s*,\s*filtro/);
+  assert.ok(cab, 'a cabine não está em FUNDOS');
+  const hz = [...cab[1].matchAll(/\[(\d+(?:\.\d+)?),/g)].map(x => +x[1]);
+  assert.ok(hz.length >= 3, 'acorde com 3+ notas: ' + hz);
+  assert.ok(Math.min(...hz) >= 200, 'grave abaixo de 200 Hz volta o "pesado": ' + Math.min(...hz));
+  const e = navegador();
+  e.gesto(); e.andar(1);
+  const osc = e.contextos[0];
+  assert.ok(osc.inicios >= hz.length * 2, 'cada nota com duas vozes (o batimento lento): ' + osc.inicios);
+});
+
+test('o pulso tem voz própria, uma batida só (sem tum-tum), e uma frase de 4 em que só o 4º acentua', () => {
+  const e = navegador({ fase0: 1.3 });
+  e.gesto(); e.andar(8 + 7 * 8 + 0.5);
+  const pulsos = e.B.somTeste.log.filter(x => x.tipo === 'pulso');
+  assert.ok(pulsos.length >= 8, 'pulsos: ' + pulsos.length);
+  for (const p of pulsos) {
+    const n = Math.floor((p.relogio - 7 * 0.42) / 7 + 1e-6);
+    assert.equal(p.forte, ((n % 4) + 4) % 4 === 3, 'o pulso ' + n + ' acentua errado');
+  }
+  assert.ok(pulsos.some(p => p.forte) && pulsos.some(p => !p.forte));
+  assert.equal(new Set(pulsos.slice(0, 4).map(p => p.nota)).size, 4, 'a nota muda dentro da frase: ' + pulsos.slice(0, 4).map(p => p.nota));
+});
+
+test('o pulso cala enquanto a pessoa carrega um card (a interação dela tem a vez)', () => {
+  const e = navegador({ desktop: true, fase0: 1.3 });
+  e.gesto(); e.andar(9);
+  const antes = e.vozes().pulso || 0;
+  e.card._carga = { p: 0 }; e.passar(e.card);   /* o cursor para no card: a carga começa */
+  e.andar(9 + 7 * 2);
+  assert.equal(e.vozes().pulso || 0, antes, 'pulsou com o card carregando');
+});
+
+test('o AI Core médio e as interações especiais tocam cada um a sua voz (com o som ligado)', () => {
+  const e = navegador({ desktop: true });
+  e.gesto(); e.andar(0.5);
+  e.B.emit('estacao:acopla', { dura: 2 }); e.andar(1);
+  e.B.emit('estacao:conecta', {}); e.andar(1.5);
+  e.B.emit('estacao:surto', { n: 4 }); e.andar(2);
+  e.B.emit('estacao:solta', {}); e.andar(2.5);
+  e.B.emit('mini:ignicao', {}); e.andar(3.5);
+  e.B.emit('energia:descarga', {}); e.andar(4);
+  const v = e.vozes();
+  for (const k of ['estacaoEnche', 'estacaoConecta', 'estacaoSurto', 'estacaoSolta', 'ignicao', 'descarga']) assert.equal(v[k], 1, k + ': ' + JSON.stringify(v));
+});
+
+test('as vozes novas não empilham: 5 descargas e 5 surtos seguidos soam no máximo uma vez cada por instante', () => {
+  const e = navegador({ desktop: true });
+  e.gesto(); e.andar(0.5);
+  for (let i = 0; i < 5; i++) { e.B.emit('energia:descarga', {}); e.B.emit('estacao:surto', { n: 6 }); e.andar(0.5 + (i + 1) * 0.05); }
+  const v = e.vozes();
+  assert.equal(v.descarga, 1, 'descargas: ' + v.descarga);
+  assert.equal(v.estacaoSurto, 1, 'surtos: ' + v.estacaoSurto);
 });

@@ -85,6 +85,62 @@ html.js .passos.is-in .passo:nth-child(3)::after { transition-delay: 1.2s; }
 html.js .passos.is-in .passo:nth-child(3)::before { transition-delay: 1.3s; }
 html.js .passos.is-in .passo:nth-child(4)::after { transition-delay: 1.75s; }
 @media (min-width: 821px) { html.js .passo::before { transform: scaleX(0); transform-origin: left; } }
+
+/* ---- passos no DESKTOP com mouse (dono, 2026-11-10: "os dois juntos"), por cima da sequência de 2026-10-23, que
+   fica. (1) O CAMINHO: o mouse num passo acende a linha do 01 até ele, o número dele fica ciano e os passos à frente
+   apagam (cor, não opacidade: --t3 segue AA). (2) O PULSO: depois da sequência, um traço de 1px corre do 01 ao
+   último passo a cada 8 s e o círculo do fim pisca ao chegar; com o mouse na seção ele some (o caminho manda).
+   Só CSS: transições de cor no hover; o pulso e o LED são @keyframes de transform/opacity. ---- */
+@media (min-width: 821px) and (hover: hover) and (pointer: fine) {
+  /* (html.js: a mesma força das regras da sequência acima, que declaram só transform; os atrasos da sequência ficam
+     no transform e a cor responde na hora: um valor de atraso por propriedade) */
+  html.js .passo::before { transition: transform .5s var(--ease-io), background-color .25s var(--ease); }
+  .passo h3, .passo p, .passo__n { transition: color .25s var(--ease); }
+  html.js .passo::after { z-index: 1; transition: transform .5s var(--ease-pop), background-color .25s var(--ease), border-color .25s var(--ease); }
+  html.js .passos.is-in .passo:nth-child(1)::after { transition-delay: .1s, 0s, 0s; }
+  html.js .passos.is-in .passo:nth-child(1)::before { transition-delay: .2s, 0s; }
+  html.js .passos.is-in .passo:nth-child(2)::after { transition-delay: .65s, 0s, 0s; }
+  html.js .passos.is-in .passo:nth-child(2)::before { transition-delay: .75s, 0s; }
+  html.js .passos.is-in .passo:nth-child(3)::after { transition-delay: 1.2s, 0s, 0s; }
+  html.js .passos.is-in .passo:nth-child(3)::before { transition-delay: 1.3s, 0s; }
+  html.js .passos.is-in .passo:nth-child(4)::after { transition-delay: 1.75s, 0s, 0s; }
+  .passo:has(~ .passo:hover)::before { background: var(--ac); }
+  .passo:hover .passo__n { color: var(--ac-3); }
+  .passo:hover::after { background: var(--ac-3); border-color: var(--ac-3); }
+  .passo:hover ~ .passo h3, .passo:hover ~ .passo p, .passo:hover ~ .passo .passo__n { color: var(--t3); }
+  .passo:hover ~ .passo::after { border-color: var(--t3); background: var(--bg); }
+}
+@media (min-width: 821px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  /* a pista do pulso tem o comprimento da linha (do 01 ao centro do último círculo); o traço mora na ponta esquerda
+     dela e anda o comprimento dela (translate em % da própria caixa: o compositor resolve, sem medir nada). Deslocada,
+     a caixa transparente passa da lista; quem a corta é o overflow-x: clip do body (css/tokens.css): sem ele a
+     página ganharia rolagem lateral (regra 10 do CLAUDE.md) */
+  html.js:not(.menos-movimento) .passos::after {
+    content: ""; position: absolute; left: 0; top: 5px; z-index: 0; height: 1px; pointer-events: none;
+    width: calc((100% + var(--passos-vao)) * (var(--passos, 3) - 1) / var(--passos, 3) + 6px);
+    background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0), var(--ac)) 0 0 / 56px 1px no-repeat;
+    opacity: 0;
+  }
+  html.js:not(.menos-movimento) .passos.is-in::after { animation: passos-pulso 8s linear 2.4s infinite; }
+  /* o LED do fim: o ::before do último passo não tem linha (componentes.css) e vira o ponto que pisca */
+  html.js:not(.menos-movimento) .passos .passo:last-child::before {
+    display: block; left: 0; right: auto; top: 0; width: 11px; height: 11px; border-radius: 50%; z-index: 2;
+    background: var(--ac); opacity: 0; transform: none;
+  }
+  html.js:not(.menos-movimento) .passos.is-in .passo:last-child::before { animation: passos-led 8s linear 2.4s infinite; }
+  .passos:hover::after, .passos:hover .passo:last-child::before { visibility: hidden; animation-play-state: paused; }
+}
+@keyframes passos-pulso {
+  0%   { transform: translateX(-50px); opacity: 0; }
+  3%   { opacity: 1; }
+  22%  { transform: translateX(calc(100% - 56px)); opacity: 1; }
+  25%, 100% { transform: translateX(calc(100% - 56px)); opacity: 0; }
+}
+@keyframes passos-led {
+  0%, 21% { opacity: 0; transform: scale(.6); }
+  23%     { opacity: 1; transform: scale(1); }
+  34%, 100% { opacity: 0; transform: scale(1); }
+}
 /* laudo: a régua de cada linha se desenha; o índice chega da esquerda */
 html.js .laudo__row::after { transform: scaleX(0); transform-origin: left; transition: transform 1s var(--ease-io); }
 html.js .laudo__n { transform: translateX(-8px); opacity: 0; transition: transform .6s var(--ease), opacity .6s var(--ease); }
@@ -200,3 +256,19 @@ html.has-gsap:not(.menos-movimento) .split-word.is-tinta { color: var(--ac); tra
   .cta__alvo:hover .btn__canto:nth-of-type(4) { transform: translate(-3px, -3px); }
 }
 @media (max-width: 620px) { .cta__alvo { display: block; } }
+
+/* ---- O PULSO NO SITE INTEIRO (js/pulso.js; dono, 2026-11-10). A onda passa e os detalhes ciano na tela acendem um
+   instante, de cima para baixo; o forte (um a cada 4) dura mais. Animações curtas por classe (o JS tira a classe no
+   fim, as durações são as de DURA lá): a cor volta sozinha ao valor de antes (keyframe só com o "de"). O núcleo da
+   marca bate (transform). Sem JS, com movimento reduzido ou "menos movimento", o JS nem põe a classe. ---- */
+.kicker.is-pulso b { animation: pulso-tinta .9s var(--ease); }
+.kicker.is-pulso-forte b { animation: pulso-tinta 1.4s var(--ease); }
+.passo.is-pulso::after { animation: pulso-no .9s var(--ease); }
+.passo.is-pulso-forte::after { animation: pulso-no 1.4s var(--ease); }
+.marca__nucleo { transform-box: fill-box; transform-origin: center; }
+.marca--nav.is-pulso .marca__nucleo { animation: pulso-nucleo .9s var(--ease); }
+.marca--nav.is-pulso-forte .marca__nucleo { animation: pulso-nucleo-forte 1.4s var(--ease); }
+@keyframes pulso-tinta { from { color: var(--ac); } }
+@keyframes pulso-no { from { background-color: var(--ac); border-color: var(--ac); } }
+@keyframes pulso-nucleo { 0% { transform: scale(1); } 14% { transform: scale(1.22); } 100% { transform: scale(1); } }
+@keyframes pulso-nucleo-forte { 0% { transform: scale(1); } 10% { transform: scale(1.34); } 100% { transform: scale(1); } }

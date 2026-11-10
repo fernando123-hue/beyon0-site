@@ -174,6 +174,40 @@ test('regulados: a resposta do modelo que libera o proibido vira a recusa fixa, 
   assert.match(respostaRegulado(nichoRegulado('sou psicóloga')), /CRP/);
 });
 
+test('regulados: o modelo que SUGERE o proibido por conta própria (sem "pode/vamos") também vira a recusa (F2 do JEV, sz-047)', () => {
+  const dentista = nichoRegulado('sou dentista');
+  const sugerem = [
+    'Uma seção de resultados reais, com antes e depois, fica ótima na sua clínica.',
+    'Recomendo mostrar o antes e depois dos pacientes logo no topo.',
+    'Os depoimentos dos pacientes ajudam muito a passar confiança.',
+    'Seria bom destacar a promoção de clareamento na primeira tela.',
+    'Vale a pena ter uma galeria de antes e depois.'
+  ];
+  for (const t of sugerem) assert.equal(garantirRegulado(t, { nicho: dentista, pediuAgora: false }).trocou, true, t);
+  const recusam = [
+    'Antes e depois não fica bom em site de dentista: a Beyon não coloca.',
+    'Depoimento de paciente não ajuda aqui, porque a Beyon não coloca em site de saúde.'
+  ];
+  for (const t of recusam) assert.equal(garantirRegulado(t, { nicho: dentista, pediuAgora: false }).trocou, false, t);
+  /* revisão de segurança: "não fica"/"não ajuda" no meio de uma frase que LIBERA não podem virar recusa */
+  const liberamComNao = [
+    'Não fica difícil colocar o antes e depois, posso incluir.',
+    'O antes e depois não ajuda a vender? Ajuda sim, vamos colocar.',
+    'Claro, vamos colocar o antes e depois sem preço.',
+    'Pode incluir os depoimentos, sem promoção.'
+    /* (limite conhecido, igual na main: "Não fica bom SEM antes e depois, vale a pena colocar" passa, porque "sem antes" conta
+       como recusa; dupla negação fica para o classificador por modelo, que marca oferece_proibido_saude) */
+  ];
+  for (const t of liberamComNao) assert.equal(garantirRegulado(t, { nicho: dentista, pediuAgora: false }).trocou, true, t);
+  /* revisão técnica: respostas normais com "recomendo", "ajuda", "destacar" que NEGAM o proibido não são trocadas */
+  const normais = [
+    'Recomendo destacar o clareamento como serviço, sem preço, com explicação do tratamento.',
+    'A seção de clareamento ajuda a explicar o procedimento, sem promoção.'
+    /* (limite conhecido, igual na main: "consulta com valor combinado" é trocada porque "combinado" já liberava) */
+  ];
+  for (const t of normais) assert.equal(garantirRegulado(t, { nicho: dentista, pediuAgora: false }).trocou, false, t);
+});
+
 test('regulados: a recusa certa do modelo passa; fora de nicho regulado nada muda', () => {
   const dentista = nichoRegulado('sou dentista');
   const boa = 'Entendo a vontade. Em site de dentista a Beyon não coloca depoimento nem antes e depois. Dá pra mostrar quem você é, o número do CRO e como marcar. Seguimos assim?';
