@@ -51,7 +51,18 @@ test('leitor: na ordem alfabética o "!" da regra "/" roda antes de "/*" e a rai
 });
 const CAMINHOS = ['/', '/sites', '/automacao', '/orcamento', '/painel', '/condicoes', '/privacidade', '/resumo', '/404', '/qualquer-coisa',
   '/sites/', '/a/b/', '/favicon.ico', '/robots.txt', '/sitemap.xml', '/painel.css', '/index.html', '/vendor/gsap/x.js', '/assets/fonts/x.woff2',
-  '/assets/x.svg', '/js/pagina.js', '/js/nucleo/cena.js', '/js/atendente-balao.js', '/css/base.css', '/css/orcamento-planta.css'];
+  '/assets/x.svg', '/js/pagina.js', '/js/nucleo/cena.js', '/js/atendente-balao.js', '/css/base.css', '/css/orcamento-planta.css',
+  '//', '//x', '///a/b', '/x//y'];
+test('a CSP geral é a MESMA nas regras que a repetem (/:trecho, /:trecho/*, //*) e nenhuma delas casa a raiz', () => {
+  const gerais = ['/:trecho', '/:trecho/*', '//*'].map(c => {
+    const r = REGRAS.find(x => x.caminho === c);
+    assert.ok(r, 'falta a regra ' + c);
+    return r.cabecalhos.find(([nome]) => nome === 'content-security-policy')[1];
+  });
+  assert.equal(new Set(gerais).size, 1, 'as cópias da CSP geral divergem');
+  assert.ok(!gerais[0].includes('challenges.cloudflare.com'), 'a CSP geral não libera o Turnstile');
+  for (const c of ['/qualquer-coisa', '/a/b/', '//x']) assert.equal(cabecalhosPara(REGRAS, c).get('content-security-policy'), gerais[0], c);
+});
 test('o _headers dá a cada caminho UMA CSP, e os mesmos cabeçalhos em qualquer ordem de aplicação (arquivo ou alfabética)', () => {
   for (const c of CAMINHOS) {
     const [base, ...outras] = ORDENS.map(ordem => Object.fromEntries(cabecalhosPara(REGRAS, c, { ordem })));
