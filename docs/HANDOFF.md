@@ -1,5 +1,45 @@
 # Beyon Zero — transferência de contexto
 
+> **ESTADO DA SESSÃO DE DESIGN (2026-11-10, worktree `.claude/worktrees/design-dono-351421`, branch atual `adicionais-painel`).**
+> <!-- passagem-auto: 1-347bfd38-b9fe-43c6-a60d-551b6b21b96f -->
+> Sessão aberta pela sessão principal (`local_c012a676…`, "Beyon Zero") só para o design pedido pelo dono. O estado geral do
+> projeto segue no bloco ESTADO do `LEIA-ME.md` do cofre. Decisões do dono de hoje: `01 Empresa/Decisões.md` (as linhas de 2026-11-10).
+>
+> **Feito:**
+> - #121 passos no desktop (caminho no hover + pulso até o "no ar") — mesclado.
+> - #122 o pulso do AI Core no site inteiro, o fundo "Cabine calma" e os sons do AI Core médio — a sessão principal mesclou
+>   (`main` em `ead65a3`) e cuida da promoção para a produção.
+> - #126 gerador "site premium" (teste dos 5 segundos, enxugar; `docs/padrao-site-premium.md`; skill `padrao-desenvolvimento`
+>   item 6; `02 Serviços/Sites/Sites.md`) — revisado (técnica e segurança) e corrigido em `c69507d`; **aberto, esperando o CI**.
+> - #127 adicionais do orçamento em cartões (opção A, `docs/design/adicionais/opcoes.png`) — **aberto; a revisão foi
+>   interrompida pela passagem: refazer**.
+>
+> **Próximo passo exato:**
+> 1. `gh pr checks 126 --repo fernando123-hue/beyon0-site`: tudo verde → `gh pr merge 126 --merge --repo fernando123-hue/beyon0-site`
+>    (sem `cd` no mesmo comando; o guarda exige o número).
+> 2. PR #127: rodar UM revisor (agente `security-reviewer`), que publica dois comentários (técnica e segurança) no PR. O
+>    prompt está nesta passagem: o estado único dos extras (`data-extra`), `montarSugestoes`/`sugestoesDe`, `travar`, a
+>    acessibilidade do cartão (caixa transparente sobre o label), `catalogoPublico().recomendados`, sem innerHTML. Corrigir os
+>    achados, preencher "Revisão técnica" e "Revisão de segurança" no corpo do PR (o rascunho está no PR), ler o CI check a
+>    check, mesclar e conferir no staging no celular (o staging pede o login do dono no Cloudflare Access).
+> 3. Esperar a resposta da sessão principal: quem faz o pacote "só o Zero + reserva" e "sem formulário" (pergunta enviada
+>    duas vezes; `zero.mjs` e `consultor.mjs` são dela). Não mexer nesses arquivos sem a resposta.
+>
+> **Em aberto com o dono:**
+> - Ele ainda não disse se sentiu o pulso e o som na produção (vai olhar no celular depois da promoção).
+> - Os passos (#121) não foram conferidos no staging: faltou o login dele.
+> - O efeito do gerador novo só aparece na próxima direção gerada (testar com o modelo gasta crédito: decisão dele).
+>
+> **Armadilhas:**
+> - A máquina do dono reiniciou sozinha hoje: no máximo 1 agente por vez, nada de suíte completa local (o CI roda), um
+>   servidor e um navegador headless por vez.
+> - O push só passa no guarda como `cd "<worktree>" && git push ...`, sozinho no comando (memória `guarda-push-worktree`).
+> - O hook proíbe editar arquivos de outro worktree.
+> - O servidor local precisa de `PAINEL_CHAVE` (32+, valor de teste) e `BZ_SEM_CONSULTOR=1` para o orçamento.
+> - Um arquivo novo em `js/` fora do git faz a montagem falhar ("não sobe").
+>
+> **Skills sugeridas:** `processo-qualidade` (nível 3), `revisao-ui` (cartões dos adicionais), `animate` (se mexer em movimento).
+
 > **2026-10-07 — `main` = rebuild-v2 + correções (PRs 1 e 2), NÃO PROMOVIDA.** A produção segue `8103c99`.
 > O agente mescla PRs na `main` seguindo `docs/PROCESSO.md` (autorização do dono, 2026-10-07). O guarda do
 > Claude Code (`~/.claude/guarda/`) libera o merge comum desde a mesma data (o dono escolheu e o script
