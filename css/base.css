@@ -282,7 +282,7 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
 .giro__frase, .giro__camada { grid-area: 1 / 1; align-self: end; }
 .giro__frase:not(.is-ativa):not(:first-child) { visibility: hidden; }
 /* a 1ª é a frase lida (as outras têm aria-hidden): fora da vez some só da vista, nunca da árvore de acessibilidade */
-.giro__frase:first-child:not(.is-ativa) { opacity: 0; }
+.giro__frase:first-child:not(.is-ativa) { opacity: 0; user-select: none; }
 .giro__camada { pointer-events: none; user-select: none; }
 .giro__camada--eco, .giro__camada--eco em { color: var(--ac); }
 .giro__fatia--1 { clip-path: inset(0 0 62% 0); }

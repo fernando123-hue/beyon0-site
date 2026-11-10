@@ -19,7 +19,9 @@
   var ENTRADA = [[-.3, .18, -.08, .03, 0], [.24, -.14, .09, -.02, 0], [-.16, .26, -.1, .04, 0]];
   var SAIDA = [[0, .1, -.16, .24], [0, -.14, .1, -.2], [0, .06, -.2, .12]];
 
-  var atual = 0, visivel = true, timer = 0, trocando = false;
+  /* geracao: voltar() a avança; uma troca em andamento que vê outra geração não mexe mais no título
+     (remover a camada não cancela a animação WAAPI; a promessa resolvia e mostrava a frase 2/3 com o movimento já reduzido) */
+  var atual = 0, visivel = true, timer = 0, trocando = false, geracao = 0;
 
   function parado() { return !!B.reduced || html.classList.contains('menos-movimento') || document.hidden || !visivel; }
 
@@ -59,26 +61,30 @@
 
   function trocar() {
     var sai = frases[atual], proxima = (atual + 1) % frases.length, entra = frases[proxima];
+    var minha = geracao;
     trocando = true;
     sai.classList.remove('is-ativa');
     var saida = fatias(sai, SAIDA, [1, 1, .7, 0], TEMPO.sai);
     saida[0].finished.then(function () {
+      if (minha !== geracao) return;
       limpar();
       if (parado()) { voltar(); return; }
       var eco = camada(entra, 'giro__camada--eco');
       eco.animate(quadros([-.12, .07, -.04, 0], [.9, .9, .5, 0]), { duration: TEMPO.entra, fill: 'both' });
       var entrada = fatias(entra, ENTRADA, [.6, 1, .5, 1, 1], TEMPO.entra);
       return entrada[0].finished.then(function () {
+        if (minha !== geracao) return;
         limpar();
         mostrar(proxima);
         trocando = false;
         agendar(TEMPO.espera);
       });
-    }).catch(function () { voltar(); });
+    }).catch(function () { if (minha === geracao) voltar(); });
   }
 
   /* menos movimento no meio do caminho: a 1ª frase volta, inteira e sem efeito */
   function voltar() {
+    geracao++;
     clearTimeout(timer);
     limpar();
     mostrar(0);
