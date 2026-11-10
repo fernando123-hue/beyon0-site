@@ -72,6 +72,7 @@
   var ENCHE = 3.2, CHEIO = 0.995;             /* os de js/carga.js: a carga segue o alvo a 3,2/s e enche em 99,5% */
   var OURO_CARGA = 1.8, OURO_ESFRIA = 2.2;    /* s, os de js/ouro.js (T.carga, T.esfria): na página vale o B.ouro.T de agora */
   var CARDS = '.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .spec__item, .cenario';   /* os mesmos de js/carga.js */
+  var OCUPADO = '.is-carregando, .is-carregado';   /* o cursor parado num card (js/carga.js); o mesmo de js/pulso.js */
   var CLICAVEIS = 'a, button, summary, [role="button"]';
 
   var html = document.documentElement;
@@ -453,8 +454,9 @@
   function numeroDoPulso() { var P = periodo(); return B.pulso ? B.pulso.numero(B.relogio()) : Math.round((B.relogio() - P * inspira()) / P); }
   function pulsar() {
     pulsarEmFase();
-    /* (com o cursor carregando um card a vez é da pessoa: o pulso cala, a onda segue na tela) */
-    if (reduzido() || saindo || carga || html.classList.contains('passagem-chega') || !ctx || ctx.currentTime < pulsoDepois) return;
+    /* (com o cursor carregando um card, ou o card já cheio sob ele, a vez é da pessoa: o pulso cala. O sinal é o
+       mesmo da página, js/pulso.js: as classes de js/carga.js; a voz da carga cobre o instante antes delas) */
+    if (reduzido() || saindo || carga || document.querySelector(OCUPADO) || html.classList.contains('passagem-chega') || !ctx || ctx.currentTime < pulsoDepois) return;
     var n = numeroDoPulso(), i = ((n % 4) + 4) % 4, forte = i === 3, k = FRASE[i];
     soa('pulso', function (t) {
       if (ESCOLHA.pulso === 'B') motor.pulsoSuave(t); else if (ESCOLHA.pulso === 'A') motor.pulso(t); else motor.pulsoLuz(t, k, forte);

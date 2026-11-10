@@ -75,7 +75,17 @@ test('o forte é um a cada 4, e é o mesmo fôlego que o reator acentua (js/nucl
     const t = 7 * c + 7 * 0.42 + 0.01;   /* logo depois da expiração do ciclo c */
     assert.equal(P.forte(P.numero(t)), ((Math.floor(t / 7) % 4) + 4) % 4 === 3, 'ciclo ' + c);
   }
-  assert.match(ler('js/nucleo/pecas.js'), /Math\.floor\(\(t - RS\.nucleo\[0\]\) \/ RS\.periodo\), forte = \(\(ciclo % 4\) \+ 4\) % 4 === 3/, 'o reator mudou a conta do forte');
+  /* o reator usa a MESMA conta (B.pulso), tomada no instante da expiração do ciclo dele (revisão do PR 122: com o
+     floor próprio, mudar inspira ou o atraso do núcleo desencontraria o forte do reator do da página) */
+  const pecas = ler('js/nucleo/pecas.js');
+  assert.match(pecas, /BP = window\.BEYON && window\.BEYON\.pulso/, 'o reator não usa B.pulso');
+  assert.match(pecas, /BP\.forte\(BP\.numero\(RS\.nucleo\[0\] \+ \(ciclo \+ insp\) \* RS\.periodo\)\)/, 'o reator mudou o instante do forte');
+  for (const insp of [0.3, 0.42, 0.6]) for (let c = -3; c < 12; c++) {
+    const F = { periodo: 7, inspira: insp };
+    const numero = t => Math.round((t - F.periodo * F.inspira) / F.periodo);
+    const naExpiracao = c * 7 + insp * 7, noQuadro = naExpiracao + 0.4;   /* um quadro qualquer depois da batida */
+    assert.equal(numero(0 + (Math.floor(noQuadro / 7) + insp) * 7), numero(naExpiracao), 'inspira ' + insp + ', ciclo ' + c);
+  }
 });
 
 test('a página acende só o que está na tela, de cima para baixo, e apaga sozinha', () => {

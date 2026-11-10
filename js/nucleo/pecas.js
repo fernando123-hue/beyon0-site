@@ -550,8 +550,10 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     fluxoJatos.uFrente.value = xs < 0 ? 2 : 1 - xs * J.solta;
     fluxoJatos.uPulso.value = xs < 0 ? 0 : suave(xs / 0.04) * (1 - xs);
     const chegou = xs < 0 ? 99 : xs * (1 - insp) * RS.periodo;   /* s desde a chegada */
-    /* o pulso FORTE, um a cada 4 (o mesmo de B.pulso.forte em js/core.js: o fôlego de número 3, 7, 11…) */
-    const ciclo = Math.floor((t - RS.nucleo[0]) / RS.periodo), forte = ((ciclo % 4) + 4) % 4 === 3;
+    /* o pulso FORTE, um a cada 4: a conta é a de B.pulso (js/core.js), a mesma da página e do som, tomada no
+       instante da expiração deste ciclo (sem B.pulso, a mesma conta aqui) */
+    const ciclo = Math.floor((t - RS.nucleo[0]) / RS.periodo), BP = window.BEYON && window.BEYON.pulso;
+    const forte = BP ? BP.forte(BP.numero(RS.nucleo[0] + (ciclo + insp) * RS.periodo)) : ((ciclo % 4) + 4) % 4 === 3;
     /* a CHEGADA da rede (a onda do fundo do hero chega ao portal no começo do
        fôlego): os 12 canais acendem juntos (a faísca nos pontos de entrada é
        desenhada pela rede, js/rede.js; o flash no núcleo estava no lugar
@@ -598,7 +600,9 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
        corria a cada 8 s, fora do compasso de 7 s do fôlego, e o pulso não se
        sentia); a do pulso forte (um a cada 4, B.pulso) sai mais acesa. O
        sprite de escala 1 tem o anel a 0,97 da metade: escala = 2·raio/0,97 */
-    const p = desde < 0 ? 1 : desde < O.dura ? desde / O.dura : chegou / O.dura;
+    /* (a mais nova das duas: com a ignição até 1,4 s antes de uma expiração a onda dela acabava e a do pulso
+       reaparecia a meio caminho, piscando; com o mínimo, a do pulso só a substitui ao nascer) */
+    const p = desde < 0 ? 1 : Math.min(desde / O.dura, chegou / O.dura);
     onda.material.visible = p < 1;
     if (p < 1) {
       const k = 1 - (1 - p) ** 3;
