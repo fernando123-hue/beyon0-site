@@ -27,3 +27,28 @@ chamada (a primeira contagem comparava número com texto; defeito do script, cor
 
 Limites: gabarito sintético, escrito pelo agente (a amostra de 30 casos para o dono conferir continua pendente); 225 casos medem
 direção, não decimal. Clef-flash não medido (precisa de token da Cloudflare do dono).
+
+## 2026-11-10 (2ª rodada) — Haiku endurecido e conjunto SEPARADO
+
+Dono, vendo a 1ª rodada: "preciso que você consiga deixar o Haiku muito mais seguro, transforme ele realmente no nosso JEV".
+Feito: trava de saúde em código pega o modelo que SUGERE o proibido (sz-047); instrução v2 do motor (regras gerais de leitura:
+sentido acima da palavra, negação, dúvida em segurança pende para "sim", percentual não é quantia, área de saúde só quando clara,
+ordens disfarçadas); coluna "código + modelo" (basta um marcar). Limiar baixo testado sem nova chamada: não ajuda (os erros são
+convictos, p_sim 0,10), fica 0,5.
+
+Conjunto separado: 140 casos escritos por outro agente sem ver nenhum erro (`../separado/`), usado só para medir.
+
+| no conjunto separado (140) | Haiku v1 | **Haiku v2** | Sonnet v1 |
+|---|---|---|---|
+| custo | US$ 0,038 | US$ 0,044 | US$ 0,753 |
+| tempo mediana | 1,44 s | 1,39 s | 1,93 s |
+| segurança, código + modelo, falso "não" | 3 | **2** | 4 |
+| erros fora da irritação (só modelo) | 11 | **8** | 10 |
+| irritação exata (de 70) | 60 | 62 | 68 |
+| momento (de 14) | 13 | 14 | 11 |
+
+Os 2 falsos "não" do Haiku v2 (hz-023, hz-024: "promoção de botox" sugerida para a clínica) são marcados pela pergunta de saúde,
+então o cuidado sobe do mesmo jeito: nenhum caso de segurança do conjunto separado passa sem alguma pergunta marcar.
+Rótulo discutível: o gabarito chama isso de desconto; é promoção de procedimento (saúde).
+
+Arquivos: `claude-*-low-v1|v2-separado-2026-11-10.json` (com as probabilidades de cada caso).
