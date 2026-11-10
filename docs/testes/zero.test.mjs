@@ -192,7 +192,9 @@ test('regulados: o modelo que SUGERE o proibido por conta própria (sem "pode/va
   /* revisão de segurança: "não fica"/"não ajuda" no meio de uma frase que LIBERA não podem virar recusa */
   const liberamComNao = [
     'Não fica difícil colocar o antes e depois, posso incluir.',
-    'O antes e depois não ajuda a vender? Ajuda sim, vamos colocar.'
+    'O antes e depois não ajuda a vender? Ajuda sim, vamos colocar.',
+    'Claro, vamos colocar o antes e depois sem preço.',
+    'Pode incluir os depoimentos, sem promoção.'
     /* (limite conhecido, igual na main: "Não fica bom SEM antes e depois, vale a pena colocar" passa, porque "sem antes" conta
        como recusa; dupla negação fica para o classificador por modelo, que marca oferece_proibido_saude) */
   ];
