@@ -114,7 +114,7 @@ if (!SO_CLS) {
   await page.click('#o-rde-abrir');
   ok(await page.getAttribute('#o-rde-abrir', 'aria-expanded') === 'true' && await page.locator('#o-est-mais').isVisible(), '"Ver como o valor é formado" abre os detalhes (aria-expanded)');
   const muda = await page.textContent('#o-est-muda');
-  ok(/Precisar antes do prazo: \+\d+% no valor/.test(muda) && /Quer ajustar\?/.test(muda), 'o que pode mudar o valor: a urgência com o percentual da tabela e os extras');
+  ok(/Precisar antes do prazo: \+\d+% no valor/.test(muda) && /extras que você escolher abaixo do preço/.test(muda), 'o que pode mudar o valor: a urgência com o percentual da tabela e os extras');
   ok(/Até 5 páginas/.test(await page.textContent('#o-est-inclui')), 'já vem no pacote (do catálogo)');
   await foto(page.locator('#o-rde'), '390-2-estimativa');
   ok(await lateral(page), 'sem rolagem lateral');

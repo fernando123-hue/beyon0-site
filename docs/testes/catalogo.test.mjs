@@ -135,3 +135,41 @@ test('v4: o visual exclusivo aparece só no institucional, como principal; na la
   }
   assert.ok(catalogoPublico(V3, { formato: 'institucional', ramo: 'saude' }).formatos.some(f => f.chave === 'sob_medida'), 'com a v3, o Atelier segue vizinho');
 });
+
+/* ---------- 2026-11-10: os adicionais "Recomendados no painel" (dono: "os nossos adicionais estão muito mal colocados,
+   é um amontoado de letras [...] o botão que leva a eles chama bem menos atenção"; escolheu a opção A). Até 3 sugestões
+   pelo ramo e pelo formato, cada uma com nome curto e o benefício numa frase. Pelo ramo, nunca "mais vendido" inventado ---------- */
+test('sugestões: até 3, pelo ramo e pelo formato, só do que dá para contratar agora', () => {
+  const de = (formato, ramo) => catalogoPublico(REGRAS, { formato, ramo });
+  const saude = de('institucional', 'saude');
+  assert.deepEqual(saude.recomendados, ['agendamento', 'textos', 'imagens'], 'saúde: o agendamento primeiro');
+  assert.deepEqual(de('institucional', 'comercio').recomendados, ['catalogo', 'textos', 'imagens'], 'comércio: o catálogo primeiro');
+  assert.deepEqual(de('landing_page', 'outro').recomendados, ['textos', 'imagens', 'interacao_leve'], 'sem ramo que pese: conteúdo e movimento');
+  assert.deepEqual(de('landing_page', undefined).recomendados, ['textos', 'imagens', 'interacao_leve']);
+  assert.equal(de('loja_plataforma', 'comercio').recomendados[0], 'frete_transportadora', 'loja: o frete primeiro');
+  for (const [f, ramo] of [['institucional', 'saude'], ['loja_plataforma', 'comercio'], ['landing_page', 'beleza'], ['institucional', 'associacao']]) {
+    const c = de(f, ramo), ok = new Map(c.extras.principais.concat(c.extras.mais).map(x => [x.chave, x]));
+    assert.ok(c.recomendados.length > 0 && c.recomendados.length <= 3, f + '/' + ramo);
+    for (const k of c.recomendados) {
+      const x = ok.get(k);
+      assert.ok(x, k + ' sugerido sem estar no catálogo de ' + f);
+      assert.ok(x.valor != null && !x.fale_comigo, k + ': sugestão sem preço automático');
+    }
+  }
+  /* o que está em preparo (o atendente de IA) nunca é sugerido */
+  assert.ok(!de('institucional', 'servicos').recomendados.some(k => /^atendente_ia/.test(k)));
+});
+
+test('cada extra tem nome curto e benefício para o cartão; o nome da tabela segue como estava', () => {
+  const c = catalogoPublico(REGRAS, { formato: 'institucional', ramo: 'saude' });
+  const todos = c.extras.principais.concat(c.extras.mais);
+  for (const x of todos) {
+    assert.ok(typeof x.curto === 'string' && x.curto.length > 0 && x.curto.length <= 34, x.chave + ': curto "' + x.curto + '"');
+    assert.ok(typeof x.beneficio === 'string' && x.beneficio.length > 0 && x.beneficio.length <= 70, x.chave + ': benefício');
+    assert.ok(typeof x.grupo === 'string' && x.grupo.length > 0, x.chave + ': grupo');
+  }
+  const textos = todos.find(x => x.chave === 'textos');
+  assert.equal(textos.curto, 'Nós escrevemos os textos');
+  assert.equal(textos.por_pagina, true, 'textos é por página: o cartão diz');
+  assert.match(textos.nome, /Textos/, 'o nome da tabela não muda');
+});

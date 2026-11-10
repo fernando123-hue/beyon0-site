@@ -182,12 +182,12 @@
     for (i = 0; i < sim.diagnostico.length; i++) if (typeof sim.diagnostico[i] === 'string') saida.push('Pede conversa com a equipe: ' + sim.diagnostico[i]);
     return saida;
   }
-  /* só enquanto o preço está aberto nas perguntas (a tela tem "Quer ajustar?" e a urgência) */
+  /* só enquanto o preço está aberto nas perguntas (a tela tem os extras e a urgência) */
   function podeMudar(sim) {
     if (!sim || !sim.comValor) return [];
     var urg = sim.urgencia ? 'Tirar a urgência: o valor e o prazo voltam aos da tabela'
       : sim.urgenciaPct !== null && sim.urgenciaPct > 0 ? 'Precisar antes do prazo: +' + sim.urgenciaPct + '% no valor' : 'Precisar antes do prazo (acréscimo da tabela)';
-    return [urg, 'Mais páginas ou extras que você escolher em “Quer ajustar?”'];
+    return [urg, 'Mais páginas ou extras que você escolher abaixo do preço'];
   }
 
   /* ---------- o estado ---------- */

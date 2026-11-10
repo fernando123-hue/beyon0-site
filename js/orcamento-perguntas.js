@@ -1,7 +1,7 @@
 /* ==========================================================================
    AS PERGUNTAS DO ORÇAMENTO SEM IA (spec docs/specs/2026-10-11-orcamento-sem-ia.md §2–§3).
    Uma pergunta por tela → o preço (do servidor, nunca calculado aqui) →
-   "Quer ajustar?" com o preço ao vivo (simular, que não grava) → "Quero os
+   as sugestões e "Ver todos os extras" com o preço ao vivo (simular, que não grava) → "Quero os
    três modelos" grava o pacote (confirmar-pacote) e entrega a vez ao resto
    da página (evento bz:pacote-confirmado). Todo texto por textContent.
    Os extras vão SEMPRE explícitos (marcado = quantidade, desmarcado = 0): o
@@ -238,7 +238,10 @@
     incluidos(atual);
     $('o-quero-modelos').hidden = !res.estimativa;   /* (pacote que pede conversa não se grava por aqui) */
     $('o-est-acoes').hidden = false;
-    if (!$('o-ajustar').hidden) atualizarExtras();
+    /* as sugestões (refeitas quando o catálogo muda: outro formato, outro ramo) e as marcas dos dois lugares */
+    if (catalogo && sugestoesDe !== catalogoDe) montarSugestoes();
+    $('o-reco').hidden = !res.estimativa || !$('o-reco-lista').children.length;
+    if (catalogo) atualizarExtras();
   }
   /* os formatos ao lado (âncora honesta): a alternativa da recomendação e, fora dela, o próprio recomendado */
   function vizinhos(rec, atual) {
@@ -271,41 +274,85 @@
     calcular().then(function (deu) { var v = document.querySelector('#o-vizinhos .orc-vizinho'); if (deu && v) v.focus({ preventScroll: true }); });
   }
 
-  /* ---------- "Quer ajustar?": montado uma vez por catálogo; cada mudança só acerta marcado e visível (o foco fica) ---------- */
+  /* ---------- os extras: as SUGESTÕES no painel (dono, 2026-11-10, opção A) e a lista completa ("Ver todos os extras").
+     Um estado só (extras): marcar num lugar marca no outro. Montados uma vez por catálogo; cada mudança só acerta marcado e
+     visível (o foco fica) ---------- */
+  var GRUPOS = { conteudo: 'Conteúdo', negocio: 'Para o seu negócio', loja: 'Loja', visual: 'Visual', alcance: 'Alcance', area: 'Área com login', sistema: 'Sistema' };
+  var ORDEM_GRUPOS = Object.keys(GRUPOS);
+  var sugestoesDe = null;
+  var preco = function (x) { return x.valor != null && !x.fale_comigo ? '+ ' + dinheiro(x.valor) : 'fale comigo'; };
+  function alternar(x, sim) {
+    extras = sim ? com(extras, x.chave, iniciais[x.chave] || 1) : semOrfaos(sem(extras, x.chave), formato || catalogoDe);
+    atualizarExtras();
+    agendar();
+  }
+  /* a lista completa, por grupo (o nome curto e o preço à vista; a frase da tabela fica para o leitor de tela) */
   function montarExtras() {
     [['o-ajustar-principais', catalogo.extras.principais], ['o-ajustar-mais', catalogo.extras.mais]].forEach(function (par) {
-      var caixa = $(par[0]);
-      todos('#' + par[0] + ' .orc-extra').forEach(function (n) { n.remove(); });
-      par[1].forEach(function (x) { caixa.appendChild(extraNaTela(x)); });
+      var caixa = $(par[0]), grupoAntes = null;
+      todos('#' + par[0] + ' .orc-extra, #' + par[0] + ' .orc-extra__grupo').forEach(function (n) { n.remove(); });
+      ordenados(par[1]).forEach(function (x) {
+        if (x.grupo !== grupoAntes) { grupoAntes = x.grupo; var g = document.createElement('p'); g.className = 'orc-extra__grupo'; g.textContent = GRUPOS[x.grupo] || ''; caixa.appendChild(g); }
+        caixa.appendChild(extraNaTela(x));
+      });
     });
     $('o-ajustar').querySelector('.orc-ajustar__mais').hidden = !catalogo.extras.mais.length;
     if (catalogo.urgencia) $('o-x-urgencia-texto').textContent = 'Preciso antes do prazo: +' + catalogo.urgencia.acrescimo_percentual + '% no valor';
     atualizarExtras();
   }
+  function ordenados(lista) {
+    var pos = function (x) { var i = ORDEM_GRUPOS.indexOf(x.grupo); return i < 0 ? ORDEM_GRUPOS.length : i; };
+    return lista.map(function (x, i) { return { x: x, i: i }; }).sort(function (a, b) { return pos(a.x) - pos(b.x) || a.i - b.i; }).map(function (p) { return p.x; });
+  }
   function extraNaTela(x) {
     var rotulo = document.createElement('label'); rotulo.className = 'orc-check orc-extra';
     var c = document.createElement('input'); c.type = 'checkbox'; c.id = 'o-x-' + x.chave; c.setAttribute('data-extra', x.chave);
     c.disabled = x.fale_comigo;
-    var t = document.createElement('span'), nome = document.createElement('span'), frase = document.createElement('span');
-    nome.className = 'orc-extra__nome'; frase.className = 'orc-extra__frase';
-    nome.textContent = x.nome + (x.valor != null && !x.fale_comigo ? ' · ' + dinheiro(x.valor) : ' · fale comigo');
-    frase.textContent = x.frase;
-    t.appendChild(nome); t.appendChild(frase);
+    var nome = document.createElement('span'), valor = document.createElement('span'), frase = document.createElement('span');
+    nome.className = 'orc-extra__nome'; valor.className = 'orc-extra__valor'; frase.className = 'sr-only';
+    nome.textContent = x.curto || x.nome;
+    valor.textContent = preco(x);
+    if (x.por_pagina && !x.fale_comigo) { var pp = document.createElement('small'); pp.textContent = 'por página'; valor.appendChild(pp); }
+    frase.textContent = '. ' + x.frase;
+    nome.appendChild(frase);
     rotulo.setAttribute('for', c.id);
-    rotulo.appendChild(c); rotulo.appendChild(t);
-    c.addEventListener('change', function () {
-      extras = c.checked ? com(extras, x.chave, iniciais[x.chave] || 1) : semOrfaos(sem(extras, x.chave), formato || catalogoDe);
-      atualizarExtras();
-      agendar();
-    });
+    rotulo.appendChild(c); rotulo.appendChild(nome); rotulo.appendChild(valor);
+    c.addEventListener('change', function () { alternar(x, c.checked); });
+    return rotulo;
+  }
+  /* as sugestões: cartões grandes antes do "Quero os três modelos" (o servidor escolhe pelo ramo e pelo formato: catalogo.recomendados) */
+  function montarSugestoes() {
+    sugestoesDe = catalogoDe;
+    var lista = $('o-reco-lista'), achados = (catalogo.recomendados || []).map(function (k) { return todosExtras().filter(function (x) { return x.chave === k; })[0]; }).filter(Boolean);
+    lista.textContent = '';
+    achados.forEach(function (x) { lista.appendChild(cartao(x)); });
+    $('o-reco').hidden = !achados.length;
+    var n = todosExtras().length;
+    $('o-ajustar-abrir').textContent = n ? 'Ver todos os extras (' + n + ')' : 'Ver todos os extras';
+  }
+  function cartao(x) {
+    var rotulo = document.createElement('label'); rotulo.className = 'orc-reco__item';
+    var c = document.createElement('input'); c.type = 'checkbox'; c.id = 'o-r-' + x.chave; c.className = 'orc-reco__caixa'; c.setAttribute('data-extra', x.chave);
+    var marca = document.createElement('span'), txt = document.createElement('span'), nome = document.createElement('b'), ben = document.createElement('span'), valor = document.createElement('span');
+    marca.className = 'orc-reco__marca'; marca.setAttribute('aria-hidden', 'true');
+    txt.className = 'orc-reco__txt'; ben.className = 'orc-reco__beneficio'; valor.className = 'orc-reco__valor';
+    nome.textContent = x.curto || x.nome; ben.textContent = x.beneficio || x.frase;
+    valor.textContent = preco(x);
+    if (x.por_pagina) { var p = document.createElement('small'); p.textContent = 'por página'; valor.appendChild(p); }
+    txt.appendChild(nome); txt.appendChild(ben);
+    rotulo.setAttribute('for', c.id);
+    rotulo.appendChild(c); rotulo.appendChild(marca); rotulo.appendChild(txt); rotulo.appendChild(valor);
+    c.addEventListener('change', function () { alternar(x, c.checked); });
     return rotulo;
   }
   function atualizarExtras() {
+    var fmt = formato || catalogoDe;   /* (a recomendar: o do catálogo, que é o recomendado) */
     todosExtras().forEach(function (x) {
-      var c = $('o-x-' + x.chave);
-      if (!c) return;
-      c.checked = extras[x.chave] > 0;
-      if (x.requer) c.closest('.orc-extra').hidden = !x.requer.some(function (q) { return q === (formato || catalogoDe) || extras[q] > 0; });   /* (a recomendar: o do catálogo, que é o recomendado) */
+      var visivel = !x.requer || x.requer.some(function (q) { return q === fmt || extras[q] > 0; });
+      todos('[data-extra="' + x.chave + '"]').forEach(function (c) {
+        c.checked = extras[x.chave] > 0;
+        c.closest('.orc-extra, .orc-reco__item').hidden = !visivel;
+      });
     });
     $('o-x-urgencia').checked = urgencia;
   }
@@ -360,7 +407,7 @@
     clearTimeout(adiado); adiado = null; seq++;
     ocupado(false); emVoo = null;   /* (a conta em voo foi descartada pelo seq: ela não solta o cartão sozinha) */
     /* (o catálogo também: com ele, os extras iriam explícitos em 0 e apagariam os da nova recomendação) */
-    formato = null; extras = {}; iniciais = {}; conhecidos = false; urgencia = false; catalogo = null; catalogoDe = null;
+    formato = null; extras = {}; iniciais = {}; conhecidos = false; urgencia = false; catalogo = null; catalogoDe = null; sugestoesDe = null;
     mostrado = null; valido = null;
     erro('');
     fecharControles();
@@ -376,7 +423,7 @@
   /* enquanto grava: nada muda o pedido (extras, urgência, formato, respostas) e o botão diz o que está fazendo */
   function travar(sim, botao) {
     CONTROLES.forEach(function (id) { $(id).disabled = sim; });
-    todos('#o-vizinhos .orc-vizinho').forEach(function (v) { v.disabled = sim; });
+    todos('#o-vizinhos .orc-vizinho, #o-reco-lista input').forEach(function (v) { v.disabled = sim; });
     if (sim) botao.setAttribute('aria-disabled', 'true'); else botao.removeAttribute('aria-disabled');
     botao.textContent = sim ? GUARDANDO : QUERO;
   }
