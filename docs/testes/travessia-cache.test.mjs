@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { lerHeaders, cabecalhosPara } from '../../cloudflare/cabecalhos.mjs';
-import { montarPublico } from '../../cloudflare/montar-publico.mjs';
+import { montarPublico, compactar } from '../../cloudflare/montar-publico.mjs';
 
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 const REGRAS = lerHeaders(fs.readFileSync(path.join(RAIZ, '_headers'), 'utf8'));
@@ -116,7 +116,8 @@ function montarMini(js) {
 }
 test('montagem: reescreve só as locais (relativa, absoluta, CSS da raiz); externas, //, vendor/, comentários e imagens intactos', () => {
   const { saida, fonte } = montarMini('um()');
-  const hJs = hash(Buffer.from('um()')), hCss = hash(Buffer.from('a{}')), hRaiz = hash(Buffer.from('b{}'));
+  /* o hash é do arquivo MONTADO (já compactado), nunca da fonte */
+  const hJs = hash(Buffer.from(compactar('js/a.js', 'um()'))), hCss = hash(Buffer.from(compactar('css/a.css', 'a{}'))), hRaiz = hash(Buffer.from(compactar('privacidade.css', 'b{}')));
   assert.ok(saida.includes(`href="css/a.css?v=${hCss}"`) && saida.includes(`href="/css/a.css?v=${hCss}"`));
   assert.ok(saida.includes(`src="js/a.js?v=${hJs}"`) && saida.includes(`src="/js/a.js?v=${hJs}"`));
   assert.ok(saida.includes(`href="privacidade.css?v=${hRaiz}"`));
@@ -136,7 +137,7 @@ test('montagem: aspas simples e "./" também levam ?v; data-src/data-href (não 
   fs.writeFileSync(path.join(raiz, 'index.html'), "<script src='js/a.js'></script><script src=\"./js/a.js\"></script><div data-src=\"js/a.js\" data-href=\"css/a.css\"></div>");
   try {
     montarPublico({ raiz, destino: path.join(raiz, 'publico'), arquivos });
-    const s = fs.readFileSync(path.join(raiz, 'publico', 'index.html'), 'utf8'), h = hash(Buffer.from('um()'));
+    const s = fs.readFileSync(path.join(raiz, 'publico', 'index.html'), 'utf8'), h = hash(Buffer.from(compactar('js/a.js', 'um()')));
     assert.ok(s.includes(`src='js/a.js?v=${h}'`) && s.includes(`src="./js/a.js?v=${h}"`), s);
     assert.ok(s.includes('data-src="js/a.js"') && s.includes('data-href="css/a.css"'), s);
   } finally { fs.rmSync(raiz, { recursive: true, force: true }); }

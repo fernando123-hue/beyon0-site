@@ -2,12 +2,25 @@
    prévia). Fonte: git ls-files (só o versionado). Sem git: erro, nunca "copia tudo".
    Nos .html copiados, cada JS/CSS local ganha ?v=<hash do conteúdo>: o _headers dá cache curto a /js/* e /css/* e o HTML
    novo nunca junta JS/CSS velho (docs/testes/travessia-cache.test.mjs). O HTML do repositório não muda; vendor/ fica como
-   está (tem o próprio cache) e endereço externo não é tocado. */
+   está (tem o próprio cache) e endereço externo não é tocado.
+   COMPACTAR (10/11, medido): o JS/CSS próprio sobe sem comentários e sem espaços, ANTES do hash. Os comentários do
+   repositório (a memória do projeto) ficam onde estão; só a cópia publicada encolhe. Celular em 4G lento, 1ª visita,
+   mediana de 7: 372 → 255 KB e LCP 3,25 → 2,80 s. Sem renomear nada (os scripts clássicos dividem globais entre si),
+   sem baixar sintaxe (esnext). vendor/ já vem compactado e fica intacto. Falha de compactação é erro de montagem. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { transformSync } from 'esbuild';
+
+const COMPACTAVEL = /^(js\/.+\.js|css\/.+\.css|[a-z0-9-]+\.css)$/;
+export function compactar(arquivo, fonte) {
+  const loader = arquivo.endsWith('.css') ? 'css' : 'js';
+  const r = transformSync(fonte, { loader, minifyWhitespace: true, minifySyntax: true, minifyIdentifiers: false, legalComments: 'none', target: 'esnext', charset: 'utf8', sourcefile: arquivo });
+  if (r.warnings.length) throw new Error('montar-publico: ' + arquivo + ' compacta com aviso: ' + r.warnings.map(w => w.text).join(' | '));
+  return r.code;
+}
 
 const PERMITIDOS = [/^[a-z0-9-]+\.html$/, /^[a-z0-9-]+\.css$/, /^css\//, /^js\//, /^vendor\//, /^assets\//, /^(robots\.txt|sitemap\.xml|favicon\.ico|_headers)$/];
 const NEGADOS = [/^js\/nucleo\/lab\.js$/, /^vendor\/three\/(entrada\.js|README\.md)$/, /^assets\/README\.txt$/, /(^|\/)\.env/, /\.(sql|dump|7z|log)$/];
@@ -41,7 +54,8 @@ export function montarPublico({ raiz, destino, arquivos }) {
   for (const a of copiados) {
     const alvo = path.join(destino, a);
     fs.mkdirSync(path.dirname(alvo), { recursive: true });
-    fs.copyFileSync(path.join(raiz, a), alvo);
+    if (COMPACTAVEL.test(a)) fs.writeFileSync(alvo, compactar(a, fs.readFileSync(path.join(raiz, a), 'utf8')));
+    else fs.copyFileSync(path.join(raiz, a), alvo);
   }
   const contexto = { destino, publicos: new Set(copiados), hashes: new Map() };
   for (const pagina of copiados.filter(a => a.endsWith('.html'))) {
