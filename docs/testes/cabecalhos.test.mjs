@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { lerHeaders, cabecalhosPara } from '../../cloudflare/cabecalhos.mjs';
+import { lerHeaders, cabecalhosPara, ORDENS } from '../../cloudflare/cabecalhos.mjs';
 import { montarPublico } from '../../cloudflare/montar-publico.mjs';
 
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
@@ -31,12 +31,59 @@ test('leitor: o mesmo cabeçalho em regras que casam SOMA os valores (como a Clo
   const regras = lerHeaders('/*\n  A: 1\n\n/x\n  A: 2\n');
   assert.equal(cabecalhosPara(regras, '/x').get('a'), '1, 2');
 });
-test('o _headers repete a CSP no /orcamento e no /painel só depois de desanexar: nenhum caminho com duas CSPs', () => {
-  for (const c of ['/', '/sites', '/automacao', '/orcamento', '/painel', '/condicoes', '/privacidade', '/resumo', '/qualquer-coisa', '/vendor/gsap/x.js', '/assets/fonts/x.woff2']) {
-    const csp = cabecalhosPara(REGRAS, c).get('content-security-policy');
-    assert.ok(csp, c + ' sem CSP');
-    assert.equal((csp.match(/default-src/g) || []).length, 1, c + ': CSP duplicada');
+test('leitor: ":nome" casa um trecho não vazio e sem "/" (como a Cloudflare); "*" casa até o vazio', () => {
+  const regras = lerHeaders('/:p\n  A: 1\n\n/:p/*\n  B: 2\n');
+  const f = c => Object.fromEntries(cabecalhosPara(regras, c));
+  assert.deepEqual(f('/'), {});
+  assert.deepEqual(f('/x'), { a: '1' });
+  assert.deepEqual(f('/x.css'), { a: '1' });
+  assert.deepEqual(f('/x/'), { b: '2' });
+  assert.deepEqual(f('/x/y/z.js'), { b: '2' });
+});
+/* O defeito medido em produção (10/11): "/" com duas CSPs, a da regra "/" primeiro. A ordem alfabética o reproduz
+   ("/" vem antes de "/*", então o "! Content-Security-Policy" de "/" roda antes de existir o que ele deveria tirar). */
+test('leitor: na ordem alfabética o "!" da regra "/" roda antes de "/*" e a raiz soma as duas CSPs (o que a produção mostrou)', () => {
+  const regras = lerHeaders('/*\n  CSP: geral\n\n/\n  ! CSP\n  CSP: raiz\n\n/sites\n  ! CSP\n  CSP: sites\n');
+  assert.equal(cabecalhosPara(regras, '/').get('csp'), 'raiz');
+  assert.equal(cabecalhosPara(regras, '/', { ordem: 'alfabetica' }).get('csp'), 'raiz, geral');
+  assert.equal(cabecalhosPara(regras, '/sites', { ordem: 'alfabetica' }).get('csp'), 'sites');
+  assert.throws(() => cabecalhosPara(regras, '/', { ordem: 'outra' }), /ordem desconhecida/);
+});
+const CAMINHOS = ['/', '/sites', '/automacao', '/orcamento', '/painel', '/condicoes', '/privacidade', '/resumo', '/404', '/qualquer-coisa',
+  '/sites/', '/a/b/', '/favicon.ico', '/robots.txt', '/sitemap.xml', '/painel.css', '/index.html', '/vendor/gsap/x.js', '/assets/fonts/x.woff2',
+  '/assets/x.svg', '/js/pagina.js', '/js/nucleo/cena.js', '/js/atendente-balao.js', '/css/base.css', '/css/orcamento-planta.css',
+  '//', '//x', '///a/b', '/x//y'];
+test('a CSP geral é a MESMA nas regras que a repetem (/:trecho, /:trecho/*, //*) e nenhuma delas casa a raiz', () => {
+  const gerais = ['/:trecho', '/:trecho/*', '//*'].map(c => {
+    const r = REGRAS.find(x => x.caminho === c);
+    assert.ok(r, 'falta a regra ' + c);
+    return r.cabecalhos.find(([nome]) => nome === 'content-security-policy')[1];
+  });
+  assert.equal(new Set(gerais).size, 1, 'as cópias da CSP geral divergem');
+  assert.ok(!gerais[0].includes('challenges.cloudflare.com'), 'a CSP geral não libera o Turnstile');
+  for (const c of ['/qualquer-coisa', '/a/b/', '//x']) assert.equal(cabecalhosPara(REGRAS, c).get('content-security-policy'), gerais[0], c);
+});
+test('o _headers dá a cada caminho UMA CSP, e os mesmos cabeçalhos em qualquer ordem de aplicação (arquivo ou alfabética)', () => {
+  for (const c of CAMINHOS) {
+    const [base, ...outras] = ORDENS.map(ordem => Object.fromEntries(cabecalhosPara(REGRAS, c, { ordem })));
+    for (const o of outras) assert.deepEqual(o, base, c + ': os cabeçalhos mudam com a ordem das regras');
+    for (const ordem of ORDENS) {
+      const csp = cabecalhosPara(REGRAS, c, { ordem }).get('content-security-policy');
+      assert.ok(csp, c + ' sem CSP (' + ordem + ')');
+      assert.equal((csp.match(/default-src/g) || []).length, 1, c + ': CSP duplicada (ordem ' + ordem + ')');
+    }
   }
+});
+test('a raiz não depende do "!": só a regra "/" põe CSP em "/" (nenhuma regra geral casa a raiz com CSP)', () => {
+  for (const r of REGRAS) {
+    const temCsp = r.cabecalhos.some(([nome]) => nome === 'content-security-policy');
+    if (r.caminho !== '/' && temCsp) assert.ok(!cabecalhosPara([r], '/').has('content-security-policy'), r.caminho + ' põe CSP também na raiz');
+  }
+  assert.ok(!REGRAS.find(r => r.caminho === '/').desanexar.includes('content-security-policy'), 'a regra "/" não precisa de "! Content-Security-Policy"');
+});
+test('nenhum valor de cabeçalho contém ":nome" de placeholder (a Cloudflare o trocaria pelo trecho do caminho)', () => {
+  const nomes = REGRAS.flatMap(r => [...r.caminho.matchAll(/:([A-Za-z]\w*)/g)].map(m => m[1]));
+  for (const r of REGRAS) for (const [nome, valor] of r.cabecalhos) for (const p of nomes) assert.ok(!valor.includes(':' + p), r.caminho + ' ' + nome + ' contém :' + p);
 });
 test('CSP: o <meta> de cada página == a CSP que o _headers dá ao caminho dela (fora as diretivas só de header)', () => {
   const destino = fs.mkdtempSync(path.join(os.tmpdir(), 'publico-'));
