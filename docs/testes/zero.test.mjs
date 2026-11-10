@@ -189,6 +189,21 @@ test('regulados: o modelo que SUGERE o proibido por conta própria (sem "pode/va
     'Depoimento de paciente não ajuda aqui, porque a Beyon não coloca em site de saúde.'
   ];
   for (const t of recusam) assert.equal(garantirRegulado(t, { nicho: dentista, pediuAgora: false }).trocou, false, t);
+  /* revisão de segurança: "não fica"/"não ajuda" no meio de uma frase que LIBERA não podem virar recusa */
+  const liberamComNao = [
+    'Não fica difícil colocar o antes e depois, posso incluir.',
+    'O antes e depois não ajuda a vender? Ajuda sim, vamos colocar.'
+    /* (limite conhecido, igual na main: "Não fica bom SEM antes e depois, vale a pena colocar" passa, porque "sem antes" conta
+       como recusa; dupla negação fica para o classificador por modelo, que marca oferece_proibido_saude) */
+  ];
+  for (const t of liberamComNao) assert.equal(garantirRegulado(t, { nicho: dentista, pediuAgora: false }).trocou, true, t);
+  /* revisão técnica: respostas normais com "recomendo", "ajuda", "destacar" que NEGAM o proibido não são trocadas */
+  const normais = [
+    'Recomendo destacar o clareamento como serviço, sem preço, com explicação do tratamento.',
+    'A seção de clareamento ajuda a explicar o procedimento, sem promoção.'
+    /* (limite conhecido, igual na main: "consulta com valor combinado" é trocada porque "combinado" já liberava) */
+  ];
+  for (const t of normais) assert.equal(garantirRegulado(t, { nicho: dentista, pediuAgora: false }).trocou, false, t);
 });
 
 test('regulados: a recusa certa do modelo passa; fora de nicho regulado nada muda', () => {
