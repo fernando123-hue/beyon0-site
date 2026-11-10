@@ -25,9 +25,9 @@
 /* celular: a rota nasce embaraçada ~65 px acima do 1º passo; sem este respiro ela cruzava o título */
 @media (max-width: 820px) { .passos { padding-top: 56px; } }   /* padding: a margem colapsava com a do título */
 @media (min-width: 821px) {
-  .passos { grid-template-columns: repeat(var(--passos, 3), 1fr); gap: clamp(20px, 3vw, 40px); }
+  .passos { --passos-vao: clamp(20px, 3vw, 40px); grid-template-columns: repeat(var(--passos, 3), 1fr); gap: var(--passos-vao); }
   .passo { padding: 2rem 0 0 0; }
-  .passo::before { left: 0; right: calc(-1 * clamp(20px, 3vw, 40px)); top: 5px; bottom: auto; height: 1px; width: auto; }
+  .passo::before { left: 0; right: calc(-1 * var(--passos-vao)); top: 5px; bottom: auto; height: 1px; width: auto; }
   .passo::after { top: 0; left: 0; }
 }
 
