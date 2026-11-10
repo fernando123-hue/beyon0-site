@@ -161,10 +161,17 @@ export function pedeItemProibido(texto) {
 }
 
 /* a resposta do modelo, em nicho regulado: libera o proibido ou desvia do pedido sem recusar = texto fixo */
-const LIBERA = /\b(?:pode\w*|posso|da (?:pra|para)|vamos|vou|inclu\w+|colo(?:co|camos|ca\w*)|fazemos|faco|entra\w*|cabe\w*|tranquilo|sem problema|claro|sim|com cuidado|combinado)\b/;
+/* sugerir sem ninguém pedir também libera (F2 do JEV, sz-047: "antes e depois fica ótima na sua clínica").
+   "ajuda"/"destaca" são palavras comuns: só contam como sugestão quando a frase cita depoimento ou antes e depois
+   (revisão técnica: "a seção ajuda a explicar o procedimento, sem promoção" é resposta normal) */
+const LIBERA = /\b(?:pode\w*|posso|da (?:pra|para)|vamos|vou|inclu\w+|colo(?:co|camos|ca\w*)|fazemos|faco|entra\w*|cabe\w*|tranquilo|sem problema|claro|sim|com cuidado|combinado|recomend\w*|sugir\w*|sugiro|vale (?:a pena|muito|mostrar|destacar|colocar|ter)|seria (?:bom|otimo|legal|interessante|ideal)|fica\w* (?:\w+ )?(?:otim\w*|bo[am]\w*|bonit\w*|lind\w*|legal|perfeit\w*|show|incrivel))\b/;
+const SUGERE_PROVA_SOCIAL = f => /\b(?:ajud\w*|destac\w*)\b/.test(f) && /\b(?:depoiment\w*|testemunh\w*|antes (?:e )?depois)\b/.test(f);
 const RECUSA = /\bnao\s+(?:(?:a gente|eu|te|lhe|se|ainda|mais)\s+)?(?:colo\w+|inclu\w+|faz\w*|fazemos|aceit\w+|entra\w*|cabe\w*|trabalh\w+|public\w+|oferec\w+|poe|ponho|posso|podemos|vou|vamos|consigo|da (?:pra|para)|e (?:permitid|possivel))\w*\b|\bnunca\b|\bsem\s+(?:depoiment|antes)|\bficam? de fora\b|\bpolitica da beyon\b|\brecuso\b/;
 const PROIBIDO_NA_RESPOSTA = [...PEDIDOS_PROIBIDOS];
-const citaProibido = f => PROIBIDO_NA_RESPOSTA.some(r => r.test(f));
+/* "sem preço"/"sem promoção" não é citar preço (revisão técnica), mas também não é recusa: "antes e depois sem preço" continua
+   liberando o antes e depois (revisão de segurança). Por isso o trecho só sai da busca do proibido, nunca entra na RECUSA */
+const SEM_PRECO = /\bsem\s+(?:preco|promoc\w*|desconto|valor)\w*/g;
+const citaProibido = f => { const g = f.replace(SEM_PRECO, ' '); return PROIBIDO_NA_RESPOSTA.some(r => r.test(g)); };
 
 export function respostaRegulado(nicho, { insistencia = false } = {}) {
   if (insistencia) return `Isso a Beyon não faz em site de ${nicho.site}, e isso não muda. O que cabe, a gente faz.`;
@@ -174,7 +181,7 @@ export function garantirRegulado(texto, { nicho, pediuAgora = false, insistencia
   const original = String(texto);
   if (!nicho) return { texto: original, trocou: false };
   const buscas = frasesDe(original).map(paraBusca);
-  const libera = buscas.some(f => citaProibido(f) && LIBERA.test(f) && !RECUSA.test(f));
+  const libera = buscas.some(f => citaProibido(f) && (LIBERA.test(f) || SUGERE_PROVA_SOCIAL(f)) && !RECUSA.test(f));
   const recusou = buscas.some(f => RECUSA.test(f));
   if (!libera && !(pediuAgora && !recusou)) return { texto: original, trocou: false };
   return { texto: respostaRegulado(nicho, { insistencia }), trocou: true };
