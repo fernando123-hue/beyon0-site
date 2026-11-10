@@ -1,4 +1,7 @@
-/* Motor de regras comerciais (api/_vendas/precos.mjs) contra a tabela-rascunho v1. O preço sai só daqui. */
+/* Motor de regras comerciais (api/_vendas/precos.mjs). O preço sai só daqui.
+   Até o fim de "TABELA v3" os testes rodam contra a v3 ARQUIVADA (docs/fase2/regras-v3-atelier-arquivada.json, com o Atelier e o incluso_em):
+   o código continua lendo as tabelas v1 a v3 e os pedidos gravados com elas. A tabela-rascunho atual (v4, sem o Atelier; dono 2026-11-08)
+   tem os testes próprios no fim do arquivo. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,7 +10,8 @@ import { comArea } from './_area-v2.mjs';
 import { comFases } from './_motor-fases.mjs';
 import { comFora } from './_fora-do-automatico.mjs';
 
-const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-v3-atelier-arquivada.json', import.meta.url), 'utf8'));
+const V4 = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 const copia = () => JSON.parse(JSON.stringify(REGRAS));
 /* a tabela com o teto de 10 dias e os limites antigos (ver _motor-fases.mjs): a lógica de fases e limites do motor */
 const MOTOR = comFases(REGRAS);
@@ -51,7 +55,7 @@ test('tabela de 2026-10-28: nada fora do automático; área restrita, sistema e 
     const e = estimar({ formato: 'institucional', adicionais: { [k]: 1 } }, REGRAS);
     assert.deepEqual([e.erros, e.encaminhar_diagnostico, e.valor_total], [['adicional desconhecido: ' + k], undefined, undefined], k + ': recusado, sem preço e sem diagnóstico');
   }
-  assert.match(REGRAS._status, /área restrita, o sistema sob medida e a loja em código próprio/);
+  assert.match(V4._status, /área restrita, o sistema sob medida e a loja em código próprio/);
 });
 
 test('casos de referência (os números do REGRAS-RASCUNHO.md)', () => {
@@ -87,7 +91,7 @@ test('com teto de 10 dias, o que não cabe vai para a fase seguinte, na ordem de
 test('tabela de 2026-10-28: sem trava de prazo nem de valor, o projeto sai numa entrega só', () => {
   assert.equal(REGRAS.prazo_max_dias, 60, 'o máximo do validador e do banco (app.estimativas.prazo_dias de 1 a 60)');
   assert.deepEqual([REGRAS.limites.valor_max_automatico, REGRAS.limites.valor_max_projeto], [1e7, 1e7]);
-  assert.match(REGRAS._status, /sem trava de prazo/);
+  assert.match(V4._status, /sem trava de prazo/);
   /* experiência com 12 páginas, todos os adicionais gerais no máximo e complexidade alta: 19900 + 8 × 350 + 15 × 350 +
      250 + 3 × 300 + 450 + 900 + 1500 + 3 × 900 + 2 × 800 = 36250, × 1,25 = 45312,5 → 45310; prazo 10 + 4 + 3,75 + 0,5 +
      1,5 + 1 + 2 + 3 + 3 + 4 = 32,75 → 33 dias */
@@ -256,7 +260,7 @@ test('fase seguinte longa diz em quantas fases de até 10 dias ela se divide', a
 
 test('rascunho: a entrada é 40% (decisão do dono de 20/10, Decisões.md, "O site vende sozinho", 1 D; PR 3b-1). A tabela ativa o dono aplica', () => {
   assert.equal(REGRAS.sinal_percentual, 40);
-  assert.match(REGRAS._status, /40%/, 'o _status diz de onde veio o 40');
+  assert.match(V4._status, /40%/, 'o _status diz de onde veio o 40');
 });
 
 /* o consultor só fala de fase quando o motor ainda pode gerar uma (prazo_max_dias menor que a maior soma possível) */
@@ -293,7 +297,7 @@ test('v3: o Atelier substitui a experiência digital (id interno igual, para nã
   assert.ok(b.inclui.some(x => /2 interações de assinatura/i.test(x) && /animações de entrada e rolagem no site todo/i.test(x)), 'duas interações de assinatura e as animações do site todo já vêm na base');
   assert.ok(b.inclui.some(x => /textos/i.test(x) && /todas as páginas/i.test(x)) && b.inclui.some(x => /imagens/i.test(x) && /formulário/i.test(x)), 'textos de todas as páginas, imagens e formulário com etapas já vêm na base');
   assert.match(REGRAS.multiplicadores.complexidade_alta.descricao, /integrações ou regras de negócio/i, 'complexidade alta não cobra de novo as interações que o Atelier já inclui');
-  assert.doesNotMatch(REGRAS._status, /R\$ 300\/h/, 'o relatório Lucro real não define faixa por hora: a frase saiu');
+  assert.doesNotMatch(V4._status, /R\$ 300\/h/, 'o relatório Lucro real não define faixa por hora: a frase saiu');
   assert.ok(!b.inclui.some(x => /acompanhamento|suporte|manuten/i.test(x)), 'sem acompanhamento pós-entrega (dono, 03/11)');
   assert.ok(!JSON.stringify(REGRAS.formatos).includes('Experiência digital'), 'o nome antigo saiu da tabela');
   assert.deepEqual(validarRegras(REGRAS), { ok: true });
@@ -446,4 +450,71 @@ test('incluso_em: nunca em pagina_extra, e item que outro exige não pode ter in
   const v = validarRegras(dep);
   assert.ok(v.erros?.some(e => /blog\.requer: interacao_assinatura tem incluso_em/.test(e)), JSON.stringify(v));
   assert.deepEqual(validarRegras(REGRAS), { ok: true }, 'a tabela v3 como está continua válida');
+});
+
+/* ==== TABELA v4 (dono, 2026-11-08, Decisões.md: "Confirmo, pode excluir o Atelier."): o Atelier sai; a direção visual desenhada do zero vira
+   o adicional visual_exclusivo do institucional, e nenhum formato abate adicional (nada é exclusivo de um plano: o cliente monta com adicionais) ==== */
+test('v4: a tabela sem o Atelier é válida e o motor não aceita mais o formato', () => {
+  assert.deepEqual(validarRegras(V4), { ok: true });
+  assert.deepEqual(Object.keys(V4.formatos), ['landing_page', 'institucional', 'loja_plataforma']);
+  const e = estimar({ formato: 'sob_medida' }, V4);
+  assert.deepEqual(e.erros, ['formato: um de landing_page, institucional, loja_plataforma']);
+  assert.deepEqual(Object.keys(V4.adicionais).filter(k => V4.adicionais[k].incluso_em), [], 'nenhum formato abate adicional');
+  assert.match(V4._status, /Tabela v4/);
+});
+
+test('v4: tabela sem landing ou sem institucional continua recusada (o Atelier passou a ser opcional, como a loja)', () => {
+  for (const k of ['landing_page', 'institucional']) {
+    const r = JSON.parse(JSON.stringify(V4)); delete r.formatos[k];
+    assert.ok(validarRegras(r).erros?.includes('formatos.' + k + ': falta'), k);
+  }
+});
+
+test('v4: o visual exclusivo só existe no institucional e entra antes dos outros adicionais', () => {
+  const v = V4.adicionais.visual_exclusivo;
+  assert.deepEqual([v.valor, v.prazo_dias, v.max, v.requer], [3200, 3, 1, ['institucional']]);
+  const i = estimar({ formato: 'institucional', adicionais: { visual_exclusivo: 1 } }, V4);
+  assert.deepEqual([i.valor_total, i.prazo_dias, i.itens.map(x => x.chave)], [11100, 11, ['visual_exclusivo']]);
+  for (const formato of ['landing_page', 'loja_plataforma']) {
+    const e = estimar({ formato, adicionais: { visual_exclusivo: 1 } }, V4);
+    assert.ok(e.erros?.some(x => /visual_exclusivo exige um destes: Site institucional/.test(x)), formato + ': ' + JSON.stringify(e.erros));
+  }
+  assert.equal(estimar({ formato: 'institucional', adicionais: { visual_exclusivo: 5 } }, V4).valor_total, 11100, 'no máximo 1');
+});
+
+test('v4: o institucional com tudo o que o Atelier trazia soma os mesmos R$ 20.000 (quem quer tudo chega lá somando)', () => {
+  const tudo = estimar({ formato: 'institucional', paginas: 6, adicionais: { visual_exclusivo: 1, textos: 6, imagens: 1, formulario_avancado: 1, interacao_leve: 1, interacao_assinatura: 2 } }, V4);
+  /* 7900 + 1 página 350 + 3200 + 6 × 350 + 250 + 300 + 900 + 2 × 2500 = 20000 */
+  assert.equal(tudo.valor_total, 20000);
+  assert.equal(tudo.formato.inclui, undefined, 'sem abatimento, o contrato não ganha "Já incluído em"');
+  const v3 = estimar({ formato: 'sob_medida' }, REGRAS);
+  assert.equal(tudo.valor_total, v3.valor_total, 'o mesmo valor do Atelier da v3');
+});
+
+test('v4: o pedido gravado com o Atelier (tabela v3) continua calculando igual: o código lê as duas tabelas', () => {
+  const b = estimar({ formato: 'sob_medida', adicionais: { interacao_assinatura: 3 } }, REGRAS);
+  assert.deepEqual([b.formato.nome, b.valor_total], ['Atelier', 22500]);
+});
+
+test('v4: o SQL de ativação arquiva a v3, grava a v4 como ativa e é o mesmo que o gerador monta hoje (Postgres real)', async () => {
+  const { novoBanco } = await import('./_banco.mjs');
+  const { sqlDeAtivacao } = await import('../fase2/gerar-ativar-sql.mjs');
+  const sql = fs.readFileSync(new URL('../fase2/regras-v4-ativar.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const json = fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8').replace(/\r\n/g, '\n').trim();
+  assert.equal(sql, sqlDeAtivacao(json, 'aprovada pelo dono em 2026-11-08 (chat): Confirmo, pode excluir o Atelier.'), 'o arquivo não ficou para trás da tabela-rascunho');
+  assert.throws(() => sqlDeAtivacao(JSON.stringify({ moeda: 'BRL' }), 'x'), /Tabela inválida/);
+  assert.throws(() => sqlDeAtivacao(json, "o dono's"), /aspas simples/);
+  for (const ruim of ['a\\b', 'a\nb', 'a\rb', '']) assert.throws(() => sqlDeAtivacao(json, ruim), /Fontes/, JSON.stringify(ruim));
+  assert.doesNotMatch(sql, /fundador|11º cliente|Decisões\.md/, 'o histórico longo do _status não vai para o SQL público nem para o banco');
+  const db = await novoBanco();
+  const { erroDe } = await import('./_banco.mjs');
+  assert.match((await erroDe(db.exec(sql)))?.msg || '', /beyon-zero não existe/, 'sem a organização, aborta');
+  const ORG = '99999999-0000-4000-8000-000000000099';
+  await db.query(`insert into app.organizacoes (id, slug, nome) values ($1, 'beyon-zero', 'Beyon Zero')`, [ORG]);
+  await db.query(`insert into app.regras_comerciais (org_id, versao, status, regras, aprovada_em) values ($1, 3, 'ativa', $2::jsonb, now())`, [ORG, JSON.stringify(REGRAS)]);
+  await db.exec(sql);
+  assert.match((await erroDe(db.exec(sql)))?.msg || '', /já está ativa/, 'rodar de novo aborta sem gravar outra versão');
+  const linhas = (await db.query(`select versao, status, regras -> 'formatos' ? 'sob_medida' as atelier, regras from app.regras_comerciais order by versao`)).rows;
+  assert.deepEqual(linhas.map(l => [l.versao, l.status, l.atelier]), [[3, 'arquivada', true], [4, 'ativa', false]]);
+  assert.deepEqual(validarRegras(linhas[1].regras), { ok: true }, 'o que ficou no banco passa na validação do servidor');
 });

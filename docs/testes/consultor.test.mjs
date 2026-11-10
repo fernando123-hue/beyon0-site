@@ -11,6 +11,8 @@ import { comArea } from './_area-v2.mjs';
 import { comFora } from './_fora-do-automatico.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+/* a v3 arquivada (com o Atelier): o prompt continua certo para as tabelas antigas, que podem estar ativas num ambiente até a v4 ser gravada */
+const V3 = JSON.parse(fs.readFileSync(new URL('../fase2/regras-v3-atelier-arquivada.json', import.meta.url), 'utf8'));
 
 test('instruções: trazem o que cada formato inclui e todos os adicionais da tabela ativa, pelo nome', () => {
   const s = montarSistema(REGRAS);
@@ -86,7 +88,9 @@ test('ferramentas: cada descrição diz QUANDO usar; estimar só oferece o que e
   const desc = fs_.find(f => f.name === 'estimar').description;
   assert.match(desc, /complexidade "alta": só para integrações ou regras de negócio fora do padrão; animações e interações são adicionais, nunca complexidade/);
   assert.doesNotMatch(desc, /só para animações, 3D/, 'a descrição antiga mandava marcar complexidade alta para animações: cobrança dupla');
-  assert.match(desc, /quantidade TOTAL que ela quer/);
+  /* a quantidade TOTAL só faz sentido com abatimento (incluso_em, v3); a v4 não abate nada */
+  assert.doesNotMatch(desc, /quantidade TOTAL/, 'v4: sem abatimento, sem a regra do total');
+  assert.match(ferramentas(V3).find(f => f.name === 'estimar').description, /quantidade TOTAL que ela quer/, 'v3: com o Atelier, a regra do total');
   assert.ok(!JSON.stringify(fs_).match(/"valor"\s*:\s*\d/), 'sem valores nas ferramentas');
   assert.doesNotThrow(() => ferramentas({ adicionais: {}, formatos: {} }), 'tabela vazia não derruba');
 });
@@ -256,7 +260,8 @@ test('conteúdo (revisão de fidelidade): nada de promessa jurídica sem o advog
   assert.match(s, /valor final é o do escopo que a pessoa confirma/i, 'a ressalva do site: o valor muda se o escopo mudar antes');
   assert.ok(!s.includes('—'), 'sem travessão (o modelo imita)');
   assert.match(s, /1 página incluída\)/, 'concordância');
-  assert.ok(/Atelier \(6 páginas incluídas\):/.test(s) && !/Experiência digital/.test(s), 'o formato com o nome novo: Atelier (dono, 2026-11-03; era "Experiência digital" de 2026-10-09)');
+  assert.ok(!/Atelier/.test(s) && !/Experiência digital/.test(s), 'v4 (dono, 2026-11-08): o Atelier saiu da tabela e do prompt');
+  assert.match(montarSistema(V3, { direcoes: 'manual' }), /Atelier \(6 páginas incluídas\):/, 'com a v3, o formato com o nome dela');
   assert.ok(!/(experiência digital|sob medida):[^\n]*lançamento/i.test(s), 'lançamento é da landing page');
   /* cada fala de exemplo do Zero cumpre as regras de voz: curta, no máximo uma pergunta, sem elogio vazio nem fórmula de robô */
   const falas = [...s.matchAll(/^Zero: (.+)$/gm)].map(m => m[1]);
@@ -466,7 +471,7 @@ test('instruções: o prazo vem da estimativa; cada formato sozinho pelos dias d
   assert.ok(montarSistema(outra).includes('Landing page, 7 dias úteis'));
   /* fase: só quando o motor ainda pode gerar uma (a loja extrema passa de 60 na tabela real) */
   assert.match(s, /passar de 60 dias úteis[^.]*fase 1/);
-  const semLoja = JSON.parse(JSON.stringify(REGRAS)); delete semLoja.formatos.loja_plataforma;
+  const semLoja = JSON.parse(JSON.stringify(V3)); delete semLoja.formatos.loja_plataforma;
   for (const [k, x] of Object.entries(semLoja.adicionais)) if (x.requer?.includes('loja_plataforma')) delete semLoja.adicionais[k];
   /* (v3: o Atelier, com 15 dias de base e as interações, também passa de 60; sem a loja, sem as interações e com 10 dias de base, nada passa) */
   assert.match(montarSistema(semLoja), /passar de 60 dias úteis[^.]*fase 1/, 'o Atelier com tudo ainda passa de 60: fala de fase');
@@ -495,6 +500,7 @@ test('área que não se faz hoje sem formato: avisa e segue a descoberta; a loja
 
 /* TABELA v3 (dono, 2026-11-03): o Zero lê a lista da tabela ATIVA (dados), sem valores no prompt */
 test('v3: o prompt conhece o Atelier, os adicionais em qualquer formato e o atendente em preparo, sem nenhum valor', () => {
+  const REGRAS = V3;
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
   assert.match(s, /- Atelier:[^\n]*não há suporte contínuo \(nunca prometa suporte pós-entrega nem manutenção; os ajustes da prévia são outra coisa\)/, 'o Atelier e o que ele não tem');
   assert.match(s, /valem em qualquer formato, e os de loja só na loja/, 'os adicionais valem em qualquer formato');
@@ -530,4 +536,21 @@ test('ferramentas: com planta:true entra a sexta (desenhar_planta) só em etapa 
   assert.deepEqual(ferramentas(REGRAS, { etapa: 'escopo', planta: true }), []);
   assert.equal(ferramentas(REGRAS, { planta: true }).length, 6);
   assert.equal(ferramentas(REGRAS).length, 5);
+});
+
+/* TABELA v4 (dono, 2026-11-08, "Confirmo, pode excluir o Atelier."): nada é exclusivo de um plano; quem quer tudo sob medida monta o institucional com adicionais */
+test('v4: sem o Atelier, o Zero não fala dele e indica o institucional com o visual exclusivo, só no institucional e sem empurrar', () => {
+  const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
+  assert.ok(!/Atelier|formato maior|quantidade TOTAL|não há suporte contínuo/.test(s), 'nada do formato que saiu');
+  assert.match(s, /- Quem quer um site só dele, com o visual desenhado do zero e nada de modelo: o site institucional com o adicional "Visual exclusivo[^"]*"/);
+  assert.match(s, /nunca como padrão para quem tem medo ou orçamento curto/);
+  assert.match(s, /Exceção: Visual exclusivo \(desenhado do zero, sem modelo\) só com o formato Site institucional\./, 'o Zero sabe que o visual exclusivo é só do institucional');
+  assert.match(s, /Ofereça os que combinam com o caso dela, uma vez e sem empurrar/);
+  assert.ok(!s.includes('3200') && !s.includes('3.200'), 'nenhum valor no prompt');
+  const est = ferramentas(REGRAS, { etapa: 'descoberta' }).find(f => f.name === 'estimar').input_schema.properties;
+  assert.deepEqual(est.formato.enum, ['landing_page', 'institucional', 'loja_plataforma'], 'estimar só oferece os formatos da tabela');
+  assert.ok(est.adicionais.properties.visual_exclusivo, 'o visual exclusivo é um adicional do estimar');
+  /* sem o adicional (tabela sem Atelier e sem visual exclusivo), a linha some inteira */
+  const sem = JSON.parse(JSON.stringify(REGRAS)); delete sem.adicionais.visual_exclusivo;
+  assert.doesNotMatch(montarSistema(sem), /Quem quer um site só dele|Exceção:/);
 });

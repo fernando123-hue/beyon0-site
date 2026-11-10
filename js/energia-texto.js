@@ -139,12 +139,14 @@
   }
 
   /* ---------- 2. O SURTO ---------- */
-  function surto(el) {
+  /* alvo: o elemento, ou uma função que diz qual é na hora (o h1 da home gira entre frases, js/giro.js) */
+  function surto(caixa, alvo) {
     var visivel = false;
-    new IntersectionObserver(function (es) { visivel = es[0].isIntersecting; }).observe(el);
+    new IntersectionObserver(function (es) { visivel = es[0].isIntersecting; }).observe(caixa);
     (function agendar() {
       setTimeout(function () {
-        if (visivel && !reduzido() && !document.hidden && !el.querySelector('.energizando')) B.energizar(el, { ms: SURTO.descarga });
+        var el = typeof alvo === 'function' ? alvo() : alvo;
+        if (el && visivel && !reduzido() && !document.hidden && !el.querySelector('.energizando')) B.energizar(el, { ms: SURTO.descarga });
         agendar();
       }, SURTO.min + Math.random() * (SURTO.max - SURTO.min));
     })();
@@ -155,8 +157,13 @@
     if (reduzido()) return;
     var titulos = document.querySelectorAll('h2, h3');
     for (var i = 0; i < titulos.length; i++) if (titulos[i].querySelector('em[data-palavras]')) palavraViva(titulos[i]);
-    var destaque = document.querySelector('.hero__title em');
-    if (destaque) surto(destaque);
+    var heroTitulo = document.querySelector('.hero__title');
+    var destaque = heroTitulo && heroTitulo.querySelector('em');
+    /* no giro, só a frase à mostra e nunca no meio de uma troca (as camadas do glitch são cópias) */
+    if (destaque && heroTitulo.querySelector('.giro__frase')) surto(heroTitulo, function () {
+      return heroTitulo.querySelector('.giro__camada') ? null : heroTitulo.querySelector('.giro__frase.is-ativa em');
+    });
+    else if (destaque) surto(destaque, destaque);
     /* (a marca escrita tinha um surto no "Zero"; a logo é desenho: a luz dela passa por css/motion.css) */
   }
   var ocioso = window.requestIdleCallback || function (f) { return setTimeout(f, 600); };

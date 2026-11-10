@@ -183,7 +183,10 @@ test('logo: as páginas usam a logo em SVG, sem estilo nem cor embutidos e com o
   /* a luz que passa pela logo some com movimento reduzido */
   const motion = readFileSync(new URL('css/motion.css', RAIZ), 'utf8');
   const reduzido = motion.slice(motion.search(/@media \(prefers-reduced-motion: reduce\) \{\r?\n/));
-  assert.match(reduzido, /\.marca__pulso-in, \.marca__pulso-out \{ animation: none/, 'motion.css: a luz da logo não desliga com movimento reduzido');
+  assert.match(reduzido, /\.marca__pulso-in, \.marca__pulso-out, \.marca__brilho \{ animation: none/, 'motion.css: a luz da logo (e o reflexo do nome) não desliga com movimento reduzido');
+  /* o reflexo do nome (dono 09/11): só na mesma passada da logo, desligável pelo interruptor, nunca em laço */
+  assert.match(motion, /html:not\(\.menos-movimento\) :is\(\.marca--nav\.is-lit, [^)]*\) \.marca__brilho \{ animation: marca-reflexo [^;]*both; \}/, 'motion.css: o reflexo do nome fora da passada da logo ou sem o interruptor');
+  assert.ok(!/marca-reflexo[^;]*infinite/.test(motion), 'motion.css: o reflexo do nome em laço (WCAG 2.2.2)');
 });
 
 /* A PLANTA (2026-10-14, a peça do cartão de Sites: docs/restructure/PECAS-SERVICOS.md). O visitante digita o
