@@ -174,6 +174,23 @@ test('regulados: a resposta do modelo que libera o proibido vira a recusa fixa, 
   assert.match(respostaRegulado(nichoRegulado('sou psicóloga')), /CRP/);
 });
 
+test('regulados: o modelo que SUGERE o proibido por conta própria (sem "pode/vamos") também vira a recusa (F2 do JEV, sz-047)', () => {
+  const dentista = nichoRegulado('sou dentista');
+  const sugerem = [
+    'Uma seção de resultados reais, com antes e depois, fica ótima na sua clínica.',
+    'Recomendo mostrar o antes e depois dos pacientes logo no topo.',
+    'Os depoimentos dos pacientes ajudam muito a passar confiança.',
+    'Seria bom destacar a promoção de clareamento na primeira tela.',
+    'Vale a pena ter uma galeria de antes e depois.'
+  ];
+  for (const t of sugerem) assert.equal(garantirRegulado(t, { nicho: dentista, pediuAgora: false }).trocou, true, t);
+  const recusam = [
+    'Antes e depois não fica bom em site de dentista: a Beyon não coloca.',
+    'Depoimento de paciente não ajuda aqui, porque a Beyon não coloca em site de saúde.'
+  ];
+  for (const t of recusam) assert.equal(garantirRegulado(t, { nicho: dentista, pediuAgora: false }).trocou, false, t);
+});
+
 test('regulados: a recusa certa do modelo passa; fora de nicho regulado nada muda', () => {
   const dentista = nichoRegulado('sou dentista');
   const boa = 'Entendo a vontade. Em site de dentista a Beyon não coloca depoimento nem antes e depois. Dá pra mostrar quem você é, o número do CRO e como marcar. Seguimos assim?';
