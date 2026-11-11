@@ -52,10 +52,56 @@ const POR_RAMO = { agendamento: ['saude', 'beleza', 'servicos', 'educacao'], cat
    Quantas páginas extras a landing aceita: as 3 menos as que já vêm no pacote (1 na tabela → 2 extras) */
 export const landingMaxExtras = landing => Math.max(0, LANDING_MAX_PAGINAS - (landing?.paginas_incluidas ?? 1));
 
+/* O CARTÃO de cada extra (dono, 2026-11-10: a lista era "um amontoado de letras"): [nome curto, o benefício numa frase, o
+   grupo da lista completa]. O nome da tabela (o recibo, o painel) não muda; a tela de escolher usa este. Grupos na ordem da lista */
+export const GRUPOS = ['conteudo', 'negocio', 'loja', 'visual', 'alcance', 'area', 'sistema'];
+const CARTAO = {
+  textos: ['Nós escrevemos os textos', 'Você não precisa escrever nada.', 'conteudo'],
+  imagens: ['Nós escolhemos as imagens', 'Fotos que combinam com o seu negócio.', 'conteudo'],
+  agendamento: ['Agendamento pelo site', 'O cliente marca o horário sozinho, a qualquer hora.', 'negocio'],
+  catalogo: ['Catálogo de produtos', 'Seus produtos com foto e preço, sem venda online.', 'negocio'],
+  blog: ['Blog', 'Uma área para publicar notícias e artigos.', 'negocio'],
+  integracao: ['Pedidos na sua planilha', 'Os pedidos do site caem direto no seu sistema.', 'negocio'],
+  formulario_avancado: ['Formulário com etapas', 'Em etapas ou com envio de arquivos.', 'negocio'],
+  produtos_lote_25: ['Mais 25 produtos cadastrados', 'Nós cadastramos mais 25 produtos na loja.', 'loja'],
+  pagamento_extra: ['Outra forma de pagamento', 'Mais um jeito de o cliente pagar.', 'loja'],
+  frete_transportadora: ['Frete por transportadora', 'O frete calculado na hora da compra.', 'loja'],
+  integracao_erp: ['Ligação com a nota fiscal', 'A loja ligada ao seu sistema de nota fiscal.', 'loja'],
+  marketplace: ['Mercado Livre e Shopee', 'A loja ligada ao Mercado Livre ou à Shopee.', 'loja'],
+  migracao_loja: ['Trazer a loja atual', 'Nós trazemos os produtos da sua loja atual.', 'loja'],
+  loja_virtual: ['Loja em código próprio', 'Loja feita do zero, em código próprio.', 'loja'],
+  visual_exclusivo: ['Visual exclusivo', 'Desenhado do zero, só para a sua marca.', 'visual'],
+  interacao_leve: ['Animações no site', 'Entrada suave e movimento ao rolar a página.', 'visual'],
+  interacao_assinatura: ['Animação de assinatura', 'Uma animação interativa só sua.', 'visual'],
+  idioma: ['Outro idioma', 'O site também em outro idioma.', 'alcance'],
+  pagina_extra: ['Página extra', 'Mais uma página além das que vêm no pacote.', 'alcance'],
+  area_restrita: ['Área com login', 'Para associados, alunos ou clientes.', 'area'],
+  area_tela_extra: ['Tela extra na área', 'Mais uma tela dentro da área com login.', 'area'],
+  area_perfil_extra: ['Outro tipo de acesso', 'Como associado e diretoria.', 'area'],
+  area_cobranca_recorrente: ['Mensalidade pela área', 'Cobrança de mensalidade ou anuidade.', 'area'],
+  area_documentos: ['Documentos por pessoa', 'Documentos e certificados de cada pessoa.', 'area'],
+  area_importar_usuarios: ['Importar a sua lista', 'Nós importamos a sua lista de pessoas.', 'area'],
+  sistema_sob_medida: ['Sistema para o seu caso', 'Um sistema ou painel feito para você.', 'sistema']
+};
+/* as SUGESTÕES do painel (no máximo 3): pelo formato e pelo ramo, nunca por "mais vendido". Depois do que é do ramo, conteúdo e movimento */
+const SUGESTAO_RAMO = { saude: ['agendamento'], beleza: ['agendamento'], servicos: ['agendamento'], educacao: ['agendamento'], comercio: ['catalogo'], alimentacao: ['catalogo'], associacao: ['blog'] };
+const SUGESTAO_LOJA = ['frete_transportadora', 'pagamento_extra'];
+const SUGESTAO_SEMPRE = ['textos', 'imagens', 'interacao_leve'];
+export const MAX_SUGESTOES = 3;
+
 /* um extra como a tela o vê: sem prioridade nem prazo por item */
 function extra(chave, def) {
-  return { chave, nome: nomeDeTela(chave, def.nome), frase: FRASES[chave] || def.nome, valor: def.fora_do_automatico ? null : def.valor, max: def.fora_do_automatico ? null : def.max,
-    requer: Array.isArray(def.requer) ? def.requer : null, fale_comigo: def.fora_do_automatico === true };
+  const nome = nomeDeTela(chave, def.nome), frase = FRASES[chave] || def.nome, c = CARTAO[chave];
+  return { chave, nome, frase, valor: def.fora_do_automatico ? null : def.valor, max: def.fora_do_automatico ? null : def.max,
+    requer: Array.isArray(def.requer) ? def.requer : null, fale_comigo: def.fora_do_automatico === true,
+    curto: c ? c[0] : nome, beneficio: c ? c[1] : frase, grupo: c ? c[2] : 'negocio', por_pagina: /por p[áa]gina/i.test(def.nome || '') };
+}
+function sugestoes(formato, ramo, principais) {
+  const pode = new Set(principais.filter(x => x.valor != null && !x.fale_comigo).map(x => x.chave));
+  /* (o ramo vem do visitante: só a chave própria, nunca "constructor" ou "__proto__" do protótipo) */
+  const doRamo = typeof ramo === 'string' && Object.hasOwn(SUGESTAO_RAMO, ramo) ? SUGESTAO_RAMO[ramo] : [];
+  const ordem = (formato === 'loja_plataforma' ? SUGESTAO_LOJA : doRamo).concat(SUGESTAO_SEMPRE);
+  return [...new Set(ordem)].filter(k => pode.has(k)).slice(0, MAX_SUGESTOES);
 }
 
 export function catalogoPublico(regras, { formato, ramo }) {
@@ -73,7 +119,7 @@ export function catalogoPublico(regras, { formato, ramo }) {
     (doRamo && !def.fora_do_automatico ? principais : mais).push(limitado);
   }
   const u = regras.multiplicadores?.urgencia;
-  return { formatos, extras: { principais, mais }, urgencia: u ? { acrescimo_percentual: Math.round((u.fator - 1) * 100), prazo_fator: u.prazo_fator } : null };
+  return { formatos, extras: { principais, mais }, recomendados: sugestoes(formato, ramo, principais), urgencia: u ?{ acrescimo_percentual: Math.round((u.fator - 1) * 100), prazo_fator: u.prazo_fator } : null };
 }
 
 const OBJETIVO_BRIEFING = { pedidos_whatsapp: 'gerar_leads', agendamentos: 'agendamentos', vender_online: 'vender', apresentar: 'apresentar_empresa', campanha: 'lancar_produto' };

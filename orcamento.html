@@ -230,8 +230,15 @@
         <div class="orc-est__acoes" id="o-est-acoes" hidden>
           <p class="orc-erro" id="o-est-erro" role="alert"></p>
           <button class="btn btn--ghost" type="button" id="o-est-sugerido" hidden></button>
+          <!-- AS SUGESTÕES (dono, 2026-11-10, opção A): até 3 extras pelo ramo, em cartões, ANTES da ação principal; um toque inclui e
+               o preço muda na hora (o mesmo estado dos extras da lista completa). Montadas por js/orcamento-perguntas.js -->
+          <div class="orc-reco" id="o-reco" hidden>
+            <h3 class="orc-reco__titulo">Deixe o seu site mais completo</h3>
+            <p class="orc-reco__nota">Sugeridos para o seu tipo de negócio. Toque para incluir; o valor muda na hora.</p>
+            <div class="orc-reco__lista" id="o-reco-lista" role="group" aria-label="Extras sugeridos"></div>
+          </div>
+          <button class="orc-reco__todos" type="button" id="o-ajustar-abrir" aria-expanded="false" aria-controls="o-ajustar">Ver todos os extras</button>
           <button class="btn btn--primary" type="button" id="o-quero-modelos">Quero os três modelos</button>
-          <button class="btn btn--ghost" type="button" id="o-ajustar-abrir" aria-expanded="false" aria-controls="o-ajustar">Quer ajustar?</button>
           <div class="orc-vizinhos" id="o-vizinhos"></div>
           <button class="orc-p__naosei" type="button" id="o-p-refazer">Mudar as respostas</button>
         </div>
@@ -275,9 +282,9 @@
         <div class="orc-peca" id="o-peca" role="region" aria-label="O que o Zero já entendeu do seu caso" hidden></div>
       </aside>
 
-      <!-- QUER AJUSTAR? (spec §3): os extras da tabela ativa, com o preço ao vivo pelo servidor (simular, não grava) -->
+      <!-- TODOS OS EXTRAS (spec §3; antes "Quer ajustar?"): os extras da tabela ativa, agrupados, com o preço ao vivo pelo servidor (simular, não grava) -->
       <section class="orc-ajustar" id="o-ajustar" aria-labelledby="o-ajustar-titulo" hidden>
-        <h2 id="o-ajustar-titulo">Quer ajustar?</h2>
+        <h2 id="o-ajustar-titulo">Todos os extras</h2>
         <fieldset id="o-ajustar-principais"><legend class="sr-only">Extras para o seu negócio</legend></fieldset>
         <details class="orc-ajustar__mais"><summary>Ver mais opções</summary><fieldset id="o-ajustar-mais"><legend class="sr-only">Outras opções</legend></fieldset></details>
         <label class="orc-check orc-extra" for="o-x-urgencia"><input type="checkbox" id="o-x-urgencia" /> <span id="o-x-urgencia-texto">Preciso antes do prazo</span></label>
