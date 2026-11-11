@@ -94,6 +94,12 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
       /* o resumo é uma página isolada, só com o link para o orçamento: não tem recado */
       isolada: /^\/resumo/.test(location.pathname),
       presos: [...document.querySelectorAll('.hero__title, .display, .hero__sub, .hero__actions')].filter(escondido).length,
+      /* todo controle da nav dentro da tela: a 320 px a logo empurrava o menu para fora (x = 322, 2026-11-11). Os
+         links do painel do celular entram também: fechado ele está com visibility hidden, aberto cabe na tela */
+      navFora: [...document.querySelectorAll('.nav a, .nav button')].filter(e => {
+        const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+        return r.width > 0 && cs.display !== 'none' && cs.visibility !== 'hidden' && (r.left < 0 || r.right > innerWidth + 0.5);
+      }).map(e => e.className || e.tagName),
       barraOk: !document.getElementById('barra') || innerWidth > 820 || getComputedStyle(document.getElementById('barra')).position === 'fixed'
     };
   });
@@ -118,7 +124,7 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   const nucleo = await page.evaluate(() => document.documentElement.classList.contains('tem-nucleo') && !!document.querySelector('.nucleo.is-aceso'));
 
   const reais = erros.filter(e => !/ERR_CERT|GPU stall|swiftshader/i.test(e));
-  const ok = (semNucleo || d.boot) && d.barraOk && d.overflowX === 0 &&
+  const ok = (semNucleo || d.boot) && d.barraOk && d.overflowX === 0 && d.navFora.length === 0 &&
     d.waBeyon === 0 && (d.recado > 0 || d.isolada) && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 && campo !== 0 &&
     (exige3d ? nucleo : (!nucleo && fps > 45)) &&
     /* LCP com orçamento (2,5s é o "bom" do Core Web Vitals); o primeiro alvo da rodada é artefato do headless */
@@ -131,7 +137,7 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
     'fps=' + String(fps).padStart(5) + (exige3d ? '(info)' : ''),
     'núcleo=' + (nucleo ? 'sim' : 'não'),
     'lcp=' + String(lcp).padStart(5) + 'ms',
-    'rolagemX=' + d.overflowX,
+    'rolagemX=' + d.overflowX + (d.navFora.length ? ' NAV FORA DA TELA: ' + d.navFora.join(',') : ''),
     'wa=' + d.waBeyon + ' recado=' + d.recado,
     'presos=' + d.presos + '/' + d.presosNoFim,
     'campo=' + (campo < 0 ? '—' : campo > 0 ? 'ok' : 'VAZIO'),

@@ -79,6 +79,17 @@ p em, li em { font-style: normal; font-weight: 500; color: var(--t1); }
 /* no rodapé ela encolhe com a coluna: a 60 px tem 332 de largura e a 320 px de tela estourava (revisão) */
 .marca--rodape { height: auto; width: min(332px, calc(100vw - 2 * var(--pad))); }
 .nav__logo { display: inline-flex; align-items: center; min-height: 48px; flex: none; }
+/* em tela estreita a logo encolhe para caber ao lado do som e do menu: a 320 px, com 40 px de altura (222 de
+   largura), o botão do menu era empurrado para fora da tela (medido: x = 322). Sobra para a logo: a tela menos
+   as duas margens (--pad), os dois vãos da nav (1rem cada: crescem com a fonte do aparelho), o som e o menu
+   (48 + 48, menos os 8 que o menu avança na margem) e 8 px de folga; 5,557 = largura/altura da logo da nav
+   (viewBox 944,7 × 170). Lapidação do lançamento, 2026-11-11 */
+@media (max-width: 400px) {
+  .marca--nav { height: min(40px, calc((100vw - 2 * var(--pad) - 2rem - 96px) / 5.557)); }
+  /* página sem o botão de som no HTML (o orçamento): sobra o som e um vão. Vale a existência no HTML, não o
+     [hidden]: o som nasce escondido e o JS mostra, e a logo mudaria de tamanho na carga */
+  .nav:not(:has(.nav__som)) .marca--nav { height: min(40px, calc((100vw - 2 * var(--pad) - 1rem - 48px) / 5.557)); }
+}
 .nav__toggle {
   display: flex; width: 48px; height: 48px; flex: none; margin-right: -8px;
   background: none; border: 0; cursor: pointer; border-radius: var(--raio-s);
@@ -477,7 +488,15 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
 }
 .footer__copy { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); color: var(--t3); }
 /* o contato no rodapé (quem rola até o fim procurando "como falo com vocês") e os links legais */
-.footer__brand p.footer__contato { font: 400 .95rem/1.5 var(--sans, inherit); letter-spacing: 0; max-width: none; color: var(--t2); margin-top: 1.1rem; }
+/* um contato por linha: o "·" sobrava sozinho no fim da linha, no celular e também no desktop (a coluna da marca
+   é estreita: a 1440 px ele ficava depois do e-mail). Os "·" ficam no HTML para quem lê sem CSS; na tela (e
+   na árvore de acessibilidade) somem, e cada contato vira uma linha. Lapidação do lançamento, 2026-11-11 */
+.footer__brand p.footer__contato { font: 400 .95rem/1.5 var(--sans, inherit); letter-spacing: 0; max-width: none; color: var(--t2); margin-top: 1.1rem; display: flex; flex-direction: column; align-items: flex-start; }
+.footer__sep { display: none; }
+.footer__contato > span:not(.footer__sep) { display: inline-flex; align-items: center; min-height: 32px; }
+/* o e-mail é uma palavra só: com a fonte do aparelho maior (20 px) ele passava de 320 px e alargava a página
+   inteira (o menu saía da tela junto). Quebra só quando não cabe (medido 2026-11-11) */
+.footer__contato a { overflow-wrap: anywhere; }
 .footer__contato a, .footer__contato button { font: inherit; background: none; border: 0; padding: 0; cursor: pointer; color: var(--t1); text-decoration: underline; text-underline-offset: 3px; display: inline-flex; align-items: center; min-height: 32px; }
 .footer__legal { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1.2rem; }
 .footer__legal a { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); text-decoration: underline; text-underline-offset: 3px; display: inline-flex; align-items: center; min-height: 28px; }
@@ -487,7 +506,7 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
 .footer__cookies:hover { color: var(--t1); }
 /* no dedo, todo alvo do rodapé e o botão pequeno com 44px (WCAG 2.5.8; auditoria 2026-10-09) */
 @media (pointer: coarse) {
-  .footer__legal a, .footer__legal button, .footer__brand > a, .footer__contato a, .footer__contato button { min-height: 44px; }
+  .footer__legal a, .footer__legal button, .footer__brand > a, .footer__contato a, .footer__contato button, .footer__contato > span:not(.footer__sep) { min-height: 44px; }
   .btn--sm { min-height: 44px; }
 }
 .footer__motion, .footer__som { background: none; border: 0; padding: 0; min-height: 28px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
