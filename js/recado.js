@@ -23,7 +23,10 @@
   var TOKEN_VALE_MS = 4 * 60e3;   /* o da Cloudflare vale 5 min: folga para a viagem */
   /* o mesmo formato do contato do site (api/_vendas/fluxo-recado.mjs → ESQ.contatoDoSite); o servidor confere de novo */
   var WHATSAPP = /^\+55[1-9][1-9](9[0-9]{8}|[2-8][0-9]{7})$/;
-  var EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  /* (revisão do #128) a MESMA regra do e-mail do servidor e do banco (ESQ.EMAIL_SITE, em minúsculas): sem ela, "joão@x.com" só voltava
+     como erro depois da viagem */
+  var EMAIL = /^[a-z0-9_%+-]+(\.[a-z0-9_%+-]+)*@([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/;
+  function emailValido(c) { var m = c.toLowerCase(); return m.length <= 120 && m.split('@')[0].length <= 64 && EMAIL.test(m); }
 
   var T = {
     titulo: 'Deixe um recado',
@@ -62,7 +65,7 @@
   function tipoDoContato(contato) {
     var c = String(contato == null ? '' : contato).trim();
     if (!c) return '';
-    if (c.indexOf('@') >= 0) return c.length <= 120 && EMAIL.test(c) ? 'email' : null;
+    if (c.indexOf('@') >= 0) return emailValido(c) ? 'email' : null;
     return whatsappE164(c) ? 'whatsapp' : null;
   }
   /* null se está tudo certo; senão { campo: 'texto' | 'contato', erro: <frase> } */
@@ -127,9 +130,12 @@
     if (adiantado) return;
     garantirCaixa(form);
     var p = carregarTurnstile().then(function (ts) { return ts.token(); });
-    p.catch(function () { /* o envio pede outro */ });
+    /* falhou: sai, e a próxima letra (ou o envio) pede outro */
+    p.catch(function () { if (adiantado && adiantado.promessa === p) adiantado = null; });
     adiantado = { promessa: p, em: Date.now() };
   }
+  /* (revisão do #128) a janela fechou: a caixa do Turnstile saiu da página e o token pendente nunca chegaria */
+  function esquecerToken() { adiantado = null; }
   function tokenParaEnvio() {
     var a = adiantado; adiantado = null;   /* (usado ou não, sai: o token vale uma vez) */
     var novo = function () { return carregarTurnstile().then(function (ts) { return ts.token(); }); };
@@ -283,6 +289,7 @@
   }
   function aoFecharJanela() {
     var alvo = quemAbriu; quemAbriu = null;
+    esquecerToken();
     rascunhoGuardado = mioloDaJanela ? mioloDaJanela.rascunho() : null;
     if (janela && janela.parentNode) janela.parentNode.removeChild(janela);
     janela = null; mioloDaJanela = null;

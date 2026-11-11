@@ -20,9 +20,9 @@ const FORA_DA_ETAPA = 'Os detalhes vêm depois do preço e só uma vez. Se preci
 const TELEFONE = 'Este telefone já tem um pedido aberto ou chegou ao limite de pedidos de hoje. Deixe um recado para a equipe.';
 const MOTIVOS = {
   ja_enviado: { status: 409, texto: FORA_DA_ETAPA },
-  fila_cheia: { status: 503, texto: 'Muita procura agora: a fila de modelos está cheia. Deixe um recado com o seu e-mail e a gente responde.', extra: { fila_cheia: true, recado: true } },
+  fila_cheia: { status: 503, texto: 'Muita procura agora: a fila de modelos está cheia. Deixe um recado com o seu WhatsApp ou e-mail e a gente responde.', extra: { fila_cheia: true, recado: true } },
   /* (limite global por hora: a mesma saída da fila cheia, sem dizer qual dos dois foi) */
-  limite_hora: { status: 503, texto: 'Muita procura agora: a fila de modelos está cheia. Deixe um recado com o seu e-mail e a gente responde.', extra: { fila_cheia: true, recado: true } },
+  limite_hora: { status: 503, texto: 'Muita procura agora: a fila de modelos está cheia. Deixe um recado com o seu WhatsApp ou e-mail e a gente responde.', extra: { fila_cheia: true, recado: true } },
   telefone_aberto: { status: 409, texto: TELEFONE, extra: { recado: true } },
   telefone_dia: { status: 409, texto: TELEFONE, extra: { recado: true } },
   freio_ip: { status: 429, texto: 'Muitos pedidos deste endereço hoje. Deixe um recado para a equipe: a gente responde no contato que você deixar.', extra: { recado: true } },

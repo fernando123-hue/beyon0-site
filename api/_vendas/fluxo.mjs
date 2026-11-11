@@ -120,7 +120,7 @@ function exigirNaoDescartado(est) {
 /* (PR 3b-3) o que se cobra com a conversa em produção é o RESTANTE: só com o interruptor ligado, só com o site no ar, só por Pix. A decisão é pela entrega (passo) e pela etapa
    da conversa, nunca por "existe entrega" (uma entrega encerrada não é entrada paga nem site no ar). O VALOR e a parcela são do banco (pagamentos_iniciar_tentativa), nunca do
    corpo; aqui só a frase certa antes dele. Fora dessas etapas nada muda: a entrada segue o caminho de sempre */
-const RESTANTE_TRAVADO = 'Não foi possível abrir o pagamento do restante agora. A Beyon Zero confere o seu pedido e resolve com você por e-mail: deixe um recado.';
+const RESTANTE_TRAVADO = 'Não foi possível abrir o pagamento do restante agora. A Beyon Zero confere o seu pedido: deixe um recado com o seu WhatsApp ou e-mail e a gente resolve com você.';
 function exigirRestanteAberto(est, corpo, env) {
   const etapa = est.conversa.etapa, passo = est.entrega && est.entrega.passo;
   if (etapa !== 'em_producao' && !(etapa === 'encerrada' && passo)) return;
@@ -561,7 +561,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     async pagar({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
-      exigir(pagamentos, 503, 'O pagamento online ainda não está disponível. Deixe um recado para a equipe, com o seu e-mail, que ela envia o link.');
+      exigir(pagamentos, 503, 'O pagamento online ainda não está disponível. Deixe um recado para a equipe, com o seu WhatsApp ou e-mail, que ela envia o link.');
       /* sem contato (ou com o contato anonimizado pela retenção de 12 meses), o cliente nasceria sem nome nem telefone */
       const est = await estado(vid, corpo.conversa_id);
       exigirNaoDescartado(est);

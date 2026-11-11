@@ -52,7 +52,7 @@ function montar({ orcamento = null, turnstile = null, fetch = null } = {}) {
     localStorage: { setItem: k => registros.push('storage:' + k) }, sessionStorage: { setItem: k => registros.push('storage:' + k) }
   });
   vm.runInContext(FONTE, ctx);
-  return { R: janela.BZRecado, janela, doc, body, head, registros };
+  return { R: janela.BZRecado, janela, doc, body, head, registros, ctx };
 }
 const campos = raiz => ({
   texto: achar(raiz, n => n.tag === 'textarea'), email: achar(raiz, n => n.tag === 'input'), form: achar(raiz, n => n.tag === 'form'),
@@ -291,6 +291,43 @@ test('o token adiantado vale uma vez: um segundo envio (ou um token que falhou) 
   c.form.emitir('submit'); await tick(); await tick(); await tick(); await tick();
   assert.equal(visto.length, 1, 'o adiantado falhou, mas o envio pediu outro e passou');
   assert.equal(visto[0].turnstile, 'novo-2');
+});
+
+test('fechar a janela com o token ainda pendente: reabrir (com o rascunho) e enviar pede outro na hora, sem ficar preso em "Enviando…"', async () => {
+  let pedidos = 0;
+  const turnstile = { token: () => { pedidos++; return pedidos === 1 ? new Promise(() => {}) : Promise.resolve('novo-' + pedidos); } };
+  const visto = [];
+  const fetch = async (url, op) => { visto.push(JSON.parse(op.body)); return { ok: true, status: 200, json: async () => ({ ok: true }) }; };
+  const { R } = montar({ turnstile, fetch });
+  const d = R.abrir({});
+  preencher(campos(d), 'Oi'); await tick();
+  assert.equal(pedidos, 1, 'o token foi adiantado e ficou pendente');
+  d.close();
+  const c = campos(R.abrir({}));
+  assert.equal(c.texto.value, 'Oi', 'o rascunho voltou');
+  c.form.emitir('submit'); await tick(); await tick(); await tick(); await tick();
+  assert.equal(visto.length, 1); assert.equal(visto[0].turnstile, 'novo-2');
+  assert.equal(c.feito.hidden, false);
+});
+
+test('token adiantado velho (passou de 4 min): o envio pede outro', async () => {
+  let pedidos = 0;
+  const turnstile = { token: async () => 'tk-' + (++pedidos) };
+  const visto = [];
+  const fetch = async (url, op) => { visto.push(JSON.parse(op.body)); return { ok: true, status: 200, json: async () => ({ ok: true }) }; };
+  const { R, body, ctx } = montar({ turnstile, fetch });
+  const alvo = secao(body); R.montar(alvo);
+  const c = campos(alvo); preencher(c, 'Oi'); await tick();
+  const agora = Date.now();
+  vm.runInContext(`Date.now = () => ${agora + 5 * 60e3};`, ctx);
+  c.form.emitir('submit'); await tick(); await tick(); await tick(); await tick();
+  assert.equal(visto[0].turnstile, 'tk-2');
+});
+
+test('o e-mail segue a regra do servidor: acento, ponto duplo e domínio sem ponto voltam na hora, sem viagem', () => {
+  const { R } = montar();
+  for (const m of ['joão@x.com', 'a..b@x.com', 'a@b', 'x'.repeat(65) + '@a.com']) assert.equal(R.validar('Oi', m).campo, 'contato', m);
+  assert.equal(R.validar('Oi', 'Ana.Souza@Empresa.com.br'), null, 'maiúscula vale: o servidor guarda em minúsculas');
 });
 
 test('sozinho: resposta de erro do servidor vira a frase dele; o JSON quebrado não derruba a tela', async () => {

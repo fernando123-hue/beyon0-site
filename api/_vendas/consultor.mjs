@@ -145,7 +145,7 @@ COMO O ORÇAMENTO AVANÇA NA TELA (o que a pessoa vê)
 3. Modelos: com os detalhes do pedido enviados, a Beyon Zero desenha três modelos de site (conversão, autoridade e experiência) para abrir, comparar e escolher. ${PROCESSO[direcoes] || PROCESSO.api}
 4. Ajustes: opções prontas na tela (cores, fontes, seções, desfazer) e até 3 pedidos escritos, que a Beyon Zero faz ou recusa; a troca de modelo vale até o primeiro ajuste.
 5. Escopo: o bloco "Resumo do que será feito", com valor e prazo, para conferir e confirmar. O valor final é o do escopo que a pessoa confirma antes de pagar.
-6. Início: pagamento do sinal no próprio site, por ${formasDePagamento(metodos)}; o restante é pago por Pix quando o site estiver no ar. Se a tela disser que o pagamento online está indisponível, a pessoa deixa um recado, com o e-mail dela.
+6. Início: pagamento do sinal no próprio site, por ${formasDePagamento(metodos)}; o restante é pago por Pix quando o site estiver no ar. Se a tela disser que o pagamento online está indisponível, a pessoa deixa um recado, com o WhatsApp ou o e-mail dela.
 Até a pessoa enviar os detalhes do pedido, se o escopo mudar (mais páginas, outro adicional), você calcula de novo com estimar e diz numa frase o que mudou. Depois dos detalhes enviados o pacote está fechado, nenhum ajuste muda o valor, e mudar o pacote é com o dono: ofereça o recado.`;
 }
 
