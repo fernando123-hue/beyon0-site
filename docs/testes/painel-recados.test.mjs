@@ -44,6 +44,17 @@ test('recados: lista origem, data, texto e e-mail como texto puro, e o bloco apa
   assert.match(m.ids['recados-estado'].textContent, /1 recado novo \(de 1\)/);
 });
 
+test('recados: com WhatsApp mostra o número para responder (e o e-mail, se houver os dois); sem nenhum contato avisa', async () => {
+  const m = montar([{ recados: [recado({ email: null, whatsapp: '+5521999990001' }), recado({ id: ID.replace('1111-4', '2222-4'), whatsapp: '+5521999990001' })], total: 2, nao_lidos: 2 }]);
+  m.entrar(); await esperar();
+  const textos = todos(m.ids.recados).map(n => n.textContent);
+  assert.ok(textos.includes('Responder pelo WhatsApp: +55 21 99999-0001'), textos.join(' | '));
+  assert.ok(textos.includes('Responder pelo WhatsApp: +55 21 99999-0001 ou para: ana@exemplo.com'));
+  const m2 = montar([{ recados: [recado({ email: null, whatsapp: null })], total: 1, nao_lidos: 1 }]);
+  m2.entrar(); await esperar();
+  assert.ok(todos(m2.ids.recados).some(n => n.textContent === 'Sem WhatsApp nem e-mail: não tem como responder.'));
+});
+
 test('recados: sem nenhum, frase curta', async () => {
   const m = montar([{ recados: [], total: 0, nao_lidos: 0 }]);
   m.entrar(); await esperar();
@@ -54,7 +65,7 @@ test('recados: sem e-mail avisa que não há como responder; suspeito ganha o av
   const m = montar([{ recados: [recado({ email: null, suspeito: true })], total: 1, nao_lidos: 1 }]);
   m.entrar(); await esperar();
   const textos = todos(m.ids.recados).map(n => n.textContent);
-  assert.ok(textos.some(t => t.startsWith('Sem e-mail')));
+  assert.ok(textos.some(t => t.startsWith('Sem WhatsApp nem e-mail')));
   assert.ok(textos.some(t => t.startsWith('Atenção: o texto parece dar ordens')));
 });
 

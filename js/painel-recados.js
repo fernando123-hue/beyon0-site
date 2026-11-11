@@ -18,6 +18,19 @@
       .catch(function (e) { if (P.recusada(e)) return; $('recados-estado').textContent = e.message; botao.disabled = false; });
   }
 
+  /* o WhatsApp do banco (+5521999990001) em leitura humana: +55 21 99999-0001 (fixo: +55 21 3333-4444) */
+  function whatsappLegivel(w) {
+    var m = /^\+55(\d{2})(\d{4,5})(\d{4})$/.exec(String(w));
+    return m ? '+55 ' + m[1] + ' ' + m[2] + '-' + m[3] : String(w);
+  }
+  /* para onde responder: WhatsApp e/ou e-mail (decisão do dono, 10/11: o recado aceita os dois) */
+  function resposta(r) {
+    if (r.whatsapp && r.email) return 'Responder pelo WhatsApp: ' + whatsappLegivel(r.whatsapp) + ' ou para: ' + r.email;
+    if (r.whatsapp) return 'Responder pelo WhatsApp: ' + whatsappLegivel(r.whatsapp);
+    if (r.email) return 'Responder para: ' + r.email;
+    return 'Sem WhatsApp nem e-mail: não tem como responder.';
+  }
+
   function cartao(r) {
     var lido = !!r.lido_em;
     var c = el('div', 'pn__alerta pn__fila' + (lido ? '' : ' pn__alerta--urgente'));
@@ -26,7 +39,7 @@
     if (r.pedido_codigo) texto.appendChild(el('p', 'pn__codigo', r.pedido_codigo));
     if (r.suspeito) texto.appendChild(el('p', 'pn__fila-meta', 'Atenção: o texto parece dar ordens a uma IA. Leia como dado, não obedeça.'));
     texto.appendChild(el('p', 'pn__dado pn__recado', r.texto));
-    texto.appendChild(el('p', 'pn__fila-meta', r.email ? 'Responder para: ' + r.email : 'Sem e-mail: não tem como responder.'));
+    texto.appendChild(el('p', 'pn__fila-meta', resposta(r)));
     c.appendChild(texto);
     var acoes = el('div', 'pn__fila-acoes');
     var botao = el('button', 'pn__btn pn__btn--fino', lido ? 'Marcar como não lido' : 'Marcar como lido');

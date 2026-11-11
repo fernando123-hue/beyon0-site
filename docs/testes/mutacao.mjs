@@ -517,12 +517,16 @@ export const SABOTAGENS = [
   { nome: "a tabela da sombra abre a leitura para o anon", arquivo: '20261110120000_jev_sombra.sql', testes: ['docs/testes/jev-sombra-banco.test.mjs'],
     acrescentar: '\ngrant usage on schema app to anon;\ngrant select on app.jev_sombra to anon;\n' },
   /* ---- 29/10: o recado, o único lugar de feedback do site ---- */
-  { nome: "o recado liga a conversa de OUTRO visitante (vaza que ela existe e mistura recados)", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs'],
+  { nome: "o recado liga a conversa de OUTRO visitante (vaza que ela existe e mistura recados)", arquivo: '20261111120000_recado_whatsapp.sql', testes: ['docs/testes/recado-banco.test.mjs'],
     de: "and visitante_id = (p ->> 'visitante_id')::uuid and org_id = v_org", para: "and org_id = v_org" },
-  { nome: "o recado sem freio por IP (o sexto passa)", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs', 'docs/testes/recado-api.test.mjs'],
+  { nome: "o recado sem freio por IP (o sexto passa)", arquivo: '20261111120000_recado_whatsapp.sql', testes: ['docs/testes/recado-banco.test.mjs', 'docs/testes/recado-api.test.mjs'],
     de: "'recado|ip|' || (p ->> 'chave_ip'), 5)", para: "'recado|ip|' || (p ->> 'chave_ip'), 500000)" },
-  { nome: "o recado sem teto do dia", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs'],
+  { nome: "o recado sem teto do dia", arquivo: '20261111120000_recado_whatsapp.sql', testes: ['docs/testes/recado-banco.test.mjs'],
     de: "'recado|dia|' || v_org, 200)", para: "'recado|dia|' || v_org, 2000000)" },
+  /* (#128) as funções do recado foram recriadas na migration do WhatsApp: as três sabotagens acima miram nela (na antiga, a nova
+     as sobrescreve e o mutante escaparia). E o WhatsApp fora do formato precisa ser recusado pela função, com a frase de recado inválido */
+  { nome: "o recado aceita WhatsApp fora do formato do site", arquivo: '20261111120000_recado_whatsapp.sql', testes: ['docs/testes/recado-banco.test.mjs'],
+    de: "or (v_whatsapp is not null and v_whatsapp !~", para: "or (false and v_whatsapp !~" },
   { nome: "a retenção do recado passa de 60 para 600 dias", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs'],
     de: "coalesce((p ->> 'dias')::integer, 60); v_n integer;", para: "coalesce((p ->> 'dias')::integer, 600); v_n integer;" },
   { nome: "a tabela de recados abre a leitura para o anon", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs'],
