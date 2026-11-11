@@ -25,9 +25,9 @@ const MOTIVOS = {
   limite_hora: { status: 503, texto: 'Muita procura agora: a fila de modelos está cheia. Deixe um recado com o seu e-mail e a gente responde.', extra: { fila_cheia: true, recado: true } },
   telefone_aberto: { status: 409, texto: TELEFONE, extra: { recado: true } },
   telefone_dia: { status: 409, texto: TELEFONE, extra: { recado: true } },
-  freio_ip: { status: 429, texto: 'Muitos pedidos deste endereço hoje. Deixe um recado para a equipe: a gente responde por e-mail.', extra: { recado: true } },
+  freio_ip: { status: 429, texto: 'Muitos pedidos deste endereço hoje. Deixe um recado para a equipe: a gente responde no contato que você deixar.', extra: { recado: true } },
   /* (revisão final, M2) a mesma conversa tentou demais: não diz nada do número */
-  tentativas: { status: 429, texto: 'Muitas tentativas neste pedido. Deixe um recado para a equipe: a gente responde por e-mail.', extra: { recado: true } }
+  tentativas: { status: 429, texto: 'Muitas tentativas neste pedido. Deixe um recado para a equipe: a gente responde no contato que você deixar.', extra: { recado: true } }
 };
 
 /* a recusa de um motivo do banco; motivo que este servidor não conhece (migration à frente do código) vira o 409 de
@@ -39,7 +39,11 @@ export function recusaDoMotivo(r, requestId) {
   return new Recusa(m.status, m.texto, m.extra);
 }
 
-export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites = PEDIDOS, requestId, avisar = avisarDono }) {
+/* o aviso ao dono vai em segundo plano (waitUntil no Worker): a pessoa não espera o e-mail sair. A promessa nunca rejeita */
+const soltarAviso = p => { Promise.resolve(p).catch(() => {}); };
+
+export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites = PEDIDOS, requestId, avisar = avisarDono, segundoPlano = soltarAviso }) {
+  const avisarAoFundo = tipo => segundoPlano(Promise.resolve().then(() => avisar(env, tipo)).catch(() => false));
   const local = !!env && ambienteDe(env) === 'local';   /* sem o ambiente: fecha */
   /* um freio do pedido faltando: nada é gravado, a pessoa recebe a saída pelo recado e o log diz qual */
   function indisponivel(evento) {
@@ -77,12 +81,12 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limite
       if (!r || r.ok !== true) {
         if (r && (r.motivo === 'fila_cheia' || r.motivo === 'limite_hora')) {
           console.log(JSON.stringify({ origem: 'pedido', nivel: 'aviso', request_id: requestId, evento: 'pedido recusado', motivo: r.motivo }));   /* (rastro no log: o aviso ao dono hoje não tem canal) */
-          await avisar(env, 'fila_cheia');   /* (aviso urgente, sem dado pessoal) */
+          avisarAoFundo('fila_cheia');   /* (aviso urgente, sem dado pessoal) */
         }
         throw recusaDoMotivo(r, requestId);
       }
       /* (o pedido já está no banco e no painel; o aviso é texto fixo, sem dado do cliente, e hoje não tem canal; a última vaga vira o aviso urgente) */
-      await avisar(env, r.fila_cheia ? 'fila_cheia' : 'pedido');
+      avisarAoFundo(r.fila_cheia ? 'fila_cheia' : 'pedido');
       return { codigo: r.codigo, status: 'confirmado' };
     }
   };

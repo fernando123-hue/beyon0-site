@@ -21,7 +21,7 @@
 import { normalizar } from './promessa.mjs';
 
 /* ---------- textos fixos ---------- */
-export const RECADO_FIXO = 'Se quiser, toque em DEIXAR UM RECADO aqui embaixo. O dono lê e responde por e-mail.';
+export const RECADO_FIXO = 'Se quiser, toque em DEIXAR UM RECADO aqui embaixo. O dono lê e responde no contato que você deixar.';
 const SEM_VALOR = 'Esse valor eu ainda não tenho aqui.';
 
 /* a primeira fala (texto fixo e aprovado; sem chamar o modelo até a pessoa escrever) e as variantes por página de origem.

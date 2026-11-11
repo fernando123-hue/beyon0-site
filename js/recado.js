@@ -1,6 +1,7 @@
 /* ==========================================================================
    O RECADO: o único lugar de feedback do site (decisão do dono, 28/10: sem botão de WhatsApp e sem acesso direto; o consultor de IA é
-   o contato, e "no máximo um local para feedback" é este). Um formulário curto: o texto e o e-mail (opcional, para a resposta).
+   o contato, e "no máximo um local para feedback" é este). Um formulário curto: o texto e um contato opcional para a resposta, WhatsApp OU
+   e-mail num campo só (dono, 10/11: "Não torne obrigatório o cliente por email. permita ele por o zap se desejar").
    • Dois jeitos, o mesmo miolo: INLINE, num elemento <... data-recado data-recado-origem="sites"> da página (monta sozinho), ou em JANELA
      (<dialog>), aberta por BZRecado.abrir({ origem, quem }) ou por qualquer [data-recado-abrir]. A janela é criada aqui, não precisa de HTML.
    • Estados: pronto → enviando (botão travado, aria-busy) → enviado (a mensagem recebe o foco) ou erro (frase em português, o texto fica,
@@ -8,6 +9,9 @@
    • O envio: dentro do orçamento usa BZOrcamento.recado (leva a conversa como referência e o anti-robô da página); nas outras páginas, o
      próprio fetch para /api/vendas?acao=recado, com o Turnstile (js/orcamento-turnstile.js, carregado aqui quando faltar). O servidor
      decide tudo (api/_vendas/fluxo-recado.mjs): aqui só se confere o óbvio para não gastar uma viagem.
+   • RÁPIDO (dono, 10/11: "a mensagem demora muito para ser enviada"): sozinho, abrir o recado já carrega a verificação (aquecer) e a
+     primeira letra digitada já pede o token; o clique em Enviar só manda. O token vale uma vez e por 5 minutos: velho, usado ou que
+     falhou, o envio pede outro na hora.
    • Sem blur e sem brilho: o estilo é css/recado.css, que este script puxa sozinho quando a página não o linkou.
    Dados do texto: nunca vão para console nem para armazenamento.
    ========================================================================== */
@@ -16,25 +20,28 @@
   var MAX = 1000;
   var ENDERECO = '/api/vendas?acao=recado';
   var LIMITE_MS = 20000;   /* o servidor confere o anti-robô na Cloudflare: dá tempo, mas não para sempre */
-  /* o mesmo formato do e-mail do site (api/_vendas/fluxo-recado.mjs → ESQ.contatoDoSite); o servidor confere de novo */
+  var TOKEN_VALE_MS = 4 * 60e3;   /* o da Cloudflare vale 5 min: folga para a viagem */
+  /* o mesmo formato do contato do site (api/_vendas/fluxo-recado.mjs → ESQ.contatoDoSite); o servidor confere de novo */
+  var WHATSAPP = /^\+55[1-9][1-9](9[0-9]{8}|[2-8][0-9]{7})$/;
   var EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
   var T = {
     titulo: 'Deixe um recado',
-    intro: 'Escreva o que você precisa. A equipe da Beyon Zero lê e responde por e-mail.',
+    intro: 'Escreva o que você precisa. A equipe da Beyon Zero lê e responde.',
     rotuloTexto: 'O seu recado',
-    rotuloEmail: 'Seu e-mail, para a resposta (opcional)',
-    dicaEmail: 'Sem e-mail a gente não consegue responder.',
-    aviso: 'Usamos o e-mail só para responder. O recado é apagado em 60 dias.',
+    rotuloContato: 'Seu WhatsApp ou e-mail, para a resposta (opcional)',
+    dicaContato: 'Se quiser resposta, deixe um dos dois.',
+    aviso: 'Usamos o contato só para responder. O recado é apagado em 60 dias.',
     enviar: 'Enviar recado',
     enviando: 'Enviando…',
     fechar: 'Fechar',
     feito: 'Recebemos o seu recado.',
     feitoComEmail: 'A resposta chega por e-mail.',
-    feitoSemEmail: 'Como você não deixou e-mail, não vamos conseguir responder.',
+    feitoComWhatsapp: 'A gente responde pelo WhatsApp.',
+    feitoSemContato: 'Como você não deixou WhatsApp nem e-mail, não vamos conseguir responder.',
     semTexto: 'Escreva o seu recado antes de enviar.',
     grande: 'O recado passou de 1.000 caracteres. Resuma um pouco.',
-    emailRuim: 'O e-mail não parece certo. Confira (ex.: nome@empresa.com.br) ou deixe o campo vazio.',
+    contatoRuim: 'Confira o WhatsApp com DDD (ex.: 21 99999-0000) ou o e-mail (ex.: nome@empresa.com.br), ou deixe o campo vazio.',
     semRede: 'Sem conexão. Confira a internet e tente de novo.',
     demorou: 'A resposta demorou mais que o normal. Tente de novo em instantes.',
     generico: 'Não consegui enviar agora. Tente de novo em instantes.',
@@ -44,19 +51,33 @@
 
   /* ---------- as regras que não dependem da tela (testadas em docs/testes/recado-front.test.mjs) ---------- */
   function contar(texto) { return Array.from(String(texto == null ? '' : texto)).length; }
-  /* null se está tudo certo; senão { campo: 'texto' | 'email', erro: <frase> } */
-  function validar(texto, email) {
-    var t = String(texto == null ? '' : texto).trim(), m = String(email == null ? '' : email).trim();
+  /* o WhatsApp como a pessoa digita ("(21) 99999-0001", "+55 21 ...") → +55 com DDD; null se não fecha (a regra de ESQ.telefoneE164) */
+  function whatsappE164(v) {
+    if (v.length > 30 || !/^\+?[0-9\s().-]+$/.test(v)) return null;
+    var d = v.replace(/\D/g, '');
+    var completo = (d.length === 12 || d.length === 13) && d.slice(0, 2) === '55' ? d : d.length === 10 || d.length === 11 ? '55' + d : null;
+    return completo && WHATSAPP.test('+' + completo) ? '+' + completo : null;
+  }
+  /* o tipo do contato: 'email', 'whatsapp', '' (vazio) ou null (não fecha) */
+  function tipoDoContato(contato) {
+    var c = String(contato == null ? '' : contato).trim();
+    if (!c) return '';
+    if (c.indexOf('@') >= 0) return c.length <= 120 && EMAIL.test(c) ? 'email' : null;
+    return whatsappE164(c) ? 'whatsapp' : null;
+  }
+  /* null se está tudo certo; senão { campo: 'texto' | 'contato', erro: <frase> } */
+  function validar(texto, contato) {
+    var t = String(texto == null ? '' : texto).trim();
     if (!t) return { campo: 'texto', erro: T.semTexto };
     if (contar(t) > MAX) return { campo: 'texto', erro: T.grande };
-    if (m && (m.length > 120 || !EMAIL.test(m))) return { campo: 'email', erro: T.emailRuim };
+    if (tipoDoContato(contato) === null) return { campo: 'contato', erro: T.contatoRuim };
     return null;
   }
   /* o corpo que vai ao servidor: só o que foi preenchido; a origem e a conversa são rótulos, nunca texto livre */
-  function corpoDoEnvio(texto, email, origem) {
+  function corpoDoEnvio(texto, contato, origem) {
     var corpo = { texto: String(texto).trim() };
-    var m = String(email == null ? '' : email).trim();
-    if (m) corpo.email = m;
+    var c = String(contato == null ? '' : contato).trim();
+    if (c) corpo.contato = c;
     if (origem) corpo.origem = origem;
     return corpo;
   }
@@ -96,9 +117,28 @@
     caixa.className = 'recado__antirobo';
     form.appendChild(caixa);
   }
+  /* a verificação adiantada (só no envio próprio): { promessa, em } do token pedido antes do clique; vale uma vez */
+  var adiantado = null;
+  function aquecer(form) {
+    garantirCaixa(form);
+    carregarTurnstile().then(function (ts) { return typeof ts.aquecer === 'function' ? ts.aquecer() : null; }).catch(function () { /* o envio tenta de novo */ });
+  }
+  function adiantarToken(form) {
+    if (adiantado) return;
+    garantirCaixa(form);
+    var p = carregarTurnstile().then(function (ts) { return ts.token(); });
+    p.catch(function () { /* o envio pede outro */ });
+    adiantado = { promessa: p, em: Date.now() };
+  }
+  function tokenParaEnvio() {
+    var a = adiantado; adiantado = null;   /* (usado ou não, sai: o token vale uma vez) */
+    var novo = function () { return carregarTurnstile().then(function (ts) { return ts.token(); }); };
+    if (!a || Date.now() - a.em > TOKEN_VALE_MS) return novo();
+    return a.promessa.catch(novo);
+  }
   function enviarProprio(corpo, form) {
     garantirCaixa(form);
-    return carregarTurnstile().then(function (ts) { return ts.token(); }).then(function (token) {
+    return tokenParaEnvio().then(function (token) {
       var cab = { 'content-type': 'application/json' };
       var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
       var relogio = ctrl ? setTimeout(function () { ctrl.abort(); }, LIMITE_MS) : null;
@@ -144,11 +184,12 @@
     campoTexto.appendChild(rotuloTexto); campoTexto.appendChild(texto); campoTexto.appendChild(contador);
 
     var campoEmail = el('div', 'recado__campo');
-    var rotuloEmail = el('label', 'recado__rotulo', T.rotuloEmail); rotuloEmail.setAttribute('for', 'recado-email-' + n);
-    var email = el('input', 'recado__entrada'); email.id = 'recado-email-' + n; email.name = 'email'; email.type = 'email';
-    email.setAttribute('autocomplete', 'email'); email.setAttribute('inputmode', 'email'); email.setAttribute('autocapitalize', 'off'); email.setAttribute('spellcheck', 'false');
+    var rotuloEmail = el('label', 'recado__rotulo', T.rotuloContato); rotuloEmail.setAttribute('for', 'recado-contato-' + n);
+    /* (um campo só para WhatsApp ou e-mail: texto comum, sem corretor nem maiúscula automática) */
+    var email = el('input', 'recado__entrada'); email.id = 'recado-contato-' + n; email.name = 'contato'; email.type = 'text';
+    email.setAttribute('autocomplete', 'on'); email.setAttribute('autocapitalize', 'off'); email.setAttribute('spellcheck', 'false');
     email.setAttribute('aria-describedby', 'recado-dica-' + n);
-    var dica = el('span', 'recado__dica', T.dicaEmail); dica.id = 'recado-dica-' + n;
+    var dica = el('span', 'recado__dica', T.dicaContato); dica.id = 'recado-dica-' + n;
     campoEmail.appendChild(rotuloEmail); campoEmail.appendChild(email); campoEmail.appendChild(dica);
 
     var aviso = el('p', 'recado__aviso', T.aviso);
@@ -176,8 +217,8 @@
     function mostrarErro(frase, campo) {
       erro.textContent = frase; erro.hidden = false;
       texto.setAttribute('aria-invalid', campo === 'texto' ? 'true' : 'false');
-      email.setAttribute('aria-invalid', campo === 'email' ? 'true' : 'false');
-      (campo === 'email' ? email : campo === 'texto' ? texto : erro).focus();
+      email.setAttribute('aria-invalid', campo === 'contato' ? 'true' : 'false');
+      (campo === 'contato' ? email : campo === 'texto' ? texto : erro).focus();
     }
     function limparErro() { erro.hidden = true; erro.textContent = ''; texto.removeAttribute('aria-invalid'); email.removeAttribute('aria-invalid'); }
     function travar(sim) {
@@ -186,11 +227,11 @@
       botao.textContent = sim ? T.enviando : T.enviar;
       form.setAttribute('aria-busy', sim ? 'true' : 'false');
     }
-    function concluir(comEmail) {
+    function concluir(tipo) {
       miolo.hidden = true;
       feito.textContent = '';
       feito.appendChild(el('p', null, T.feito));
-      feito.appendChild(el('p', null, comEmail ? T.feitoComEmail : T.feitoSemEmail));
+      feito.appendChild(el('p', null, tipo === 'email' ? T.feitoComEmail : tipo === 'whatsapp' ? T.feitoComWhatsapp : T.feitoSemContato));
       if (opcoes && typeof opcoes.aoFechar === 'function') {
         var ok = el('button', 'recado__botao', T.fechar); ok.type = 'button';
         ok.addEventListener('click', function () { opcoes.aoFechar(); });
@@ -200,7 +241,12 @@
       feito.focus();
     }
     if (opcoes && opcoes.rascunho) { texto.value = opcoes.rascunho.texto; email.value = opcoes.rascunho.email; atualizarContador(); }
-    texto.addEventListener('input', function () { atualizarContador(); if (!erro.hidden) limparErro(); });
+    var proprio = !(window.BZOrcamento && typeof window.BZOrcamento.recado === 'function');   /* (no orçamento o anti-robô é da página) */
+    if (proprio) aquecer(form);
+    texto.addEventListener('input', function () {
+      atualizarContador(); if (!erro.hidden) limparErro();
+      if (proprio && String(texto.value).trim()) adiantarToken(form);
+    });
     email.addEventListener('input', function () { if (!erro.hidden) limparErro(); });
     form.addEventListener('submit', function (ev) {
       if (ev && ev.preventDefault) ev.preventDefault();
@@ -209,9 +255,9 @@
       if (v) { mostrarErro(v.erro, v.campo); return; }
       limparErro();
       travar(true);
-      var comEmail = !!String(email.value).trim();
+      var tipo = tipoDoContato(email.value);
       Promise.resolve().then(function () { return enviar(corpoDoEnvio(texto.value, email.value, origem), form); })
-        .then(function () { travar(false); texto.value = ''; email.value = ''; atualizarContador(); concluir(comEmail); },
+        .then(function () { travar(false); texto.value = ''; email.value = ''; atualizarContador(); concluir(tipo); },
           function (e) { travar(false); mostrarErro(fraseDaFalha(e), null); });
     });
     /* o que ficou digitado e não foi enviado (null se nada ou se já foi enviado) */

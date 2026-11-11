@@ -38,6 +38,26 @@ test('o recado entra sem sessão: 200 { ok: true }, texto e e-mail gravados, sem
   assert.deepEqual([l.texto, l.email, l.origem, l.conversa_id, l.lido_em], ['Queria saber se vocês fazem site para clínica.', 'ana@exemplo.com.br', 'consultor', null, null]);
 });
 
+test('o contato é WhatsApp OU e-mail num campo só (contato): o WhatsApp vira +55 com DDD, o e-mail vai em minúsculas; o campo antigo email segue valendo', async () => {
+  await limpar();
+  const n = navegador();
+  for (const [contato, esperado] of [['(21) 99999-0001', ['+5521999990001', null]], ['+55 21 3333-4444', ['+552133334444', null]], [' Ana@Exemplo.com.br ', [null, 'ana@exemplo.com.br']], ['', [null, null]]]) {
+    await limpar();
+    const r = await n({ texto: 'Me responde?', contato });
+    assert.equal(r.status, 200, contato);
+    const [l] = await linhas();
+    assert.deepEqual([l.whatsapp, l.email], esperado, contato);
+  }
+  await limpar();
+  assert.equal((await n({ texto: 'Oi', email: 'velho@exemplo.com.br' })).status, 200, 'a página em cache (campo email) não quebra');
+  assert.equal((await linhas())[0].email, 'velho@exemplo.com.br');
+  for (const contato of ['123', '(21) 9999', 'a@b', 'oi tudo bem', 5]) {
+    const r = await n({ texto: 'Oi', contato });
+    assert.equal(r.status, 422, String(contato)); assert.match(r.corpo.erro, /WhatsApp com DDD/);
+  }
+  assert.equal((await n({ texto: 'Oi', contato: 'a@b.com.br', email: 'c@d.com.br' })).status, 400, 'os dois campos juntos: ambíguo');
+});
+
 test('o telefone, o e-mail e os números soltos que a pessoa escreveu no texto saem (o contato é só o campo de e-mail); as quebras de linha ficam', async () => {
   await limpar();
   const r = await navegador()({ texto: 'Me chama no (21) 99999-0001 ou em joao@x.com.br.\nObrigado' });
@@ -210,6 +230,22 @@ test('a rotina diária apaga os recados vencidos (1 subpedido a mais) e a falha 
   assert.equal(ruim.ok, false);
   assert.match(falhas[0] || '', /recados/);
   assert.ok(vistos.includes('rotinas_conferir'), 'a conferência da saúde roda mesmo assim');
+});
+
+test('rápido: o recado responde sem esperar o e-mail de aviso ao dono (o aviso vai em segundo plano, e a falha dele não derruba o recado)', async () => {
+  const { criarAcoesDoRecado } = await import('../../api/_vendas/fluxo-recado.mjs');
+  const fundo = []; let avisou = false, soltar;
+  const avisar = () => new Promise(r => { soltar = () => { avisou = true; r(true); }; });
+  const banco = async () => ({ ok: true });
+  const req = new Request(BASE + '/api/vendas?acao=recado', { method: 'POST', headers: { 'x-forwarded-for': '203.0.113.251' } });
+  const a = criarAcoesDoRecado({ banco, visitantes: {}, segredoFreio: null, env: {}, avisar, segundoPlano: p => fundo.push(p) });
+  assert.deepEqual(await a.recado({ request: req, corpo: { texto: 'oi' } }), { ok: true }, 'respondeu com o aviso ainda pendente');
+  assert.equal(avisou, false);
+  assert.equal(fundo.length, 1, 'o aviso foi entregue ao segundo plano (waitUntil no Worker)');
+  soltar(); await fundo[0]; assert.equal(avisou, true);
+  const b = criarAcoesDoRecado({ banco, visitantes: {}, segredoFreio: null, env: {}, avisar: async () => { throw new Error('caiu'); }, segundoPlano: p => fundo.push(p) });
+  assert.deepEqual(await b.recado({ request: req, corpo: { texto: 'oi' } }), { ok: true });
+  await assert.doesNotReject(fundo[1], 'a promessa do segundo plano nunca rejeita');
 });
 
 test('fora do local, sem a chave do IP (sem segredo ou cabeçalho que não é IP) o recado fecha com 503 em vez de pular o freio do banco', async () => {

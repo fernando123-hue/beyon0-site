@@ -218,7 +218,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     const r = await banco('vendas_reservar_ia', { conversa_id: conversaId, visitante_id: vid, max_turnos: TETOS.turnos_por_conversa, teto_usd: TETOS.conversa_usd,
       segundos: TRAVA_IA_S, chave_ip: request ? chaveDoIp(ip, segredoFreio, agora) : null, max_por_ip: TETOS.conversas_por_ip_dia,
       chave_ip48: request ? chaveDoIp48(ip, segredoFreio, agora, USO_IP48_IA) : null, max_por_ip48: TETOS.conversas_por_ip48_dia });
-    if (r && r.ok === false && r.freio_ip) throw new Recusa(429, 'Muitas conversas deste endereço hoje. Deixe um recado para a equipe: a gente responde por e-mail.', { recado: true });
+    if (r && r.ok === false && r.freio_ip) throw new Recusa(429, 'Muitas conversas deste endereço hoje. Deixe um recado para a equipe: a gente responde no contato que você deixar.', { recado: true });
   }
   /* RESERVA um valor REALISTA da chamada (RESERVA_USD em api/_ia/config.mjs) no teto antes de chamar o modelo
      (app.vendas_reservar_custo, numa transação que trava a organização): chamadas em paralelo não passam mais todas pela
@@ -339,7 +339,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   }
 
   /* os detalhes e o pedido (PR 2a): api/_vendas/fluxo-pedido.mjs */
-  const acoesDoPedido = criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites: limitesPedido, requestId });
+  const acoesDoPedido = criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites: limitesPedido, requestId, segundoPlano });
 
   return {
     ...acoesDoPedido,
@@ -348,7 +348,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     ...criarAcoesDoMaterial({ banco, visitante, estado, armazem, segredoFreio, requestId, env }),
     ...criarAcoesDoLink({ banco, visitante, visitantes, segredoFreio, env }),
     ...criarAcoesDaPrevia({ banco, visitante, estado, env }),
-    ...criarAcoesDoRecado({ banco, visitantes, segredoFreio, env }),
+    ...criarAcoesDoRecado({ banco, visitantes, segredoFreio, env, segundoPlano }),
 
     /* começar: cria o visitante anônimo e a conversa, com a origem da visita (das métricas, sem dado pessoal) */
     async sessao({ corpo }) {

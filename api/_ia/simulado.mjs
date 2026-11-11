@@ -94,7 +94,7 @@ function conversa({ mensagens, contexto, ferramentas = [] }) {
     if (gatilho && res.some(r => r.ok === false && Array.isArray(r.erros))) return resposta('', [{ id: id(), nome: 'desenhar_planta', entrada: plantaDoDuble(gatilho[1].toLowerCase() === 'ruim2') }]);
     const gl = gatilhoDeLeitura(mensagens);
     if (gl && res.some(r => r.ok === false && Array.isArray(r.erros) && r.erros.some(e => /^eixo/.test(e)))) return resposta('', [{ id: id(), nome: 'ler_caso', entrada: leituraDoDuble(gl[1].toLowerCase() === 'ruim2' ? 'ruim2' : 'sim', falasDoVisitante(mensagens)) }]);
-    if (res.some(r => r.encaminhar_diagnostico)) return resposta('O que você descreveu pede uma conversa de diagnóstico, porque não tem estimativa automática. Quer deixar um recado para a equipe? Ela lê e responde por e-mail.');
+    if (res.some(r => r.encaminhar_diagnostico)) return resposta('O que você descreveu pede uma conversa de diagnóstico, porque não tem estimativa automática. Quer deixar um recado para a equipe? Ela lê e responde no contato que você deixar.');
     /* o próximo passo do código diz que a Beyon Zero não faz o que foi pedido (dono, 2026-10-28): a resposta honesta, sem diagnóstico */
     const naoFaz = res.map(r => r.proximo_passo).find(p => typeof p === 'string' && /não faz (isso )?hoje/.test(p));
     if (naoFaz && /loja feita do zero/.test(naoFaz)) return resposta('Loja feita do zero, em código próprio, a Beyon Zero não faz hoje. Uma loja em plataforma pronta, como Nuvemshop ou Shopify, com a cara da sua marca, resolve para você?');

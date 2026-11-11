@@ -63,7 +63,7 @@ const campos = raiz => ({
 const preencher = (c, texto, email = '') => { c.texto.value = texto; c.email.value = email; c.texto.emitir('input'); };
 const secao = (body, origem) => { const a = no('section'); if (origem) a.setAttribute('data-recado-origem', origem); body.appendChild(a); return a; };
 
-test('validar: texto obrigatório (espaços não contam), até 1.000 caracteres inteiros, e-mail opcional mas conferido', () => {
+test('validar: texto obrigatório (espaços não contam), até 1.000 caracteres inteiros, contato (WhatsApp OU e-mail) opcional mas conferido', () => {
   const { R } = montar();
   assert.equal(R.validar('Oi, tudo bem?', ''), null);
   assert.equal(R.validar('Oi', 'ana@exemplo.com.br'), null);
@@ -71,13 +71,16 @@ test('validar: texto obrigatório (espaços não contam), até 1.000 caracteres 
   assert.equal(R.validar('x'.repeat(1000), ''), null, '1000 cabe');
   assert.equal(R.validar('x'.repeat(1001), '').campo, 'texto');
   assert.equal(R.validar('😀'.repeat(1000), ''), null, 'conta caractere inteiro, não unidade UTF-16');
-  for (const m of ['a@b', 'a b@c.com', 'sem-arroba', '@x.com']) assert.equal(R.validar('Oi', m).campo, 'email', m);
+  for (const w of ['(21) 99999-0001', '21999990001', '+55 21 99999-0001', '21 3333-4444']) assert.equal(R.validar('Oi', w), null, w);
+  for (const m of ['a@b', 'a b@c.com', 'sem-arroba', '@x.com', '123', '(21) 9999', '99999-0001']) assert.equal(R.validar('Oi', m).campo, 'contato', m);
+  assert.match(R.validar('Oi', 'isso-nao').erro, /WhatsApp com DDD.*e-mail.*deixe o campo vazio/);
 });
 
 test('corpoDoEnvio: só o que foi preenchido, texto aparado; origem é rótulo', () => {
   const { R } = montar();
   assert.deepEqual({ ...R.corpoDoEnvio('  Oi  ', '', 'sites') }, { texto: 'Oi', origem: 'sites' });
-  assert.deepEqual({ ...R.corpoDoEnvio('Oi', ' ana@exemplo.com.br ') }, { texto: 'Oi', email: 'ana@exemplo.com.br' });
+  assert.deepEqual({ ...R.corpoDoEnvio('Oi', ' ana@exemplo.com.br ') }, { texto: 'Oi', contato: 'ana@exemplo.com.br' });
+  assert.deepEqual({ ...R.corpoDoEnvio('Oi', ' (21) 99999-0001 ') }, { texto: 'Oi', contato: '(21) 99999-0001' });
 });
 
 test('fraseDaFalha: a frase do servidor quando há; rede e tempo esgotado têm a sua; nunca "Erro interno." cru', () => {
@@ -93,7 +96,7 @@ test('fraseDaFalha: a frase do servidor quando há; rede e tempo esgotado têm a
   assert.match(R.fraseDaFalha(null), /Não consegui enviar agora/);
 });
 
-test('inline: rótulos ligados aos campos, e-mail com autocomplete, aviso de guarda e contador', () => {
+test('inline: rótulos ligados aos campos, um campo de contato (WhatsApp ou e-mail) opcional, aviso de guarda e contador', () => {
   const { R, body } = montar();
   const alvo = secao(body, 'sites');
   R.montar(alvo);
@@ -101,9 +104,12 @@ test('inline: rótulos ligados aos campos, e-mail com autocomplete, aviso de gua
   const rotulos = todos(alvo, n => n.tag === 'label');
   assert.equal(rotulos.length, 2);
   for (const r of rotulos) assert.ok(achar(alvo, n => n.id === r.attrs.for), 'o label aponta para um campo existente');
-  assert.equal(c.email.type, 'email'); assert.equal(c.email.attrs.autocomplete, 'email');
+  assert.equal(c.email.type, 'text', 'aceita telefone e e-mail');
+  const rotuloContato = rotulos.find(r => r.attrs.for === c.email.id);
+  assert.match(rotuloContato.textContent, /WhatsApp ou e-mail/); assert.match(rotuloContato.textContent, /opcional/);
+  assert.ok(!/Sem e-mail/.test(JSON.stringify(todos(alvo, () => true).map(n => n.textContent))), 'nada sugere que o e-mail é obrigatório');
   assert.equal(c.erro.attrs.role, 'alert'); assert.equal(c.erro.hidden, true);
-  assert.match(achar(alvo, n => /recado__aviso/.test(n.className)).textContent, /apagado em 60 dias/);
+  assert.match(achar(alvo, n => /recado__aviso/.test(n.className)).textContent, /contato só para responder.*apagado em 60 dias/);
   assert.equal(c.contador.textContent, '0 / 1000');
   preencher(c, 'Olá');
   assert.equal(c.contador.textContent, '3 / 1000');
@@ -124,14 +130,14 @@ test('enviar vazio: avisa, devolve o foco ao campo e não chama a rede', async (
   assert.equal(c.erro.hidden, true, 'digitar limpa o aviso');
 });
 
-test('e-mail ruim: aviso no e-mail, foco nele, nada enviado', async () => {
+test('contato ruim: aviso no campo de contato, foco nele, nada enviado', async () => {
   let chamadas = 0;
   const { R, body } = montar({ orcamento: { recado: async () => { chamadas++; } } });
   const alvo = secao(body); R.montar(alvo);
   const c = campos(alvo);
   preencher(c, 'Oi', 'isso-nao-e-email');
   c.form.emitir('submit'); await tick();
-  assert.equal(chamadas, 0); assert.match(c.erro.textContent, /e-mail não parece certo/);
+  assert.equal(chamadas, 0); assert.match(c.erro.textContent, /Confira o WhatsApp com DDD/);
   assert.ok(c.email.focado > 0); assert.equal(c.email.attrs['aria-invalid'], 'true');
 });
 
@@ -146,7 +152,7 @@ test('enviando: botão travado com aria-busy, um só envio mesmo com dois toques
   assert.equal(c.botao.disabled, true); assert.equal(c.botao.textContent, 'Enviando…'); assert.equal(c.form.attrs['aria-busy'], 'true');
   c.form.emitir('submit'); await tick();
   assert.equal(pedidos.length, 1, 'o segundo toque não envia de novo');
-  assert.deepEqual({ ...pedidos[0] }, { texto: 'Quanto tempo leva?', email: 'Ana@Exemplo.com.br', origem: 'automacao' });
+  assert.deepEqual({ ...pedidos[0] }, { texto: 'Quanto tempo leva?', contato: 'Ana@Exemplo.com.br', origem: 'automacao' });
   liberar({ ok: true }); await tick(); await tick();
   assert.equal(c.miolo.hidden, true); assert.equal(c.feito.hidden, false);
   assert.match(c.feito.children.map(p => p.textContent).join(' '), /Recebemos o seu recado\. A resposta chega por e-mail\./);
@@ -154,7 +160,15 @@ test('enviando: botão travado com aria-busy, um só envio mesmo com dois toques
   assert.equal(c.texto.value, '', 'o texto enviado não fica na tela');
 });
 
-test('sem e-mail a mensagem diz que não dá para responder (honesto)', async () => {
+test('com WhatsApp a resposta vem pelo WhatsApp; sem contato a mensagem diz que não dá para responder (honesto)', async () => {
+  {
+    const { R, body } = montar({ orcamento: { recado: async () => ({ ok: true }) } });
+    const alvo = secao(body); R.montar(alvo);
+    const c = campos(alvo);
+    preencher(c, 'Me responde?', '(21) 99999-0001');
+    c.form.emitir('submit'); await tick(); await tick();
+    assert.match(c.feito.children.map(p => p.textContent).join(' '), /Recebemos o seu recado. A gente responde pelo WhatsApp./);
+  }
   const { R, body } = montar({ orcamento: { recado: async () => ({ ok: true }) } });
   const alvo = secao(body); R.montar(alvo);
   const c = campos(alvo);
@@ -242,8 +256,41 @@ test('sozinho (fora do orçamento): cria a caixa do Turnstile e manda JSON com o
   assert.equal(visto.length, 1);
   assert.equal(visto[0].url, '/api/vendas?acao=recado'); assert.equal(visto[0].op.method, 'POST');
   assert.equal(visto[0].op.headers['content-type'], 'application/json');
-  assert.deepEqual(JSON.parse(visto[0].op.body), { texto: 'Oi', email: 'a@b.com.br', turnstile: 'token-do-turnstile' });
+  assert.deepEqual(JSON.parse(visto[0].op.body), { texto: 'Oi', contato: 'a@b.com.br', turnstile: 'token-do-turnstile' });
   assert.equal(c.feito.hidden, false);
+});
+
+test('sozinho e rápido: abrir já prepara a verificação (aquecer) e escrever pede o token antes do clique; o envio usa esse token sem esperar outro', async () => {
+  const visto = [], eventos = []; let pedidosDeToken = 0;
+  const turnstile = { aquecer: async () => { eventos.push('aquecer'); }, token: async () => { pedidosDeToken++; eventos.push('token'); return 'token-' + pedidosDeToken; } };
+  const fetch = async (url, op) => { visto.push(JSON.parse(op.body)); return { ok: true, status: 200, json: async () => ({ ok: true }) }; };
+  const { R } = montar({ turnstile, fetch });
+  const d = R.abrir({});
+  await tick();
+  assert.deepEqual(eventos, ['aquecer'], 'abrir só aquece: nada de desafio antes de a pessoa escrever');
+  const c = campos(d);
+  preencher(c, 'O');
+  c.texto.value = 'Oi'; c.texto.emitir('input');
+  await tick();
+  assert.equal(pedidosDeToken, 1, 'o token é pedido uma vez, na primeira letra');
+  c.form.emitir('submit'); await tick(); await tick(); await tick();
+  assert.equal(pedidosDeToken, 1, 'o envio usou o token adiantado');
+  assert.equal(visto[0].turnstile, 'token-1');
+  assert.equal(c.feito.hidden, false);
+});
+
+test('o token adiantado vale uma vez: um segundo envio (ou um token que falhou) pede outro na hora', async () => {
+  let pedidosDeToken = 0, falhar = true;
+  const turnstile = { token: async () => { pedidosDeToken++; if (falhar) { falhar = false; throw Object.assign(new Error('x'), { tipo: 'desafio' }); } return 'novo-' + pedidosDeToken; } };
+  const visto = [];
+  const fetch = async (url, op) => { visto.push(JSON.parse(op.body)); return { ok: true, status: 200, json: async () => ({ ok: true }) }; };
+  const { R, body } = montar({ turnstile, fetch });
+  const alvo = secao(body); R.montar(alvo);
+  const c = campos(alvo); preencher(c, 'Oi');
+  await tick();
+  c.form.emitir('submit'); await tick(); await tick(); await tick(); await tick();
+  assert.equal(visto.length, 1, 'o adiantado falhou, mas o envio pediu outro e passou');
+  assert.equal(visto[0].turnstile, 'novo-2');
 });
 
 test('sozinho: resposta de erro do servidor vira a frase dele; o JSON quebrado não derruba a tela', async () => {
