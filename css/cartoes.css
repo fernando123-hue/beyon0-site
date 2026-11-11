@@ -272,6 +272,7 @@
   transition: color var(--t-micro) var(--ease-micro);
 }
 .qa summary::-webkit-details-marker { display: none; }
+.qa__q { text-wrap: balance; }   /* (a pergunta quebra em linhas iguais: nada de "ar?" sozinho na segunda linha) */
 .qa summary:hover, .qa summary:focus-visible { color: var(--ac); }
 .qa summary:focus-visible { outline-offset: -3px; }
 .qa summary:hover .qa__mark { border-color: var(--ac); }
