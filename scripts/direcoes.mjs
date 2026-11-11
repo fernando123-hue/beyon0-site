@@ -576,14 +576,14 @@ const COMANDOS = {
     const dir = path.join(PASTA, idCurto(pedidoParaModelo(p).pedido));
     const arquivo = gravarPedido(dir, JSON.stringify(montarArquivoPedido(p), null, 2));
     console.log('Pedido gravado (sem contato) em ' + arquivo);
-    /* as referências de imagem (decisão do dono, 2026-11-11: automáticas e por contexto). Só campos fechados viram busca;
-       falha ou falta de chave só desliga as referências deste pedido */
-    const ref = await montarReferencias({ dir, briefing: p.briefing });
-    console.log(ref.ok ? 'Referências: ' + ref.fotos + ' fotos do Pexels em ' + path.join(dir, PASTA_REFERENCIAS)
-      : 'Referências desligadas neste pedido (' + paraTerminal(ref.motivo) + '). O pedido segue normal.');
     /* a sessão isolada (PR 2b-1): settings e instruções DENTRO da pasta do pedido (a sessão lê só ali), e a linha pronta */
     const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
     const { settings, instrucoes } = prepararPastaSessao({ dir, repo });
+    /* as referências de imagem (decisão do dono, 2026-11-11: automáticas e por contexto), DEPOIS do preparo (um erro nele
+       não gasta buscas). Só campos fechados viram busca; falha ou falta de chave só desliga as referências deste pedido */
+    const ref = await montarReferencias({ dir, briefing: p.briefing });
+    console.log(ref.ok ? 'Referências: ' + ref.fotos + ' fotos do Pexels em ' + path.join(dir, PASTA_REFERENCIAS) + (ref.motivo ? ' (' + paraTerminal(ref.motivo) + ')' : '')
+      : 'Referências desligadas neste pedido (' + paraTerminal(ref.motivo) + '). O pedido segue normal.');
     console.log('\nAbra a sessão isolada (PowerShell), e só ela, para produzir:\n' + comandoSessao({ pasta: dir, settings, instrucoes }));
     /* depois de produzir, o dono entrega com ESTA linha (caminho absoluto), nunca com "node scripts/..." de dentro da pasta do pedido */
     console.log('\nDepois de produzir, entregue com esta linha (de qualquer outra pasta):\n' + linhaDoDono({ repo, comando: 'entregar-pedido', arg: idCurto(pedidoParaModelo(p).pedido) }));

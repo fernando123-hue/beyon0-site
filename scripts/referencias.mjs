@@ -2,27 +2,34 @@
    AS REFERÊNCIAS DE IMAGEM DE CADA PEDIDO (decisão do dono, 2026-11-11: "a pesquisa de referências deve ser 100%
    automática", "cada pesquisa específica para cada contexto"). Spec: docs/specs/2026-11-11-referencias-pexels.md.
 
-   O comando "pedido" (scripts/direcoes.mjs) chama montarReferencias logo depois de gravar o pedido.json: uma busca
+   O comando "pedido" (scripts/direcoes.mjs) chama montarReferencias depois de preparar a pasta da sessão: uma busca
    no Pexels por estratégia (conversão, autoridade, experiência), montada SÓ com campos fechados do pedido (o ramo da
-   lista, os objetivos da lista e o formato), e as fotos vão para ./referencias da pasta do pedido, com os créditos.
-   A sessão isolada (sem internet) olha as fotos como referência de atmosfera, luz e paleta.
+   lista e os objetivos da lista), e as fotos vão para ./referencias da pasta do pedido.
+   A sessão isolada (sem internet) lê o referencias.json e olha as fotos como referência de atmosfera, luz e paleta.
 
-   Por que Pexels e não Pinterest, Dribbble ou Behance (pesquisa de 2026-11-11, fontes na spec): os três não têm busca
-   aberta por API e os termos de uso proíbem raspar o site. O Pexels tem busca aberta e a licença permite usar a foto,
-   inclusive comercialmente, no site de um cliente.
+   Por que Pexels (pesquisa de 2026-11-11, fontes na spec): tem busca aberta por API e a licença permite usar a foto,
+   inclusive comercialmente, no site de um cliente. As bibliotecas de inspiração que o dono citou não têm busca aberta
+   e os termos delas proíbem raspar.
 
    Regras de segurança (o briefing é texto de um desconhecido; a pasta é lida por uma sessão de IA):
    • a consulta nunca leva texto livre: o ramo "outro", o segmento escrito pelo consultor, a cidade e a descrição não
      entram; o que não casa com a lista fechada vira "geral";
    • a chave (PEXELS_API_KEY, no terminal do dono, como a PAINEL_CHAVE) só vai para api.pexels.com, nunca para a pasta
      nem para a sessão; as fotos são baixadas sem cabeçalho nenhum, só de https://images.pexels.com;
-   • só JPEG, PNG ou WebP conferidos pelos primeiros bytes, até 2 MB cada; nome do arquivo fixo (<estratégia>-<n>.<ext>);
-   • do que o Pexels devolve, só entram o nome e o perfil do fotógrafo (para o crédito), a página da foto e a cor média;
-     a descrição (alt) é texto de terceiro e fica de fora;
-   • qualquer falha (sem chave, sem rede, limite de buscas) só desliga as referências daquele pedido: o pedido segue.
+   • só JPEG, PNG ou WebP, até 2 MB cada (o download para ao passar), com tempo limite que vale também para o corpo;
+     nome do arquivo fixo (<estratégia>-<n>.<ext>);
+   • do que o Pexels devolve, só entram o id da foto e a cor média: nenhum texto de terceiro (descrição, nome do
+     fotógrafo, endereço com palavras) chega à pasta que a sessão lê. O crédito é a página da foto, montada aqui pelo id
+     (https://www.pexels.com/photo/<id>/), que mostra o fotógrafo;
+   • as fotos passam pela mesma conferência de imagem do material do cliente (tipo pelos bytes e estrutura inteira:
+     api/_material/bytes.mjs e scripts/imagem-estrutura.mjs);
+   • qualquer falha (sem chave, sem rede, limite de buscas) só desliga as referências daquele pedido, ou só as da
+     estratégia que falhou: o pedido segue.
    ========================================================================== */
 import fs from 'node:fs';
 import path from 'node:path';
+import { tipoPorBytes } from '../api/_material/bytes.mjs';
+import { estruturaCompleta } from './imagem-estrutura.mjs';
 
 export const API_PEXELS = 'https://api.pexels.com/v1/search';
 const HOST_FOTOS = 'images.pexels.com';
@@ -81,8 +88,6 @@ const urlDe = (v, hosts) => {
   try { u = new URL(String(v || '')); } catch { return null; }
   return u.protocol === 'https:' && !u.username && !u.password && !u.port && hosts.includes(u.hostname) ? u.href : null;
 };
-/* nome do fotógrafo para o crédito: letras, números, espaço e pontuação simples, sem quebra nem controle, até 60 */
-const nomeSeguro = v => String(v || '').normalize('NFC').replace(/\s+/g, ' ').replace(/[^\p{L}\p{N} .'&-]/gu, '').replace(/ +/g, ' ').trim().slice(0, 60);
 const corSegura = v => (/^#[0-9A-Fa-f]{6}$/.test(String(v || '')) ? String(v).toUpperCase() : null);
 
 export function fotosDaResposta(corpo, quantas = FOTOS_POR_ESTRATEGIA) {
@@ -93,33 +98,30 @@ export function fotosDaResposta(corpo, quantas = FOTOS_POR_ESTRATEGIA) {
     /* a "large" (até 940 px de largura) basta para ver atmosfera e paleta e pesa pouco */
     const imagem = urlDe(src.large || src.medium, [HOST_FOTOS]);
     if (!imagem || !Number.isSafeInteger(f.id)) continue;
-    fotos.push({
-      id: f.id,
-      imagem,
-      pagina: urlDe(f.url, ['www.pexels.com', 'pexels.com']),
-      fotografo: nomeSeguro(f.photographer),
-      perfil: urlDe(f.photographer_url, ['www.pexels.com', 'pexels.com']),
-      cor_media: corSegura(f.avg_color)
-    });
+    /* (nada de texto do Pexels: a página do crédito é montada aqui, pelo id) */
+    fotos.push({ id: f.id, imagem, pagina: 'https://www.pexels.com/photo/' + f.id + '/', cor_media: corSegura(f.avg_color) });
     if (fotos.length >= quantas) break;
   }
   return fotos;
 }
 
-/* a extensão pelos primeiros bytes (nunca pelo cabeçalho ou pela URL): JPEG, PNG ou WebP; o resto, null */
-export function tipoDaImagem(bytes) {
-  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(0);
-  if (b.length > 3 && b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'jpg';
-  if (b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return 'png';
-  if (b.length > 12 && String.fromCharCode(...b.subarray(0, 4)) === 'RIFF' && String.fromCharCode(...b.subarray(8, 12)) === 'WEBP') return 'webp';
-  return null;
-}
+/* o tempo limite vale até o fim do corpo (AbortSignal.timeout, como o resto do repositório), não só até os cabeçalhos */
+const comTempo = (buscar, url, init) => buscar(url, { ...init, signal: AbortSignal.timeout(TEMPO_MS), redirect: 'error' });
 
-const comTempo = (buscar, url, init) => {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), TEMPO_MS);
-  return buscar(url, { ...init, signal: ctl.signal, redirect: 'error' }).finally(() => clearTimeout(t));
-};
+/* lê o corpo parando ao passar do limite: sem Content-Length (resposta em pedaços), o arrayBuffer() leria tudo antes */
+async function lerAte(r, limite) {
+  if (!r.body) return new Uint8Array(await r.arrayBuffer());
+  const leitor = r.body.getReader(), pedacos = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await leitor.read();
+    if (done) break;
+    total += value.length;
+    if (total > limite) { await leitor.cancel(); throw new Error('foto grande demais'); }
+    pedacos.push(value);
+  }
+  return new Uint8Array(Buffer.concat(pedacos));
+}
 
 export async function buscarFotos(consulta, { chave, buscar = fetch, quantas = FOTOS_POR_ESTRATEGIA }) {
   const url = API_PEXELS + '?' + new URLSearchParams({ query: consulta, per_page: String(quantas + 2), orientation: 'landscape' });
@@ -135,12 +137,11 @@ export async function baixarFoto(url, { buscar = fetch } = {}) {
   if (!urlDe(url, [HOST_FOTOS])) throw new Error('foto fora do host do Pexels');
   const r = await comTempo(buscar, url, {});
   if (!r.ok) throw new Error('a foto respondeu ' + r.status);
-  const tamanho = Number(r.headers.get('content-length'));
-  if (tamanho > LIMITE_BYTES) throw new Error('foto grande demais');
-  const bytes = new Uint8Array(await r.arrayBuffer());
-  if (bytes.length > LIMITE_BYTES) throw new Error('foto grande demais');
-  const tipo = tipoDaImagem(bytes);
+  if (Number(r.headers.get('content-length')) > LIMITE_BYTES) { await r.body?.cancel(); throw new Error('foto grande demais'); }
+  const bytes = await lerAte(r, LIMITE_BYTES);
+  const tipo = tipoPorBytes(bytes.subarray(0, 16));
   if (!tipo) throw new Error('o arquivo não é JPEG, PNG nem WebP');
+  if (!estruturaCompleta(Buffer.from(bytes))) throw new Error('a foto veio cortada');
   return { bytes, tipo };
 }
 
@@ -159,35 +160,41 @@ export function estranhosNasReferencias(pastaPedido) {
     .map(e => PASTA_REFERENCIAS + '/' + e.name).sort();
 }
 
-/* monta ./referencias da pasta do pedido. Nunca lança: devolve { ok, fotos, motivo } e o comando só avisa */
+/* monta ./referencias da pasta do pedido. Nunca lança: devolve { ok, fotos, motivo } e o comando só avisa.
+   Cada estratégia é independente: a que falhar (limite de buscas, rede) fica sem fotos e as outras seguem */
 export async function montarReferencias({ dir, briefing, chave = process.env.PEXELS_API_KEY, buscar = fetch }) {
-  if (!chave) return { ok: false, fotos: 0, motivo: 'sem PEXELS_API_KEY no terminal: referências desligadas' };
   const pasta = path.join(dir, PASTA_REFERENCIAS);
+  /* sempre do zero, ANTES de tudo (inclusive sem chave): o que estava lá (de um "pedido" anterior ou plantado) sai, e a
+     sessão nunca usa fotos velhas com o terminal dizendo "desligadas"; rmSync não segue link */
+  fs.rmSync(pasta, { recursive: true, force: true });
+  if (!chave) return { ok: false, fotos: 0, motivo: 'sem PEXELS_API_KEY no terminal' };
+  const falhas = [];
   try {
-    /* sempre do zero: o que estava lá (de um "pedido" anterior ou plantado) sai; rmSync não segue link */
-    fs.rmSync(pasta, { recursive: true, force: true });
     fs.mkdirSync(pasta, { mode: 0o700 });
     const consultas = consultasDoPedido(briefing);
-    const creditos = [];
+    const lista = [];
     for (const { estrategia, consulta } of consultas) {
-      const fotos = await buscarFotos(consulta, { chave, buscar });
+      let fotos;
+      try { fotos = await buscarFotos(consulta, { chave, buscar }); } catch (e) { falhas.push(estrategia + ': ' + String(e && e.message || 'falha')); continue; }
+      /* os downloads de uma estratégia saem juntos; o número segue a ordem da busca, pulando a que falhou */
+      const baixadas = await Promise.allSettled(fotos.map(f => baixarFoto(f.imagem, { buscar })));
       let n = 0;
-      for (const f of fotos) {
-        let baixada;
-        try { baixada = await baixarFoto(f.imagem, { buscar }); } catch { continue; }
-        const arquivo = estrategia + '-' + (++n) + '.' + baixada.tipo;
-        fs.writeFileSync(path.join(pasta, arquivo), baixada.bytes, { mode: 0o600, flag: 'wx' });
-        creditos.push({ arquivo, estrategia, fotografo: f.fotografo, perfil: f.perfil, pagina: f.pagina, cor_media: f.cor_media });
-      }
+      baixadas.forEach((b, i) => {
+        if (b.status !== 'fulfilled') return;
+        const arquivo = estrategia + '-' + (++n) + '.' + b.value.tipo;
+        fs.writeFileSync(path.join(pasta, arquivo), b.value.bytes, { mode: 0o600, flag: 'wx' });
+        lista.push({ arquivo, estrategia, cor_media: fotos[i].cor_media, pagina: fotos[i].pagina });
+      });
     }
+    if (!lista.length) throw new Error(falhas.length ? falhas.join('; ') : 'nenhuma foto achada');
     fs.writeFileSync(path.join(pasta, ARQUIVO_CREDITOS), JSON.stringify({
       fonte: 'Pexels', licenca: 'https://www.pexels.com/license/',
-      uso: 'Referência de atmosfera, luz e paleta para a direção da mesma estratégia (o nome do arquivo começa por ela). A licença permite usar a foto no site do cliente; registre o crédito do fotógrafo.',
-      consultas, fotos: creditos
+      uso: 'Leia esta lista e abra cada "arquivo": é referência de atmosfera, luz e paleta para a direção da mesma estratégia. Nunca para copiar. A licença permite usar a foto no site do cliente; o crédito é a "pagina" da foto.',
+      consultas, fotos: lista
     }, null, 2), { mode: 0o600, flag: 'wx' });
-    return { ok: true, fotos: creditos.length, motivo: null };
+    return { ok: true, fotos: lista.length, motivo: falhas.length ? 'parcial (' + falhas.join('; ') + ')' : null };
   } catch (e) {
-    /* meia pasta não fica: ou referências inteiras, ou nenhuma */
+    /* nada de meia pasta: sem nenhuma foto, a pasta sai */
     fs.rmSync(pasta, { recursive: true, force: true });
     return { ok: false, fotos: 0, motivo: String(e && e.message || 'falha') };
   }
