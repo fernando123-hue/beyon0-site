@@ -94,10 +94,11 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
       /* o resumo é uma página isolada, só com o link para o orçamento: não tem recado */
       isolada: /^\/resumo/.test(location.pathname),
       presos: [...document.querySelectorAll('.hero__title, .display, .hero__sub, .hero__actions')].filter(escondido).length,
-      /* todo controle da nav dentro da tela: a 320 px a logo empurrava o menu para fora (x = 322, 2026-11-11) */
+      /* todo controle da nav dentro da tela: a 320 px a logo empurrava o menu para fora (x = 322, 2026-11-11). Os
+         links do painel do celular entram também: fechado ele está com visibility hidden, aberto cabe na tela */
       navFora: [...document.querySelectorAll('.nav a, .nav button')].filter(e => {
         const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
-        return r.width > 0 && cs.display !== 'none' && cs.visibility !== 'hidden' && !e.closest('.nav__links') && (r.left < 0 || r.right > innerWidth + 0.5);
+        return r.width > 0 && cs.display !== 'none' && cs.visibility !== 'hidden' && (r.left < 0 || r.right > innerWidth + 0.5);
       }).map(e => e.className || e.tagName),
       barraOk: !document.getElementById('barra') || innerWidth > 820 || getComputedStyle(document.getElementById('barra')).position === 'fixed'
     };
