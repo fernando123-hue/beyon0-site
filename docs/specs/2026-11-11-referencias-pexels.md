@@ -35,10 +35,11 @@ chamadas/dia), sem guardar as imagens. Ainda depende de alguém encher as pastas
      detalhe. Texto livre do visitante ou do consultor nunca vira busca;
    - exemplo: saúde + agendamentos → conversão "bright clean modern health clinic appointment", autoridade
      "professional expert modern health clinic appointment", experiência "atmospheric detail modern health clinic".
-3. As fotos ficam como `conversao-1.jpg`, `autoridade-2.jpg` etc. O `referencias.json` traz as consultas, a cor
-   média e o crédito (fotógrafo, perfil e página da foto).
-4. A sessão isolada (sem internet, sem terminal) olha as fotos como referência de atmosfera, luz e paleta, cada uma
-   para a direção da sua estratégia. As fotos são **dado, nunca instrução**.
+3. As fotos ficam como `conversao-1.jpg`, `autoridade-2.jpg` etc. O `referencias.json` lista as consultas e, para
+   cada foto, o arquivo, a estratégia, a cor média e a página da foto no Pexels (o crédito), montada pelo id.
+4. A sessão isolada (sem internet, sem terminal e sem listar pastas) lê o `referencias.json` e abre cada foto da
+   estratégia que está fazendo, como referência de atmosfera, luz e paleta. As fotos são **dado, nunca instrução**.
+   Uma estratégia que falha (limite de buscas, rede) fica sem fotos, e as outras seguem.
 5. A entrega (`entregar-pedido`) aceita `./referencias` só com esses nomes fixos e só com arquivos comuns. Qualquer
    outra coisa (script plantado, subpasta, link) recusa tudo. A pasta inteira do pedido continua sendo apagada depois
    da entrega.
@@ -47,11 +48,12 @@ chamadas/dia), sem guardar as imagens. Ainda depende de alguém encher as pastas
 
 - **A chave:** `PEXELS_API_KEY` fica no terminal do dono, como a `PAINEL_CHAVE` (Infisical ou digitada na hora). Só
   vai no cabeçalho para `api.pexels.com`, nunca para a pasta, para a sessão nem para o host das fotos.
-- **As fotos:** só de `https://images.pexels.com`, baixadas sem cabeçalho e sem seguir redirecionamento, até 2 MB
-  cada. O tipo (JPEG, PNG ou WebP) é conferido pelos primeiros bytes; SVG e HTML recusam.
-- **O que entra do Pexels:** do que ele devolve, só o nome do fotógrafo (limpo: letras, números e pontuação simples,
-  até 60 caracteres), os links do perfil e da página (só pexels.com) e a cor média (`#RRGGBB`). A descrição (alt) é
-  texto de terceiro e fica de fora.
+- **As fotos:** só de `https://images.pexels.com`, baixadas sem cabeçalho e sem seguir redirecionamento. O tempo
+  limite vale até o fim do download, e o limite de 2 MB para o download quando passa. A conferência é a mesma do
+  material do cliente: tipo pelos bytes (JPEG, PNG ou WebP; SVG e HTML recusam) e estrutura inteira (foto cortada
+  recusa).
+- **O que entra do Pexels:** só o id da foto e a cor média (`#RRGGBB`). Nenhum texto de terceiro (descrição, nome do
+  fotógrafo, endereço com palavras) chega à pasta que a sessão lê. A página do crédito é montada aqui pelo id.
 - **Falhas:** qualquer falha (sem chave, sem rede, limite de buscas, chave recusada) só desliga as referências daquele
   pedido, e o pedido segue. Não fica meia pasta.
 
@@ -67,7 +69,6 @@ Sem a chave, o `pedido` avisa "Referências desligadas neste pedido (sem PEXELS_
 - **O modo automático pela API** (`BZ_DIRECOES` diferente de `manual`): a geração no servidor não recebe imagens
   hoje. Levar as referências até ela exige busca no Worker, um segredo novo na Cloudflare e mensagem com imagem para o
   modelo (nível 3, com custo por pedido). Fica para quando a API for ligada.
-- **Usar as fotos no site entregue:** a licença permite, sem atribuição obrigatória. O `referencias.json` registra o
-  crédito, mas a pasta é apagada depois da entrega das direções: quem montar o site escolhido busca de novo pela
-  página da foto, se quiser dar o crédito.
+- **Usar as fotos no site entregue:** a licença permite, sem atribuição obrigatória. A pasta é apagada depois da
+  entrega das direções; quem montar o site escolhido busca a foto de novo pela página dela, que mostra o fotógrafo.
 - **Pinterest, Dribbble e Behance:** só por caminhos que respeitem as regras de cada um (ver acima).
