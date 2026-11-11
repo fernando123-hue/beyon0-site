@@ -160,14 +160,23 @@ export function estranhosNasReferencias(pastaPedido) {
     .map(e => PASTA_REFERENCIAS + '/' + e.name).sort();
 }
 
+/* apagar a pasta nunca derruba o "pedido": no Windows o antivírus (ou uma foto aberta) segura o arquivo por um instante */
+function apagar(pasta) {
+  try { fs.rmSync(pasta, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 }); return true; } catch { return false; }
+}
+/* a chave do Pexels: só caracteres visíveis, sem espaço (colada com quebra de linha, o fetch lançaria um erro que repete a
+   chave inteira, e a mensagem iria para o terminal) */
+const CHAVE_VALIDA = /^[\x21-\x7E]{20,200}$/;
+
 /* monta ./referencias da pasta do pedido. Nunca lança: devolve { ok, fotos, motivo } e o comando só avisa.
    Cada estratégia é independente: a que falhar (limite de buscas, rede) fica sem fotos e as outras seguem */
 export async function montarReferencias({ dir, briefing, chave = process.env.PEXELS_API_KEY, buscar = fetch }) {
   const pasta = path.join(dir, PASTA_REFERENCIAS);
   /* sempre do zero, ANTES de tudo (inclusive sem chave): o que estava lá (de um "pedido" anterior ou plantado) sai, e a
      sessão nunca usa fotos velhas com o terminal dizendo "desligadas"; rmSync não segue link */
-  fs.rmSync(pasta, { recursive: true, force: true });
+  if (!apagar(pasta)) return { ok: false, fotos: 0, motivo: 'não deu para apagar a pasta de referências anterior (arquivo em uso?); apague-a e rode "pedido" de novo' };
   if (!chave) return { ok: false, fotos: 0, motivo: 'sem PEXELS_API_KEY no terminal' };
+  if (!CHAVE_VALIDA.test(chave)) return { ok: false, fotos: 0, motivo: 'a PEXELS_API_KEY tem espaço, quebra de linha ou tamanho estranho; cole de novo' };
   const falhas = [];
   try {
     fs.mkdirSync(pasta, { mode: 0o700 });
@@ -194,8 +203,8 @@ export async function montarReferencias({ dir, briefing, chave = process.env.PEX
     }, null, 2), { mode: 0o600, flag: 'wx' });
     return { ok: true, fotos: lista.length, motivo: falhas.length ? 'parcial (' + falhas.join('; ') + ')' : null };
   } catch (e) {
-    /* nada de meia pasta: sem nenhuma foto, a pasta sai */
-    fs.rmSync(pasta, { recursive: true, force: true });
-    return { ok: false, fotos: 0, motivo: String(e && e.message || 'falha') };
+    /* nada de meia pasta: sem nenhuma foto, a pasta sai (e, se nem isso der, o motivo avisa) */
+    const apagou = apagar(pasta);
+    return { ok: false, fotos: 0, motivo: String(e && e.message || 'falha') + (apagou ? '' : '; apague a pasta ' + PASTA_REFERENCIAS + ' antes de produzir') };
   }
 }

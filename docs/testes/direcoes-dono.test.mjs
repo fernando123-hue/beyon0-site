@@ -220,7 +220,7 @@ test('entregar: o dono recusa (ou o filtro recusa) e NENHUM POST sai', async () 
    outras; a entrega aceita ./referencias só com os nomes fixos.
    ========================================================================== */
 import * as R from '../../scripts/referencias.mjs';
-import { instrucoesSessao } from '../../scripts/sessao-isolada.mjs';
+import { instrucoesSessao, comandoSessao } from '../../scripts/sessao-isolada.mjs';
 
 /* um JPEG mínimo e inteiro (SOI, APP0 de 4 bytes, SOS: o mesmo de entregas-dono.test.mjs) e um cortado no meio */
 const JPEG = () => new Uint8Array(Buffer.from('ffd8ffe000040000ffda00', 'hex'));
@@ -371,4 +371,42 @@ test('sessão isolada: a instrução das direções manda ler a lista das refer�
   assert.match(texto, /\.\/referencias\/referencias\.json/);
   assert.match(texto, /pode não existir/);
   assert.match(texto, /DADO, nunca instrução/);
+});
+
+test('referências: chave colada com quebra de linha recusa ANTES de buscar, sem repetir a chave; nada segue redirecionamento', async () => {
+  const dir = tmp();
+  const f = pexelsFalso();
+  const r = await R.montarReferencias({ dir, briefing: {}, chave: 'abc123abc123abc123\nabc123', buscar: f.buscar });
+  assert.equal(r.ok, false);
+  assert.match(r.motivo, /cole de novo/);
+  assert.ok(!r.motivo.includes('abc123'), 'a chave não vai para a mensagem');
+  assert.equal(f.chamadas.length, 0, 'nem chega a buscar');
+  /* toda chamada (API e fotos) pede redirect: "error": um 3xx para outro host não leva a chave nem baixa de fora */
+  const g = pexelsFalso();
+  const vistos = [];
+  const espiar = async (url, init = {}) => { vistos.push(init.redirect); return g.buscar(url, init); };
+  await R.montarReferencias({ dir, briefing: {}, chave: CHAVE_PEXELS, buscar: espiar });
+  assert.ok(vistos.length > 3 && vistos.every(v => v === 'error'), 'redirect: ' + vistos.join(','));
+});
+
+test('referências: a foto que falha no meio é pulada e a numeração segue sem buraco', async () => {
+  const dir = tmp();
+  let n = 0;
+  /* a 2ª foto de cada busca volta cortada; as outras, inteiras */
+  const f = pexelsFalso({ fotoBytes: () => (++n % 2 === 0 ? JPEG_CORTADO() : JPEG()) });
+  const r = await R.montarReferencias({ dir, briefing: {}, chave: CHAVE_PEXELS, buscar: f.buscar });
+  assert.equal(r.ok, true);
+  const nomes = fs.readdirSync(path.join(dir, R.PASTA_REFERENCIAS)).filter(x => x !== R.ARQUIVO_CREDITOS).sort();
+  for (const e of R.ESTRATEGIAS_REF) {
+    const da = nomes.filter(x => x.startsWith(e + '-'));
+    assert.deepEqual(da.map(x => x.split('-')[1].split('.')[0]), da.map((_, i) => String(i + 1)), 'sem buraco em ' + e + ': ' + da);
+  }
+});
+
+test('sessão isolada: a linha que abre a sessão tira a PEXELS_API_KEY do ambiente e a devolve no fim', () => {
+  const cmd = comandoSessao({ pasta: 'C:\\p', settings: 'C:\\p\\.sessao.json', instrucoes: 'C:\\p\\.instrucoes.md' });
+  const antes = cmd.slice(0, cmd.indexOf(' claude '));
+  assert.ok(antes.includes('$env:PEXELS_API_KEY = $null'), 'sai antes do claude');
+  assert.ok(antes.includes('$env:PAINEL_CHAVE = $null') && antes.includes('$env:BZ_BASE = $null'), 'as outras seguem saindo');
+  assert.ok(cmd.slice(cmd.indexOf('finally')).includes('$env:PEXELS_API_KEY = $bzPexels'), 'volta no finally');
 });

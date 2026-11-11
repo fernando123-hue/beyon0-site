@@ -597,7 +597,7 @@ test('sessão isolada: settings em dontAsk, SEM Bash, sem rede e sem ler fora da
      do try (o finally não pode dar Pop-Location sem ter dado Push); as variáveis bz* somem no fim */
   assert.ok(cmd.startsWith("Push-Location -LiteralPath 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd' -ErrorAction Stop; try { "), 'Push-Location -ErrorAction Stop antes do try: ' + cmd);
   assert.ok(cmd.indexOf('Push-Location') < cmd.indexOf('try {') && cmd.lastIndexOf('Push-Location') === 0, 'um Push só, fora do try');
-  const ordem = ["Push-Location -LiteralPath 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd' -ErrorAction Stop; try { ",'$bzChave = $env:PAINEL_CHAVE; $env:PAINEL_CHAVE = $null;', '$bzBase = $env:BZ_BASE; $env:BZ_BASE = $null;', 'claude --restricted', "'Produza as 3 direcoes", ' } finally { Pop-Location; $env:PAINEL_CHAVE = $bzChave; $env:BZ_BASE = $bzBase; Remove-Variable bzChave, bzBase -ErrorAction SilentlyContinue }'];
+  const ordem = ["Push-Location -LiteralPath 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd' -ErrorAction Stop; try { ",'$bzChave = $env:PAINEL_CHAVE; $env:PAINEL_CHAVE = $null;', '$bzBase = $env:BZ_BASE; $env:BZ_BASE = $null;', '$bzPexels = $env:PEXELS_API_KEY; $env:PEXELS_API_KEY = $null;', 'claude --restricted', "'Produza as 3 direcoes", ' } finally { Pop-Location; $env:PAINEL_CHAVE = $bzChave; $env:BZ_BASE = $bzBase; $env:PEXELS_API_KEY = $bzPexels; Remove-Variable bzChave, bzBase, bzPexels -ErrorAction SilentlyContinue }'];
   let pos = -1;
   for (const parte of ordem) { const i = cmd.indexOf(parte, pos + 1); assert.ok(i > pos, 'fora de ordem ou ausente: ' + parte + ' em ' + cmd); pos = i; }
   assert.ok(cmd.endsWith(' }'), 'o finally fecha a linha');

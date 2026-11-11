@@ -90,18 +90,19 @@ export function instrucoesSessao({ skill, tarefa = 'direcoes' }) {
 /* a linha que o DONO roda no PowerShell (aspas simples: o PowerShell não expande nada dentro).
    Push-Location/Pop-Location em vez de Set-Location: ao sair da sessão (mesmo com erro) o PowerShell do dono volta à pasta
    de antes, e não fica dentro da pasta do pedido, onde um arquivo plantado poderia ser executado por caminho relativo.
-   A chave do painel e o endereço saem do ambiente ANTES do claude (a sessão e seus filhos não os herdam) e voltam no finally,
-   para o entregar-pedido do dono, e as variáveis bz* somem (a chave não fica em variável da sessão do PowerShell).
+   A chave do painel, o endereço e a chave do Pexels (scripts/referencias.mjs) saem do ambiente ANTES do claude (a sessão e
+   seus filhos não os herdam) e voltam no finally, para os próximos comandos do dono, e as variáveis bz* somem (a chave
+   não fica em variável da sessão do PowerShell).
    O Push-Location fica ANTES do try e para com erro (-ErrorAction Stop): se a pasta não existir, o claude NÃO abre na pasta
    atual, e o finally nunca roda um Pop-Location sem ter feito o Push.
    Ferramentas: só Read, Edit e Write; o Bash ainda vai no --disallowedTools, para sair do contexto mesmo se o --tools mudar. */
 const ps = s => "'" + String(s).replace(/'/g, "''") + "'";
 export function comandoSessao({ pasta, settings, instrucoes, tarefa = 'direcoes' }) {
-  return 'Push-Location -LiteralPath ' + ps(pasta) + ' -ErrorAction Stop; try { $bzChave = $env:PAINEL_CHAVE; $env:PAINEL_CHAVE = $null; $bzBase = $env:BZ_BASE; $env:BZ_BASE = $null;'
+  return 'Push-Location -LiteralPath ' + ps(pasta) + ' -ErrorAction Stop; try { $bzChave = $env:PAINEL_CHAVE; $env:PAINEL_CHAVE = $null; $bzBase = $env:BZ_BASE; $env:BZ_BASE = $null; $bzPexels = $env:PEXELS_API_KEY; $env:PEXELS_API_KEY = $null;'
     + ' claude --restricted --permission-mode dontAsk --strict-mcp-config'
     + " --tools 'Read,Edit,Write' --disallowedTools 'WebFetch' 'WebSearch' 'mcp__*' 'Bash'"
     + ' --settings ' + ps(settings) + ' --append-system-prompt-file ' + ps(instrucoes)
     /* sem acento: a página de código do Windows estraga o argumento */
     + ' ' + ps(tarefaDe(tarefa).prompt)
-    + ' } finally { Pop-Location; $env:PAINEL_CHAVE = $bzChave; $env:BZ_BASE = $bzBase; Remove-Variable bzChave, bzBase -ErrorAction SilentlyContinue }';
+    + ' } finally { Pop-Location; $env:PAINEL_CHAVE = $bzChave; $env:BZ_BASE = $bzBase; $env:PEXELS_API_KEY = $bzPexels; Remove-Variable bzChave, bzBase, bzPexels -ErrorAction SilentlyContinue }';
 }
