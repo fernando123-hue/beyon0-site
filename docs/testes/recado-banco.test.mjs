@@ -36,6 +36,19 @@ test('e-mail inválido é recusado pela regra do e-mail do site (sem domínio, c
   }
 });
 
+test('o WhatsApp é opcional, no formato do site (+55, DDD, celular ou fixo); o resto é recusado (22023); a lista devolve o WhatsApp', async () => {
+  await db.exec('delete from app.recados; delete from privado.freio_ip');
+  const r = await novo({ whatsapp: '+5521999990001' });
+  assert.equal(r.ok, true);
+  assert.equal((await um('select whatsapp from app.recados where id = $1', [r.id])).whatsapp, '+5521999990001');
+  assert.equal((await novo({ whatsapp: '' })).ok, true, 'vazio = sem WhatsApp');
+  assert.equal((await um("select count(*)::int n from app.recados where whatsapp = ''")).n, 0);
+  for (const whatsapp of ['21999990001', '+55219999', '+5521099990001', '+1 555 0100', '+5521999990001 ', 'abc']) assert.equal((await erroDe(novo({ whatsapp }))).codigo, '22023', whatsapp);
+  await assert.rejects(db.query("insert into app.recados (org_id, texto, whatsapp) select id, 'x', '123' from app.organizacoes limit 1"), 'o check da tabela também barra');
+  const lista = await rpc('vendas_recados_listar', { org_slug: 'beyon-zero' });
+  assert.equal(lista.itens.find(i => i.id === r.id).whatsapp, '+5521999990001');
+});
+
 test('a origem é um rótulo curto (letras minúsculas, número, _ e -); o resto é recusado', async () => {
   assert.equal((await novo({ origem: 'consultor' })).ok, true);
   for (const origem of ['Orçamento', 'a b', '<x>', 'x'.repeat(31), 'a/b']) assert.equal((await erroDe(novo({ origem }))).codigo, '22023', origem);

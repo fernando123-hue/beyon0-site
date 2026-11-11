@@ -107,8 +107,11 @@ test('recado: grava, chama o aviso com o tipo fixo (sem o conteúdo) e o aviso s
 import { criarAcoesDoPedido } from '../../api/_vendas/fluxo-pedido.mjs';
 const UUID = '11111111-1111-4111-8111-111111111111';
 const corpoPedido = () => ({ conversa_id: UUID, negocio: 'Clínica Sol', vende: 'Consultas e exames', telefone: '(21) 98765-4321', nome: 'Rita', aceite: true });
+/* o aviso vai em segundo plano: aqui o segundo plano é uma lista, e cada chamada espera a lista antes de devolver (para conferir os tipos) */
 function pedidoCom(resposta, avisar) {
-  return criarAcoesDoPedido({ banco: async () => resposta, visitante: async () => UUID, segredoFreio: 'x'.repeat(40), env: { BZ_LOCAL: '1' }, avisar });
+  const fundo = [];
+  const acoes = criarAcoesDoPedido({ banco: async () => resposta, visitante: async () => UUID, segredoFreio: 'x'.repeat(40), env: { BZ_LOCAL: '1' }, avisar, segundoPlano: p => fundo.push(p) });
+  return { detalhes: async x => { try { return await acoes.detalhes(x); } finally { await Promise.all(fundo); } } };
 }
 const req = { headers: new Headers({ 'x-forwarded-for': '203.0.113.7' }) };
 
@@ -128,6 +131,18 @@ test('pedido: fila cheia e limite por hora avisam "fila_cheia" e dão a saída d
   const tipos = [];
   await assert.rejects(pedidoCom({ ok: false, motivo: 'telefone_dia' }, (e, t) => { tipos.push(t); }).detalhes({ request: req, corpo: corpoPedido() }), e => e.status === 409);
   assert.deepEqual(tipos, []);
+});
+
+test('pedido rápido: a resposta ao cliente não espera o e-mail de aviso (vai em segundo plano) e a falha dele não derruba o pedido', async () => {
+  const fundo = []; let soltar, avisou = false;
+  const lento = () => new Promise(r => { soltar = () => { avisou = true; r(true); }; });
+  const a = criarAcoesDoPedido({ banco: async () => ({ ok: true, codigo: 'BZ-K7M3Q', status: 'confirmado' }), visitante: async () => UUID, segredoFreio: 'x'.repeat(40), env: { BZ_LOCAL: '1' }, avisar: lento, segundoPlano: p => fundo.push(p) });
+  assert.deepEqual(await a.detalhes({ request: req, corpo: corpoPedido() }), { codigo: 'BZ-K7M3Q', status: 'confirmado' });
+  assert.equal(avisou, false); assert.equal(fundo.length, 1);
+  soltar(); await fundo[0]; assert.equal(avisou, true);
+  const b2 = criarAcoesDoPedido({ banco: async () => ({ ok: true, codigo: 'BZ-K7M3Q', status: 'confirmado' }), visitante: async () => UUID, segredoFreio: 'x'.repeat(40), env: { BZ_LOCAL: '1' }, avisar: async () => { throw new Error('caiu'); }, segundoPlano: p => fundo.push(p) });
+  assert.deepEqual(await b2.detalhes({ request: req, corpo: corpoPedido() }), { codigo: 'BZ-K7M3Q', status: 'confirmado' });
+  await assert.doesNotReject(fundo[1]);
 });
 
 test('pedido: com o aviso real sem canal configurado o pedido grava e a resposta não muda, sem nenhum fetch', async () => {

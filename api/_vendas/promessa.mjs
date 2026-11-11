@@ -24,7 +24,7 @@
 export const RESPOSTAS_PAGAMENTO = {
   pagamento: 'Quem mostra que o pagamento entrou é a própria tela: assim que o Mercado Pago confirma, o bloco muda sozinho. Se algo parecer errado, deixe um recado para a equipe.',
   condicao: 'O valor e o sinal são os do escopo confirmado, iguais para todos, e eu não mudo condições por aqui. Para qualquer ajuste, deixe um recado para a equipe.',
-  meio: 'O pagamento é só pelo bloco aqui na tela. Se ele não funcionar, deixe um recado para a equipe, com o seu e-mail, que ela envia o pagamento.'
+  meio: 'O pagamento é só pelo bloco aqui na tela. Se ele não funcionar, deixe um recado para a equipe, com o seu WhatsApp ou e-mail, que ela envia o pagamento.'
 };
 
 /* ---------- normalização ---------- */

@@ -90,5 +90,8 @@
     });
   }
 
-  window.BZTurnstile = { token: token };
+  /* aquecer: a chave e o script da Cloudflare já baixados, sem desafio (o recado chama ao abrir: o clique em Enviar não espera a carga) */
+  function aquecer() { return chave().then(function (k) { return k ? carregar() : null; }); }
+
+  window.BZTurnstile = { token: token, aquecer: aquecer };
 })();

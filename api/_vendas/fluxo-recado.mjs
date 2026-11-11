@@ -1,11 +1,14 @@
 /* ==========================================================================
    O RECADO (passo 1 do "Site sem WhatsApp", decisão do dono de 28/10): o ÚNICO lugar de feedback do site. Uma ação:
-   • recado: texto (1 a 1.000 caracteres DIGITADOS) e e-mail opcional (para a resposta). Sem sessão: quem não conseguiu abrir o orçamento
+   • recado: texto (1 a 1.000 caracteres DIGITADOS) e um contato opcional para a resposta: WhatsApp OU e-mail num campo só (`contato`;
+     decisão do dono de 10/11: "Não torne obrigatório o cliente por email. permita ele por o zap se desejar"). O campo antigo `email` segue
+     valendo (a página em cache). Sem sessão: quem não conseguiu abrir o orçamento
      também precisa poder deixar um recado, então esta é a saída de TODAS as recusas e não depende de Auth nem de IA. A fronteira
      (api/vendas.mjs) já passou o anti-robô e o limite geral; aqui entram o freio por IP (em memória e o do banco, por hora) e o teto do dia (banco).
    • A conversa vai só como REFERÊNCIA e só se a pessoa mandou o token da sessão do orçamento e a conversa é dela; token inválido, vencido ou
      Auth fora do ar NUNCA recusam o recado: ele grava sem ligação.
-   • O texto livre NÃO leva contato: telefone, e-mail e números soltos viram marcador (a resposta sai pelo campo de e-mail); CPF/CNPJ é recusado.
+   • O texto livre NÃO leva contato: telefone, e-mail e números soltos viram marcador (a resposta sai pelo campo de contato); CPF/CNPJ é recusado.
+   • RÁPIDO: o e-mail de aviso ao dono vai em segundo plano (waitUntil no Worker): a pessoa não espera o envio dele.
    • O texto nunca vai para o log. A resposta não devolve id.
    O lado do dono (lista e "lido") está em api/painel.mjs.
    ========================================================================== */
@@ -26,13 +29,14 @@ export const ORIGENS_RECADO = Object.freeze(['inicio', 'sites', 'automacao', 'or
 export const FRASES = Object.freeze({
   invalido: 'Recado inválido. Confira e tente de novo.',
   texto: 'Escreva o seu recado (de 1 a 1.000 caracteres).',
-  cpf: 'Não escreva CPF nem CNPJ no recado. Se precisar de resposta, deixe só o e-mail no campo próprio.',
+  cpf: 'Não escreva CPF nem CNPJ no recado. Se precisar de resposta, deixe o WhatsApp ou o e-mail no campo próprio.',
   email: 'O e-mail não parece certo. Confira (ex.: nome@empresa.com.br) ou deixe o campo vazio.',
+  contato: 'Confira o WhatsApp com DDD (ex.: 21 99999-0000) ou o e-mail (ex.: nome@empresa.com.br), ou deixe o campo vazio.',
   freio: 'Você já deixou vários recados nesta hora. Tente de novo mais tarde.',
   cheio: 'Estamos recebendo muitos recados agora. Tente de novo mais tarde.',
   fora: 'O recado está indisponível agora. Tente de novo mais tarde.'
 });
-const CHAVES = ['texto', 'email', 'origem', 'conversa_id', 'turnstile'];
+const CHAVES = ['texto', 'contato', 'email', 'origem', 'conversa_id', 'turnstile'];
 const USO_IP = 'recado';   /* o "uso" da chave do IP: o contador do recado não divide com o do consultor nem o dos pedidos */
 const freioRecado = criarFreio({ max: 10, janelaMs: 60 * 60e3 });   /* por instância, como os outros; o do banco (5 por hora) é o que vale de verdade */
 
@@ -62,7 +66,21 @@ function emailDoRecado(bruto) {
   return c.email;
 }
 
-export function criarAcoesDoRecado({ banco, visitantes, segredoFreio, env, avisar = avisarDono }) {
+/* o contato do campo único: com @ é e-mail, senão é WhatsApp (a regra do site: +55, DDD, celular ou fixo); vazio = sem contato */
+function contatoDoRecado(bruto) {
+  if (bruto === undefined || bruto === null) return { email: null, whatsapp: null };
+  if (typeof bruto !== 'string') throw new Recusa(422, FRASES.contato);
+  const t = bruto.trim();
+  if (!t) return { email: null, whatsapp: null };
+  const c = t.includes('@') ? ESQ.contatoDoSite('', t) : ESQ.contatoDoSite(t, '');
+  if (!c.ok) throw new Recusa(422, FRASES.contato);
+  return { email: c.email, whatsapp: c.whatsapp };
+}
+
+/* o segundo plano: o Worker passa ctx.waitUntil; sem ele (servidor local) só solta. A promessa nunca rejeita */
+const soltarAviso = p => { Promise.resolve(p).catch(() => {}); };
+
+export function criarAcoesDoRecado({ banco, visitantes, segredoFreio, env, avisar = avisarDono, segundoPlano = soltarAviso }) {
   const local = !!env && ambienteDe(env) === 'local';   /* sem o ambiente: fecha */
   /* o visitante da sessão do orçamento, se houver; qualquer problema (sem token, vencido, Auth fora) = sem ligação */
   async function visitanteSeHouver(request) {
@@ -75,7 +93,8 @@ export function criarAcoesDoRecado({ banco, visitantes, segredoFreio, env, avisa
     async recado({ request, corpo }) {
       if (!soCom(corpo, CHAVES)) throw new Recusa(400, FRASES.invalido);
       const texto = textoDoRecado(corpo.texto);
-      const email = emailDoRecado(corpo.email);
+      if (corpo.contato !== undefined && corpo.email !== undefined) throw new Recusa(400, FRASES.invalido);   /* (os dois juntos: ambíguo) */
+      const { email, whatsapp } = corpo.contato !== undefined ? contatoDoRecado(corpo.contato) : { email: emailDoRecado(corpo.email), whatsapp: null };
       if (corpo.conversa_id !== undefined && corpo.conversa_id !== null && !ehUuid(corpo.conversa_id)) throw new Recusa(400, FRASES.invalido);
       const origem = ORIGENS_RECADO.includes(corpo.origem) ? corpo.origem : null;
       const ip = ipDe(request);
@@ -89,11 +108,12 @@ export function criarAcoesDoRecado({ banco, visitantes, segredoFreio, env, avisa
       }
       const visitante = corpo.conversa_id ? await visitanteSeHouver(request) : null;
       const r = await banco('vendas_recado_criar', {
-        org_slug: ORG, texto, email, origem, chave_ip: chaveIp,
+        org_slug: ORG, texto, email, whatsapp, origem, chave_ip: chaveIp,
         ...(visitante ? { conversa_id: corpo.conversa_id, visitante_id: visitante } : {})
       });
       if (!r || r.ok !== true) throw new Recusa(r && r.motivo === 'cheio' ? 503 : 429, r && r.motivo === 'cheio' ? FRASES.cheio : FRASES.freio);
-      await avisar(env, 'recado');   /* (texto fixo: nunca o conteúdo do recado; falha do aviso não derruba o recado) */
+      /* (texto fixo: nunca o conteúdo do recado; falha do aviso não derruba o recado; em segundo plano: a pessoa não espera o e-mail) */
+      segundoPlano(Promise.resolve().then(() => avisar(env, 'recado')).catch(() => false));
       return { ok: true };
     }
   };
