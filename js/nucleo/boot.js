@@ -410,6 +410,16 @@
   }
   function depoisDoLoad(fn) {
     var ocioso = window.requestIdleCallback || function (f) { return setTimeout(f, 1); };
+    /* chegando pela PASSAGEM (js/passagem.js): montar o three é a maior tarefa da página (~220 ms no celular simulado)
+       e caía no meio da viagem de chegada, que travava (dono, 10/11: "travando nas transições de páginas"). Espera ela
+       assentar ('passagem:chegou') e o navegador folgar, como a rede (js/rede.js); a esfera em CSS segura o lugar */
+    if (html.classList.contains('passagem-chega') && B && B.on) {
+      var foi = false;
+      var umaVez = function () { if (foi) return; foi = true; fn(); };
+      B.on('passagem:chegou', function () { ocioso(umaVez, { timeout: 600 }); });
+      setTimeout(umaVez, 3000);   /* a rede: o js/passagem.js não carregou ou a aba ficou oculta na chegada */
+      return;
+    }
     var ir = function () { ocioso(fn, { timeout: 1200 }); };
     if (document.readyState === 'complete') ir();
     else window.addEventListener('load', ir, { once: true });
