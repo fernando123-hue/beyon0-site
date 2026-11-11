@@ -20,7 +20,7 @@
    · nenhum link de WhatsApp da Beyon (o site não tem: Decisões 28/10) e o local de recado montado; sem erro de console; fps > 45.
    E a PASSAGEM entre páginas (no fim): chega inteira e sem nada preso, volta
    pelo histórico inteira, desiste em 2 s, fecha o menu do celular na hora e
-   chega a uma âncora só aparecendo.
+   chega a uma âncora só aparecendo. E a FONTE GRANDE do aparelho (22 px) a 320 px.
    ========================================================================== */
 import { chromium } from 'playwright';
 import { autorizarContexto } from './acesso.mjs';
@@ -383,6 +383,39 @@ await cenario('giro-reduz', CELULAR, async page => {
   }));
   const nome = /heading "O cliente chama\. Seu site responde\."/.test(nomeNaTroca);
   return { ok: r.ativa === 0 && r.camadas === 0 && nome, info: `frase=${r.ativa + 1} camadas=${r.camadas} nome-na-troca=${nome}` };
+});
+
+/* FONTE GRANDE do aparelho (Android em "fonte grande" põe a fonte raiz em 20-22 px): a 320 px nenhuma página pode ficar
+   mais larga que a tela nem empurrar o menu para fora. Achado de 2026-11-11: o e-mail do rodapé, o endereço da política
+   da Anthropic e "Compromissos" num h2 alargavam a página (até 409 px) e o Chrome alargava a viewport inteira */
+await cenario('fonte-grande', ESTREITO, async page => {
+  const ruins = [];
+  for (const rota of ['/', '/sites', '/automacao', '/orcamento', '/condicoes', '/privacidade']) {
+    await page.goto(BASE + rota, { waitUntil: 'load' });
+    /* a medida espera a fonte da marca (mais larga que a reserva) e um quadro depois de crescer a fonte */
+    await page.evaluate(async () => { await document.fonts.ready; document.documentElement.style.fontSize = '22px'; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); });
+    const d = await page.evaluate(() => ({
+      largura: document.documentElement.scrollWidth, tela: document.documentElement.clientWidth,
+      /* página sem menu (condições, privacidade): 0; com menu ainda escondido (o js/pagina.js não montou): falha, não passa calada */
+      menu: (() => { const t = document.querySelector('.nav__toggle'); if (!t) return 0; return t.hidden ? Infinity : t.getBoundingClientRect().right; })(),
+      /* texto cortado: o hero tem overflow-x clip, então o que passa da borda não alarga a página e o scrollWidth não vê
+         (revisão do PR: o h1, o parágrafo do LCP e o botão do /automacao saíam 20 px). Fora: o que é só para leitor de
+         tela, o nome recolhido das etapas do orçamento e o rótulo com reticências de propósito */
+      cortados: (() => {
+        const W = document.documentElement.clientWidth, fora = new Set();
+        const tw = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT);
+        while (tw.nextNode()) {
+          const n = tw.currentNode, el = n.parentElement;
+          if (!n.textContent.trim() || el.closest('.sr-only, .peca-quero__texto, .orc-etapas__nome, [hidden]') || !el.checkVisibility()) continue;
+          const rg = document.createRange(); rg.selectNodeContents(n);
+          if ([...rg.getClientRects()].some(q => q.width > 0 && q.right > W + 0.5)) fora.add(el.tagName.toLowerCase() + '.' + String(el.className).split(' ')[0]);
+        }
+        return [...fora].slice(0, 4);
+      })()
+    }));
+    if (d.largura > d.tela + 0.5 || d.menu > d.tela + 0.5 || d.cortados.length) ruins.push(`${rota} largura=${d.largura} menu=${d.menu === Infinity ? 'escondido' : Math.round(d.menu)}${d.cortados.length ? ' cortado: ' + d.cortados.join(',') : ''}`);
+  }
+  return { ok: ruins.length === 0, info: ruins.length ? 'ESTOURA: ' + ruins.join(' · ') : '6 páginas a 320 px com fonte 22 px, sem estourar nem cortar texto' };
 });
 
 await navegador.close();

@@ -206,6 +206,9 @@ html.menos-movimento .btn::after { display: none; }
    de recorte e a margem negativa devolve a caixa da linha, então layout e
    LCP não mudam; nenhuma descendente (p, g, q, ç) é cortada ---- */
 .split-word-mask, .split-line-mask { padding: .1em .06em .28em; margin: -.1em -.06em -.28em; }
+/* a palavra dividida é inline-block e não quebra: com a fonte do aparelho em 22 px, "respondendo" no h1 do /automacao
+   passava de 320 px e o clip do hero cortava. Limitada à linha, só a palavra que não cabe quebra (2026-11-11) */
+.split-word-mask, .split-word { max-width: 100%; }
 /* um título dividido que volta ao DOM original (js/anima.js, partir): as margens das linhas somando certo e sem
    vazar para fora dele — a altura dividida = a normal, nada pula ao voltar */
 .partindo--linhas { display: flow-root; }   /* (as margens das linhas não vazam para fora do título) */
