@@ -70,7 +70,7 @@ jobs:
     # (pesado: só no PR para a main e à mão — o push comum roda os testes acima)
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30   # 11/11: levou 17 min no #131 e foi cancelado aos 20 no #130 com todos os passos OK (parado na espera de 61 s do freio por IP)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
