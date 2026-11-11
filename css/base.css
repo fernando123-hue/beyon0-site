@@ -271,7 +271,9 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
 .hero {
   position: relative; max-width: none; margin: 0;
   padding: calc(var(--nav-h) + 16px) max(var(--pad), calc((100% - var(--maxw)) / 2 + var(--pad))) clamp(32px, 5vh, 56px);
-  display: grid; grid-template-columns: 1fr; gap: 0;
+  /* minmax(0, 1fr), não 1fr: o mínimo de 1fr é a palavra mais longa, e com a fonte do aparelho em 22 px a coluna
+     crescia além da tela (o clip abaixo cortava o h1, o parágrafo do LCP e o botão; revisão do PR, 2026-11-11) */
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 0;
   /* o canvas do AI Core sangra além da caixa: corta na horizontal (clip não
      cria rolagem) para nada alargar a viewport do celular (regra 10) */
   overflow-x: clip;

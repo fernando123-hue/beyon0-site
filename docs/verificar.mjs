@@ -397,11 +397,25 @@ await cenario('fonte-grande', ESTREITO, async page => {
     const d = await page.evaluate(() => ({
       largura: document.documentElement.scrollWidth, tela: document.documentElement.clientWidth,
       /* página sem menu (condições, privacidade): 0; com menu ainda escondido (o js/pagina.js não montou): falha, não passa calada */
-      menu: (() => { const t = document.querySelector('.nav__toggle'); if (!t) return 0; return t.hidden ? Infinity : t.getBoundingClientRect().right; })()
+      menu: (() => { const t = document.querySelector('.nav__toggle'); if (!t) return 0; return t.hidden ? Infinity : t.getBoundingClientRect().right; })(),
+      /* texto cortado: o hero tem overflow-x clip, então o que passa da borda não alarga a página e o scrollWidth não vê
+         (revisão do PR: o h1, o parágrafo do LCP e o botão do /automacao saíam 20 px). Fora: o que é só para leitor de
+         tela, o nome recolhido das etapas do orçamento e o rótulo com reticências de propósito */
+      cortados: (() => {
+        const W = document.documentElement.clientWidth, fora = new Set();
+        const tw = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT);
+        while (tw.nextNode()) {
+          const n = tw.currentNode, el = n.parentElement;
+          if (!n.textContent.trim() || el.closest('.sr-only, .peca-quero__texto, .orc-etapas__nome, [hidden]') || !el.checkVisibility()) continue;
+          const rg = document.createRange(); rg.selectNodeContents(n);
+          if ([...rg.getClientRects()].some(q => q.width > 0 && q.right > W + 0.5)) fora.add(el.tagName.toLowerCase() + '.' + String(el.className).split(' ')[0]);
+        }
+        return [...fora].slice(0, 4);
+      })()
     }));
-    if (d.largura > d.tela + 0.5 || d.menu > d.tela + 0.5) ruins.push(`${rota} largura=${d.largura} menu=${d.menu === Infinity ? 'escondido' : Math.round(d.menu)}`);
+    if (d.largura > d.tela + 0.5 || d.menu > d.tela + 0.5 || d.cortados.length) ruins.push(`${rota} largura=${d.largura} menu=${d.menu === Infinity ? 'escondido' : Math.round(d.menu)}${d.cortados.length ? ' cortado: ' + d.cortados.join(',') : ''}`);
   }
-  return { ok: ruins.length === 0, info: ruins.length ? 'ESTOURA: ' + ruins.join(' · ') : '6 páginas a 320 px com fonte 22 px, sem estourar' };
+  return { ok: ruins.length === 0, info: ruins.length ? 'ESTOURA: ' + ruins.join(' · ') : '6 páginas a 320 px com fonte 22 px, sem estourar nem cortar texto' };
 });
 
 await navegador.close();
