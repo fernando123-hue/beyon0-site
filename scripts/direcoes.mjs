@@ -39,6 +39,7 @@ import { configSessao, comandoSessao, instrucoesSessao, linhaDoDono } from './se
 import { cabecalhosDeAcesso, hostDoStaging, SUB_CONTA } from '../docs/acesso.mjs';
 import { FORMATOS } from '../api/_vendas/precos.mjs';
 import { varrer, textosDe } from './varredura.mjs';
+import { montarReferencias, estranhosNasReferencias, PASTA_REFERENCIAS } from './referencias.mjs';
 
 export const PASTA = path.join(os.homedir(), 'BeyonZero-direcoes');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -293,7 +294,8 @@ export function planejarEntrega(pasta, servidor) {
   /* a própria pasta não pode ser link nem junção: os arquivos abaixo são comparados com ela, então leriam de fora */
   pastaReal(pasta);
   /* a pasta é onde a sessão escreve: qualquer coisa fora desta lista (um scripts/ plantado, por exemplo) e nada sai */
-  const estranhos = fs.readdirSync(pasta).filter(n => !ARQUIVOS_DO_PEDIDO.includes(n)).sort();
+  /* (a pasta ./referencias, das fotos do Pexels, é aceita só com os nomes fixos: scripts/referencias.mjs) */
+  const estranhos = [...fs.readdirSync(pasta).filter(n => !ARQUIVOS_DO_PEDIDO.includes(n) && n !== PASTA_REFERENCIAS), ...estranhosNasReferencias(pasta)].sort();
   if (estranhos.length) throw new Error('A pasta do pedido tem arquivos que não deviam estar lá (' + estranhos.join(', ') + '): nada sai. Apague a pasta e rode "pedido" de novo.');
   const pedido = lerJson(path.join(pasta, 'pedido.json'), 'pedido.json');
   if (servidor && pedido.direcoes.some(d => !servidor.todos.has(d.id))) throw new Error('Os ids do pedido.json não batem com a fila do servidor: rode "pedido" de novo.');
@@ -574,6 +576,11 @@ const COMANDOS = {
     const dir = path.join(PASTA, idCurto(pedidoParaModelo(p).pedido));
     const arquivo = gravarPedido(dir, JSON.stringify(montarArquivoPedido(p), null, 2));
     console.log('Pedido gravado (sem contato) em ' + arquivo);
+    /* as referências de imagem (decisão do dono, 2026-11-11: automáticas e por contexto). Só campos fechados viram busca;
+       falha ou falta de chave só desliga as referências deste pedido */
+    const ref = await montarReferencias({ dir, briefing: p.briefing });
+    console.log(ref.ok ? 'Referências: ' + ref.fotos + ' fotos do Pexels em ' + path.join(dir, PASTA_REFERENCIAS)
+      : 'Referências desligadas neste pedido (' + paraTerminal(ref.motivo) + '). O pedido segue normal.');
     /* a sessão isolada (PR 2b-1): settings e instruções DENTRO da pasta do pedido (a sessão lê só ali), e a linha pronta */
     const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
     const { settings, instrucoes } = prepararPastaSessao({ dir, repo });
