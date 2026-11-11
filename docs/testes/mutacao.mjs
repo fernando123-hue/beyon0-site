@@ -659,7 +659,9 @@ function rodar() {
     if (s.fonte) { restauracoes.set(alvo, bruto); if (bruto.includes('\r\n')) sql = sql.replace(/\n/g, '\r\n'); }
     fs.writeFileSync(alvo, sql);
     const testes = (s.testes || ['docs/testes/banco.test.mjs']).map(t => path.join(RAIZ, t));
-    const r = spawnSync(process.execPath, ['--test', ...testes], { env: { ...process.env, BZ_MIGRATIONS: dir }, encoding: 'utf8' });
+    /* o relatório "spec" pedido sempre: no Node 22 a saída em pipe vem em TAP, sem a linha "ℹ tests N" lida abaixo, e toda
+       sabotagem saía INVÁLIDA (0 testes); no Node 23+ o spec já é o padrão (2026-11-11) */
+    const r = spawnSync(process.execPath, ['--test', '--test-reporter=spec', ...testes], { env: { ...process.env, BZ_MIGRATIONS: dir }, encoding: 'utf8' });
     const falhas = (r.stdout.match(/^✖ .+$/gm) || []).filter(l => !/failing tests/.test(l));
     /* "pegou" = um teste caiu numa ASSERÇÃO. Migration que nem carrega ou suíte que nem roda também saem com erro, mas
        não provam nada: contam como sabotagem mal feita (revisão técnica do PR 14) */
