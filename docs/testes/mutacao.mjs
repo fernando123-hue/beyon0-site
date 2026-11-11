@@ -131,6 +131,14 @@ export const SABOTAGENS = [
     de: "tipo_real: tipoPorBytes(ini.bytes)", para: "tipo_real: a.tipo_declarado === 'image/png' ? 'png' : a.tipo_declarado === 'image/jpeg' ? 'jpg' : 'webp'" },
   { nome: 'o prazo conta os dias em UTC (não no fuso da captação)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo.test.mjs'],
     de: "new Intl.DateTimeFormat('en-CA', { timeZone: fuso, year: 'numeric'", para: "new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC', year: 'numeric'" },
+  /* as referências de imagem (scripts/referencias.mjs, 2026-11-11): texto livre não vira busca, a chave não vai para o host
+     das fotos, e a entrega não aceita qualquer coisa plantada em ./referencias */
+  { nome: 'referências: o segmento livre do briefing vira a busca', fonte: 'scripts/referencias.mjs', testes: ['docs/testes/direcoes-dono.test.mjs'],
+    de: "consulta: [TOM[estrategia], ASSUNTO[ramo],", para: "consulta: [TOM[estrategia], ASSUNTO[ramo], String(briefing?.negocio?.segmento || ''), String(briefing?.negocio?.cidade || '')," },
+  { nome: 'referências: a chave do Pexels vai junto no download das fotos', fonte: 'scripts/referencias.mjs', testes: ['docs/testes/direcoes-dono.test.mjs'],
+    de: "const baixadas = await Promise.allSettled(fotos.map(f => baixarFoto(f.imagem, { buscar })));", para: "const baixadas = await Promise.allSettled(fotos.map(f => baixarFoto(f.imagem, { buscar: (u, i) => buscar(u, { ...i, headers: { Authorization: chave } }) })));" },
+  { nome: 'referências: a entrega aceita qualquer coisa plantada em ./referencias', fonte: 'scripts/direcoes.mjs', testes: ['docs/testes/direcoes-dono.test.mjs'],
+    de: "n !== PASTA_REFERENCIAS), ...estranhosNasReferencias(pasta)].sort();", para: "n !== PASTA_REFERENCIAS)].sort();" },
   { nome: '"baixar" marca importado (antes de a captação importar)', fonte: 'scripts/entregas-lib.mjs', testes: ['docs/testes/entregas-dono.test.mjs'],
     de: "  return { pasta, arquivos: lidos.map(l => l.nome), suspeitos: Array.isArray(pac.suspeitos) ? pac.suspeitos : [], comandos: [", para: "  await marcarImportado({ base, chave, buscar, codigo, cliente: 'c-aaaaab' });\n  return { pasta, arquivos: lidos.map(l => l.nome), suspeitos: Array.isArray(pac.suspeitos) ? pac.suspeitos : [], comandos: [" },
   { nome: '"Mandar para mim" por wa.me com o código', fonte: 'js/orcamento-entrega.js', testes: ['docs/testes/orcamento-entrega.test.mjs'],
