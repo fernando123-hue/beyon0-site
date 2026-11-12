@@ -11,15 +11,31 @@
   var nicho = Rot.NICHOS.indexOf(q.get('nicho')) >= 0 ? q.get('nicho') : 'clinica', R = Rot[nicho];
   var auto = q.get('auto') === '1', ritmo = Math.min(2, Math.max(0.5, Number(q.get('ritmo')) || 1)), semPlanta = q.get('semplanta') === '1';
   var desktop = window.matchMedia('(min-width: 960px)').matches;
+  /* ?lento=N: a câmera lenta do vídeo (docs/lab-planta-v2-video.mjs desacelera as animações da página pelo DevTools na mesma proporção) */
+  var F = Math.min(20, Math.max(1, Number(q.get('lento')) || 1));
+  window.BZ_LENTO = F;
   if (q.get('captura') === '1') html.classList.add('lab-captura');
   if (q.get('estatico') === '1') html.classList.add('menos-movimento');
 
   var $ = function (id) { return document.getElementById(id); };
   var log = $('log'), caixa = $('log-caixa'), campo = $('campo'), form = $('entrada'), painel = $('painel'), palco = $('palco');
-  var estado = { turno: 0, briefing: {}, planta: null, item: null, ocupado: false, consagrada: false, fim: false, timers: [] };
-  var som = function (n) { if (Som) Som.tocar(n); };
+  var estado = { turno: 0, briefing: {}, planta: null, item: null, ocupado: false, consagrada: false, fim: false, timers: [], mudo: false };
+  var som = function (n) { if (Som && !estado.mudo) Som.tocar(n); };
+  /* a barra de entrada presa embaixo (celular): a planta só conta como "à vista" acima dela */
+  var margemBaixo = function () { return desktop ? 0 : form.getBoundingClientRect().height; };
+  var semViuva = function (t) { return Esb.semViuva(t); };
   var ms = function (n) { return Math.round(n / ritmo); };
-  var depois = function (n, fn) { estado.timers.push(window.setTimeout(fn, n)); };
+  var depois = function (n, fn) { estado.timers.push(window.setTimeout(fn, n * F)); };
+  /* a rolagem do "dedo" (só no ?auto=1): a suave do navegador; na câmera lenta, em passos no relógio do laboratório */
+  function deslizar(alvo, para) {
+    if (F === 1) { alvo.scrollTo({ top: para, behavior: 'smooth' }); return; }
+    var de = alvo === window ? window.scrollY : alvo.scrollTop, n = 27, k = 0;
+    (function passo() {
+      k++; var x = k / n, e = x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+      alvo.scrollTo(0, de + (para - de) * e);
+      if (k < n) depois(16, passo);
+    })();
+  }
 
   function mesclar(a, b) {
     var o = {}, k;
@@ -34,10 +50,10 @@
   /* ---------- o papel do dedo da pessoa (só ?auto=1): rola para a fala nova e para a planta, sem passar da fala do Zero ---------- */
   function rolar(alvoBaixo, limiteTopo) {
     if (!auto) return;
-    if (desktop) { caixa.scrollTo({ top: caixa.scrollHeight, behavior: 'smooth' }); return; }
+    if (desktop) { deslizar(caixa, caixa.scrollHeight - caixa.clientHeight); return; }
     var barra = form.getBoundingClientRect().height, sobra = alvoBaixo - (window.innerHeight - barra - 12);
     if (limiteTopo != null) sobra = Math.min(sobra, limiteTopo - 12);
-    if (sobra > 4) window.scrollBy({ top: sobra, behavior: 'smooth' });
+    if (sobra > 4) deslizar(window, window.scrollY + sobra);
   }
   function seguirPlanta(fala) {
     if (!estado.item) return rolar(fala.getBoundingClientRect().bottom);
@@ -50,9 +66,9 @@
   function fala(quem, texto) {
     var li = document.createElement('li'), p = document.createElement('p');
     li.className = 'msg msg--entra ' + (quem === 'zero' ? 'msg--agente' : 'msg--visitante');
-    p.textContent = texto; li.appendChild(p);
+    p.textContent = semViuva(texto); li.appendChild(p);
     log.insertBefore(li, estado.item && estado.item.parentNode === log ? estado.item : null);
-    if (desktop) caixa.scrollTo({ top: caixa.scrollHeight, behavior: auto ? 'smooth' : 'auto' });
+    if (desktop) { if (auto) deslizar(caixa, caixa.scrollHeight - caixa.clientHeight); else caixa.scrollTop = caixa.scrollHeight; }
     return li;
   }
   function pensando(sim) {
@@ -70,8 +86,12 @@
     if (semPlanta || estado.planta) return;
     var raiz;
     if (desktop) raiz = painel;
-    else { raiz = document.createElement('li'); raiz.className = 'lv-item'; log.insertBefore(raiz, antesDe ? antesDe.nextSibling : null); estado.item = raiz; }
-    estado.planta = Esb.criar(raiz, { som: som });
+    else {
+      raiz = document.createElement('li'); raiz.className = 'lv-item';
+      raiz.setAttribute('aria-live', 'off');   /* a planta mora na lista das falas, que é região viva: ela anuncia só pelo próprio role=status */
+      log.insertBefore(raiz, antesDe ? antesDe.nextSibling : null); estado.item = raiz;
+    }
+    estado.planta = Esb.criar(raiz, { som: som, margemBaixo: margemBaixo });
   }
 
   function digitar(texto, pronto) {
@@ -102,6 +122,7 @@
         garantirPlanta(z);
         depois(60, function () { seguirPlanta(z); });
         if (estado.planta) estado.planta.crescer(Cresce.derivar(estado.briefing));
+        if (!auto) { estado.ocupado = false; preparar(); return; }
         esperarPlanta(function () { depois(leitura(t.zero), proximoAuto); });
       });
     });
@@ -125,17 +146,17 @@
       depois(ms(900), function () {
         if (!estado.planta) { estado.fim = true; return; }
         var r = Cons.consagrar(estado.planta, R.fim.plano, {
-          som: som, nome: R.fim.nome,
+          som: som, nome: R.fim.nome, margemBaixo: margemBaixo,
           preparar: function () { if (desktop) { palco.classList.add('is-faixa'); caixa.scrollTop = caixa.scrollHeight; } },
           aoAcender: function (caixaNaTela) {
             if (!auto) return;
             if (desktop) {
               var c = estado.planta.interno.card.getBoundingClientRect();
-              if (c.bottom > window.innerHeight) window.scrollBy({ top: Math.min(c.bottom - window.innerHeight + 16, c.top - 8), behavior: 'smooth' });
+              if (c.bottom > window.innerHeight) deslizar(window, window.scrollY + Math.min(c.bottom - window.innerHeight + 16, c.top - 8));
               return;
             }
             var barra = form.getBoundingClientRect().height;
-            if (caixaNaTela.bottom > window.innerHeight - barra - 24) window.scrollBy({ top: caixaNaTela.bottom - (window.innerHeight - barra) * 0.62, behavior: 'smooth' });
+            if (caixaNaTela.bottom > window.innerHeight - barra - 24) deslizar(window, window.scrollY + caixaNaTela.bottom - (window.innerHeight - barra) * 0.62);
           },
           aoFim: function () {
             estado.consagrada = true;
@@ -147,7 +168,7 @@
         });
         if (!r.ok && window.console) window.console.warn('[lab-planta-v2] plano recusado: ' + (r.motivos || []).join(','));
         if (r.ok && !r.animada) { estado.consagrada = true; estado.fim = true; }
-        if (desktop && auto) depois(80, function () { var c = estado.planta.interno.card.getBoundingClientRect(); if (c.bottom > window.innerHeight) window.scrollBy({ top: Math.min(c.bottom - window.innerHeight + 16, c.top - 8), behavior: 'smooth' }); });
+        if (desktop && auto) depois(80, function () { var c = estado.planta.interno.card.getBoundingClientRect(); if (c.bottom > window.innerHeight) deslizar(window, window.scrollY + Math.min(c.bottom - window.innerHeight + 16, c.top - 8)); });
       });
     });
   }
@@ -165,7 +186,7 @@
   /* ?passo=N: o estado depois de N turnos, já pronto (sem animação), para foto e medida */
   function pular(n) {
     var tinha = html.classList.contains('menos-movimento');
-    html.classList.add('menos-movimento');
+    html.classList.add('menos-movimento'); estado.mudo = true;
     var k = Math.min(n, R.turnos.length), i;
     for (i = 0; i < k; i++) {
       var t = R.turnos[i];
@@ -182,6 +203,7 @@
     }
     Array.prototype.forEach.call(log.querySelectorAll('.msg--entra'), function (m) { m.classList.remove('msg--entra'); });
     if (!tinha) html.classList.remove('menos-movimento');
+    estado.mudo = false;
     preparar();
   }
 

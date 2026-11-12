@@ -16,7 +16,7 @@
   /* as origens que o código reconhece no "como chegam" (texto livre). As chaves são as de BZPlantaForma.ORIGENS, na ordem do desenho */
   var ORIGENS = [
     ['busca', /google|busca|pesquis|procura/i, 'busca'],
-    ['mapa', /mapa|maps|perto|bairro|endere/i, 'mapa'],
+    ['mapa', /mapa|maps|endere/i, 'mapa'],   /* ("perto de casa" é busca, não mapa: a pessoa não falou de mapa) */
     ['indicacao', /indica|boca a boca|amig|conhecid|paciente.{0,12}traz|cliente.{0,12}traz/i, 'indicação'],
     ['rede', /instagram|insta\b|direct|rede social|redes sociais|facebook|tiktok/i, 'rede social'],
     ['anuncio', /an[uú]ncio|patrocin|tr[aá]fego pago/i, 'anúncio']
@@ -61,11 +61,14 @@
 
   /* o que a pessoa vende é produto? (o segmento diz antes de o objetivo "vender" aparecer) */
   var PRODUTO = /loja|moda|roupa|cal[cç]ado|acess[oó]rio|cosm[eé]tic|produto/i;
+  /* saúde fala de tratamento, não de serviço (lista fechada pelo segmento) */
+  var SAUDE = /odonto|dent|cl[ií]nica|consult[oó]rio|fisio|psic|nutri|est[eé]tica|m[eé]dic|sa[uú]de/i;
   function pagina(b, m) {
     var n = b.negocio || {};
     if (!texto(n.descricao)) return null;
     if (m === 'loja' || PRODUTO.test(texto(n.segmento))) return { tipo: 'vitrine', verbo: 'Mostra', titulo: 'Vitrine com as suas peças', frase: 'Quem chega vê as peças organizadas e acha logo o que procura.' };
-    return { tipo: 'pagina', verbo: 'Mostra', titulo: 'Uma página para cada serviço', frase: 'Quem chega encontra logo o serviço que procurava, explicado do jeito dela.' };
+    var coisa = SAUDE.test(texto(n.segmento)) ? 'tratamento' : 'serviço';
+    return { tipo: 'pagina', verbo: 'Mostra', titulo: 'Uma página para cada ' + coisa, frase: 'Quem chega encontra logo o ' + coisa + ' que procurava, explicado do jeito dela.' };
   }
   function conversa(b) {
     if (!texto((b.situacao_atual || {}).o_que_se_perde)) return null;

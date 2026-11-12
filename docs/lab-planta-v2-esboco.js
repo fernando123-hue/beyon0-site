@@ -12,13 +12,12 @@
    SEGURANÇA: texto só por textContent (aqui só há texto de listas fechadas, mas a regra é a do módulo real). ES5. */
 (function () {
   'use strict';
-  var NS = 'http://www.w3.org/2000/svg', Pecas = window.BZPlantaPecas, Cresce = window.BZPlantaCresce;
-  if (!Pecas || !Cresce) return;
+  var NS = 'http://www.w3.org/2000/svg', Pecas = window.BZPlantaPecas, Cresce = window.BZPlantaCresce, Relogio = window.BZPlantaRelogio;
+  if (!Pecas || !Cresce || !Relogio) return;
 
   /* a geometria do esboço (px). RX = o trilho; P = o passo entre estações; C = o chip */
   var RX = 26, NY = 26, NR = 20, P = 58, C = 36, Y0 = 66, LR = 20, TX = RX + C / 2 + 14, CHAMFRO = 7;
   var T = { luz: 350, chip: 300, texto: 250, entre: 160, repouso: 6000 };
-  var VERBO_FANTASMA = 'A entender';
 
   var r1 = function (n) { return Math.round(n * 10) / 10; };
   var dois = function (n) { return (n < 10 ? '0' : '') + n; };
@@ -51,6 +50,13 @@
     if (pai) pai.appendChild(e);
     return e;
   }
+  /* nenhuma palavra sozinha na última linha: as duas últimas andam juntas (espaço sem quebra). Vale para todo texto da planta */
+  /* (s\u00f3 com 3 palavras ou mais e um par curto: num r\u00f3tulo de 2 palavras numa coluna estreita, juntar obrigava o navegador a partir a palavra) */
+  var semViuva = function (t) {
+    var s = String(t || '').replace(/\s+$/, ''), m = s.match(/(\S+)\s+(\S+)$/);
+    if (!m || s.split(/\s+/).length < 3 || m[1].length + m[2].length > 17) return s;
+    return s.slice(0, s.length - m[0].length) + m[1] + '\u00a0' + m[2];
+  };
   var aviso = function (e) { if (window.console) window.console.warn('[planta-v2] ' + (e && e.message ? e.message : e)); };
 
   function criar(raiz, opcoes) {
@@ -64,7 +70,7 @@
     var quadro = H('div', 'lv-quadro', null, card);
     quadro.style.height = g.H + 'px';
     var svg = S('svg', { viewBox: '0 0 ' + g.W + ' ' + g.H, width: g.W, height: g.H, 'aria-hidden': 'true', focusable: 'false' }, quadro, 'lv-svg');
-    var lista = H('ol', 'lv-lista', null, quadro); lista.setAttribute('aria-label', 'Etapas que o Zero já entendeu');
+    var lista = H('ol', 'lv-lista', null, quadro); lista.setAttribute('aria-label', 'A planta até aqui');
     var leitura = H('p', 'lv-leitura', null, card); leitura.setAttribute('aria-hidden', 'true');
     var leTag = H('b', 'lv-leitura__tag', 'Zero', leitura), leTxt = H('span', 'lv-leitura__txt', 'A planta nasce quando você contar do seu negócio.', leitura);
     var leVarre = H('span', 'lv-varre', null, leitura);
@@ -107,11 +113,11 @@
       var li = H('li', 'lv-txt is-fantasma', null, lista);
       li.style.left = e.texto.x + 'px'; li.style.top = e.texto.y + 'px'; li.style.width = e.texto.w + 'px'; li.style.height = e.texto.h + 'px';
       var fanT = H('span', 'lv-fan', null, li);
-      H('span', 'lv-fan__tag', VERBO_FANTASMA, fanT); var fanTxt = H('span', 'lv-fan__txt', '', fanT);
+      fanT.setAttribute('aria-label', 'Ainda a entender'); H('span', 'lv-fan__tag', dois(k + 1), fanT); var fanTxt = H('span', 'lv-fan__txt', '', fanT);
       var real = H('span', 'lv-real', null, li), hd = H('span', 'lv-hd', null, real);
       H('span', 'lv-n', dois(k + 1), hd); var verbo = H('span', 'lv-verbo', '', hd); var tit = H('span', 'lv-tit', '', real);
       var varre = H('span', 'lv-varre', null, li);
-      return { k: k, g: gg, fan: fan, chip: chip, ic: ic, li: li, fanTxt: fanTxt, verbo: verbo, tit: tit, varre: varre, est: null, cx: RX, cy: e.cy };
+      return { k: k, g: gg, fanT: fanT, fan: fan, chip: chip, ic: ic, li: li, fanTxt: fanTxt, verbo: verbo, tit: tit, varre: varre, est: null, cx: RX, cy: e.cy };
     }
     var est = [0, 1, 2, 3, 4].map(estacao);
 
@@ -126,11 +132,11 @@
     var discoL = S('circle', { r: r1(LR * 0.3) }, gL, 'lv-disco');
     var liL = H('li', 'lv-txt lv-txt--led is-fantasma', null, lista);
     liL.style.left = g.led.texto.x + 'px'; liL.style.top = g.led.texto.y + 'px'; liL.style.width = g.led.texto.w + 'px'; liL.style.height = g.led.texto.h + 'px';
-    var fanL = H('span', 'lv-fan', null, liL); H('span', 'lv-fan__tag', VERBO_FANTASMA, fanL); H('span', 'lv-fan__txt', Cresce.FALTA.objetivo, fanL);
+    var fanL = H('span', 'lv-fan', null, liL); H('span', 'lv-fan__tag', 'Objetivo', fanL); H('span', 'lv-fan__txt', semViuva(Cresce.FALTA.objetivo), fanL);
     var realL = H('span', 'lv-real', null, liL), hdL = H('span', 'lv-hd', null, realL);
     H('span', 'lv-verbo', 'Objetivo', hdL); var titL = H('span', 'lv-tit', '', realL);
     var varreL = H('span', 'lv-varre', null, liL);
-    var led = { g: gL, li: liL, tit: titL, varre: varreL, cy: LEDY, conhecido: false, objetivo: null };
+    var led = { g: gL, fanT: fanL, li: liL, tit: titL, varre: varreL, cy: LEDY, conhecido: false, objetivo: null };
     lista.insertBefore(liN, lista.firstChild);
 
     var cabeca = S('path', { d: 'M0 0', pathLength: 1 }, gLuz, 'lv-cab');
@@ -140,20 +146,14 @@
     inst = {
       card: card, quadro: quadro, svg: svg, g: g, est: est, led: led, nucleo: { g: gN, li: liN, cx: RX, cy: NY }, estadoTopo: estadoTopo, topo: topo,
       leitura: leitura, leTag: leTag, leTxt: leTxt, status: status, trilhoFan: trilhoFan, trechos: trechos,
-      semeado: false, esboco: null, fila: [], ocupado: false, anims: [], repouso: [], visivel: !window.IntersectionObserver, timers: [], parado: false
+      semeado: false, esboco: null, fila: [], ocupado: false, repouso: [], visivel: !window.IntersectionObserver, parado: false, rel: Relogio.criar()
     };
-    est.forEach(function (x, k) { x.fanTxt.textContent = Cresce.FALTA[Cresce.LUGARES[k]]; });
+    est.forEach(function (x, k) { x.fanTxt.textContent = semViuva(Cresce.FALTA[Cresce.LUGARES[k]]); });
     card.classList.add('is-dormente');
 
-    /* ---------- o relógio: tudo com setTimeout + Web Animations; nada roda com a aba escondida ---------- */
-    function depois(ms, fn) {
-      var id = window.setTimeout(function () { inst.timers = inst.timers.filter(function (t) { return t !== id; }); if (!inst.parado) { try { fn(); } catch (e) { aviso(e); } } }, ms);
-      inst.timers.push(id);
-    }
-    function anim(el, kf, o) {
-      if (!el || typeof el.animate !== 'function') return null;
-      try { var a = el.animate(kf, o); inst.anims.push(a); a.onfinish = function () { inst.anims = inst.anims.filter(function (b) { return b !== a; }); }; return a; } catch (e) { aviso(e); return null; }
-    }
+    /* ---------- o relógio: timers e animações andam juntos e PAUSAM juntos (aba escondida, planta fora da tela): lab-planta-v2-relogio.js ---------- */
+    var depois = function (ms, fn) { inst.rel.depois(ms, fn); };
+    var anim = function (el, kf, o) { return inst.rel.anim(el, kf, o); };
     function tracar(el, atraso, dura) { return anim(el, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: dura, delay: atraso, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'backwards' }); }
     function varrer(el, atraso) {
       return anim(el, [{ transform: 'translateX(0)', opacity: 1 }, { transform: 'translateX(101%)', opacity: 1 }], { duration: T.texto, delay: atraso, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'both' });
@@ -169,24 +169,27 @@
       anim(cabeca, [{ strokeDashoffset: f, opacity: 0, offset: 0 }, { strokeDashoffset: f, opacity: 1, offset: 0.02 }, { strokeDashoffset: f - 1, opacity: 1, offset: 0.97 }, { strokeDashoffset: f - 1, opacity: 0, offset: 1 }],
         { duration: T.luz, delay: atraso, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'both' });
     }
+    var trechoY = function (t) { return [t === 0 ? NY + NR * 0.76 : cy(t - 1) + C / 2, t < 5 ? cy(t) - C / 2 : LEDY - LR * 0.63]; };
     function acenderTrilhoAte(k) {
-      var animar = !reduzido(), t;
+      var animar = !reduzido(), ate = trechoY(Math.min(k, 5))[1], t;
       for (t = 0; t <= Math.min(k, 5); t++) {
         if (inst.trechos[t].classList.contains('is-aceso')) continue;
         inst.trechos[t].classList.add('is-aceso');
-        if (animar) tracar(inst.trechos[t], (t / Math.max(1, k + 1)) * T.luz * 0.8, T.luz * 0.6);
+        if (!animar) continue;
+        var y = trechoY(t), pa = (y[0] - NY) / Math.max(1, ate - NY), pb = (y[1] - NY) / Math.max(1, ate - NY);
+        anim(inst.trechos[t], [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: Math.max(40, T.luz * (pb - pa)), delay: T.luz * pa, easing: 'linear', fill: 'backwards' });
       }
     }
     function ler(tag, txt, animar) {
-      inst.leTag.textContent = tag; inst.leTxt.textContent = txt;
+      inst.leTag.textContent = tag; inst.leTxt.textContent = semViuva(txt);
       if (animar) varrer(leVarre, 0);
     }
 
-    /* ---------- o repouso: a cada 6 s um ponto desce o trilho até a última estação acesa e o núcleo solta uma onda ---------- */
+    /* ---------- o repouso: a cada 6 s um ponto desce o trilho até a última estação acesa e o núcleo solta uma onda; 60 s, e volta com um toque ---------- */
     function repouso() {
       inst.repouso.forEach(function (a) { try { a.cancel(); } catch (e) { aviso(e); } });
       inst.repouso = [];
-      if (reduzido() || !inst.semeado) return;
+      if (reduzido() || !inst.semeado || inst.parado) return;
       var fundo = NY, k;
       for (k = 0; k < 5; k++) if (est[k].est) fundo = est[k].cy;
       if (led.conhecido) fundo = LEDY;
@@ -194,7 +197,7 @@
       var a = anim(ponto, [{ offset: 0, opacity: 0, transform: tr(NY) }, { offset: 0.01, opacity: 1, transform: tr(NY) }, { offset: fim, opacity: 1, transform: tr(fundo) }, { offset: Math.min(1, fim + 0.02), opacity: 0, transform: tr(fundo) }, { offset: 1, opacity: 0, transform: tr(fundo) }],
         { duration: T.repouso, iterations: 10, easing: 'linear' });
       var b = anim(ondasN[0], [{ offset: 0, transform: 'scale(1)', opacity: 0.7 }, { offset: 0.16, transform: 'scale(1.9)', opacity: 0 }, { offset: 1, transform: 'scale(1.9)', opacity: 0 }], { duration: T.repouso, iterations: 10, easing: 'ease-out' });
-      [a, b].forEach(function (x) { if (x) { inst.repouso.push(x); if (!inst.visivel || document.hidden) x.pause(); } });
+      [a, b].forEach(function (x) { if (x) inst.repouso.push(x); });
     }
 
     /* ---------- a semente: o núcleo acende e o primeiro traço sai ---------- */
@@ -215,19 +218,24 @@
     }
 
     /* ---------- uma estação: a luz desce, o chip e o ícone se desenham, o texto é impresso ---------- */
+    function acender(x) {
+      x.g.classList.add('is-aceso'); x.li.classList.remove('is-fantasma'); x.li.classList.add('is-aceso');
+      x.fanT.setAttribute('aria-hidden', 'true');   /* o leitor de tela não lê o fantasma de uma etapa já entendida */
+    }
     function pintarEstacao(x, e) {
       x.est = e;
       while (x.ic.firstChild) x.ic.removeChild(x.ic.firstChild);
       (Pecas.desenhar(e.tipo, e.n) || []).forEach(function (t) { S('path', { d: t.d, pathLength: 1 }, x.ic, t.ac ? 'lv-ac' : ''); });
-      x.verbo.textContent = e.verbo; x.tit.textContent = e.titulo;
-      x.g.classList.add('is-aceso'); x.li.classList.remove('is-fantasma'); x.li.classList.add('is-aceso');
+      x.verbo.textContent = e.verbo; x.tit.textContent = semViuva(e.titulo);
+      x.li.classList.toggle('is-provisorio', !!e.provisorio);   /* a semente ainda é pergunta ("de onde o seu cliente vem"): o título fica apagado até a pessoa contar */
+      acender(x);
     }
     function imprimir(item, animar) {
       var refeita = item.tipo === 'refeita', alvo, tag, frase;
       if (item.lugar === 'objetivo') {
         var o = inst.esboco.objetivo;
-        led.conhecido = true; led.objetivo = o; led.tit.textContent = o.titulo;
-        led.g.classList.add('is-aceso'); led.li.classList.remove('is-fantasma'); led.li.classList.add('is-aceso');
+        led.conhecido = true; led.objetivo = o; led.tit.textContent = semViuva(o.titulo);
+        acender(led);
         alvo = led; tag = 'Objetivo'; frase = o.frase;
         acenderTrilhoAte(5);
       } else {
@@ -237,7 +245,7 @@
         acenderTrilhoAte(k);
       }
       inst.status.textContent = (refeita ? 'A planta mudou: ' : 'Nova etapa na planta: ') + (alvo.est ? alvo.est.titulo : led.objetivo.titulo) + '.';
-      if (!animar) { ler(tag, frase, false); som(refeita ? 'refaz' : 'estacao'); return 0; }
+      if (!animar) { ler(tag, frase, false); return 0; }
       luz(alvo.cy - (alvo === led ? LR * 0.63 : C / 2), 0);
       var chega = T.luz;
       if (alvo === led) {
@@ -254,21 +262,29 @@
       return chega + T.chip + T.texto;
     }
 
-    /* ---------- a fila: as mudanças de um turno tocam uma depois da outra, só com o quadro na tela ---------- */
+    /* a estação que vai nascer (e a legenda logo abaixo do quadro) está à vista, acima da barra de entrada? */
+    function alvoVisivel(item) {
+      if (!item || item.lugar === '__semente') return true;
+      var q = quadro.getBoundingClientRect(), k = Cresce.LUGARES.indexOf(item.lugar), y = q.top + (k >= 0 ? cy(k) : LEDY);
+      var baixo = window.innerHeight - (typeof op.margemBaixo === 'function' ? op.margemBaixo() : 0);
+      return y - C / 2 >= 0 && y + C / 2 <= baixo;
+    }
+
+    /* ---------- a fila: as mudanças de um turno tocam uma depois da outra, só com a estação na tela (a planta nunca rola a página) ---------- */
     function andar() {
       if (inst.ocupado || inst.parado) return;
-      var animar = !reduzido(), it;
-      while (!animar && inst.fila.length) {   /* sem movimento: tudo de uma vez, na mesma tarefa */
+      var animar = !reduzido(), it, houve = '';
+      while (!animar && inst.fila.length) {   /* sem movimento: tudo de uma vez, na mesma tarefa, com UM som só */
         it = inst.fila.shift();
-        if (it.lugar === '__semente') semear(false); else imprimir(it, false);
+        if (it.lugar === '__semente') semear(false); else { imprimir(it, false); houve = houve === 'estacao' || it.tipo === 'nova' ? 'estacao' : 'refaz'; }
       }
+      if (houve) som(houve);
       if (!inst.fila.length) { repouso(); return; }
-      if (animar && (!inst.visivel || document.hidden)) return;   /* espera a pessoa chegar ao quadro: nunca rola por ela */
-      var item = inst.fila.shift(), dura = 0;
+      if (!inst.visivel || document.hidden || !alvoVisivel(inst.fila[0])) return;
+      var item = inst.fila.shift(), dura;
       inst.ocupado = true;
-      if (item.lugar === '__semente') dura = semear(animar);
-      else dura = imprimir(item, animar);
-      depois(animar ? dura + T.entre : 0, function () { inst.ocupado = false; andar(); });
+      dura = item.lugar === '__semente' ? semear(true) : imprimir(item, true);
+      depois(dura + T.entre, function () { inst.ocupado = false; andar(); });
     }
 
     function crescer(esboco) {
@@ -281,34 +297,40 @@
       return dif;
     }
 
-    /* ---------- a tela: o quadro precisa estar à vista; a aba escondida pausa ---------- */
+    /* ---------- a tela: fora da vista ou com a aba escondida, TUDO pausa (timers, traços, repouso, o giro do núcleo) e volta de onde estava ---------- */
+    function aplicarVisibilidade() {
+      var ver = inst.visivel && !document.hidden;
+      card.classList.toggle('lv--fora', !ver);
+      if (ver) { inst.rel.retomar(); andar(); } else inst.rel.pausar();
+    }
     if (window.IntersectionObserver) {
+      var margem = typeof op.margemBaixo === 'function' ? Math.round(op.margemBaixo()) : 0, limiares = [], q2;
+      for (q2 = 0; q2 <= 20; q2++) limiares.push(q2 / 20);   /* de 5 em 5%: a fila confere a estação-alvo a cada passo da rolagem */
       inst.io = new window.IntersectionObserver(function (ents) {
         var e = ents[ents.length - 1];
-        inst.visivel = !!e.isIntersecting && (e.intersectionRatio >= 0.3 || (e.intersectionRect && e.intersectionRect.height >= window.innerHeight * 0.4));
-        inst.repouso.forEach(function (a) { try { if (inst.visivel && !document.hidden) a.play(); else a.pause(); } catch (x) { aviso(x); } });
-        andar();
-      }, { threshold: [0, 0.15, 0.3, 0.5, 0.75, 1] });
+        inst.visivel = !!e.isIntersecting && e.intersectionRatio > 0;
+        aplicarVisibilidade();
+      }, { threshold: limiares, rootMargin: '0px 0px -' + margem + 'px 0px' });
       inst.io.observe(quadro);
     }
-    inst.aoVis = function () {
-      var lista2 = inst.anims.concat(inst.repouso);
-      lista2.forEach(function (a) { try { if (document.hidden) a.pause(); else if (inst.visivel) a.play(); } catch (e) { aviso(e); } });
-      if (!document.hidden) andar();
-    };
+    inst.aoVis = aplicarVisibilidade;
     document.addEventListener('visibilitychange', inst.aoVis);
+    inst.aoToque = function () { if (inst.semeado && inst.ocupado === false && !inst.fila.length) repouso(); };
+    card.addEventListener('pointerdown', inst.aoToque);
 
     function parar() {
       inst.parado = true;
-      inst.timers.forEach(function (t) { window.clearTimeout(t); });
-      inst.anims.concat(inst.repouso).forEach(function (a) { try { a.cancel(); } catch (e) { aviso(e); } });
+      inst.rel.parar();
+      inst.repouso = [];
       if (inst.io) inst.io.disconnect();
       document.removeEventListener('visibilitychange', inst.aoVis);
+      card.removeEventListener('pointerdown', inst.aoToque);
+      card.classList.remove('lv--fora');
     }
 
-    inst.depois = depois; inst.anim = anim; inst.parar = parar; inst.ocioso = function () { return !inst.ocupado && !inst.fila.length; };
+    inst.parar = parar; inst.ocioso = function () { return !inst.ocupado && !inst.fila.length; };
     return { crescer: crescer, parar: parar, interno: inst, ocioso: inst.ocioso };
   }
 
-  window.BZPlantaEsboco = { criar: criar, geometria: geometria, ALTURA: ALTURA };
+  window.BZPlantaEsboco = { criar: criar, geometria: geometria, ALTURA: ALTURA, semViuva: semViuva };
 })();

@@ -15,7 +15,7 @@
     abertura: 'Oi, eu sou o Zero. Me conta do seu negócio que eu monto o orçamento com você.',
     turnos: [
       { pessoa: 'Oi! Tenho uma clínica odontológica aqui no bairro.',
-        zero: 'Que bom ter você aqui. Me conta: hoje, como os pacientes novos chegam até a clínica?',
+        zero: 'Me conta uma coisa: hoje, como os pacientes novos chegam até a clínica?',
         briefing: { negocio: { segmento: 'Odontologia' } } },
       { pessoa: 'A maioria acha a gente no Google e no mapa. E muita gente vem por indicação.',
         zero: 'Indicação diz muito: quem vem, gosta. E quando a pessoa chega, o que ela mais procura com vocês?',
@@ -30,7 +30,7 @@
         zero: 'Dá para fazer: a pessoa vê os horários livres e marca a avaliação ali mesmo. A recepção só confere. Vocês querem manter o WhatsApp para quem prefere falar com alguém?',
         briefing: { objetivos: ['agendamentos'], funcionalidades: ['agendamento'] } },
       { pessoa: 'Quero. Tem paciente mais velho que só confia falando com a gente.',
-        zero: 'Faz sentido. O botão fica, e a mensagem já sai com o tratamento que a pessoa estava vendo. Já tenho o que preciso para o seu orçamento.',
+        zero: 'Faz sentido. O botão fica, e a mensagem já sai com o tratamento que a pessoa estava vendo. Com isso eu já monto o seu orçamento.',
         briefing: { funcionalidades: ['agendamento', 'whatsapp'] } }
     ],
     fim: {
@@ -49,7 +49,7 @@
           { id: 'revisao', tipo: 'retoma', verbo: 'Reativa', retorno: true, titulo: 'Chama de volta na hora da revisão', frase: 'Chegou a época da revisão: o site chama a pessoa de volta.' }
         ],
         fim: { titulo: 'Avaliação marcada', frase: 'A avaliação já aparece na agenda da clínica, com o horário combinado.' },
-        fecho: 'A pessoa chegou, foi entendida, marcou e vai ser lembrada. A clínica entra só no dia.',
+        fecho: 'A pessoa chega, tira a dúvida e marca a avaliação sozinha. A recepção só confere a agenda.',
         rotulo_retorno: 'o site continua'
       }
     }
@@ -63,19 +63,19 @@
         zero: 'Serviço que todo mundo lembra quando esquenta. Como os clientes te encontram hoje?',
         briefing: { negocio: { segmento: 'Ar-condicionado' } } },
       { pessoa: 'Pelo Google, quando procuram técnico perto de casa. E por indicação de cliente.',
-        zero: 'Boa base. E o serviço que mais sai, é limpeza ou instalação?',
-        briefing: { situacao_atual: { como_chegam: 'Google perto de casa e indicação' } } },
+        zero: 'Indicação de cliente vale muito nesse ramo. E o que mais sai, limpeza ou instalação?',
+        briefing: { situacao_atual: { como_chegam: 'Google e indicação' } } },
       { pessoa: 'Limpeza sai toda semana. Instalação é menos, mas é a que dá mais trabalho para orçar.',
         zero: 'Então são dois caminhos: a limpeza pode ser marcada direto, a instalação precisa de um olhar antes. Onde você perde cliente hoje?',
         briefing: { negocio: { descricao: 'Limpeza toda semana; instalação precisa de orçamento' } } },
       { pessoa: 'Quando estou em cima do telhado não consigo atender, e o cliente liga para outro.',
         zero: 'É o problema de quem está sempre no serviço. O site pode responder por você enquanto você trabalha. Você gostaria que a pessoa marcasse a visita sozinha?',
-        briefing: { situacao_atual: { como_chegam: 'Google perto de casa e indicação', o_que_se_perde: 'Não atende no serviço e o cliente liga para outro' } } },
+        briefing: { situacao_atual: { como_chegam: 'Google e indicação', o_que_se_perde: 'Não atende no serviço e o cliente liga para outro' } } },
       { pessoa: 'Seria ótimo. Hoje anoto tudo num caderno.',
         zero: 'Então a pessoa escolhe o dia da limpeza e você só confere a agenda. E o WhatsApp, fica?',
         briefing: { objetivos: ['agendamentos'], funcionalidades: ['agendamento'] } },
       { pessoa: 'Fica. É por onde o cliente manda a foto do aparelho.',
-        zero: 'Perfeito. Já dá para montar o seu orçamento.',
+        zero: 'Ótimo, a foto ajuda muito a orçar a instalação. Vou montar o seu orçamento.',
         briefing: { funcionalidades: ['agendamento', 'whatsapp'] } }
     ],
     fim: {
@@ -83,7 +83,7 @@
       nome: 'Técnico de ar-condicionado',
       plano: {
         topologia: 'bifurca',
-        chegada: { origens: ['busca', 'mapa', 'indicacao'], titulo: 'Busca, mapa e indicação', frase: 'A pessoa chega pela busca, pelo mapa ou por indicação de outro cliente.' },
+        chegada: { origens: ['busca', 'indicacao'], titulo: 'Busca e indicação', frase: 'A pessoa chega pela busca ou por indicação de outro cliente.' },
         etapas: [
           { id: 'pagina', tipo: 'pagina', verbo: 'Mostra', titulo: 'Limpeza e instalação explicadas', frase: 'Cada serviço tem a sua página, com o que está incluído e como é a visita.' },
           { id: 'conversa', tipo: 'conversa', verbo: 'Decide', decisao: true, titulo: 'Pergunta o aparelho e o que precisa', frase: 'A conversa entende se é limpeza ou instalação e escolhe o caminho certo.' },
@@ -105,10 +105,10 @@
     abertura: 'Oi, eu sou o Zero. Me conta do seu negócio que eu monto o orçamento com você.',
     turnos: [
       { pessoa: 'Tenho uma loja de roupa feminina.',
-        zero: 'Que legal. E hoje as clientes te encontram por onde?',
+        zero: 'Roupa feminina, boa. E hoje as clientes te encontram por onde?',
         briefing: { negocio: { segmento: 'Loja de roupa feminina' } } },
       { pessoa: 'Pelo Instagram e por anúncio. Algumas acham no Google.',
-        zero: 'Entendi. E o que você mais vende?',
+        zero: 'Instagram e anúncio puxam bastante gente. E o que você mais vende?',
         briefing: { situacao_atual: { como_chegam: 'Instagram, anúncio e Google' } } },
       { pessoa: 'Vestidos e conjuntos, para trabalho e para festa.',
         zero: 'Dá para organizar a vitrine por ocasião: trabalho, festa, dia a dia. E onde a venda emperra hoje?',
@@ -120,7 +120,7 @@
         zero: 'Então a pessoa monta a sacola, vê o frete e paga numa tela só. E o WhatsApp, você quer manter?',
         briefing: { objetivos: ['vender'], funcionalidades: ['loja'] } },
       { pessoa: 'Quero. Muita cliente gosta de mandar foto e perguntar.',
-        zero: 'Fica, então. Já tenho o suficiente para montar o seu orçamento.',
+        zero: 'Fica, então: a mensagem já vai com a peça que ela estava olhando. Agora eu monto o orçamento.',
         briefing: { funcionalidades: ['loja', 'whatsapp'] } }
     ],
     fim: {
