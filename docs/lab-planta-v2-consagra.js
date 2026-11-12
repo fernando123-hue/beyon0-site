@@ -93,6 +93,8 @@
       var card = I.card, q = H('div', 'plv-quadro lv-final' + (animar ? ' plv--pre is-voo' : ''));
       card.classList.add('is-consagrada');
       card.insertBefore(H('p', 'plv-nota lv-nota', semViuva(NOTA)), I.quadro);
+      /* o quadro novo nasce com a altura do esboço: com altura 0 por um instante a página encolhia e o navegador puxava a rolagem para cima (medido no vídeo de 12/11) */
+      q.style.height = I.quadro.offsetHeight + 'px';
       card.replaceChild(q, I.quadro);
       var W = q.clientWidth, g = Layout.montarGeometria(plano, W);
       if (!g) { if (window.console) window.console.warn('[planta-v2] sem geometria para ' + W + ' px'); return; }
