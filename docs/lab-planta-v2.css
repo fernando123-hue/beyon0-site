@@ -1,8 +1,7 @@
 /* Laboratório da planta viva v2: a página (barra, conversa, entrada, painel) e o ESBOÇO (classes lv-). O quadro final é o do módulo real
-   (css/orcamento-planta.css, classes plv-); aqui só o que a consagração precisa a mais (o voo sai do quadro). Mesmas regras do site: sem
+   (css/orcamento-planta.css, classes plv-) e o do esboço é o de produção (css/planta-esboco.css); aqui só a página e o que a consagração precisa a mais (o voo sai do quadro). Mesmas regras do site: sem
    desfoque, sem sombra, sem gradiente; traço de 1 px e cor chapada; movimento contínuo só em transform e opacity; geometria em px. */
 body { margin: 0; background: var(--bg); color: var(--t2); font-family: var(--sans); }
-.lv-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ---- a barra do laboratório (some com ?captura=1: aí fica só a marca, como a página) ---- */
 .lab-barra { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
@@ -38,91 +37,6 @@ body { margin: 0; background: var(--bg); color: var(--t2); font-family: var(--sa
 .entrada__campo::placeholder { color: var(--t3); }
 .entrada__enviar { flex: 0 0 auto; }
 
-/* ---- o cartão da planta (o esboço) ---- */
-/* o cartão não serve de âncora de rolagem: ele cresce (esboço -> desenho final) e o navegador não deve rolar a página para compensar */
-.lv { position: relative; color: var(--t2); overflow-anchor: none; }
-.lv-kicker { margin: 0 0 8px; height: 16px; overflow: hidden; font: 500 var(--fs-rotulo)/16px var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
-.lv-kicker b { font-weight: 500; color: var(--ac-3); }
-.lv-quadro { position: relative; border: 1px solid var(--line); border-radius: var(--raio); background: var(--s1); overflow: hidden; contain: layout paint; }
-.lv-svg { position: absolute; left: 0; top: 0; max-width: none; }
-.lv-lista { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; pointer-events: none; }
-.lv-grade { fill: none; stroke: rgb(205 212 212 / .05); stroke-width: 1; }
-
-/* o trilho: tracejado fantasma por baixo; o aceso (ciano profundo) se desenha trecho a trecho */
-.lv-trilho-fan { fill: none; stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 2 4; }
-.lv-trilho { fill: none; stroke: var(--ac-3); stroke-width: 1; stroke-dasharray: 1 1; stroke-dashoffset: 1; }
-.lv-trilho.is-aceso { stroke-dashoffset: 0; }
-.lv-cab { fill: none; stroke: var(--ac-2); stroke-width: 2; opacity: 0; }
-.lv-ponto { fill: var(--ac-2); opacity: 0; }
-
-/* o núcleo do Zero */
-.lv-aro { fill: none; stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 1 1; stroke-dashoffset: 0; transition: stroke .4s var(--ease); }
-.lv-aro--int { stroke-dasharray: 2 5; }
-.lv-rumos { fill: none; stroke: var(--ac-3); stroke-width: 1; }
-.lv-gira { transform-box: fill-box; transform-origin: center; opacity: 0; }
-.lv-disco { fill: var(--line-2); transform-box: fill-box; transform-origin: center; }
-.lv-onda { fill: none; stroke: var(--ac-2); stroke-width: 1; opacity: 0; transform-box: fill-box; transform-origin: center; }
-.is-semeado .lv-nucleo .lv-aro { stroke: var(--ac); }
-.is-semeado .lv-nucleo .lv-aro--int { stroke: var(--ac-3); }
-.is-semeado .lv-gira { opacity: 1; animation: lv-gira 60s linear infinite; }
-.lv--fora .lv-gira { animation-play-state: paused; }   /* fora da tela ou aba escondida: o giro também para */
-.is-semeado .lv-nucleo .lv-disco { fill: var(--ac-2); }
-@keyframes lv-gira { to { transform: rotate(360deg); } }
-
-/* as estações: chip de canto cortado no trilho; fantasma tracejado até a luz chegar */
-.lv-chip-fundo { fill: var(--s1); }
-.lv-chip-fan { fill: none; stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 3 3; transition: opacity .2s var(--ease); }
-.lv-chip { fill: none; stroke: var(--ac); stroke-width: 1; stroke-dasharray: 1 1; stroke-dashoffset: 1; }
-.lv-est.is-aceso .lv-chip { stroke-dashoffset: 0; }
-.lv-est.is-aceso .lv-chip-fan { opacity: 0; }
-.lv-icone path { fill: none; stroke: var(--ac); stroke-width: 2.08; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1 1; stroke-dashoffset: 0; }
-.lv-icone .lv-ac { stroke: var(--ac-2); }
-
-/* o objetivo: ciano enquanto é esboço; o ouro só na consagração, no quadro real */
-.lv-led-fundo { fill: var(--s1); }
-.lv-led-fan { fill: none; stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 2 3; }
-.lv-led .lv-aro { stroke: var(--ac); stroke-dashoffset: 1; }
-.lv-led .lv-rumos--led { opacity: 0; }
-.lv-led .lv-disco { fill: none; }
-.lv-led.is-aceso .lv-aro { stroke-dashoffset: 0; }
-.lv-led.is-aceso .lv-led-fan { opacity: 0; }
-.lv-led.is-aceso .lv-rumos--led { opacity: 1; }
-.lv-led.is-aceso .lv-disco { fill: var(--ac); }
-
-/* o texto ao lado do trilho: o fantasma ("a entender") e o real, impresso pela varredura */
-.lv-txt, .lv-ponta { position: absolute; box-sizing: border-box; overflow: hidden; }
-.lv-txt { display: flex; flex-direction: column; justify-content: center; }
-.lv-fan, .lv-real { display: flex; flex-direction: column; gap: 2px; }
-.lv-real { position: absolute; left: 0; right: 0; top: 0; bottom: 0; justify-content: center; opacity: 0; }
-.lv-txt.is-aceso .lv-real { opacity: 1; }
-.lv-txt.is-aceso .lv-fan { opacity: 0; transition: opacity .15s linear; }
-.lv-fan__tag, .lv-verbo, .lv-n { font: 500 var(--fs-rotulo)/1.3 var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; }
-.lv-fan__tag { color: var(--stroke); }
-.lv-fan__txt { font: 400 var(--fs-s)/1.3 var(--sans); color: var(--t3); }
-.lv-hd { display: flex; gap: 8px; align-items: baseline; white-space: nowrap; }
-.lv-n { color: var(--ac-3); }
-.lv-verbo { color: var(--t3); }
-.lv-tit { font: 400 var(--fs-s)/1.3 var(--sans); color: var(--t1); overflow-wrap: break-word; }
-.lv-txt.is-provisorio .lv-tit { color: var(--t3); }
-.lv-txt--led .lv-verbo { color: var(--ac); }
-.lv-ponta { display: flex; gap: 8px; align-items: baseline; height: 20px; white-space: nowrap; }
-.lv-ponta .lv-verbo { color: var(--ac-3); }
-.lv-ponta__txt { font: 400 var(--fs-ctrl)/1.3 var(--mono); color: var(--t3); }
-.lv-varre { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background: var(--s1); transform: translateX(101%); pointer-events: none; }
-.lv-varre::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: var(--ac-2); }
-
-/* dormente (o computador mostra o painel antes da semente): só o papel e o núcleo apagado */
-.lv.is-dormente .lv-est, .lv.is-dormente .lv-led, .lv.is-dormente .lv-txt, .lv.is-dormente .lv-trilho-fan { opacity: 0; }
-.lv.is-dormente .lv-ponta { opacity: .5; }
-
-/* a legenda: o que a última estação faz. Altura FIXA (tag + 3 linhas): o texto troca sem mexer em nada */
-.lv-leitura { position: relative; overflow: hidden; box-sizing: border-box; margin: 10px 0 0; height: 84px; font-size: var(--fs-s); line-height: 1.5; color: var(--t2); }
-.lv-leitura__tag { display: block; margin-bottom: 3px; font: 500 var(--fs-rotulo)/1.3 var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-3); }
-.lv-leitura__txt { display: block; }
-/* nenhuma palavra sozinha na última linha (o Chrome equilibra; onde não há suporte, só quebra como antes) */
-.lv-tit, .lv-fan__txt, .lv-leitura__txt, .lv .plv-tit, .lv .plv-nota { text-wrap: pretty; }
-.lv-leitura .lv-varre { background: var(--bg); }
-
 /* a consagração: o quadro final é o do módulo real; enquanto as estações voam do esboço, nada corta o voo */
 /* a nota real reserva altura para trocar a nota padrão pela do modelo; aqui só há uma nota, então sem vão */
 .lv-nota { margin: 12px 0 0; min-height: 0; }
@@ -155,10 +69,9 @@ body { margin: 0; background: var(--bg); color: var(--t2); font-family: var(--sa
   .palco.is-faixa .log > li:not(:last-child) { display: none; }
   .palco.is-faixa .entrada { display: none; }
   .palco.is-faixa .painel { overflow: visible; padding-top: 0; }
-  .lv-leitura { height: 64px; }   /* no computador a frase cabe em 2 linhas */
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lv *, .lv *::before, .lv *::after, .msg--entra, .orc-pensando__fio::after { animation: none !important; transition: none !important; }
+  .msg--entra, .orc-pensando__fio::after { animation: none !important; transition: none !important; }
 }
-html.menos-movimento .lv *, html.menos-movimento .lv *::before, html.menos-movimento .lv *::after, html.menos-movimento .msg--entra { animation: none !important; transition: none !important; }
+html.menos-movimento .msg--entra { animation: none !important; transition: none !important; }

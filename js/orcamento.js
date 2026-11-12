@@ -207,12 +207,22 @@
   }
 
   /* ---------- a conversa ---------- */
-  function msg(papel, texto) {
+  /* um item com data-fica (o cartão da planta, js/orcamento-planta.js) fica sempre por último: as falas entram antes dele */
+  var FOLGA_FALA = 8;
+  function ficaNoFim() { var u = $('o-log').lastElementChild; return u && u.hasAttribute('data-fica') ? u : null; }
+  function msg(papel, texto, semRolar) {
     var li = el('li', 'msg msg--' + papel);
     li.appendChild(el('p', '', texto));
-    $('o-log').appendChild(li);
-    $('o-log-caixa').scrollTop = $('o-log-caixa').scrollHeight;   /* (quem rola é a caixa da conversa, não a lista) */
+    $('o-log').insertBefore(li, ficaNoFim());
+    if (!semRolar) rolarConversa(li);
     return li;
+  }
+  /* quem rola é a caixa da conversa, não a lista. Sem o cartão, até o fim, como sempre. Com ele (a caixa não comporta a fala e o cartão
+     inteiros: 472 px contra 526 em 390x844, medido em 12/11) a fala nova fica no topo da caixa e o cartão logo abaixo dela */
+  function rolarConversa(li) {
+    var caixa = $('o-log-caixa');
+    if (!li || !ficaNoFim()) { caixa.scrollTop = caixa.scrollHeight; return; }
+    caixa.scrollTop = Math.max(0, caixa.scrollTop + li.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA_FALA);
   }
   /* (aria-disabled, não disabled: o botão desligado com o foco nele jogava o foco no body, A3; o "enviando" já protege) */
   function ocupado(sim) {
@@ -691,11 +701,11 @@
     if (cur && ol.scrollWidth > ol.clientWidth) ol.scrollLeft = Math.max(0, cur.offsetLeft - ol.offsetLeft - 16);   /* celular: a etapa atual à vista */
   }
   function conversa() {
-    var log = $('o-log');
-    var primeira = log.firstElementChild;
-    log.textContent = '';
-    if (primeira) log.appendChild(primeira);
-    E.mensagens.forEach(function (m) { msg(m.papel === 'agente' ? 'agente' : 'visitante', m.conteudo); });
+    var log = $('o-log'), fica = ficaNoFim(), ultima = null;
+    /* refaz as falas; a abertura fixa (o 1º item) e o cartão da planta ficam onde estão (tirá-lo do DOM reiniciaria o desenho) */
+    [].slice.call(log.children).forEach(function (c, i) { if (i > 0 && c !== fica) log.removeChild(c); });
+    E.mensagens.forEach(function (m) { ultima = msg(m.papel === 'agente' ? 'agente' : 'visitante', m.conteudo, true); });
+    rolarConversa(ultima);
     if (E.mensagens.length > 0) esconderAtalhos(); else $('o-atalhos').hidden = false;
   }
   function direcoes() {
@@ -766,6 +776,7 @@
     if (!aberta) $('o-atalhos').hidden = true;
     window.BZDetalhes.atualizar(E);   /* os detalhes, o pedido recebido ou o pedido encerrado (js/orcamento-detalhes.js) */
     if (window.BZOrcPlanta) window.BZOrcPlanta.atualizar(E, { rolarAte: rolarAte, enviar: enviar });   /* a planta do site (js/orcamento-planta.js): só age com E.planta (flag BZ_PLANTA); sem o módulo a tela segue igual */
+    if (window.BZOrcEsboco) window.BZOrcEsboco.atualizar(E);   /* a planta viva v2, o esboço que cresce na conversa (js/orcamento-planta-esboco.js): só age com a flag BZ_PLANTA; sem o módulo a tela segue igual */
     if (window.BZOrcEscopo) window.BZOrcEscopo.atualizar(E);   /* o radar do escopo (js/orcamento-escopo.js): só lê o estado; sem o módulo a tela segue igual */
     if (window.BZPainel) window.BZPainel.atualizar(E.painel);   /* as peças da conversa: notas, ficha e caso (js/orcamento-painel.js); sem o módulo a tela segue igual */
     direcoes();

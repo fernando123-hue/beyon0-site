@@ -29,7 +29,12 @@ export class No {
   appendChild(c) { if (c.pai) c.pai.removeChild(c); c.pai = this; this.filhos.push(c); return c; }
   removeChild(c) { const i = this.filhos.indexOf(c); if (i >= 0) { this.filhos.splice(i, 1); c.pai = null; } return c; }
   remove() { if (this.pai) this.pai.removeChild(this); }
+  insertBefore(c, ref) { if (!ref) return this.appendChild(c); if (c.pai) c.pai.removeChild(c); const i = this.filhos.indexOf(ref); c.pai = this; this.filhos.splice(i < 0 ? this.filhos.length : i, 0, c); return c; }
+  get nextSibling() { if (!this.pai) return null; const i = this.pai.filhos.indexOf(this); return this.pai.filhos[i + 1] || null; }
+  get lastElementChild() { const e = this.children; return e[e.length - 1] || null; }
+  get isConnected() { let n = this; while (n.pai) n = n.pai; return !!n.raizDoDocumento; }
   get firstChild() { return this.filhos[0] || null; }
+  get childNodes() { return this.filhos; }
   get parentNode() { return this.pai; }
   get previousElementSibling() { if (!this.pai) return null; const irmaos = this.pai.filhos.filter((f) => f.nodeType === 1), i = irmaos.indexOf(this); return i > 0 ? irmaos[i - 1] : null; }
   get children() { return this.filhos.filter((f) => f.nodeType === 1); }

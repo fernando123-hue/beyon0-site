@@ -2,7 +2,11 @@
    Os timers e as animações de um programa andam JUNTOS: com a aba escondida ou a planta fora da tela os dois param, e voltam de onde estavam
    (o módulo real faz o mesmo com criarRelogio + pausarTudo em js/planta-desenho.js; aqui é o mesmo contrato, pequeno, para o esboço e a
    consagração). window.BZ_LENTO (só o vídeo do laboratório) estica os timers na proporção da câmera lenta. Sem requestAnimationFrame. ES5. */
-(function () {
+(function (raiz, fabrica) {
+  'use strict';
+  if (typeof module === 'object' && module && module.exports) module.exports = { para: fabrica };
+  if (raiz) raiz.BZPlantaRelogio = fabrica(raiz);
+})(typeof window !== 'undefined' ? window : null, function (window) {
   'use strict';
   var aviso = function (e) { if (window.console) window.console.warn('[planta-v2] ' + (e && e.message ? e.message : e)); };
 
@@ -26,7 +30,8 @@
       try {
         var a = el.animate(kf, op);
         anims.push(a);
-        a.onfinish = function () { anims = anims.filter(function (b) { return b !== a; }); };
+        /* a animação que acabou sai da lista (por ouvinte: a varredura de segurança recusa on* por propriedade) */
+        if (typeof a.addEventListener === 'function') a.addEventListener('finish', function () { anims = anims.filter(function (b) { return b !== a; }); });
         if (pausado) a.pause();
         return a;
       } catch (e) { aviso(e); return null; }
@@ -52,5 +57,5 @@
     return { depois: depois, anim: anim, pausar: pausar, retomar: retomar, parar: parar, ocupado: function () { return timers.length > 0; }, pausado: function () { return pausado; } };
   }
 
-  window.BZPlantaRelogio = { criar: criar };
-})();
+  return { criar: criar };
+});

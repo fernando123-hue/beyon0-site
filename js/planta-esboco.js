@@ -10,10 +10,16 @@
    na tela (a planta espera a pessoa, nunca rola a página por ela) e pausa com a aba escondida. Movimento reduzido ou html.menos-movimento:
    cada estação aparece inteira, sem voo nem varredura.
    SEGURANÇA: texto só por textContent (aqui só há texto de listas fechadas, mas a regra é a do módulo real). ES5. */
-(function () {
+(function (raiz, fabrica) {
   'use strict';
+  if (typeof module === 'object' && module && module.exports) module.exports = { para: fabrica };
+  if (raiz) { var api = fabrica(raiz); if (api) raiz.BZPlantaEsboco = api; }
+})(typeof window !== 'undefined' ? window : null, function (window) {
+  'use strict';
+  /* a janela vem de fora (no Node, a de mentira dos testes): o resto do módulo só fala com ela */
+  var document = window.document;
   var NS = 'http://www.w3.org/2000/svg', Pecas = window.BZPlantaPecas, Cresce = window.BZPlantaCresce, Relogio = window.BZPlantaRelogio;
-  if (!Pecas || !Cresce || !Relogio) return;
+  if (!Pecas || !Cresce || !Relogio) return null;
 
   /* a geometria do esboço (px). RX = o trilho; P = o passo entre estações; C = o chip */
   var RX = 26, NY = 26, NR = 20, P = 58, C = 36, Y0 = 66, LR = 20, TX = RX + C / 2 + 14, CHAMFRO = 7;
@@ -170,8 +176,8 @@
         { duration: T.luz, delay: atraso, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'both' });
     }
     var trechoY = function (t) { return [t === 0 ? NY + NR * 0.76 : cy(t - 1) + C / 2, t < 5 ? cy(t) - C / 2 : LEDY - LR * 0.63]; };
-    function acenderTrilhoAte(k) {
-      var animar = !reduzido(), ate = trechoY(Math.min(k, 5))[1], t;
+    function acenderTrilhoAte(k, animarTrilho) {
+      var animar = animarTrilho !== false && !reduzido(), ate = trechoY(Math.min(k, 5))[1], t;
       for (t = 0; t <= Math.min(k, 5); t++) {
         if (inst.trechos[t].classList.contains('is-aceso')) continue;
         inst.trechos[t].classList.add('is-aceso');
@@ -237,12 +243,12 @@
         led.conhecido = true; led.objetivo = o; led.tit.textContent = semViuva(o.titulo);
         acender(led);
         alvo = led; tag = 'Objetivo'; frase = o.frase;
-        acenderTrilhoAte(5);
+        acenderTrilhoAte(5, animar);
       } else {
         var k = Cresce.LUGARES.indexOf(item.lugar), e = inst.esboco.estacoes[k];
         alvo = est[k]; pintarEstacao(alvo, e);
         tag = dois(k + 1) + ' · ' + e.verbo; frase = e.frase;
-        acenderTrilhoAte(k);
+        acenderTrilhoAte(k, animar);
       }
       inst.status.textContent = (refeita ? 'A planta mudou: ' : 'Nova etapa na planta: ') + (alvo.est ? alvo.est.titulo : led.objetivo.titulo) + '.';
       if (!animar) { ler(tag, frase, false); return 0; }
@@ -262,12 +268,13 @@
       return chega + T.chip + T.texto;
     }
 
-    /* a estação que vai nascer (e a legenda logo abaixo do quadro) está à vista, acima da barra de entrada? */
+    /* a estação que vai nascer está à vista, acima da barra de entrada e, com opcoes.rolagem (a caixa da conversa no celular), dentro da caixa? */
     function alvoVisivel(item) {
       if (!item || item.lugar === '__semente') return true;
       var q = quadro.getBoundingClientRect(), k = Cresce.LUGARES.indexOf(item.lugar), y = q.top + (k >= 0 ? cy(k) : LEDY);
-      var baixo = window.innerHeight - (typeof op.margemBaixo === 'function' ? op.margemBaixo() : 0);
-      return y - C / 2 >= 0 && y + C / 2 <= baixo;
+      var topo = 0, baixo = window.innerHeight - (typeof op.margemBaixo === 'function' ? op.margemBaixo() : 0);
+      if (op.rolagem) { var c = op.rolagem.getBoundingClientRect(); topo = Math.max(topo, c.top); baixo = Math.min(baixo, c.bottom); }
+      return y - C / 2 >= topo && y + C / 2 <= baixo;
     }
 
     /* ---------- a fila: as mudanças de um turno tocam uma depois da outra, só com a estação na tela (a planta nunca rola a página) ---------- */
@@ -283,7 +290,8 @@
       if (!inst.visivel || document.hidden || !alvoVisivel(inst.fila[0])) return;
       var item = inst.fila.shift(), dura;
       inst.ocupado = true;
-      dura = item.lugar === '__semente' ? semear(true) : imprimir(item, true);
+      /* uma estação que lance não pode travar a fila: segue para a próxima */
+      try { dura = item.lugar === '__semente' ? semear(true) : imprimir(item, true); } catch (e) { aviso(e); dura = 0; }
       depois(dura + T.entre, function () { inst.ocupado = false; andar(); });
     }
 
@@ -328,9 +336,17 @@
       card.classList.remove('lv--fora');
     }
 
+    /* refeito (o celular girou, a janela mudou de largura): o que já estava entendido aparece inteiro, de uma vez, sem som nem anúncio */
+    if (op.inicial && Array.isArray(op.inicial.estacoes)) {
+      inst.esboco = op.inicial;
+      semear(false);
+      Cresce.diferenca(null, op.inicial).forEach(function (d) { imprimir(d, false); });
+      inst.status.textContent = '';
+    }
+
     inst.parar = parar; inst.ocioso = function () { return !inst.ocupado && !inst.fila.length; };
     return { crescer: crescer, parar: parar, interno: inst, ocioso: inst.ocioso };
   }
 
-  window.BZPlantaEsboco = { criar: criar, geometria: geometria, ALTURA: ALTURA, semViuva: semViuva };
-})();
+  return { criar: criar, geometria: geometria, ALTURA: ALTURA, semViuva: semViuva };
+});
