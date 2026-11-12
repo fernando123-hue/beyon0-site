@@ -173,6 +173,16 @@ test('girar o celular / mudar a largura: refaz na largura nova com o que já est
   assert.deepEqual(amb.sons, []);
 });
 
+test('o que já está na página (o planta-pecas.js, se a faixa veio antes) não é baixado de novo', () => {
+  const amb = ambiente();
+  amb.w.BZPlantaPecas = Pecas;
+  amb.L.atualizar(estado(BRIEF_1, 1));
+  prontos(amb);
+  assert.deepEqual(amb.baixados, [CSS, ...MODULOS.filter((m) => m !== 'js/planta-pecas.js')]);
+  amb.L.atualizar(estado(BRIEF_1, 1));
+  assert.ok(cartao(amb), 'e o cartão nasce');
+});
+
 test('falha de download: nada aparece, um aviso [beyon], e os renders seguintes não baixam de novo', () => {
   const amb = ambiente({ falhar: 'js/planta-relogio.js' });
   amb.L.atualizar(estado(BRIEF_1, 1));
@@ -273,4 +283,22 @@ test('computador (1280 px): o esboço cresce na CONVERSA, como no celular; o pai
   assert.ok(cartao(amb) && amb.log.lastElementChild === cartao(amb), 'o último item da conversa');
   assert.equal(amb.painel.children.length, antes, 'o painel segue igual');
   assert.equal(amb.painel.porClasse('lv').length, 0);
+});
+
+test('js/orcamento.js rola a CAIXA: sem o cartão, até o fim (como sempre); com ele, a fala mais nova fica a 8 px do topo da caixa', async () => {
+  const p = criarPagina({ mensagens: [{ papel: 'visitante', conteudo: 'oi' }, { papel: 'agente', conteudo: 'olá' }] });
+  assert.ok(await p.pronta());
+  const caixa = p.doc.getElementById('o-log-caixa');
+  /* cada fala nova fica 100 px abaixo da anterior dentro da caixa; o retângulo dela depende de quanto a caixa rolou (como no navegador) */
+  let n = 0;
+  const criar = p.doc.createElement;
+  p.doc.createElement = (t) => { const e = criar(t); if (t === 'li') { const pos = 100 * (++n); e.getBoundingClientRect = () => ({ top: pos - caixa.scrollTop, bottom: pos + 90 - caixa.scrollTop }); } return e; };
+  caixa.getBoundingClientRect = () => ({ top: 0, bottom: 472 });
+  caixa.scrollHeight = 999;
+  await p.enviar('sem o cartão');
+  assert.equal(caixa.scrollTop, 999, 'sem o cartão: até o fim');
+  const log = p.doc.getElementById('o-log');
+  log.appendChild({ attrs: { 'data-fica': '' }, hasAttribute: (k) => k === 'data-fica', children: [{ textContent: 'CARTÃO' }] });
+  await p.enviar('com o cartão');
+  assert.equal(caixa.scrollTop, 100 * n - 8, 'com o cartão: a última fala criada a 8 px do topo da caixa');
 });

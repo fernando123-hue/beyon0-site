@@ -79,7 +79,9 @@
   /* o contexto e o motor, fora de qualquer gesto (ver o cabeçalho) */
   function preparar() {
     if (!Ctx || !ligado() || ctx) return;
-    try { ctx = new Ctx(); motor = criarMotor(ctx, ctx.destination); } catch (e) { aviso(e); ctx = null; motor = null; }
+    try { ctx = new Ctx(); } catch (e) { aviso(e); ctx = null; return; }
+    /* o motor (os buffers de ruído) numa tarefa à parte: as duas juntas somavam um quadro mais longo no celular fraco */
+    win.setTimeout(function () { try { if (ctx && !motor) motor = criarMotor(ctx, ctx.destination); } catch (e) { aviso(e); } }, 0);
   }
   /* no gesto: só retoma (nunca cria) */
   function acordar() {

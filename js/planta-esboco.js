@@ -323,7 +323,9 @@
     }
     inst.aoVis = aplicarVisibilidade;
     document.addEventListener('visibilitychange', inst.aoVis);
-    inst.aoToque = function () { if (inst.semeado && inst.ocupado === false && !inst.fila.length) repouso(); };
+    /* um toque traz o repouso de volta depois que ele acabou (60 s); com ele ainda rodando, nada (cada toque ao rolar a caixa recriava as animações) */
+    var repousando = function () { return inst.repouso.some(function (a) { return a.playState === 'running' || a.playState === 'paused'; }); };
+    inst.aoToque = function () { if (inst.semeado && inst.ocupado === false && !inst.fila.length && !repousando()) repouso(); };
     card.addEventListener('pointerdown', inst.aoToque);
 
     function parar() {

@@ -26,7 +26,8 @@ function janela({ desligado = false } = {}) {
     addEventListener: (t, f) => { (ouvintes[t] = ouvintes[t] || []).push(f); },
     querySelectorAll: (s) => (s === '[data-som]' ? [botao] : [])
   };
-  const w = { document, AudioContext: Contexto, console: { warn() {} }, localStorage: { getItem: (k) => armazem[k], setItem: (k, v) => { armazem[k] = String(v); } } };
+  /* (o motor nasce numa tarefa à parte: aqui ela roda na hora) */
+  const w = { document, setTimeout: (f) => f(), AudioContext: Contexto, console: { warn() {} }, localStorage: { getItem: (k) => armazem[k], setItem: (k, v) => { armazem[k] = String(v); } } };
   vm.runInNewContext(FONTE, { window: w });
   const gesto = (t) => (ouvintes[t] || []).forEach((f) => f({ type: t }));
   return { w, S: w.BZPlantaSom, criados, tocados, gesto, botao, armazem };

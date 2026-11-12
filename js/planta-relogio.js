@@ -29,15 +29,18 @@
       if (!el || typeof el.animate !== 'function' || parado) return null;
       try {
         var a = el.animate(kf, op);
+        limpar();
         anims.push(a);
-        /* a animação que acabou sai da lista (por ouvinte: a varredura de segurança recusa on* por propriedade) */
-        if (typeof a.addEventListener === 'function') a.addEventListener('finish', function () { anims = anims.filter(function (b) { return b !== a; }); });
         if (pausado) a.pause();
         return a;
       } catch (e) { aviso(e); return null; }
     }
+    /* a lista só guarda o que ainda roda ou está pausado: a animação cancelada ('idle') ou acabada sai (revisão do PR #141: as canceladas ficavam
+       para sempre e cada pausar/retomar varria todas) */
+    function limpar() { anims = anims.filter(function (a) { return a.playState !== 'idle' && a.playState !== 'finished'; }); }
     function pausar() {
       if (pausado || parado) return;
+      limpar();
       pausado = true;
       timers.forEach(function (t) { window.clearTimeout(t.id); t.resta = Math.max(0, t.resta - (agora() - t.inicio)); });
       anims.forEach(function (a) { try { if (a.playState === 'running') a.pause(); } catch (e) { aviso(e); } });
@@ -45,6 +48,7 @@
     function retomar() {
       if (!pausado || parado) return;
       pausado = false;
+      limpar();
       anims.forEach(function (a) { try { if (a.playState === 'paused') a.play(); } catch (e) { aviso(e); } });
       timers.forEach(armar);
     }
@@ -54,7 +58,7 @@
       anims.forEach(function (a) { try { a.cancel(); } catch (e) { aviso(e); } });
       timers = []; anims = [];
     }
-    return { depois: depois, anim: anim, pausar: pausar, retomar: retomar, parar: parar, ocupado: function () { return timers.length > 0; }, pausado: function () { return pausado; } };
+    return { depois: depois, anim: anim, pausar: pausar, retomar: retomar, parar: parar, ocupado: function () { return timers.length > 0; }, pausado: function () { return pausado; }, quantas: function () { limpar(); return anims.length; } };
   }
 
   return { criar: criar };

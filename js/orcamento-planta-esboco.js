@@ -20,6 +20,8 @@
   /* na ordem em que se leem: o esboço precisa dos quatro antes dele */
   var MODULOS = ['js/planta-pecas.js', 'js/planta-cresce.js', 'js/planta-relogio.js', 'js/planta-som.js', 'js/planta-esboco.js'];
   var CSS = 'css/planta-esboco.css';
+  /* o global que cada módulo publica: o que já está na página (o planta-pecas.js, se a faixa veio antes) não é baixado de novo */
+  var GLOBAIS = { 'js/planta-pecas.js': 'BZPlantaPecas', 'js/planta-cresce.js': 'BZPlantaCresce', 'js/planta-relogio.js': 'BZPlantaRelogio', 'js/planta-som.js': 'BZPlantaSom', 'js/planta-esboco.js': 'BZPlantaEsboco' };
   var ESPERA_RESIZE = 160, TOLERANCIA_LARGURA = 6, FOLGA_FALA = 8;
 
   var ehObjeto = function (o) { return !!o && typeof o === 'object' && !Array.isArray(o); };
@@ -41,7 +43,7 @@
     function carregar() {
       st.carga = 'indo';
       var lista = [[CSS, 'link']], falta, falhou = false, i;
-      for (i = 0; i < MODULOS.length; i++) lista.push([MODULOS[i], 'script']);
+      for (i = 0; i < MODULOS.length; i++) if (!win[GLOBAIS[MODULOS[i]]]) lista.push([MODULOS[i], 'script']);
       falta = lista.length;
       function fim(deuCerto) {
         if (!deuCerto) falhou = true;

@@ -98,3 +98,33 @@ test('uma estação que lança não trava a fila: as outras seguem e a planta ch
   esb.parar();
   void E;
 });
+
+test('tocar no cartão com o repouso rodando não recria as animações (cada toque ao rolar a caixa somava animações no relógio)', () => {
+  const { w, E, raiz } = ambiente();
+  const esb = E.criar(raiz, {});
+  esb.crescer(Cresce.derivar(BRIEFING_CHEIO));
+  w.mostrar(1);
+  w.avancar(30000);
+  const card = raiz.porClasse('lv')[0];
+  const antes = w.document.animacoes.length;
+  for (let i = 0; i < 20; i++) card.disparar('pointerdown');
+  assert.equal(w.document.animacoes.length, antes, 'nenhuma animação nova enquanto o repouso roda');
+  /* o repouso acabou (10 voltas): o toque o traz de volta */
+  w.ativas().forEach((a) => { if (a.opcoes.iterations === 10) a.finish(); });
+  card.disparar('pointerdown');
+  assert.ok(w.document.animacoes.length > antes, 'acabado, o toque o reinicia');
+  esb.parar();
+});
+
+test('o relógio solta as animações canceladas (não guarda para sempre o que já não roda)', () => {
+  const w = criarJanela();
+  const rel = Relogio.para(w).criar();
+  const el = w.document.createElement('div');
+  const a = rel.anim(el, [{ opacity: 0 }, { opacity: 1 }], { duration: 100 });
+  const b = rel.anim(el, [{ opacity: 0 }, { opacity: 1 }], { duration: 100 });
+  assert.ok(typeof rel.quantas === 'function', 'o relógio diz quantas animações guarda');
+  assert.equal(rel.quantas(), 2);
+  b.cancel();
+  assert.equal(rel.quantas(), 1, 'a cancelada saiu');
+  void a;
+});
