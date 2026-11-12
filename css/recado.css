@@ -30,6 +30,10 @@
 .recado__botao--principal { border-color: var(--ac, #49E5DD); background: var(--ac, #49E5DD); color: var(--ac-tinta, #03201E); }
 .recado__botao--principal:hover { border-color: var(--ac-2, #A6F4EF); background: var(--ac-2, #A6F4EF); }
 .recado__botao[disabled] { cursor: progress; opacity: .6; }
+/* enviando: o botão principal fica inteiro (não esmaece) e uma luz de traço nítido corre na base dele, a linguagem
+   do site no lugar de um rótulo parado (dono 12/11: "leve desconforto na demora"). Só transform, no compositor.
+   Com movimento reduzido não há luz, então o botão esmaece como antes (senão pareceria ativo; 1ª revisão do PR). */
+.recado__botao--principal { position: relative; overflow: hidden; }
 .recado__feito { padding: 1.25rem 1rem; border: 1px solid var(--line-hi, rgb(73 229 221 / .4)); background: var(--s1, #0B0C0D); }
 .recado__feito:focus { outline: none; }
 .recado__feito:focus-visible { outline: 2px solid var(--ac, #49E5DD); outline-offset: 2px; }
@@ -48,4 +52,10 @@ dialog.recado--janela:not([open]) { display: none; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .recado__botao { transition: border-color .15s, background-color .15s; }
+  html:not(.menos-movimento) .recado__form[aria-busy="true"] .recado__botao--principal[disabled] { opacity: 1; }
+  html:not(.menos-movimento) .recado__form[aria-busy="true"] .recado__botao--principal::after {
+    content: ''; position: absolute; left: 0; bottom: 0; width: 34%; height: 2px; background: var(--ac-tinta, #03201E);
+    animation: recado-luz 1.1s cubic-bezier(.45, 0, .25, 1) infinite;
+  }
 }
+@keyframes recado-luz { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
