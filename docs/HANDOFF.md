@@ -2,6 +2,7 @@
 
 > **ESTADO DA SESSÃO "PLANTA VIVA v2" (2026-11-12, worktree `03 Projetos/site-planta-espetaculo`, branch `planta-espetaculo`).**
 > <!-- passagem-auto: 1-811cdf27-da18-484d-b51f-6ae6a93d4a32 -->
+> **ATUALIZAÇÃO 12/11 (depois da passagem): medição FEITA e quadro longo da consagração corrigido (`c9db564`); NOTA.md atualizada; sessão principal avisada. Nada pendente aqui: PR só depois das decisões 1 a 3 da nota (com o dono).**
 > Sessão aberta pela sessão principal (`local_c012a676-93ab-4c4f-a1d9-6b86d5cc65da`) só para o PROTÓTIPO + vídeo da planta v2 (direção:
 > `docs/design/planta-espetaculo-2026-11-12.md`). Regra da tarefa: NÃO abrir PR, NÃO mesclar, NÃO mexer em produção nem em flags; NÃO mandar ao dono.
 >
