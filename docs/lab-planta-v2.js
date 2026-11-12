@@ -1,5 +1,5 @@
 /* Laboratório da planta viva v2: ENCENA a conversa com o Zero, turno a turno (roteiro em lab-planta-v2-roteiro.js), e entrega a cada turno o
-   esboço derivado do briefing (lab-planta-v2-cresce.js) para a planta crescer; no fim, a consagração com o plano do desenhar_planta.
+   esboço derivado do briefing (js/planta-cresce.js) para a planta crescer; no fim, a consagração com o plano do desenhar_planta.
    No celular a planta é um item da conversa, sempre o último (as falas novas entram ANTES dela); no computador ela vive no painel ao lado.
    Com ?auto=1 o roteiro anda sozinho e faz também o papel da pessoa: digita, envia e ROLA a página como o dedo dela rolaria (só no laboratório;
    a planta em si nunca rola a página, ela espera estar à vista). ES5, sem dependência além dos módulos da planta. */

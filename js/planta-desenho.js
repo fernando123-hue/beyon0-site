@@ -324,7 +324,12 @@
 
     function pulsoDeRepouso() {
       if (!inst || !inst.animada) return;
-      var R = inst.R, grupos = agrupar(R), t = 0, total = 0;
+      pulsosDeRepouso(inst.R, anim).forEach(function (a) { inst.vida.push(a); if (!inst.visivel && inst.io) { try { a.pause(); } catch (x) { aviso(x); } } });
+    }
+    /* o pulso de repouso de um quadro já construído: um ponto por rota, na ordem da luz, período de 6 s no mínimo, por até 60 s. animar(el, kf, op)
+       cria a animação (a da faixa guarda em inst.anims; a planta v2 passa o relógio dela). Devolve as animações criadas */
+    function pulsosDeRepouso(R, animar) {
+      var grupos = agrupar(R), t = 0, total = 0, criadas = [];
       var plano = [];
       grupos.forEach(function (gr) {
         var dmax = 0;
@@ -344,9 +349,10 @@
         kf.push({ offset: Math.min(1, e + eps), opacity: 0, transform: tr(pts[pts.length - 1]), easing: 'linear' });
         kf.push({ offset: 1, opacity: 0, transform: tr(pts[pts.length - 1]), easing: 'linear' });
         for (i = 1; i < kf.length; i++) if (kf[i].offset < kf[i - 1].offset) kf[i].offset = kf[i - 1].offset;   /* a API recusa offset decrescente: rota longa e curta no tempo gerava o 2º ponto antes do 1º */
-        var a = anim(el, kf, { duration: P, iterations: iter, easing: 'linear' });
-        if (a) { inst.vida.push(a); if (!inst.visivel && inst.io) { try { a.pause(); } catch (x) { aviso(x); } } }
+        var a = animar(el, kf, { duration: P, iterations: iter, easing: 'linear' });
+        if (a) criadas.push(a);
       });
+      return criadas;
     }
     function reativarVida() {
       if (!inst || !inst.visivel && inst.io) return;
@@ -596,7 +602,7 @@
       inst = null;
     }
 
-    return { montar: montar, atualizar: atualizar, parar: parar, interno: { construirQuadro: function (quadro, g, plano, opc) { return construirQuadro(quadro, g, plano, opc || {}); } } };
+    return { montar: montar, atualizar: atualizar, parar: parar, interno: { construirQuadro: function (quadro, g, plano, opc) { return construirQuadro(quadro, g, plano, opc || {}); }, repouso: pulsosDeRepouso } };
   }
 
   return { criar: criar };

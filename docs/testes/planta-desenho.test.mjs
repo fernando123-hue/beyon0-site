@@ -257,8 +257,8 @@ test('regra 1 do CLAUDE.md: o módulo não tem requestAnimationFrame; e o pulso 
   assert.ok(!/requestAnimationFrame|cancelAnimationFrame|BEYON\s*\.\s*(add|remove|iniciar|pausar)\b/.test(semComentarios), 'nenhum rAF próprio nem laço do site (BEYON.on(reduzir) pode)');
   assert.ok(!/offsetDistance|offset-distance|offsetPath|offset-path/.test(semComentarios));
   /* o código do pulso, lido pelo nome da função */
-  const ini = semComentarios.indexOf('function pulsoDeRepouso');
-  assert.ok(ini > 0, 'a função pulsoDeRepouso existe');
+  const ini = semComentarios.indexOf('function pulsosDeRepouso');
+  assert.ok(ini > 0, 'a função pulsosDeRepouso existe (o corpo do pulso; pulsoDeRepouso só a chama)');
   let prof = 0, i = semComentarios.indexOf('{', ini), fim = i;
   for (; i < semComentarios.length; i++) { if (semComentarios[i] === '{') prof++; else if (semComentarios[i] === '}') { prof--; if (prof === 0) { fim = i; break; } } }
   const corpo = semComentarios.slice(ini, fim + 1);
@@ -610,4 +610,24 @@ test('o satélite do retrato leva a classe plv-lin3 (3 linhas de título) e o da
   const b = ambiente({ reduzido: true, largura: 1280 });
   b.A.montar(b.raiz, fx('loja'), {});
   assert.ok(!liDe(b.raiz, 'look')._classes.has('plv-lin3'));
+});
+
+test('interno.repouso (planta v2): o pulso de repouso do módulo real, exposto: um ponto por rota, só transform/opacity, período >= 6 s, repetido até ~60 s', () => {
+  const { w, A } = ambiente();
+  const plano = fx('clinica');
+  const g = L.montarGeometria(plano, 390);
+  const quadro = w.document.createElement('div');
+  const R = A.interno.construirQuadro(quadro, g, plano);
+  const chamadas = [];
+  const falsa = (el, kf, op) => { chamadas.push({ el, kf, op }); return { pause() {}, play() {}, cancel() {} }; };
+  const lista = A.interno.repouso(R, falsa);
+  assert.equal(Array.isArray(lista), true);
+  assert.equal(chamadas.length, R.rotas.length, 'um pulso por rota');
+  assert.equal(lista.length, R.rotas.length);
+  for (const c of chamadas) {
+    assert.ok(c.el._classes.has('plv-pulso'));
+    assert.ok(c.op.duration >= 6000 && c.op.iterations >= 2 && c.op.duration * c.op.iterations <= 66000);
+    for (const k of c.kf) assert.deepEqual(Object.keys(k).filter((x) => !['offset', 'opacity', 'transform', 'easing'].includes(x)), []);
+    for (let i = 1; i < c.kf.length; i++) assert.ok(c.kf[i].offset >= c.kf[i - 1].offset, 'offsets crescentes');
+  }
 });

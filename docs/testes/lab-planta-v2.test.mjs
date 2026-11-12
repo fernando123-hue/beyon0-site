@@ -1,10 +1,10 @@
-// Laboratório da planta viva v2: a derivação do crescimento (docs/lab-planta-v2-cresce.js) e o roteiro dos três nichos.
+// Laboratório da planta viva v2: a derivação do crescimento (js/planta-cresce.js) e o roteiro dos três nichos.
 // node --test docs/testes/lab-planta-v2.test.mjs  (fora do npm run testar: é do laboratório; vira teste do PR do crescimento)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const Cresce = require('../lab-planta-v2-cresce.js');
+const Cresce = require('../../js/planta-cresce.js');
 const Roteiro = require('../lab-planta-v2-roteiro.js');
 const Forma = require('../../js/orcamento-planta-forma.js');
 const Layout = require('../../js/planta-layout.js');

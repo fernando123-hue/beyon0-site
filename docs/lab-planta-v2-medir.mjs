@@ -1,7 +1,7 @@
 // Tarefas longas do laboratório da planta viva v2, com e sem a planta (A/B na mesma sessão): node docs/lab-planta-v2-medir.mjs [nicho] [rodadas]
 // Celular: 390 x 844, CPU 4x mais lenta (CDP Emulation.setCPUThrottlingRate); computador: 1280 x 800, sem freio. O roteiro roda sozinho
 // (?auto=1&ritmo=2) do primeiro turno à consagração. Coleta cada long-animation-frame (LoAF) acima de 50 ms com os scripts que o causaram
-// (sourceURL): o que vem de lab-planta-v2-esboco/consagra, planta-desenho/layout/pecas conta como DA PLANTA. Também rolagem lateral no fim.
+// (sourceURL): o que vem de planta-esboco/consagra/cresce/relogio, planta-desenho/layout/pecas conta como DA PLANTA. Também rolagem lateral no fim.
 // Antes de medir, confira a carga da máquina (Get-CimInstance Win32_Processor LoadPercentage): com a CPU cheia, o número não vale.
 import { chromium } from 'playwright';
 

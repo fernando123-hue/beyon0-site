@@ -8,18 +8,16 @@
         estação quando chega, com um tique de vidro por estação;
      3. o LED do objetivo vira OURO com as duas ondas (aprovado em 05/11), com o acorde dourado; depois o repouso, um pulso a cada 6 s.
    Como o módulo real: só começa com o quadro à vista (35% dele ou 40% da tela) e pausa tudo (timers e traços) fora da vista e com a aba
-   escondida (lab-planta-v2-relogio.js). Movimento reduzido: o quadro final, aceso e dourado, parado.
+   escondida (js/planta-relogio.js). Movimento reduzido: o quadro final, aceso e dourado, parado.
    opcoes: som(nome), nome (o do negócio, na cota), preparar() (o computador abre a faixa larga ANTES da medida), margemBaixo() (a barra presa
    embaixo), aoAcender(caixaNaTela) (o laboratório usa para fazer o papel do dedo da pessoa no vídeo), aoFim(). ES5. */
 (function () {
   'use strict';
   var Planta = window.BZPlanta, Layout = window.BZPlantaLayout, Forma = window.BZPlantaForma, Cresce = window.BZPlantaCresce, Relogio = window.BZPlantaRelogio;
   var NOTA = 'É o desenho do que o seu site pode fazer, a partir do que você contou. O que entra de fato é combinado no orçamento.';
-  var T_REORG = 950, T_LUZ = 2300, VIDA_MIN = 6000, VIDA_MAX = 60000, FRACAO_VISIVEL = 0.35;
+  var T_REORG = 950, T_LUZ = 2300, FRACAO_VISIVEL = 0.35;
 
   var r1 = function (n) { return Math.round(n * 10) / 10; };
-  var dist = function (a, b) { var x = b[0] - a[0], y = b[1] - a[1]; return Math.sqrt(x * x + y * y); };
-  var comprimento = function (pts) { var s = 0, i; for (i = 1; i < pts.length; i++) s += dist(pts[i - 1], pts[i]); return s; };
   var semViuva = function (t) { return window.BZPlantaEsboco ? window.BZPlantaEsboco.semViuva(t) : t; };
   /* marcas de desempenho (Performance API): cada etapa da montagem vira uma medida 'planta:...' no perfil do DevTools e no medidor do laboratório */
   var marcar = function (nome, desde) { try { window.performance.measure('planta:' + nome, desde); } catch (e) { /* sem a API */ } return 'planta:' + nome + ':fim'; };
@@ -156,7 +154,7 @@
         Object.keys(R.nos).forEach(function (id) { acender(R.nos[id]); R.nos[id].g.classList.remove('lv-voa'); R.nos[id].li.classList.remove('lv-voa'); });
         R.rotas.forEach(function (x) { x.seta.classList.add('is-ligada'); });
         ler('Pronto', plano.fecho);
-        if (animar) repouso(R, anim);
+        if (animar) Planta.interno.repouso(R, anim);   /* o repouso do módulo real: o mesmo pulso da faixa aprovada */
         if (op.aoFim) op.aoFim();
       };
       if (!animar) { fim(); return; }
@@ -249,32 +247,6 @@
       });
       marcar('luz', m4);
     }
-  }
-
-  /* o repouso do módulo real (pulsoDeRepouso, que mora fechado lá dentro): um pulso que percorre as rotas na ordem, a cada 6 s no mínimo, por até 60 s.
-     Para o PR: expor o do módulo real (interno.repouso) em vez de manter esta cópia. */
-  function repouso(R, anim) {
-    var por = Object.create(null), t = 0, plano = [];
-    R.rotas.forEach(function (x) { (por[x.r.passo] = por[x.r.passo] || []).push(x); });
-    Object.keys(por).map(Number).sort(function (a, b) { return a - b; }).forEach(function (k) {
-      var dmax = 0;
-      por[k].forEach(function (x) { var d = x.Lp > 420 ? 0.8 : 0.4; plano.push({ x: x, t0: t + x.r.atraso, d: d }); dmax = Math.max(dmax, x.r.atraso + d); });
-      t += dmax;
-    });
-    var P = Math.max(VIDA_MIN, Math.round(t * 1000 + 2200)), iter = Math.max(2, Math.ceil(VIDA_MAX / P)), eps = 0.002;
-    plano.forEach(function (p) {
-      var pts = p.x.r.pts, el = document.createElementNS('http://www.w3.org/2000/svg', 'circle'), L = comprimento(pts), s = (p.t0 * 1000) / P, e = Math.min(0.99, ((p.t0 + p.d) * 1000) / P), acum = 0, i;
-      el.setAttribute('r', '2.6'); el.setAttribute('class', 'plv-pulso'); R.gCab.appendChild(el);
-      var tr = function (q) { return 'translate(' + r1(q[0]) + 'px,' + r1(q[1]) + 'px)'; };
-      var kf = [{ offset: 0, opacity: 0, transform: tr(pts[0]) }];
-      if (s > 0) kf.push({ offset: s, opacity: 0, transform: tr(pts[0]) });
-      kf.push({ offset: Math.min(s + eps, e), opacity: 1, transform: tr(pts[0]) });
-      for (i = 1; i < pts.length; i++) { acum += dist(pts[i - 1], pts[i]); kf.push({ offset: Math.min(1, s + (e - s) * (acum / L)), opacity: 1, transform: tr(pts[i]) }); }
-      kf.push({ offset: Math.min(1, e + eps), opacity: 0, transform: tr(pts[pts.length - 1]) });
-      kf.push({ offset: 1, opacity: 0, transform: tr(pts[pts.length - 1]) });
-      for (i = 1; i < kf.length; i++) if (kf[i].offset < kf[i - 1].offset) kf[i].offset = kf[i - 1].offset;
-      anim(el, kf, { duration: P, iterations: iter, easing: 'linear' });
-    });
   }
 
   /* a altura reservada do retrato (BZPlantaLayout.alturaReservada) é calculada uma vez por largura, comparando todas as formas possíveis: ~19 ms no

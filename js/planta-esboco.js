@@ -1,7 +1,7 @@
 /* PLANTA VIVA v2 (laboratório): o ESBOÇO que cresce com a conversa. window.BZPlantaEsboco.criar(raiz, opcoes) -> { crescer(esboco), interno, parar }.
    O desenho não é um fluxograma de caixas: é um TRILHO de 1 px que desce do núcleo do Zero, com as estações como peças no trilho (o ícone num
    chip de canto cortado) e o texto ao lado. Cinco lugares e o objetivo, sempre os mesmos: a altura só depende da largura (nada desloca a
-   página). O que o Zero ainda não entendeu fica FANTASMA (traço tracejado e "a entender"). A consagração (lab-planta-v2-consagra.js) parte
+   página). O que o Zero ainda não entendeu fica FANTASMA (traço tracejado e "a entender"). A consagração (js/planta-consagra.js) parte
    daqui.
    MOVIMENTO (a assinatura do site, "a luz passa e imprime"): a SEMENTE acende o núcleo (aro desenhado, rumos girando, disco, duas ondas) e
    solta o primeiro traço; cada ESTAÇÃO nasce pela luz que desce do núcleo (350 ms), o chip e o ícone se desenham traço a traço (300 ms), o
@@ -72,7 +72,7 @@
     var svg = S('svg', { viewBox: '0 0 ' + g.W + ' ' + g.H, width: g.W, height: g.H, 'aria-hidden': 'true', focusable: 'false' }, quadro, 'lv-svg');
     var lista = H('ol', 'lv-lista', null, quadro); lista.setAttribute('aria-label', 'A planta até aqui');
     var leitura = H('p', 'lv-leitura', null, card); leitura.setAttribute('aria-hidden', 'true');
-    var leTag = H('b', 'lv-leitura__tag', 'Zero', leitura), leTxt = H('span', 'lv-leitura__txt', 'A planta nasce quando você contar do seu negócio.', leitura);
+    var leTag = H('b', 'lv-leitura__tag', 'Zero', leitura), leTxt = H('span', 'lv-leitura__txt', 'A planta começa quando você me contar do seu negócio.', leitura);
     var leVarre = H('span', 'lv-varre', null, leitura);
     var status = H('p', 'lv-sr', '', card); status.setAttribute('role', 'status');
 
@@ -151,7 +151,7 @@
     est.forEach(function (x, k) { x.fanTxt.textContent = semViuva(Cresce.FALTA[Cresce.LUGARES[k]]); });
     card.classList.add('is-dormente');
 
-    /* ---------- o relógio: timers e animações andam juntos e PAUSAM juntos (aba escondida, planta fora da tela): lab-planta-v2-relogio.js ---------- */
+    /* ---------- o relógio: timers e animações andam juntos e PAUSAM juntos (aba escondida, planta fora da tela): js/planta-relogio.js ---------- */
     var depois = function (ms, fn) { inst.rel.depois(ms, fn); };
     var anim = function (el, kf, o) { return inst.rel.anim(el, kf, o); };
     function tracar(el, atraso, dura) { return anim(el, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: dura, delay: atraso, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'backwards' }); }

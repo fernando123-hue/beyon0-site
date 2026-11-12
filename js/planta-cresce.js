@@ -54,7 +54,7 @@
 
   function chegada(b) {
     var o = origensDe((b.situacao_atual || {}).como_chegam);
-    if (!o.length) return { lugar: 'chegada', tipo: 'chegada', n: 1, conhecido: true, provisorio: true, verbo: 'Chega', titulo: 'De onde o seu cliente vem', frase: 'O primeiro traço: é por aqui que a pessoa entra no seu site.' };
+    if (!o.length) return { lugar: 'chegada', tipo: 'chegada', n: 1, conhecido: true, provisorio: true, verbo: 'Chega', titulo: 'De onde o seu cliente vem', frase: 'É por aqui que a pessoa entra no seu site.' };
     var rot = o.map(function (k, i) { var r = ROT_CHEGADA[k]; return i ? r.toLowerCase() : r; });
     return { lugar: 'chegada', tipo: 'chegada', n: o.length, origens: o, conhecido: true, verbo: 'Chega', titulo: juntar(rot, 'e'), frase: 'A pessoa chega ' + juntar(o.map(function (k) { return FRASE_CHEGADA[k]; }), 'ou') + '.' };
   }
@@ -66,17 +66,17 @@
   function pagina(b, m) {
     var n = b.negocio || {};
     if (!texto(n.descricao)) return null;
-    if (m === 'loja' || PRODUTO.test(texto(n.segmento))) return { tipo: 'vitrine', verbo: 'Mostra', titulo: 'Vitrine com as suas peças', frase: 'Quem chega vê as peças organizadas e acha logo o que procura.' };
+    if (m === 'loja' || PRODUTO.test(texto(n.segmento))) return { tipo: 'vitrine', verbo: 'Mostra', titulo: 'Vitrine com os seus produtos', frase: 'Quem chega vê tudo organizado e acha logo o que procura.' };
     var coisa = SAUDE.test(texto(n.segmento)) ? 'tratamento' : 'serviço';
-    return { tipo: 'pagina', verbo: 'Mostra', titulo: 'Uma página para cada ' + coisa, frase: 'Quem chega encontra logo o ' + coisa + ' que procurava, explicado do jeito dela.' };
+    return { tipo: 'pagina', verbo: 'Mostra', titulo: 'Uma página para cada ' + coisa, frase: 'Quem chega acha logo o ' + coisa + ' que procura, explicado em palavras simples.' };
   }
   function conversa(b) {
     if (!texto((b.situacao_atual || {}).o_que_se_perde)) return null;
-    return { tipo: 'conversa', verbo: 'Responde', titulo: 'Tira a dúvida que hoje trava', frase: 'A pergunta que hoje fica sem resposta e faz a pessoa sumir ganha resposta ali mesmo.' };
+    return { tipo: 'conversa', verbo: 'Responde', titulo: 'Tira a dúvida que hoje trava', frase: 'A pergunta que hoje fica sem resposta tem resposta ali, na hora.' };
   }
   function acao(b, m) {
     if (m === 'agenda') return { tipo: 'agenda', verbo: 'Agenda', titulo: 'Escolhe o horário sozinha', frase: 'Mostra só os horários livres e a pessoa marca ali mesmo, sem esperar retorno.' };
-    if (m === 'loja') return { tipo: 'carrinho', verbo: 'Reúne', titulo: 'Sacola com o frete na hora', frase: 'A sacola junta as peças e mostra o frete antes de a pessoa decidir.' };
+    if (m === 'loja') return { tipo: 'carrinho', verbo: 'Reúne', titulo: 'Sacola com o frete na hora', frase: 'A sacola junta os produtos e já mostra o frete antes de a pessoa decidir.' };
     if (m === 'orcamento') return { tipo: 'formulario', verbo: 'Recebe', titulo: 'Pedido de orçamento completo', frase: 'O pedido chega com o que você precisa saber para responder de primeira.' };
     return null;
   }
@@ -87,7 +87,7 @@
   var OBJETIVOS = {
     agenda: { titulo: 'Horário marcado', frase: 'O horário já entra na sua agenda, com quem vem e o que procura.' },
     loja: { titulo: 'Pedido pago', frase: 'O pedido entra pago e segue para a separação.' },
-    orcamento: { titulo: 'Pedido de orçamento na mão', frase: 'O pedido chega completo, pronto para você responder.' }
+    orcamento: { titulo: 'Pedido na sua mão', frase: 'Você abre o pedido e já sabe o que responder.' }
   };
   function objetivo(b, m) {
     if (!m || !lista(b.objetivos).length) return { lugar: 'objetivo', conhecido: false, falta: FALTA.objetivo };
