@@ -609,7 +609,10 @@
     B.on('estacao:solta', function () { pararEnche(); soa('estacaoSolta', function (t) { motor.estacaoSolta(t); }); });
     B.on('mini:ignicao', function () { soa('ignicao', function (t) { motor.ignicao(t); }); });
     B.on('energia:descarga', function () { soa('descarga', function (t) { motor.descarga(t); }); });
-    B.on('passagem:chegou', function () { if (ESCOLHA.travessia && veioComSom) soa('pouso', function (t) { motor.pouso(t); }); });
+    B.on('passagem:chegou', function () {
+      acordarNoPouso();   /* (o áudio da página nova nasce aqui, não no meio do voo: ver o fim do arquivo) */
+      if (ESCOLHA.travessia && veioComSom) soa('pouso', function (t) { motor.pouso(t); });
+    });
   }
   function pararEnche() { if (enche && ctx) enche.parar(ctx.currentTime + ADIANTE); enche = null; }
   function tempoOuro(k) { return B.ouro && B.ouro.T && B.ouro.T[k] > 0 ? B.ouro.T[k] : 0; }
@@ -633,5 +636,17 @@
      adiante na mesma origem: userActivation.hasBeenActive); nos outros, quieto, espera o primeiro gesto daqui */
   var veioComSom = false;
   try { veioComSom = html.classList.contains('passagem-chega') && Date.now() - (+sessionStorage.getItem(VIVO) || 0) < 10000; } catch (e) { /* sem armazenamento */ }
-  if (veioComSom && navigator.userActivation && navigator.userActivation.hasBeenActive) acordar(null, true);
+  /* ...mas só no POUSO ('passagem:chegou'), não na carga deste script: criar o AudioContext trava a página (75 a 103 ms
+     medidos no Chrome do dono, 2026-11-12), e na carga isso caía no meio do voo de chegada. O fundo sobe a partir do
+     pouso. Rede de segurança: se a passagem não avisar (falhou ao carregar, aba escondida), acorda em 3 s */
+  var POUSO_MAX_MS = 3000;
+  var esperaPouso = false;
+  function acordarNoPouso() {
+    if (!esperaPouso) return;
+    esperaPouso = false;
+    acordar(null, true);
+  }
+  if (veioComSom && navigator.userActivation && navigator.userActivation.hasBeenActive) {
+    if (B && B.on) { esperaPouso = true; setTimeout(acordarNoPouso, POUSO_MAX_MS); } else acordar(null, true);
+  }
 })();

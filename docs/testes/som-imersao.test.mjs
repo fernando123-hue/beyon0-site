@@ -65,7 +65,8 @@ function navegador(op) {
     querySelector: () => null,
     addEventListener: (t, f) => { (e.ouv[t] || (e.ouv[t] = [])).push(f); }
   };
-  e.navigator = { userActivation: { isActive: false, hasBeenActive: false } };
+  /* (op.ativado: a ativação que o Chrome passa adiante na mesma origem, chegando pela travessia) */
+  e.navigator = { userActivation: { isActive: false, hasBeenActive: !!op.ativado } };
   e.window = {
     AudioContext: function () { return criarCtx(e); },
     BEYON: e.B, innerWidth: 1440, innerHeight: 900,
@@ -92,7 +93,7 @@ function navegador(op) {
   e.passar = alvo => e.disparar('pointerenter', { target: alvo, pointerType: 'mouse' });
   e.vozes = () => (e.B.somTeste ? e.B.somTeste.vozes : {});
   new Function('window', 'document', 'navigator', 'localStorage', 'sessionStorage', 'location', 'setTimeout', 'clearTimeout', 'Date', fonte)(
-    e.window, e.document, e.navigator, armazem(e.grava), armazem({}), { search: op.semGancho ? '' : '?som=teste' }, e.setTimeout, e.clearTimeout, { now: () => 1.7e12 + e.t * 1000 });
+    e.window, e.document, e.navigator, armazem(e.grava), armazem(Object.assign({}, op.sessao)), { search: op.semGancho ? '' : '?som=teste' }, e.setTimeout, e.clearTimeout, { now: () => 1.7e12 + e.t * 1000 });
   return e;
 }
 
@@ -306,4 +307,28 @@ test('as vozes novas não empilham: 5 descargas e 5 surtos seguidos soam no máx
   const v = e.vozes();
   assert.equal(v.descarga, 1, 'descargas: ' + v.descarga);
   assert.equal(v.estacaoSurto, 1, 'surtos: ' + v.estacaoSurto);
+});
+
+/* ---------- a chegada pela travessia (2ª rodada das transições, 12/11) ---------- */
+/* criar o AudioContext trava a página: 75 a 103 ms medidos no Chrome do dono (desktop, sem CPU lenta). Chegando pela
+   travessia com o som vivo, ele nascia na carga do script, no meio do voo de chegada. Agora nasce no pouso. */
+const chegandoComSom = () => navegador({ desktop: true, ativado: true, classes: ['passagem-chega'], sessao: { 'bz-som-vivo': String(1.7e12 - 2000) } });
+
+test('chegando pela travessia com o som vivo: nenhum AudioContext durante o voo; ele nasce no pouso e o pouso toca', () => {
+  const e = chegandoComSom();
+  e.andar(0.9);
+  assert.equal(e.contextos.length, 0, 'o áudio nasceu no meio da chegada');
+  e.classes.delete('passagem-chega');
+  e.B.emit('passagem:chegou');
+  assert.equal(e.contextos.length, 1, 'o áudio não nasceu no pouso');
+  e.andar(1.2);
+  assert.equal(e.vozes().pouso, 1, 'o pouso não tocou: ' + JSON.stringify(e.vozes()));
+});
+
+test('chegando com o som vivo e a passagem nunca avisando o pouso: o áudio nasce mesmo assim (rede de segurança)', () => {
+  const e = chegandoComSom();
+  e.andar(2.5);
+  assert.equal(e.contextos.length, 0, 'nasceu antes da rede de segurança');
+  e.andar(3.5);
+  assert.equal(e.contextos.length, 1, 'o som ficou mudo para sempre');
 });
