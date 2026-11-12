@@ -21,12 +21,13 @@ const Relogio = require('../../js/planta-relogio.js');
 const Esboco = require('../../js/planta-esboco.js');
 const Ligacao = require('../../js/orcamento-planta-esboco.js');
 const lerFonte = (rel) => fs.readFileSync(new URL('../../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+/* (nós do DOM de mentira comparados por assert.ok(a === b): numa falha o assert.equal tentaria imprimir a árvore inteira, que tem ciclos, e pararia o teste) */
 
 const MODULOS = ['js/planta-pecas.js', 'js/planta-cresce.js', 'js/planta-relogio.js', 'js/planta-som.js', 'js/planta-esboco.js'];
 const CSS = 'css/planta-esboco.css';
 
-function ambiente({ reduzido = false, falhar = null } = {}) {
-  const w = criarJanela({ reduzido, largura: 390 });
+function ambiente({ reduzido = false, falhar = null, largura = 390 } = {}) {
+  const w = criarJanela({ reduzido, largura });
   const doc = w.document;
   const ids = {};
   const novo = (tag, id) => { const n = doc.createElement(tag); if (id) ids[id] = n; return n; };
@@ -35,15 +36,23 @@ function ambiente({ reduzido = false, falhar = null } = {}) {
   const caixa = novo('div', 'o-log-caixa');
   caixa.getBoundingClientRect = () => ({ top: 0, bottom: 2000, left: 0, right: 390, width: 390, height: 2000 });
   const log = novo('ol', 'o-log'); caixa.appendChild(log);
+  /* o painel do computador (a coluna presa, que rola por dentro): o radar, as ações dele e o resto */
+  const painel = novo('aside'); painel.className = 'orc-painel';
+  painel.getBoundingClientRect = () => ({ top: 0, bottom: 2000, left: 0, right: 420, width: 420, height: 2000 });
+  const radar = novo('section', 'o-rde'); painel.appendChild(radar);
+  const acoes = novo('div', 'o-est-acoes'); painel.appendChild(acoes);
+  const resto = novo('div', 'o-diagnostico'); painel.appendChild(resto);
+  const anexarPainel = painel.insertBefore.bind(painel);
+  painel.insertBefore = (c, ref) => { anexarPainel(c, ref); c.clientWidth = 420; return c; };
   const abertura = novo('li'); abertura.className = 'msg msg--agente'; log.appendChild(abertura);
   const sons = [], baixados = [], avisos = [];
-  let mostrou = 0;
+  let mostrou = 0, preparou = 0;
   w.console = { warn: (...a) => avisos.push(a.join(' ')) };
   const fonte = {
     'js/planta-pecas.js': () => { w.BZPlantaPecas = Pecas; },
     'js/planta-cresce.js': () => { w.BZPlantaCresce = Cresce; },
     'js/planta-relogio.js': () => { w.BZPlantaRelogio = Relogio.para(w); },
-    'js/planta-som.js': () => { w.BZPlantaSom = { tocar: (n) => sons.push(n), mostrarBotoes: () => { mostrou++; } }; },
+    'js/planta-som.js': () => { w.BZPlantaSom = { tocar: (n) => sons.push(n), mostrarBotoes: () => { mostrou++; }, preparar: () => { preparou++; } }; },
     'js/planta-esboco.js': () => { w.BZPlantaEsboco = Esboco.para(w); }
   };
   const anexar = doc.head.appendChild.bind(doc.head);
@@ -58,7 +67,7 @@ function ambiente({ reduzido = false, falhar = null } = {}) {
   const anexarLog = log.appendChild.bind(log);
   log.appendChild = (c) => { anexarLog(c); c.clientWidth = log.largura === undefined ? 390 : log.largura; return c; };
   const L = Ligacao.criar(w);
-  return { w, doc, L, log, caixa, sons, baixados, avisos, mostrou: () => mostrou };
+  return { w, doc, L, log, caixa, painel, acoes, resto, sons, baixados, avisos, mostrou: () => mostrou, preparou: () => preparou };
 }
 const BRIEF_1 = { negocio: { segmento: 'clínica odontológica' } };
 const BRIEF_2 = { negocio: { segmento: 'clínica odontológica', descricao: 'implantes' }, situacao_atual: { como_chegam: 'Google e indicação' } };
@@ -95,13 +104,14 @@ test('a 1ª resposta do Zero ao vivo: baixa o CSS e os 5 módulos UMA vez, na or
   assert.deepEqual(amb.doc.head.porTag('script').map((s) => s.async), [false, false, false, false, false]);
   const li = cartao(amb);
   assert.ok(li, 'o cartão existe');
-  assert.equal(amb.log.lastElementChild, li, 'é o último item');
+  assert.ok(amb.log.lastElementChild === li, 'é o último item');
   assert.ok('data-fica' in li.attrs, 'marcado para o orcamento.js manter por último');
   amb.L.atualizar(estado(BRIEF_1, 1));
   amb.w.mostrar(1);
   amb.w.avancar(3000);
   assert.ok(amb.sons.includes('semente'), 'a semente tocou');
   assert.equal(amb.mostrou(), 1, 'o botão de som da página aparece');
+  assert.equal(amb.preparou(), 1, 'o áudio é preparado no ócio, uma vez');
   assert.ok(li.porClasse('lv')[0]._classes.has('is-semeado'));
 });
 
@@ -117,7 +127,7 @@ test('cada turno cresce o esboço pelo briefing (sino por estação), sem refaze
   amb.L.atualizar(estado(BRIEF_3, 3));
   amb.w.mostrar(1);
   amb.w.avancar(20000);
-  assert.equal(cartao(amb), li, 'o mesmo cartão');
+  assert.ok(cartao(amb) === li, 'o mesmo cartão');
   assert.equal(acesas(amb), 6, 'as cinco estações e o objetivo');
   assert.ok(amb.sons.filter((s) => s === 'estacao').length >= 4);
 });
@@ -141,7 +151,7 @@ test('a flag some (ou a conversa recomeça): o cartão sai, o esboço para e o o
   assert.ok(cartao(amb));
   assert.equal((amb.w.ouvintes.resize || []).length, 1);
   amb.L.atualizar(estado(BRIEF_3, 3, { planta_editavel: undefined }));
-  assert.equal(cartao(amb), undefined);
+  assert.ok(!cartao(amb));
   assert.equal((amb.w.ouvintes.resize || []).length, 0);
   assert.equal(amb.w.ativas().filter((a) => a.opcoes.iterations > 1).length, 0, 'nenhum repouso ficou rodando');
 });
@@ -153,10 +163,10 @@ test('girar o celular / mudar a largura: refaz na largura nova com o que já est
   amb.L.atualizar(estado(BRIEF_3, 3));
   const li = cartao(amb), velho = li.porClasse('lv')[0];
   li.clientWidth = 393; amb.w.disparar('resize'); amb.w.avancar(200);
-  assert.equal(li.porClasse('lv')[0], velho, '3 px não refaz');
+  assert.ok(li.porClasse('lv')[0] === velho, '3 px não refaz');
   li.clientWidth = 700; amb.w.disparar('resize'); amb.w.avancar(200);
   const novoCartao = li.porClasse('lv')[0];
-  assert.notEqual(novoCartao, velho, 'refez');
+  assert.ok(novoCartao !== velho, 'refez');
   assert.equal(li.porClasse('lv').length, 1, 'um cartão só');
   assert.equal(acesas(amb), 6);
   assert.equal(novoCartao.porTag('svg')[0].attrs.width, '700');
@@ -170,7 +180,7 @@ test('falha de download: nada aparece, um aviso [beyon], e os renders seguintes 
   amb.L.atualizar(estado(BRIEF_3, 2));
   amb.L.atualizar(estado(BRIEF_3, 3));
   prontos(amb);
-  assert.equal(cartao(amb), undefined);
+  assert.ok(!cartao(amb));
   assert.equal(amb.baixados.length, 1 + MODULOS.length, 'baixou uma vez só');
   assert.equal(amb.avisos.filter((a) => a.startsWith('[beyon] planta')).length, 1);
 });
@@ -212,7 +222,7 @@ test('js/orcamento.js: as falas entram ANTES do cartão (data-fica) e refazer a 
   const fica = { attrs: { 'data-fica': '' }, hasAttribute: (k) => k === 'data-fica', children: [{ textContent: 'CARTÃO' }] };
   log.appendChild(fica);
   await p.enviar('minha clínica');
-  assert.equal(log.children[log.children.length - 1], fica, 'o cartão segue por último');
+  assert.ok(log.children[log.children.length - 1] === fica, 'o cartão segue por último');
   assert.deepEqual(p.falas().slice(-3), ['minha clínica', 'Resposta ao: minha clínica', 'CARTÃO']);
 });
 
@@ -246,4 +256,21 @@ test('o cartão que nasce leva a última fala para o topo da caixa (a caixa rola
   amb.L.atualizar(estado(BRIEF_1, 1));
   assert.equal(amb.caixa.scrollTop, 50, 'só quando o cartão nasce: o render seguinte não mexe na caixa');
   assert.equal(rolouPagina, 0);
+});
+
+test('_headers: cada módulo e o CSS que o esboço baixa sem ?v revalidam sempre (nunca peça velha com página nova)', () => {
+  const cab = lerFonte('_headers');
+  for (const u of [...MODULOS, CSS]) assert.match(cab, new RegExp('^/' + u.replace(/[.]/g, '\.') + '\n  ! Cache-Control\n  Cache-Control: public, max-age=0, must-revalidate$', 'm'), u);
+});
+
+test('computador (1280 px): o esboço cresce na CONVERSA, como no celular; o painel (o radar e as ações, onde se fecha a venda) não ganha nada (decisão de 12/11)', () => {
+  const amb = ambiente({ largura: 1280 });
+  const antes = amb.painel.children.length;
+  amb.L.atualizar(estado({}, 0));
+  amb.L.atualizar(estado(BRIEF_3, 1));
+  prontos(amb);
+  amb.L.atualizar(estado(BRIEF_3, 1));
+  assert.ok(cartao(amb) && amb.log.lastElementChild === cartao(amb), 'o último item da conversa');
+  assert.equal(amb.painel.children.length, antes, 'o painel segue igual');
+  assert.equal(amb.painel.porClasse('lv').length, 0);
 });

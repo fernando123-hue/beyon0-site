@@ -31,7 +31,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-som]'), function (b) { b.textContent = Som.ligado() ? 'Som ligado' : 'Som desligado'; });
   }
   document.addEventListener('click', function (e) { if (e.target && e.target.closest && e.target.closest('[data-som]')) pintarBotoes(); });
-  document.addEventListener('DOMContentLoaded', function () { Som.mostrarBotoes(); pintarBotoes(); });
+  document.addEventListener('DOMContentLoaded', function () { Som.mostrarBotoes(); pintarBotoes(); window.setTimeout(Som.preparar, 300); });
   Som.registro = registro;
   Som.renderizar = renderizar;
 })();

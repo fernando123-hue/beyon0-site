@@ -2,7 +2,22 @@
 
 > **ESTADO DA SESSÃO "PLANTA VIVA v2" (2026-11-12, worktree `03 Projetos/site-planta-espetaculo`, branch `planta-espetaculo`).**
 > <!-- passagem-auto: 1-811cdf27-da18-484d-b51f-6ae6a93d4a32 -->
-> **ATUALIZAÇÃO 12/11 (depois da passagem): medição FEITA e quadro longo da consagração corrigido (`c9db564`); NOTA.md atualizada; sessão principal avisada. Nada pendente aqui: PR só depois das decisões 1 a 3 da nota (com o dono).**
+> **ATUALIZAÇÃO 12/11, noite: o dono decidiu (via sessão principal) e a planta v2 virou PR em DUAS partes.**
+> - **PR 1, o crescimento** (este ramo): o esboço cresce dentro da conversa.
+>   - Módulos em `js/planta-{cresce,relogio,esboco,consagra,som}.js`, ligação em `js/orcamento-planta-esboco.js`, CSS em `css/planta-esboco.css`.
+>   - Cartão = último item da `.orc-log` (`data-fica`); a caixa NÃO muda de altura (opção A).
+>   - A cada fala nova a caixa rola até o TOPO da fala, com o cartão logo abaixo. A estação só imprime à vista dentro da caixa.
+> - **PR 2, a consagração**: o esboço vira o desenho final, no lugar do emaranhado. Cuidados pedidos:
+>   1. Celular: consagra no lugar, dentro da caixa. A faixa #o-planta não é usada abaixo de 960.
+>      - "Ver a planta do seu site" rola a CAIXA até o cartão.
+>      - A caixa (nunca a página) pode rolar suave até o topo do cartão, só se a pessoa não rolou a caixa à mão nos últimos ~3 s; se rolou, espera a visibilidade.
+>      - Com movimento reduzido, a rolagem é instantânea.
+>   2. Conferir:
+>      - o desenho de ~936 px dentro da caixa em 390 e 320, sem rolagem lateral nem texto cortado;
+>      - que o fim da caixa não prende o dedo (overscroll);
+>      - que a mensagem do fecho de 05/11 continua aparecendo.
+>   3. Computador ≥960: consagra na faixa larga #o-planta. Não tirar o voo: se o esboço estiver à vista quando a faixa entra, ele voa até a faixa; sem o esboço à vista, só a luz e o ouro. Medir qual caso acontece.
+>   4. Onde o esboço cresce no computador: na CONVERSA, como no celular (sessão principal, 12/11, depois da medida). O painel do radar e das ações ficaria com o esboço ~560 px abaixo da área visível. O painel fica só com o radar e as ações.
 > Sessão aberta pela sessão principal (`local_c012a676-93ab-4c4f-a1d9-6b86d5cc65da`) só para o PROTÓTIPO + vídeo da planta v2 (direção:
 > `docs/design/planta-espetaculo-2026-11-12.md`). Regra da tarefa: NÃO abrir PR, NÃO mesclar, NÃO mexer em produção nem em flags; NÃO mandar ao dono.
 >

@@ -60,6 +60,12 @@
       });
     }
 
+    /* roda quando a página está ociosa (requestIdleCallback; sem ele, logo depois) */
+    function ocioso(fn) {
+      var seguro = function () { try { fn(); } catch (e) { aviso(e); } };
+      if (typeof win.requestIdleCallback === 'function') win.requestIdleCallback(seguro, { timeout: 2000 }); else win.setTimeout(seguro, 200);
+    }
+
     /* ---- o cartão ---- */
     function largura() { return st.item ? st.item.clientWidth : 0; }
     function novoEsboco(inicial) {
@@ -129,7 +135,7 @@
         /* voltando à página com a conversa andando, o esboço nasce pronto; a semente só toca ao vivo, na 1ª resposta do Zero */
         novoEsboco(st.nasceuPronta ? esboco : null);
         alinharUltimaFala();
-        if (win.BZPlantaSom) win.BZPlantaSom.mostrarBotoes();
+        if (win.BZPlantaSom) { win.BZPlantaSom.mostrarBotoes(); ocioso(win.BZPlantaSom.preparar); }   /* o áudio nasce no ócio, nunca num toque (js/planta-som.js) */
         ouvirResize();
       }
       st.esb.crescer(esboco);

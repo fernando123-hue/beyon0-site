@@ -6,7 +6,11 @@
    O INTERRUPTOR é o do site: a mesma chave 'bz-som' ('0' = desligado), lida a cada som (desligado em outra página vale aqui), e os botões
    [data-som] da página, que só aparecem quando a planta existe (mostrarBotoes, chamado por js/orcamento-planta.js).
    O navegador só toca depois de um gesto; até lá nada soa. Nada por frame: cada som é agendado no relógio do áudio.
-   window.BZPlantaSom = { tocar(nome), ligado(), mostrarBotoes(), criarMotor(contexto, destino), aoPedir }. aoPedir (opcional) é avisado de
+   NADA PESADO NUM GESTO: criar o contexto de áudio custou 678 ms e o motor 32 ms no celular com CPU 4x (medido em 12/11; dentro da 1ª tecla
+   da conversa o quadro passava de 2,8 s). preparar() faz os dois quando a página está ociosa (js/orcamento-planta-esboco.js chama quando o
+   cartão nasce); o gesto só retoma um contexto que já existe, que é barato. No iOS o contexto criado fora de um gesto nasce suspenso: o
+   próximo toque o retoma, e até lá a planta não soa.
+   window.BZPlantaSom = { tocar(nome), ligado(), preparar(), mostrarBotoes(), criarMotor(contexto, destino), aoPedir }. aoPedir (opcional) é avisado de
    cada som pedido com o som ligado: o laboratório grava o registro para refazer o som do vídeo. ES5. */
 (function (win) {
   'use strict';
@@ -72,12 +76,15 @@
     };
   }
 
+  /* o contexto e o motor, fora de qualquer gesto (ver o cabeçalho) */
+  function preparar() {
+    if (!Ctx || !ligado() || ctx) return;
+    try { ctx = new Ctx(); motor = criarMotor(ctx, ctx.destination); } catch (e) { aviso(e); ctx = null; motor = null; }
+  }
+  /* no gesto: só retoma (nunca cria) */
   function acordar() {
-    if (!Ctx || !ligado()) return;
-    try {
-      if (!ctx) { ctx = new Ctx(); motor = criarMotor(ctx, ctx.destination); }
-      if (ctx.state === 'suspended') ctx.resume();
-    } catch (e) { aviso(e); }
+    if (!ctx || !ligado() || ctx.state !== 'suspended') return;
+    try { ctx.resume(); } catch (e) { aviso(e); }
   }
 
   /* pede um som: com o som desligado, nada; toca se o contexto já acordou (um gesto da pessoa) */
@@ -94,7 +101,7 @@
   function alternar() {
     var sim = !ligado();
     gravar(sim);
-    if (sim) acordar(); else if (ctx && ctx.state === 'running') { try { ctx.suspend(); } catch (e) { aviso(e); } }
+    if (sim) { if (ctx) acordar(); else preparar(); } else if (ctx && ctx.state === 'running') { try { ctx.suspend(); } catch (e) { aviso(e); } }
     rotular();
   }
   /* os botões [data-som] da página aparecem e passam a valer (uma vez cada) */
@@ -110,6 +117,6 @@
 
   ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach(function (ev) { doc.addEventListener(ev, acordar, { capture: true, passive: true }); });
 
-  var api = { tocar: tocar, ligado: ligado, mostrarBotoes: mostrarBotoes, criarMotor: criarMotor, aoPedir: null };
+  var api = { tocar: tocar, ligado: ligado, preparar: preparar, mostrarBotoes: mostrarBotoes, criarMotor: criarMotor, aoPedir: null };
   win.BZPlantaSom = api;
 })(typeof window !== 'undefined' ? window : null);

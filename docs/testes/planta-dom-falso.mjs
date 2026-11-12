@@ -101,7 +101,8 @@ export function criarJanela(opcoes) {
     }
     w.agora = fim;
   };
-  w.matchMedia = (q) => ({ matches: op.reduzido && /prefers-reduced-motion/.test(q), media: q });
+  /* movimento reduzido pela opção; min-width pela largura da janela de agora (w.innerWidth) */
+  w.matchMedia = (q) => { const mw = /min-width:\s*(\d+)px/.exec(q); return { matches: (op.reduzido && /prefers-reduced-motion/.test(q)) || (!!mw && w.innerWidth >= Number(mw[1])), media: q }; };
   w.addEventListener = (t, f) => { (w.ouvintes[t] = w.ouvintes[t] || []).push(f); };
   w.removeEventListener = (t, f) => { w.ouvintes[t] = (w.ouvintes[t] || []).filter((x) => x !== f); };
   w.disparar = (t) => (w.ouvintes[t] || []).slice().forEach((f) => f({ type: t }));
