@@ -125,7 +125,7 @@ body { margin: 0; background: var(--bg); color: var(--t2); font-family: var(--sa
 
 /* a consagração: o quadro final é o do módulo real; enquanto as estações voam do esboço, nada corta o voo */
 /* a nota real reserva altura para trocar a nota padrão pela do modelo; aqui só há uma nota, então sem vão */
-.lv-nota { margin-top: 2px; min-height: 0; }
+.lv-nota { margin: 12px 0 0; min-height: 0; }
 .lv-final.is-voo, .lv-final.is-voo .plv-svg { overflow: visible; contain: none; }
 .lv-final .plv-no.lv-voa { opacity: 1; }
 /* o rótulo do objetivo voa à vista (o CSS real esconde a ponta ainda apagada) e só vira ouro quando a luz chega */
@@ -151,6 +151,7 @@ body { margin: 0; background: var(--bg); color: var(--t2); font-family: var(--sa
   .palco.is-faixa .log > li:not(:last-child) { display: none; }
   .palco.is-faixa .entrada { display: none; }
   .palco.is-faixa .painel { overflow: visible; padding-top: 0; }
+  .lv-leitura { height: 64px; }   /* no computador a frase cabe em 2 linhas */
 }
 
 @media (prefers-reduced-motion: reduce) {

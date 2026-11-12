@@ -92,7 +92,6 @@
       /* 2. o quadro final, montado pelo módulo real no lugar do esboço */
       var card = I.card, q = H('div', 'plv-quadro lv-final' + (animar ? ' plv--pre is-voo' : ''));
       card.classList.add('is-consagrada');
-      card.insertBefore(H('p', 'plv-nota lv-nota', semViuva(NOTA)), I.quadro);
       /* o quadro novo nasce com a altura do esboço: com altura 0 por um instante a página encolhia e o navegador puxava a rolagem para cima (medido no vídeo de 12/11) */
       q.style.height = I.quadro.offsetHeight + 'px';
       card.replaceChild(q, I.quadro);
@@ -104,6 +103,8 @@
       var cota = H('p', 'plv-cota', null); cota.setAttribute('aria-hidden', 'true');
       H('i', '', null, cota); var cs = H('span', '', 'Planta · ', cota); H('b', '', op.nome || 'do seu site', cs); H('i', '', null, cota);
       card.insertBefore(cota, I.leitura);
+      /* a nota fica embaixo, junto dos botões (no 05/11 ela vinha antes do quadro): assim o quadro final nasce EXATAMENTE onde o esboço estava e o voo não passa por cima de texto */
+      H('p', 'plv-nota lv-nota', semViuva(NOTA), card);
       var acoes = H('div', 'plv-acoes', null, card);
       [['Está certo', 'plv-btn plv-btn--primario'], ['Quero ajustar algo', 'plv-btn'], ['Rever a montagem', 'plv-btn plv-btn--txt']].forEach(function (b) { var e = H('button', b[1], b[0], acoes); e.type = 'button'; });
       I.estadoTopo.textContent = ' · do seu site';
