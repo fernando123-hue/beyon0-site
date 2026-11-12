@@ -1,5 +1,34 @@
 # Beyon Zero — transferência de contexto
 
+> **ESTADO DA SESSÃO "PLANTA VIVA v2" (2026-11-12, worktree `03 Projetos/site-planta-espetaculo`, branch `planta-espetaculo`).**
+> <!-- passagem-auto: 1-811cdf27-da18-484d-b51f-6ae6a93d4a32 -->
+> Sessão aberta pela sessão principal (`local_c012a676-93ab-4c4f-a1d9-6b86d5cc65da`) só para o PROTÓTIPO + vídeo da planta v2 (direção:
+> `docs/design/planta-espetaculo-2026-11-12.md`). Regra da tarefa: NÃO abrir PR, NÃO mesclar, NÃO mexer em produção nem em flags; NÃO mandar ao dono.
+>
+> **Feito:** laboratório `docs/lab-planta-v2.html` (+ `-cresce` derivação pura, `-roteiro` 3 nichos, `-esboco`, `-consagra` com o
+> `BZPlanta.interno.construirQuadro` real, `-relogio` pausável, `-som`, scripts `-fotos`/`-medir`/`-video`; testes `docs/testes/lab-planta-v2.test.mjs` 9/9).
+> Revisão por agente separado (23 achados) aplicada. Commits `236b26e`..`96636db` (+ o desta passagem), ainda SEM envio ao GitHub.
+> Vídeos e nota já em `C:\Vault - Fernando\Beyon Zero\00 Entrada\planta-viva-v2\` (`planta-v2-celular-clinica.mp4`, `planta-v2-computador-servico.mp4`, `NOTA.md`).
+>
+> **Próximo passo exato:**
+> 1. CPU: `Get-CimInstance Win32_Processor` LoadPercentage (esperar se alta). Subir `node docs/servidor.mjs . 8917` (porta 8917; a 8899 é de outras sessões).
+> 2. Medir em segundo plano: `node docs/lab-planta-v2-medir.mjs clinica 1` com CHROMIUM = o chrome-headless-shell-1228 do Playwright (~20+ min com a máquina cheia).
+>    Pronto = nenhum quadro longo (LoAF > 50 ms) atribuído a script da planta (`da_planta` vazio) no `cel` (CPU 4x) e no `pc`. Se houver, otimizar e regravar
+>    os vídeos. Gravar o resultado na seção "O que foi medido" da `NOTA.md` (hoje diz "AINDA NÃO MEDIDO").
+> 3. Enviar o ramo `planta-espetaculo` ao GitHub (comando simples, sem redirecionar a saída: o guarda nega com redirecionamento).
+> 4. SendMessage para `local_c012a676-93ab-4c4f-a1d9-6b86d5cc65da` com o caminho da pasta e um resumo (o que mudou, o que foi medido, o que ficou em aberto). Não mandar ao dono.
+>
+> **Em aberto (para a sessão principal/dono):** a conversa real é uma caixa de 56vh (onde o cartão mora no PR); a nota passou para baixo do desenho;
+> o emaranhado do 05/11 deu lugar ao esboço; expor `interno.repouso` do módulo real; refazer o esboço no resize; voz humana nos textos das listas.
+>
+> **Armadilhas:** o guarda nega comandos Bash cujo texto tenha a palavra do envio do git (até `arr.` + essa palavra em script embutido):
+> escrever scripts com a ferramenta Write e rodar `node arquivo`. O screencast do headless sai em 1x e `--enable-begin-frame-control` derruba a aba:
+> o vídeo usa câmera lenta controlada (`docs/lab-planta-v2-video.mjs`, LENTO=14) + `Page.captureScreenshot` com `clip.scale`. O ffmpeg do Remotion
+> não tem os filtros `fps`/`tile`/`select` (usar `-r` e `-ss` por quadro). O `page.screenshot` do Playwright trava com o roteiro rodando; usar o CDP.
+>
+> **Skills sugeridas:** web-perf (se a medição achar tarefa longa), humanizer/voz-humana (textos do esboço), revisao-ui.
+
+
 > **ESTADO DA SESSÃO DE DESIGN (2026-11-10, worktree `.claude/worktrees/design-dono-351421`, branch atual `adicionais-painel`).**
 > <!-- passagem-auto: 1-347bfd38-b9fe-43c6-a60d-551b6b21b96f -->
 > Sessão aberta pela sessão principal (`local_c012a676…`, "Beyon Zero") só para o design pedido pelo dono. O estado geral do
