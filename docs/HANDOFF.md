@@ -7,7 +7,7 @@
 >
 > **Feito:** laboratório `docs/lab-planta-v2.html` (+ `-cresce` derivação pura, `-roteiro` 3 nichos, `-esboco`, `-consagra` com o
 > `BZPlanta.interno.construirQuadro` real, `-relogio` pausável, `-som`, scripts `-fotos`/`-medir`/`-video`; testes `docs/testes/lab-planta-v2.test.mjs` 9/9).
-> Revisão por agente separado (23 achados) aplicada. Commits `236b26e`..`96636db` (+ o desta passagem), ainda SEM envio ao GitHub.
+> Revisão por agente separado (23 achados) aplicada. Commits `236b26e`..`96636db` (+ o desta passagem), já no GitHub (`100e77b`).
 > Vídeos e nota já em `C:\Vault - Fernando\Beyon Zero\00 Entrada\planta-viva-v2\` (`planta-v2-celular-clinica.mp4`, `planta-v2-computador-servico.mp4`, `NOTA.md`).
 >
 > **Próximo passo exato:**
@@ -15,7 +15,7 @@
 > 2. Medir em segundo plano: `node docs/lab-planta-v2-medir.mjs clinica 1` com CHROMIUM = o chrome-headless-shell-1228 do Playwright (~20+ min com a máquina cheia).
 >    Pronto = nenhum quadro longo (LoAF > 50 ms) atribuído a script da planta (`da_planta` vazio) no `cel` (CPU 4x) e no `pc`. Se houver, otimizar e regravar
 >    os vídeos. Gravar o resultado na seção "O que foi medido" da `NOTA.md` (hoje diz "AINDA NÃO MEDIDO").
-> 3. Enviar o ramo `planta-espetaculo` ao GitHub (comando simples, sem redirecionar a saída: o guarda nega com redirecionamento).
+> 3. Depois de qualquer commit novo, enviar de novo o ramo `planta-espetaculo` ao GitHub (comando simples, sem redirecionar a saída).
 > 4. SendMessage para `local_c012a676-93ab-4c4f-a1d9-6b86d5cc65da` com o caminho da pasta e um resumo (o que mudou, o que foi medido, o que ficou em aberto). Não mandar ao dono.
 >
 > **Em aberto (para a sessão principal/dono):** a conversa real é uma caixa de 56vh (onde o cartão mora no PR); a nota passou para baixo do desenho;
