@@ -16,7 +16,7 @@
    ========================================================================== */
 import { criarFluxo, traduzirErro } from './_vendas/fluxo.mjs';
 import { criarTransporte, ErroBanco } from './_vendas/transporte.mjs';
-import { aquecerBanco } from './_vendas/aquecer-banco.mjs';
+import { aquecerBanco, avisarFalha } from './_vendas/aquecer-banco.mjs';
 import { criarVisitantes } from './_vendas/visitante.mjs';
 import { configPagamentos, configPublica } from './_pagamentos/config.mjs';
 import { criarServicoPagamentos } from './_pagamentos/servico.mjs';
@@ -86,7 +86,9 @@ export async function atender(request, env, metodo, deps, ctx) {
   const semConsultorLocal = env.BZ_LOCAL === '1' && env.BZ_SEM_CONSULTOR === '1' && ambienteDe(env) === 'local';
   if (acao === 'sessaoConfig') {
     /* (o recado e o orçamento pedem a configuração ao abrir: a conexão com o banco acorda antes do 1º envio; api/_vendas/aquecer-banco.mjs) */
-    if (!deps && ctx && typeof ctx.waitUntil === 'function') aquecerBanco(criarTransporte(env), p => ctx.waitUntil(p));
+    if (!deps && ctx && typeof ctx.waitUntil === 'function') {
+      try { aquecerBanco(criarTransporte(env), p => ctx.waitUntil(p)); } catch (e) { avisarFalha('aquecer o banco falhou', e); }   /* (configuração quebrada não derruba o GET) */
+    }
     return responder({ turnstile: cfgTurnstile.siteKey, consultor: semConsultorLocal ? false : deps ? !!deps.ia : !!(await criarIA(env)) });
   }
 
