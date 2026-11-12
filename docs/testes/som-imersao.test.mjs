@@ -332,3 +332,37 @@ test('chegando com o som vivo e a passagem nunca avisando o pouso: o áudio nasc
   e.andar(3.5);
   assert.equal(e.contextos.length, 1, 'o som ficou mudo para sempre');
 });
+
+test('chegando com o som vivo: desligar o som no meio do voo vale (o áudio não nasce no pouso)', () => {
+  const e = chegandoComSom();
+  e.andar(0.5);
+  e.alternar();   /* desliga */
+  e.andar(0.9);
+  e.classes.delete('passagem-chega');
+  e.B.emit('passagem:chegou');
+  e.andar(4);
+  assert.equal(e.contextos.length, 0, 'o áudio nasceu com o som desligado');
+  assert.equal(e.vozes().pouso || 0, 0, 'o pouso tocou com o som desligado');
+});
+
+test('chegando com o som vivo: um gesto no meio do voo acorda já, e o pouso não cria outro contexto nem some', () => {
+  const e = chegandoComSom();
+  e.andar(0.4);
+  e.gesto();
+  assert.equal(e.contextos.length, 1, 'o gesto não acordou o som');
+  e.andar(0.9);
+  e.classes.delete('passagem-chega');
+  e.B.emit('passagem:chegou');
+  e.andar(4);
+  assert.equal(e.contextos.length, 1, 'contextos: ' + e.contextos.length);
+  assert.equal(e.vozes().pouso, 1, 'pouso: ' + JSON.stringify(e.vozes()));
+});
+
+test('chegando com o som vivo: depois do pouso, a rede de 3 s não acorda de novo', () => {
+  const e = chegandoComSom();
+  e.andar(0.9);
+  e.classes.delete('passagem-chega');
+  e.B.emit('passagem:chegou');
+  e.andar(5);
+  assert.equal(e.contextos.length, 1, 'contextos: ' + e.contextos.length);
+});

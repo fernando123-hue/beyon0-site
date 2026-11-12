@@ -22,7 +22,8 @@
    - o OURO (js/ouro.js, 'ouro'): carga, ignição, o reinado com um acorde
      baixinho por baixo (dura o que o ouro durar) e o resfriamento;
    - a TRAVESSIA (js/passagem.js): o ar que passa ('passagem') e o pouso da
-     página nova ('passagem:chegou').
+     página nova ('passagem:chegou'). Chegando com o som tocando, o áudio da
+     página nova só nasce nesse pouso, não no meio do voo (fim do arquivo).
    O navegador só deixa tocar depois de um gesto (toque, clique, tecla; rolar
    não conta). O fundo sobe de quase nada (8 s na 1ª página da visita, 2 s nas
    seguintes) e o pulso espera ele chegar; as respostas à pessoa soam já.
@@ -640,13 +641,14 @@
      medidos no Chrome do dono, 2026-11-12), e na carga isso caía no meio do voo de chegada. O fundo sobe a partir do
      pouso. Rede de segurança: se a passagem não avisar (falhou ao carregar, aba escondida), acorda em 3 s */
   var POUSO_MAX_MS = 3000;
-  var esperaPouso = false;
+  var esperaPouso = false, timerPouso = 0;
   function acordarNoPouso() {
     if (!esperaPouso) return;
     esperaPouso = false;
+    clearTimeout(timerPouso);
     acordar(null, true);
   }
   if (veioComSom && navigator.userActivation && navigator.userActivation.hasBeenActive) {
-    if (B && B.on) { esperaPouso = true; setTimeout(acordarNoPouso, POUSO_MAX_MS); } else acordar(null, true);
+    if (B && B.on) { esperaPouso = true; timerPouso = setTimeout(acordarNoPouso, POUSO_MAX_MS); } else acordar(null, true);
   }
 })();
