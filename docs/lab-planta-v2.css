@@ -127,7 +127,11 @@ body { margin: 0; background: var(--bg); color: var(--t2); font-family: var(--sa
 /* a nota real reserva altura para trocar a nota padrão pela do modelo; aqui só há uma nota, então sem vão */
 .lv-nota { margin: 12px 0 0; min-height: 0; }
 .lv-final.is-voo, .lv-final.is-voo .plv-svg { overflow: visible; contain: none; }
+/* o quadro final montado antes da consagração: na página, com estilo e layout prontos, mas sem ocupar lugar nem aparecer */
+.lv-final.lv-escondido { position: absolute; left: 0; right: 0; top: 0; visibility: hidden; pointer-events: none; }
 .lv-final .plv-no.lv-voa { opacity: 1; }
+/* as rotas ficam apagadas até a luz passar (as animações da luz nascem um pouco depois da troca) */
+.lv-final.plv--pre .plv-limpa { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
 /* o rótulo do objetivo voa à vista (o CSS real esconde a ponta ainda apagada) e só vira ouro quando a luz chega */
 .lv-final.plv--pre .plv-ponta.lv-voa > * { opacity: 1; transform: none; }
 .is-consagrada .plv-acoes { margin-top: 10px; }

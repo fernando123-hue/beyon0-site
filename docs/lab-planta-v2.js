@@ -92,6 +92,7 @@
       log.insertBefore(raiz, antesDe ? antesDe.nextSibling : null); estado.item = raiz;
     }
     estado.planta = Esb.criar(raiz, { som: som, margemBaixo: margemBaixo });
+    if (!desktop) Cons.aquecer(raiz.clientWidth - 2);   /* a conta da geometria final (o quadro tem 1 px de borda) num momento ocioso, longe da consagração; a faixa larga do computador tem altura fixa */
   }
 
   function digitar(texto, pronto) {
@@ -151,7 +152,7 @@
         if (!estado.planta) { estado.fim = true; return; }
         var r = Cons.consagrar(estado.planta, R.fim.plano, {
           som: som, nome: R.fim.nome, margemBaixo: margemBaixo,
-          preparar: function () { if (desktop) { palco.classList.add('is-faixa'); caixa.scrollTop = caixa.scrollHeight; } },
+          preparar: desktop ? function () { palco.classList.add('is-faixa'); caixa.scrollTop = caixa.scrollHeight; } : null,   /* (só o computador muda o layout; sem preparar, a consagração monta o quadro antes) */
           aoAcender: function (caixaNaTela) {
             if (!auto) return;
             if (desktop) {
@@ -201,7 +202,7 @@
     }
     if (n > R.turnos.length && estado.planta) {
       fala('zero', R.fim.zero);
-      Cons.consagrar(estado.planta, R.fim.plano, { som: function () {}, nome: R.fim.nome, preparar: function () { if (desktop) palco.classList.add('is-faixa'); } });
+      Cons.consagrar(estado.planta, R.fim.plano, { som: function () {}, nome: R.fim.nome, preparar: desktop ? function () { palco.classList.add('is-faixa'); } : null });
       if (desktop) caixa.scrollTop = caixa.scrollHeight;
       estado.consagrada = true; estado.fim = true;
     }
