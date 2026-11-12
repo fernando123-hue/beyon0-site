@@ -65,7 +65,7 @@ test('recado: "deixei", "avisei", "mandei pro dono", "já está com ele" e afins
 
 test('recado: a frase fixa é a única forma de falar do recado, e o resto da resposta fica', () => {
   assert.match(RECADO_FIXO, /DEIXAR UM RECADO/);
-  assert.match(RECADO_FIXO, /dono lê e responde por e-mail/);
+  assert.match(RECADO_FIXO, /dono lê e responde no contato que você deixar/);
   assert.doesNotMatch(RECADO_FIXO, /deixei|avisei|enviei|equipe/i);
   const r = semPromessaDeRecado('Desconto eu não consigo dar. Deixei o recado para o dono. O preço é o mesmo para todo mundo.');
   assert.equal(r.trocou, true);
@@ -77,7 +77,7 @@ test('recado: a frase fixa é a única forma de falar do recado, e o resto da re
 
 test('recado: o que NÃO é promessa passa intacto (oferta do botão, negação, conversa normal)', () => {
   const ok = [
-    'Se quiser, toque em DEIXAR UM RECADO aqui embaixo. O dono lê e responde por e-mail.',
+    'Se quiser, toque em DEIXAR UM RECADO aqui embaixo. O dono lê e responde no contato que você deixar.',
     'Isso eu não consigo confirmar aqui.',
     'Eu não deixei nenhum recado: só você pode deixar, pelo botão.',
     'Anotei a clínica e o agendamento online.',
@@ -105,7 +105,7 @@ test('turno: a resposta do modelo que diz "deixei o recado" sai com o texto fixo
 });
 
 test('turno: o resultado de encaminhar_diagnostico diz ao modelo que NADA foi enviado', async () => {
-  const ia = roteiro(comFerr({ id: 'c1', nome: 'encaminhar_diagnostico', entrada: { motivo: 'pediu falar com uma pessoa' } }), fim('Se quiser, toque em DEIXAR UM RECADO aqui embaixo. O dono lê e responde por e-mail.'));
+  const ia = roteiro(comFerr({ id: 'c1', nome: 'encaminhar_diagnostico', entrada: { motivo: 'pediu falar com uma pessoa' } }), fim('Se quiser, toque em DEIXAR UM RECADO aqui embaixo. O dono lê e responde no contato que você deixar.'));
   const r = await executarTurno({ ia, regras: REGRAS, conversa: nova(), mensagem: 'posso falar com o dono?' });
   const resultado = JSON.parse(ia.recebidos[1].mensagens.at(-1).content[0].content);
   assert.equal(resultado.ok, true);

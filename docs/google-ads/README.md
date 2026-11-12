@@ -200,7 +200,7 @@ Online. Snippet "Serviços": Site Institucional · Landing Page · Site Sob Medi
   anúncio com a mesma mensagem (grupos A e B). A de landing page rende mais. Médio prazo.
 - **FAQ de Sites**: preço (ao menos "o que muda o preço"), prazo típico, o que está incluso, "e depois que o site está
   no ar?" — só com as suas respostas reais.
-- **Perfil da Empresa no Google**: exige **atendimento presencial** (visitar ou receber clientes). Negócio 100% remoto
+- **Perfil da Empresa no Google: fora (decisão do dono, 2026-11-11: "se o google pede endereço físico, vamos tirar ele da jogada").** Ele exige **atendimento presencial** (visitar ou receber clientes). Negócio 100% remoto
   não se qualifica, e o site diz que tudo é online. Se você atende alguém pessoalmente no Rio, cadastre como "área de
   atendimento" (endereço oculto), nome exatamente "Beyon Zero", categoria "Web designer". Se não, LinkedIn, Instagram
   e GitHub com nome, cidade e telefone iguais ao site.

@@ -236,7 +236,7 @@ test('mudar as respostas (a simulação sai): as dimensões voltam a pendente e 
 test('o que pode mudar o valor: a urgência pela tabela (com o percentual do catálogo) e os extras, só enquanto o preço está aberto', () => {
   const r = estadoDoEscopo(null, simulado(), {});
   assert.ok(r.detalhes.podeMudar.includes('Precisar antes do prazo: +30% no valor'));
-  assert.ok(r.detalhes.podeMudar.some((t) => /Quer ajustar\?/.test(t)));
+  assert.ok(r.detalhes.podeMudar.some((t) => /extras que você escolher abaixo do preço/.test(t)));
   const semPct = estadoDoEscopo(null, simulado({ urgencia_pct: null }), {});
   assert.ok(semPct.detalhes.podeMudar.includes('Precisar antes do prazo (acréscimo da tabela)'));
   const urg = estadoDoEscopo(null, simulado({ urgencia: true }), {});

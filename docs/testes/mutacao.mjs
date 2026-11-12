@@ -131,6 +131,14 @@ export const SABOTAGENS = [
     de: "tipo_real: tipoPorBytes(ini.bytes)", para: "tipo_real: a.tipo_declarado === 'image/png' ? 'png' : a.tipo_declarado === 'image/jpeg' ? 'jpg' : 'webp'" },
   { nome: 'o prazo conta os dias em UTC (não no fuso da captação)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo.test.mjs'],
     de: "new Intl.DateTimeFormat('en-CA', { timeZone: fuso, year: 'numeric'", para: "new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC', year: 'numeric'" },
+  /* as referências de imagem (scripts/referencias.mjs, 2026-11-11): texto livre não vira busca, a chave não vai para o host
+     das fotos, e a entrega não aceita qualquer coisa plantada em ./referencias */
+  { nome: 'referências: o segmento livre do briefing vira a busca', fonte: 'scripts/referencias.mjs', testes: ['docs/testes/direcoes-dono.test.mjs'],
+    de: "consulta: [TOM[estrategia], ASSUNTO[ramo],", para: "consulta: [TOM[estrategia], ASSUNTO[ramo], String(briefing?.negocio?.segmento || ''), String(briefing?.negocio?.cidade || '')," },
+  { nome: 'referências: a chave do Pexels vai junto no download das fotos', fonte: 'scripts/referencias.mjs', testes: ['docs/testes/direcoes-dono.test.mjs'],
+    de: "const baixadas = await Promise.allSettled(fotos.map(f => baixarFoto(f.imagem, { buscar })));", para: "const baixadas = await Promise.allSettled(fotos.map(f => baixarFoto(f.imagem, { buscar: (u, i) => buscar(u, { ...i, headers: { Authorization: chave } }) })));" },
+  { nome: 'referências: a entrega aceita qualquer coisa plantada em ./referencias', fonte: 'scripts/direcoes.mjs', testes: ['docs/testes/direcoes-dono.test.mjs'],
+    de: "n !== PASTA_REFERENCIAS), ...estranhosNasReferencias(pasta)].sort();", para: "n !== PASTA_REFERENCIAS)].sort();" },
   { nome: '"baixar" marca importado (antes de a captação importar)', fonte: 'scripts/entregas-lib.mjs', testes: ['docs/testes/entregas-dono.test.mjs'],
     de: "  return { pasta, arquivos: lidos.map(l => l.nome), suspeitos: Array.isArray(pac.suspeitos) ? pac.suspeitos : [], comandos: [", para: "  await marcarImportado({ base, chave, buscar, codigo, cliente: 'c-aaaaab' });\n  return { pasta, arquivos: lidos.map(l => l.nome), suspeitos: Array.isArray(pac.suspeitos) ? pac.suspeitos : [], comandos: [" },
   { nome: '"Mandar para mim" por wa.me com o código', fonte: 'js/orcamento-entrega.js', testes: ['docs/testes/orcamento-entrega.test.mjs'],
@@ -517,12 +525,16 @@ export const SABOTAGENS = [
   { nome: "a tabela da sombra abre a leitura para o anon", arquivo: '20261110120000_jev_sombra.sql', testes: ['docs/testes/jev-sombra-banco.test.mjs'],
     acrescentar: '\ngrant usage on schema app to anon;\ngrant select on app.jev_sombra to anon;\n' },
   /* ---- 29/10: o recado, o único lugar de feedback do site ---- */
-  { nome: "o recado liga a conversa de OUTRO visitante (vaza que ela existe e mistura recados)", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs'],
+  { nome: "o recado liga a conversa de OUTRO visitante (vaza que ela existe e mistura recados)", arquivo: '20261111120000_recado_whatsapp.sql', testes: ['docs/testes/recado-banco.test.mjs'],
     de: "and visitante_id = (p ->> 'visitante_id')::uuid and org_id = v_org", para: "and org_id = v_org" },
-  { nome: "o recado sem freio por IP (o sexto passa)", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs', 'docs/testes/recado-api.test.mjs'],
+  { nome: "o recado sem freio por IP (o sexto passa)", arquivo: '20261111120000_recado_whatsapp.sql', testes: ['docs/testes/recado-banco.test.mjs', 'docs/testes/recado-api.test.mjs'],
     de: "'recado|ip|' || (p ->> 'chave_ip'), 5)", para: "'recado|ip|' || (p ->> 'chave_ip'), 500000)" },
-  { nome: "o recado sem teto do dia", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs'],
+  { nome: "o recado sem teto do dia", arquivo: '20261111120000_recado_whatsapp.sql', testes: ['docs/testes/recado-banco.test.mjs'],
     de: "'recado|dia|' || v_org, 200)", para: "'recado|dia|' || v_org, 2000000)" },
+  /* (#128) as funções do recado foram recriadas na migration do WhatsApp: as três sabotagens acima miram nela (na antiga, a nova
+     as sobrescreve e o mutante escaparia). E o WhatsApp fora do formato precisa ser recusado pela função, com a frase de recado inválido */
+  { nome: "o recado aceita WhatsApp fora do formato do site", arquivo: '20261111120000_recado_whatsapp.sql', testes: ['docs/testes/recado-banco.test.mjs'],
+    de: "or (v_whatsapp is not null and v_whatsapp !~", para: "or (false and v_whatsapp !~" },
   { nome: "a retenção do recado passa de 60 para 600 dias", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs'],
     de: "coalesce((p ->> 'dias')::integer, 60); v_n integer;", para: "coalesce((p ->> 'dias')::integer, 600); v_n integer;" },
   { nome: "a tabela de recados abre a leitura para o anon", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs'],
@@ -647,7 +659,9 @@ function rodar() {
     if (s.fonte) { restauracoes.set(alvo, bruto); if (bruto.includes('\r\n')) sql = sql.replace(/\n/g, '\r\n'); }
     fs.writeFileSync(alvo, sql);
     const testes = (s.testes || ['docs/testes/banco.test.mjs']).map(t => path.join(RAIZ, t));
-    const r = spawnSync(process.execPath, ['--test', ...testes], { env: { ...process.env, BZ_MIGRATIONS: dir }, encoding: 'utf8' });
+    /* o relatório "spec" pedido sempre: no Node 22 a saída em pipe vem em TAP, sem a linha "ℹ tests N" lida abaixo, e toda
+       sabotagem saía INVÁLIDA (0 testes); no Node 23+ o spec já é o padrão (2026-11-11) */
+    const r = spawnSync(process.execPath, ['--test', '--test-reporter=spec', ...testes], { env: { ...process.env, BZ_MIGRATIONS: dir }, encoding: 'utf8' });
     const falhas = (r.stdout.match(/^✖ .+$/gm) || []).filter(l => !/failing tests/.test(l));
     /* "pegou" = um teste caiu numa ASSERÇÃO. Migration que nem carrega ou suíte que nem roda também saem com erro, mas
        não provam nada: contam como sabotagem mal feita (revisão técnica do PR 14) */

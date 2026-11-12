@@ -125,6 +125,15 @@ try {
   ok(await semRolagemLateral(page), 'celular no preço: sem rolagem lateral');
   ok(await page.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'estimativa', 'com o preço na tela, a etapa já é "Preço"');
   await foto(page, '1b-preco-cel');
+  /* AS SUGESTÕES (dono, 2026-11-10, opção A): os cartões antes do "Quero", pelo ramo (saúde: agendamento, textos, imagens), o da
+     recomendação já marcado; um toque no cartão soma no preço e a lista completa acompanha */
+  ok(await page.locator('#o-reco').isVisible() && await page.isChecked('#o-r-agendamento'), 'sugestões: os cartões à vista, com o agendamento da recomendação já marcado');
+  ok(JSON.stringify(await page.$$eval('#o-reco-lista [data-extra]', l => l.map(c => c.dataset.extra))) === '["agendamento","textos","imagens"]', 'sugestões de saúde: agendamento, textos e imagens');
+  await page.locator('label[for="o-r-imagens"]').click({ position: { x: 120, y: 20 } });
+  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('8.600'));
+  await page.locator('label[for="o-r-imagens"]').click({ position: { x: 120, y: 20 } });
+  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('8.350'));
+  ok(true, 'sugestões: o toque no cartão soma e tira do preço (8.350 → 8.600 → 8.350)');
   await page.click('#o-ajustar-abrir');
   ok(await page.isChecked('#o-x-agendamento'), 'ajustar: o extra da recomendação (agendamento) já vem marcado');
   /* (tabela de 28/10, sem trava de prazo: tudo numa entrega só. Institucional 8 + agendamento 1 + imagens meio dia; com o blog,

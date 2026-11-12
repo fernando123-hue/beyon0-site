@@ -173,6 +173,11 @@ body {
   font-size: var(--fs-b);
   line-height: 1.6;
   overflow-x: clip;
+  /* palavra mais larga que a linha quebra em vez de alargar a página: com a fonte do aparelho grande (20-22 px),
+     o e-mail, o endereço da política da Anthropic e "Compromissos" num h2 passavam de 320 px e o Chrome alargava a
+     viewport inteira (o menu ia junto para fora; regra 10 do CLAUDE.md). Herdado; break-word não muda o tamanho
+     mínimo de nada, então no tamanho normal nenhuma linha muda (medido 2026-11-11) */
+  overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

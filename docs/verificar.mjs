@@ -20,7 +20,7 @@
    · nenhum link de WhatsApp da Beyon (o site não tem: Decisões 28/10) e o local de recado montado; sem erro de console; fps > 45.
    E a PASSAGEM entre páginas (no fim): chega inteira e sem nada preso, volta
    pelo histórico inteira, desiste em 2 s, fecha o menu do celular na hora e
-   chega a uma âncora só aparecendo.
+   chega a uma âncora só aparecendo. E a FONTE GRANDE do aparelho (22 px) a 320 px.
    ========================================================================== */
 import { chromium } from 'playwright';
 import { autorizarContexto } from './acesso.mjs';
@@ -94,6 +94,12 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
       /* o resumo é uma página isolada, só com o link para o orçamento: não tem recado */
       isolada: /^\/resumo/.test(location.pathname),
       presos: [...document.querySelectorAll('.hero__title, .display, .hero__sub, .hero__actions')].filter(escondido).length,
+      /* todo controle da nav dentro da tela: a 320 px a logo empurrava o menu para fora (x = 322, 2026-11-11). Os
+         links do painel do celular entram também: fechado ele está com visibility hidden, aberto cabe na tela */
+      navFora: [...document.querySelectorAll('.nav a, .nav button')].filter(e => {
+        const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+        return r.width > 0 && cs.display !== 'none' && cs.visibility !== 'hidden' && (r.left < 0 || r.right > innerWidth + 0.5);
+      }).map(e => e.className || e.tagName),
       barraOk: !document.getElementById('barra') || innerWidth > 820 || getComputedStyle(document.getElementById('barra')).position === 'fixed'
     };
   });
@@ -118,7 +124,7 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   const nucleo = await page.evaluate(() => document.documentElement.classList.contains('tem-nucleo') && !!document.querySelector('.nucleo.is-aceso'));
 
   const reais = erros.filter(e => !/ERR_CERT|GPU stall|swiftshader/i.test(e));
-  const ok = (semNucleo || d.boot) && d.barraOk && d.overflowX === 0 &&
+  const ok = (semNucleo || d.boot) && d.barraOk && d.overflowX === 0 && d.navFora.length === 0 &&
     d.waBeyon === 0 && (d.recado > 0 || d.isolada) && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 && campo !== 0 &&
     (exige3d ? nucleo : (!nucleo && fps > 45)) &&
     /* LCP com orçamento (2,5s é o "bom" do Core Web Vitals); o primeiro alvo da rodada é artefato do headless */
@@ -131,7 +137,7 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
     'fps=' + String(fps).padStart(5) + (exige3d ? '(info)' : ''),
     'núcleo=' + (nucleo ? 'sim' : 'não'),
     'lcp=' + String(lcp).padStart(5) + 'ms',
-    'rolagemX=' + d.overflowX,
+    'rolagemX=' + d.overflowX + (d.navFora.length ? ' NAV FORA DA TELA: ' + d.navFora.join(',') : ''),
     'wa=' + d.waBeyon + ' recado=' + d.recado,
     'presos=' + d.presos + '/' + d.presosNoFim,
     'campo=' + (campo < 0 ? '—' : campo > 0 ? 'ok' : 'VAZIO'),
@@ -377,6 +383,39 @@ await cenario('giro-reduz', CELULAR, async page => {
   }));
   const nome = /heading "O cliente chama\. Seu site responde\."/.test(nomeNaTroca);
   return { ok: r.ativa === 0 && r.camadas === 0 && nome, info: `frase=${r.ativa + 1} camadas=${r.camadas} nome-na-troca=${nome}` };
+});
+
+/* FONTE GRANDE do aparelho (Android em "fonte grande" põe a fonte raiz em 20-22 px): a 320 px nenhuma página pode ficar
+   mais larga que a tela nem empurrar o menu para fora. Achado de 2026-11-11: o e-mail do rodapé, o endereço da política
+   da Anthropic e "Compromissos" num h2 alargavam a página (até 409 px) e o Chrome alargava a viewport inteira */
+await cenario('fonte-grande', ESTREITO, async page => {
+  const ruins = [];
+  for (const rota of ['/', '/sites', '/automacao', '/orcamento', '/condicoes', '/privacidade']) {
+    await page.goto(BASE + rota, { waitUntil: 'load' });
+    /* a medida espera a fonte da marca (mais larga que a reserva) e um quadro depois de crescer a fonte */
+    await page.evaluate(async () => { await document.fonts.ready; document.documentElement.style.fontSize = '22px'; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); });
+    const d = await page.evaluate(() => ({
+      largura: document.documentElement.scrollWidth, tela: document.documentElement.clientWidth,
+      /* página sem menu (condições, privacidade): 0; com menu ainda escondido (o js/pagina.js não montou): falha, não passa calada */
+      menu: (() => { const t = document.querySelector('.nav__toggle'); if (!t) return 0; return t.hidden ? Infinity : t.getBoundingClientRect().right; })(),
+      /* texto cortado: o hero tem overflow-x clip, então o que passa da borda não alarga a página e o scrollWidth não vê
+         (revisão do PR: o h1, o parágrafo do LCP e o botão do /automacao saíam 20 px). Fora: o que é só para leitor de
+         tela, o nome recolhido das etapas do orçamento e o rótulo com reticências de propósito */
+      cortados: (() => {
+        const W = document.documentElement.clientWidth, fora = new Set();
+        const tw = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT);
+        while (tw.nextNode()) {
+          const n = tw.currentNode, el = n.parentElement;
+          if (!n.textContent.trim() || el.closest('.sr-only, .peca-quero__texto, .orc-etapas__nome, [hidden]') || !el.checkVisibility()) continue;
+          const rg = document.createRange(); rg.selectNodeContents(n);
+          if ([...rg.getClientRects()].some(q => q.width > 0 && q.right > W + 0.5)) fora.add(el.tagName.toLowerCase() + '.' + String(el.className).split(' ')[0]);
+        }
+        return [...fora].slice(0, 4);
+      })()
+    }));
+    if (d.largura > d.tela + 0.5 || d.menu > d.tela + 0.5 || d.cortados.length) ruins.push(`${rota} largura=${d.largura} menu=${d.menu === Infinity ? 'escondido' : Math.round(d.menu)}${d.cortados.length ? ' cortado: ' + d.cortados.join(',') : ''}`);
+  }
+  return { ok: ruins.length === 0, info: ruins.length ? 'ESTOURA: ' + ruins.join(' · ') : '6 páginas a 320 px com fonte 22 px, sem estourar nem cortar texto' };
 });
 
 await navegador.close();
