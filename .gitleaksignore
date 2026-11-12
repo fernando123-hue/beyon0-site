@@ -24,3 +24,10 @@ ed85949ffe5f5efc1344af61d79c5eb2e3b06919:docs/testes/fila-direcoes.test.mjs:stri
 907595ef7ad509954789b719f463847ffb0f5880:docs/superpowers/plans/2026-10-21-pr3b2-material.md:generic-api-key:2116
 907595ef7ad509954789b719f463847ffb0f5880:docs/superpowers/plans/2026-10-21-pr3b2-material.md:generic-api-key:2192
 907595ef7ad509954789b719f463847ffb0f5880:docs/superpowers/plans/2026-10-21-pr3b2-material.md:generic-api-key:2195
+
+# 2026-11-12, PR #139 (commits b51fbdc e e20a73c): a chave de TESTE 'sb_secret_TESTE_1234567890' (valor inventado,
+# só nos testes, apontando para https://falso.supabase.co) foi lida pela regra generic-api-key. O commit seguinte usa
+# 'sb_secret_y', como os outros testes; estas linhas só cobrem os commits antigos, que ficam no histórico do PR.
+b51fbdc363e329c19a3e44a7846fc7f101346dcf:docs/testes/aquecer-banco.test.mjs:generic-api-key:61
+e20a73cd5f4e2ab8709ad515ccd2ac12b1d11f26:docs/testes/aquecer-banco.test.mjs:generic-api-key:87
+e20a73cd5f4e2ab8709ad515ccd2ac12b1d11f26:docs/testes/aquecer-banco.test.mjs:generic-api-key:115

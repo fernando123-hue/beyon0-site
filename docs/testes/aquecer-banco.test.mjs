@@ -84,7 +84,7 @@ test('rajada de aberturas ao mesmo tempo dispara uma leitura só', () => {
 test('GET sessao-config responde sem esperar o aquecimento, mesmo com o banco pendurado', async () => {
   const adiadas = [];
   await comFetch(() => new Promise(() => {}), async () => {
-    const env = { BZ_AMBIENTE: 'local', SUPABASE_URL: 'https://falso.supabase.co', SUPABASE_CHAVE_SECRETA: 'sb_secret_TESTE_1234567890' };
+    const env = { BZ_AMBIENTE: 'local', SUPABASE_URL: 'https://falso.supabase.co', SUPABASE_CHAVE_SECRETA: 'sb_secret_y' };
     const r = await atender(new Request(URL_CONFIG), env, 'GET', undefined, { waitUntil: p => adiadas.push(p) });
     assert.equal(r.status, 200);
     assert.deepEqual(Object.keys(await r.json()).sort(), ['consultor', 'turnstile']);
@@ -95,7 +95,7 @@ test('GET sessao-config responde sem esperar o aquecimento, mesmo com o banco pe
 test('GET sessao-config de verdade (sem dublês): com o Supabase configurado, deixa UMA leitura das regras no waitUntil', async () => {
   const adiadas = [];
   const urls = await comFetch(() => new Response(JSON.stringify(null), { status: 200, headers: { 'content-type': 'application/json' } }), async () => {
-    const env = { BZ_AMBIENTE: 'local', SUPABASE_URL: 'https://falso.supabase.co', SUPABASE_CHAVE_SECRETA: 'sb_secret_TESTE_1234567890' };
+    const env = { BZ_AMBIENTE: 'local', SUPABASE_URL: 'https://falso.supabase.co', SUPABASE_CHAVE_SECRETA: 'sb_secret_y' };
     const r = await atender(new Request(URL_CONFIG), env, 'GET', undefined, { waitUntil: p => adiadas.push(p) });
     assert.equal(r.status, 200);
     assert.equal(adiadas.length, 1, 'uma leitura entregue ao waitUntil');
@@ -112,7 +112,7 @@ test('GET sessao-config sem Supabase configurado não agenda nada', async () => 
 });
 
 test('GET sessao-config com configuração do Supabase quebrada ainda responde 200 (aquecer nunca derruba a configuração)', async () => {
-  const env = { BZ_AMBIENTE: 'local', SUPABASE_URL: 12345, SUPABASE_CHAVE_SECRETA: 'sb_secret_TESTE_1234567890' };   /* (não é texto: criarTransporte lança) */
+  const env = { BZ_AMBIENTE: 'local', SUPABASE_URL: 12345, SUPABASE_CHAVE_SECRETA: 'sb_secret_y' };   /* (não é texto: criarTransporte lança) */
   const avisos = await comAvisos(async () => {
     const r = await atender(new Request(URL_CONFIG), env, 'GET', undefined, { waitUntil() {} });
     assert.equal(r.status, 200);
