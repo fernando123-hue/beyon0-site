@@ -116,6 +116,27 @@
   ! Cache-Control
   Cache-Control: public, max-age=0, must-revalidate
 
+# o esboço da planta viva v2 (js/orcamento-planta-esboco.js baixa estes sob demanda, sem ?v; o planta-pecas.js já está acima)
+/js/planta-cresce.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/planta-relogio.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/planta-som.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/planta-esboco.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/css/planta-esboco.css
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
 # O balão do atendente é carregado por <script> em site de OUTRA origem: só este arquivo (nunca /js/*) sai com CORP cross-origin.
 # E revalida sempre (depois do /js/*, para o "! Cache-Control" tirar o cache curto): a URL é fixa no site do cliente, sem ?v,
 # então uma correção do balão chega no próximo carregamento de lá

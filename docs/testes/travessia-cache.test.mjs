@@ -31,7 +31,8 @@ test('cache: /js/* e /css/* com max-age curto, um valor só', () => {
 /* os módulos que outro JS pede sem ?v e que quebram a página se vierem de outra versão (2ª revisão: boot novo com cena
    velha, planta nova com peça velha): revalidam sempre, como antes da mudança */
 const SO_COM_O_PAI = ['/js/nucleo/cena.js', '/js/nucleo/gesto.js', '/js/nucleo/spec.js', '/js/nucleo/pecas.js', '/js/nucleo/coroa.js',
-  '/js/nucleo/shaders.js', '/js/orcamento-planta-forma.js', '/js/planta-pecas.js', '/js/planta-layout.js', '/js/planta-desenho.js', '/css/orcamento-planta.css'];
+  '/js/nucleo/shaders.js', '/js/orcamento-planta-forma.js', '/js/planta-pecas.js', '/js/planta-layout.js', '/js/planta-desenho.js', '/css/orcamento-planta.css',
+  '/js/planta-cresce.js', '/js/planta-relogio.js', '/js/planta-som.js', '/js/planta-esboco.js', '/css/planta-esboco.css'];
 test('cache: os módulos do reator 3D e da planta (pedidos por JS sem ?v) revalidam sempre: nunca peça velha com página nova', () => {
   for (const c of SO_COM_O_PAI) assert.equal(cc(c), REVALIDA, c);
   for (const a of versionados().filter(a => /^js\/nucleo\/.+\.js$/.test(a) && !/\/(boot|lab)\.js$/.test(a)))
@@ -168,7 +169,8 @@ const SEM_V = [
   'js/orcamento-planta.js → js/orcamento-planta-forma.js js/planta-pecas.js js/planta-layout.js js/planta-desenho.js css/orcamento-planta.css',
   'js/recado.js → /js/orcamento-turnstile.js /css/recado.css',
   'js/painel-atendente.js → /js/atendente-balao.js (só o texto que o dono cola no site do cliente)',
-  'js/planta-desenho.js → ./orcamento-planta-forma.js ./planta-layout.js ./planta-pecas.js (só o require do Node nos testes)'
+  'js/planta-desenho.js → ./orcamento-planta-forma.js ./planta-layout.js ./planta-pecas.js (só o require do Node nos testes)',
+  'js/orcamento-planta-esboco.js → js/planta-pecas.js js/planta-cresce.js js/planta-relogio.js js/planta-som.js js/planta-esboco.js css/planta-esboco.css (revalidam sempre)'
 ];
 test('os JS/CSS pedidos por JS sem ?v são exatamente os conhecidos (SEM_V)', () => {
   const achados = [];
@@ -184,7 +186,9 @@ test('os JS/CSS pedidos por JS sem ?v são exatamente os conhecidos (SEM_V)', ()
     'js/orcamento-api.js /js/recado.js', 'js/orcamento-planta.js js/orcamento-planta-forma.js', 'js/orcamento-planta.js js/planta-pecas.js',
     'js/orcamento-planta.js js/planta-layout.js', 'js/orcamento-planta.js js/planta-desenho.js', 'js/orcamento-planta.js css/orcamento-planta.css',
     'js/painel-atendente.js /js/atendente-balao.js', 'js/planta-desenho.js ./orcamento-planta-forma.js', 'js/planta-desenho.js ./planta-layout.js',
-    'js/planta-desenho.js ./planta-pecas.js', 'js/recado.js /js/orcamento-turnstile.js', 'js/recado.js css/recado.css','js/recado.js /css/recado.css']);
+    'js/planta-desenho.js ./planta-pecas.js', 'js/recado.js /js/orcamento-turnstile.js', 'js/recado.js css/recado.css','js/recado.js /css/recado.css',
+    'js/orcamento-planta-esboco.js js/planta-pecas.js', 'js/orcamento-planta-esboco.js js/planta-cresce.js', 'js/orcamento-planta-esboco.js js/planta-relogio.js',
+    'js/orcamento-planta-esboco.js js/planta-som.js', 'js/orcamento-planta-esboco.js js/planta-esboco.js', 'js/orcamento-planta-esboco.js css/planta-esboco.css']);
   assert.deepEqual([...new Set(achados)].filter(x => !conhecidos.has(x)), [], 'carregamento novo sem ?v: avalie o risco e some em SEM_V:\n' + SEM_V.join('\n'));
 });
 test('nenhum JS procura <link>/<script> pelo FIM do endereço ([href$=] / [src$=]): com ?v o fim é o hash', () => {
