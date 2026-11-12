@@ -153,8 +153,12 @@
         anim(x.mov, [{ transform: 'translate(' + r1(tx) + 'px,' + r1(ty) + 'px) scale(' + r1(s * 100) / 100 + ')' }, { transform: 'translate(0px,0px) scale(1)' }], { duration: 900, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'backwards' });
         var caixa = x.mov.querySelector('.plv-caixa');
         if (caixa) anim(caixa, [{ opacity: 0 }, { opacity: 0, offset: 0.3 }, { opacity: 1 }], { duration: 900, fill: 'backwards' });
+        /* o texto das estações voa junto; o das pontas (núcleo e objetivo) é uma chamada alinhada de outro jeito no desenho final, e voando ela
+           saía da tela no celular: fica no lugar final (o do objetivo já à vista, o do núcleo aparece) */
+        if (n.ponta === 'led') return;
+        if (n.ponta) { anim(x.li, [{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: 900, fill: 'backwards' }); return; }
         var dx = a.tx - qd.left - n.x, dy = a.ty - qd.top - n.y;
-        anim(x.li, [{ transform: 'translate(' + r1(dx) + 'px,' + r1(dy) + 'px)', opacity: n.ponta === 'led' ? 1 : 0 }, { opacity: n.ponta === 'led' ? 1 : 0, offset: 0.35 }, { transform: 'translate(0px,0px)', opacity: 1 }], { duration: 900, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'backwards' });
+        anim(x.li, [{ transform: 'translate(' + r1(dx) + 'px,' + r1(dy) + 'px)', opacity: 0 }, { opacity: 0, offset: 0.35 }, { transform: 'translate(0px,0px)', opacity: 1 }], { duration: 900, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'backwards' });
       });
       var ord = g.nos.slice().sort(function (a, b) { return a.ord - b.ord; }), q0 = 0;
       ord.forEach(function (n) {
