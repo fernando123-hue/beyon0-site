@@ -20,6 +20,8 @@ const ok = (cond, msg) => { console.log((cond ? '  ok   ' : '  FALHOU ') + msg);
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const ip = () => '10.' + (1 + Math.floor(Math.random() * 250)) + '.' + Math.floor(Math.random() * 250) + '.' + (1 + Math.floor(Math.random() * 250));
 const MODULOS = /\/(orcamento-planta-forma|planta-pecas|planta-layout|planta-desenho)\.js/;
+/* os que só a FAIXA baixa: planta-pecas.js também vem com o esboço da planta v2, que cresce na conversa desde a 1ª resposta (js/orcamento-planta-esboco.js) */
+const SO_DA_FAIXA = /\/(orcamento-planta-forma|planta-layout|planta-desenho)\.js|orcamento-planta\.css/;
 const nav = await chromium.launch({ executablePath: EXEC });
 
 async function abrir(base, { larg = 390, alt = 844 } = {}) {
@@ -57,10 +59,10 @@ console.log('\n== flag ligada (' + ON + ') ==');
 {
   const { ctx, page, baixados, erros } = await abrir(ON);
   await turno(page, T1);
-  ok(await page.locator('#o-planta').isHidden() && baixados.length === 0, 'antes da planta: a faixa está escondida e nenhum módulo da planta foi baixado (' + baixados.join(',') + ')');
+  ok(await page.locator('#o-planta').isHidden() && !baixados.some((b) => SO_DA_FAIXA.test('/' + b)), 'antes da planta: a faixa está escondida e nenhum módulo da faixa foi baixado (' + baixados.join(',') + ')');
   await turno(page, 'planta-boa pode desenhar');
   await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro', { timeout: 15000 });
-  ok(baixados.filter((b) => MODULOS.test('/' + b)).length === 4 && baixados.includes('orcamento-planta.css'), 'os 4 módulos e o CSS foram baixados, uma vez cada: ' + baixados.join(','));
+  ok(['orcamento-planta-forma.js', 'planta-layout.js', 'planta-desenho.js', 'orcamento-planta.css'].every((m) => baixados.filter((b) => b === m).length === 1) && baixados.includes('planta-pecas.js'), 'os módulos da faixa e o CSS foram baixados, uma vez cada (planta-pecas.js também vem com o esboço): ' + baixados.join(','));
   ok(await page.locator('.plv-ver').count() === 1, 'o botão "Ver a planta do seu site" aparece uma vez');
   ok((await page.evaluate(() => document.querySelector('.plv-ver').closest('li').textContent)).includes('Desenhei o seu site em planta'), 'o botão está dentro da fala do Zero que trouxe a planta');
   ok(await lateral(page), 'celular com a faixa: sem rolagem lateral');
