@@ -393,3 +393,13 @@ test('package.json: todo script que roda um arquivo node aponta para um arquivo 
     if (m && /\.mjs$/.test(m[1])) assert.ok(fs.existsSync(new URL('../../' + m[1], import.meta.url)), nome + ' → ' + m[1] + ' não existe');
   }
 });
+
+/* o modo sombra do JEV (F3, dono 12/11 "pode fazer o que precisa para o JEV"): ligado SÓ na produção, onde há a chave e o
+   banco com app.jev_sombra; o staging e as prévias usam a IA simulada e ficam sem sombra. Valor exato '1' (sombra.mjs) */
+test('wrangler.jsonc: JEV_SOMBRA = "1" só na produção; staging e prévias sem a sombra', () => {
+  const c = lerWrangler();
+  assert.equal(c.vars.JEV_SOMBRA, '1', 'a produção liga a sombra');
+  assert.ok(!('JEV_SOMBRA' in c.env.previa.vars), 'o staging não liga a sombra');
+  assert.ok(!('JEV_SOMBRA' in c.env.previa.previews.vars), 'as prévias de branch não ligam a sombra');
+  for (const k of ['JEV_SOMBRA_TETO_DIA_USD', 'JEV_SOMBRA_AMOSTRA']) assert.ok(!(k in c.vars), k + ': fica no padrão do código (US$ 0,30/dia, todo turno)');
+});
