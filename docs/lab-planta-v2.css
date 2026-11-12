@@ -39,7 +39,8 @@ body { margin: 0; background: var(--bg); color: var(--t2); font-family: var(--sa
 .entrada__enviar { flex: 0 0 auto; }
 
 /* ---- o cartão da planta (o esboço) ---- */
-.lv { position: relative; color: var(--t2); }
+/* o cartão não serve de âncora de rolagem: ele cresce (esboço -> desenho final) e o navegador não deve rolar a página para compensar */
+.lv { position: relative; color: var(--t2); overflow-anchor: none; }
 .lv-kicker { margin: 0 0 8px; height: 16px; overflow: hidden; font: 500 var(--fs-rotulo)/16px var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
 .lv-kicker b { font-weight: 500; color: var(--ac-3); }
 .lv-quadro { position: relative; border: 1px solid var(--line); border-radius: var(--raio); background: var(--s1); overflow: hidden; contain: layout paint; }

@@ -142,7 +142,11 @@
     depois(ms(1400), function () {
       pensando(false);
       var z = fala('zero', R.fim.zero);
-      depois(60, function () { seguirPlanta(z); });
+      /* o "dedo" traz o esboço inteiro (e a legenda) à vista: o voo das estações para o desenho final é o momento a ser visto */
+      depois(60, function () {
+        var qd = estado.item ? estado.item.querySelector('.lv-quadro') : null;
+        if (qd) rolar(estado.item.querySelector('.lv-leitura').getBoundingClientRect().bottom); else seguirPlanta(z);
+      });
       depois(ms(900), function () {
         if (!estado.planta) { estado.fim = true; return; }
         var r = Cons.consagrar(estado.planta, R.fim.plano, {

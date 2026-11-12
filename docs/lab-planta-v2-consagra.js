@@ -79,7 +79,9 @@
 
     function montar() {
       /* 1. onde cada peça do esboço está NA TELA, antes de qualquer mudança de layout */
-      var qa = I.quadro.getBoundingClientRect(), antes = Object.create(null), mapa = casar(I.esboco, plano);
+      /* em coordenadas da PÁGINA (com a rolagem de agora): trocar o esboço pelo quadro final muda a altura do cartão, e uma rolagem que o navegador
+         ajuste no meio (âncora de rolagem) não pode deslocar o ponto de partida do voo */
+      var qr = I.quadro.getBoundingClientRect(), qa = { left: qr.left + window.scrollX, top: qr.top + window.scrollY }, antes = Object.create(null), mapa = casar(I.esboco, plano);
       var ponto = function (cx, cy, s, li) { return { x: qa.left + cx, y: qa.top + cy, s: s, tx: qa.left + li.offsetLeft, ty: qa.top + li.offsetTop }; };
       antes.nucleo = ponto(I.nucleo.cx, I.nucleo.cy, 20, I.nucleo.li);
       I.est.forEach(function (x, k) { var id = mapa[Cresce.LUGARES[k]]; if (id && x.est) antes[id] = ponto(x.cx, x.cy, 24, x.li); });
@@ -132,7 +134,7 @@
       controle.parar = function () { rel.parar(); if (io) io.disconnect(); document.removeEventListener('visibilitychange', aplicar); };
 
       /* 3. reorganiza: o que já existia voa do esboço; o resto surge como esboço */
-      var qd = q.getBoundingClientRect(), voaram = Object.create(null);
+      var qdr = q.getBoundingClientRect(), qd = { left: qdr.left + window.scrollX, top: qdr.top + window.scrollY }, voaram = Object.create(null);
       g.nos.forEach(function (n) {
         var x = R.nos[n.id], a = antes[n.id];
         if (!a) return;

@@ -17,11 +17,12 @@ import { chromium } from 'playwright';
 const [formato = 'cel', nicho = 'clinica', saida = 'planta.mp4'] = process.argv.slice(2);
 const BASE = process.env.BASE || 'http://127.0.0.1:8917', FFMPEG = process.env.FFMPEG;
 if (!FFMPEG) throw new Error('defina FFMPEG');
-const LENTO = Number(process.env.LENTO || 5), FPS = 30, SOBRA_S = 1.6, MAX_S = 200;
+const LENTO = Number(process.env.LENTO || 14), FPS = 30, SOBRA_S = 1.6, MAX_S = 200;
 const cel = formato === 'cel';
 
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
-const ctx = await b.newContext({ viewport: cel ? { width: 390, height: 844 } : { width: 1280, height: 800 }, deviceScaleFactor: cel ? 2 : 1.5, isMobile: cel, hasTouch: cel });
+const DPR = cel ? 2 : 1.5;
+const ctx = await b.newContext({ viewport: cel ? { width: 390, height: 844 } : { width: 1280, height: 800 }, deviceScaleFactor: DPR, isMobile: cel, hasTouch: cel });
 const pg = await ctx.newPage();
 const erros = [];
 pg.on('pageerror', e => erros.push(String(e)));
@@ -35,9 +36,13 @@ await pg.evaluate(() => document.fonts.ready.then(() => true));   /* (devolver o
 const tmp = await mkdtemp(join(tmpdir(), 'planta-v2-quadros-'));
 const fotos = [];
 let real0 = null, fimReal = null;
+const noVideo = ms => ms / LENTO / 1000;   /* ms reais -> segundos do vídeo */
 for (;;) {
   const a = Date.now();
-  const foto = await Promise.race([cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 92 }), new Promise(ok => setTimeout(() => ok(null), 15000))]);
+  /* sem recorte o headless devolve 1x; com o recorte da área visível (na rolagem de agora) e scale = densidade, sai em 2x */
+  const v = (await cdp.send('Page.getLayoutMetrics')).cssVisualViewport;
+  const clip = { x: v.pageX, y: v.pageY, width: v.clientWidth, height: v.clientHeight, scale: DPR };
+  const foto = await Promise.race([cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 92, clip }), new Promise(ok => setTimeout(() => ok(null), 15000))]);
   if (!foto) { erros.push('foto passou de 15 s'); continue; }
   const buf = Buffer.from(foto.data, 'base64');
   const t = (a + Date.now()) / 2;
@@ -46,16 +51,16 @@ for (;;) {
   if (real0 == null) real0 = t;
   const nome = join(tmp, `f${String(fotos.length).padStart(5, '0')}.jpg`);
   await writeFile(nome, buf);
-  fotos.push({ nome, t: (t - real0) / LENTO });
+  fotos.push({ nome, t: noVideo(t - real0) });
   if (fimReal == null && fotos.length % 10 === 0 && await pg.evaluate(() => !!(window.LAB && window.LAB.estado.fim))) fimReal = t;
-  if (fimReal != null && (t - fimReal) / LENTO > SOBRA_S) break;
-  if ((t - real0) / LENTO > MAX_S) { erros.push('passou do tempo máximo'); break; }
-  if (fotos.length % 300 === 0) process.stderr.write(`  ${((t - real0) / LENTO).toFixed(1)} s de vídeo, ${fotos.length} fotos\n`);
+  if (fimReal != null && noVideo(t - fimReal) > SOBRA_S) break;
+  if (noVideo(t - real0) > MAX_S) { erros.push('passou do tempo máximo'); break; }
+  if (fotos.length % 300 === 0) process.stderr.write(`  ${noVideo(t - real0).toFixed(1)} s de vídeo, ${fotos.length} fotos\n`);
 }
 const registro = await pg.evaluate(() => window.BZPlantaSom ? window.BZPlantaSom.registro.slice() : []);
 const dur = fotos[fotos.length - 1].t + 0.3;
 /* os sons na escala do vídeo: em (hora real da página) -> segundos do vídeo, contados da 1ª foto */
-const eventos = registro.map(e => ({ nome: e.nome, k: e.k, em: (e.em - real0) / LENTO }));
+const eventos = registro.map(e => ({ nome: e.nome, k: e.k, em: noVideo(e.em - real0) * 1000 }));   /* (renderizar recebe ms a partir de t0 = 0) */
 await cdp.send('Animation.setPlaybackRate', { playbackRate: 1 });
 const wav64 = await pg.evaluate(([ev, d]) => window.BZPlantaSom.renderizar(ev, 0, d), [eventos, dur]);
 await b.close();
