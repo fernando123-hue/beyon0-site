@@ -116,7 +116,12 @@
   }
   /* "Quero os três modelos" (com o consultor, o pacote é a estimativa do Zero): os passos do pedido abrem na conversa
      (js/orcamento-pedido.js, PR 3); sem o módulo, o contato de antes */
-  function abrirPedido() { if (window.BZPedido) window.BZPedido.iniciar(); else if (!$('o-contato').hidden) irPara('o-contato'); }
+  function abrirPedido() {
+    /* só com o preço gravado e sem contato nem pedido (o mesmo que fazia o contato de antes aparecer): um "Quero" que sobrou, um pedir_contato repetido
+       ou o toque entre o envio e a releitura não abrem um segundo pedido */
+    if (!E || !E.estimativa || E.conversa.tem_contato || E.pedido) return;
+    if (window.BZPedido) window.BZPedido.iniciar(); else if (!$('o-contato').hidden) irPara('o-contato');
+  }
   document.addEventListener('bz:quero-com-zero', abrirPedido);
   window.BZOrcConversa = { enviar: function (texto) { return enviar(texto); }, anunciar: function (texto) { anunciar(texto); } };
   /* o pacote pede conversa (fora do automático ou acima do limite): nada do preço anterior (valor, prazo, itens) fica
@@ -238,7 +243,8 @@
   $('o-tentar').addEventListener('click', function () { var a = ultimaAcao; limparAviso(); if (a) a(); });
   /* o formulário de detalhes trata a sessão recusada como o contato antigo tratava (PR 2a) */
   window.BZDetalhes.iniciar({ sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao });
-  if (window.BZPedido) window.BZPedido.configurar({ sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao, estado: function () { return E; } });
+  if (window.BZPedido) window.BZPedido.configurar({ sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao, estado: function () { return E; },
+    reler: function () { recarregar().catch(function (e) { falhou(e, function () { recarregar(); }); }); } });
 
   /* ---------- o código do pedido (F1, F6) ---------- */
   var codigoMostrado = null;

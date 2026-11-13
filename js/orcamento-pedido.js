@@ -27,14 +27,20 @@
   var FALHA = 'Não consegui guardar agora. Tente de novo ou deixe um recado para a equipe.';
 
   var p = null;   /* o pedido em andamento, só em memória: { d: os dados, corrigindo, enviando } */
-  var ganchos = { sessaoTerminou: function () { return false; }, avisarSessao: function () {}, estado: function () { return null; } };
+  var enviado = false;   /* o pedido desta página já entrou: nada de outro até a página mudar (a releitura do estado mostra o pedido recebido) */
+  var ganchos = { sessaoTerminou: function () { return false; }, avisarSessao: function () {}, estado: function () { return null; }, reler: function () {} };
+  var NOVA_ABA = ' (abre em outra aba)';
+  /* o erro de um passo: o nó do alerta aparece primeiro e o texto entra no tique seguinte (alguns leitores de tela não anunciam um alerta que já nasce
+     com o texto; e o mesmo erro repetido também é lido) */
+  var ERRO_MS = 50;
+  function mostrarErro(erro, texto) { erro.textContent = '\u00a0'; setTimeout(function () { erro.textContent = texto; }, ERRO_MS); }
 
   function limpo(v, max) { return String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max); }
   var digitos = function (v) { return String(v || '').replace(/\D/g, ''); };
 
   /* um campo dentro da conversa: a pergunta (fala do Zero), a caixa, as sugestões (se houver), "Seguir" e, nos opcionais, "Pular" */
   function campo(cfg) {
-    var pergunta = K.fala(cfg.pergunta);
+    var pergunta = K.fala(cfg.pergunta, true);
     var li = K.el('li', 'orc-toque orc-toque--campo'), linha = K.el('div', 'orc-toque__linha'), caixa = K.el('input', 'orc-toque__campo');
     var erro = K.el('p', 'orc-toque__erro-campo'), seguir = K.el('button', 'btn btn--primary btn--sm', 'Seguir');
     caixa.type = cfg.tipo || 'text';
@@ -43,6 +49,7 @@
     caixa.setAttribute('aria-labelledby', K.ultimaFala());
     if (cfg.autocomplete) caixa.setAttribute('autocomplete', cfg.autocomplete); else caixa.autocomplete = 'off';
     if (cfg.inputmode) caixa.setAttribute('inputmode', cfg.inputmode);
+    if (!cfg.opcional) caixa.setAttribute('aria-required', 'true');
     erro.id = 'o-pedido-erro-' + cfg.chave;
     erro.setAttribute('role', 'alert');
     seguir.type = 'button';
@@ -51,7 +58,7 @@
       K.teclado(!ev || ev.detail === 0);
       var v = cfg.tipo === 'tel' ? String(caixa.value || '').trim().slice(0, cfg.max) : limpo(caixa.value, cfg.max);
       var ruim = cfg.validar ? cfg.validar(v) : null;
-      if (ruim) { erro.textContent = ruim; caixa.setAttribute('aria-invalid', 'true'); caixa.setAttribute('aria-describedby', erro.id); K.focar(caixa); return; }
+      if (ruim) { mostrarErro(erro, ruim); caixa.setAttribute('aria-invalid', 'true'); caixa.setAttribute('aria-describedby', erro.id); K.focar(caixa); return; }
       K.fechar(li, null);
       K.bolha(v || 'Pular');
       cfg.depois(v);
@@ -78,26 +85,32 @@
   function sugestoes(lista, caixa, max) {
     var grupo = K.el('div', 'orc-toque__ops');
     grupo.setAttribute('role', 'group');
-    grupo.setAttribute('aria-label', 'Sugestões');
+    grupo.setAttribute('aria-label', 'Sugestões do que você vende');
+    var botoes = [];
+    var partesDe = function () { return caixa.value.trim() ? caixa.value.split(/,\s*/) : []; };
+    /* marcado = está escrito na caixa (vale ao corrigir, com o texto de antes, e quando ela escreve à mão) */
+    function marcar() { var partes = partesDe(); botoes.forEach(function (b) { b.setAttribute('aria-pressed', String(partes.indexOf(b.textContent) >= 0)); }); }
     lista.forEach(function (s) {
       var b = K.el('button', 'orc-op orc-op--toque', s);
       b.type = 'button';
-      b.setAttribute('aria-pressed', 'false');
       b.addEventListener('click', function () {
-        var partes = caixa.value.trim() ? caixa.value.split(/,\s*/) : [], i = partes.indexOf(s);
+        var partes = partesDe(), i = partes.indexOf(s);
         if (i >= 0) partes.splice(i, 1); else partes.push(s);
         var novo = partes.join(', ');
-        if (novo.length > max) return;
+        if (novo.length > max) { K.anunciar('Não cabe mais: até ' + max + ' caracteres.'); return; }
         caixa.value = novo;
-        b.setAttribute('aria-pressed', String(i < 0));
+        marcar();
       });
+      botoes.push(b);
       grupo.appendChild(b);
     });
+    caixa.addEventListener('input', marcar);
+    marcar();
     return grupo;
   }
 
   /* o passo aberto agora (a pergunta e o grupo): o que volta ao fim da conversa quando o Zero fala no meio do pedido */
-  function abrir(pergunta, li) { p.aberto = { pergunta: pergunta, li: li }; }
+  function abrir(pergunta, li) { li.setAttribute('data-pedido', ''); p.aberto = { pergunta: pergunta, li: li }; }
   function passoAberto() { return p && p.aberto && !p.aberto.li.hasAttribute('data-feito') && p.aberto.li.parentNode ? p.aberto : null; }
   function aoFim(a) {
     var log = $('o-log'), u = log.lastElementChild, fim = u && u.hasAttribute('data-fica') ? u : null;
@@ -155,8 +168,10 @@
   }
   /* as redes: os endereços (ou o @) e a autorização PRÓPRIA, um toque claro que nunca vem marcado; o servidor também a exige */
   function passoRedes() {
-    var pergunta = K.fala('Quais são as redes do negócio? Preencha só as que quiser.');
+    var pergunta = K.fala('Quais são as redes do negócio? Preencha só as que quiser.', true);
     var li = K.el('li', 'orc-toque orc-toque--redes'), caixas = {}, erro = K.el('p', 'orc-toque__erro-campo');
+    li.setAttribute('role', 'group');
+    li.setAttribute('aria-labelledby', K.ultimaFala());
     erro.id = 'o-pedido-erro-redes';
     erro.setAttribute('role', 'alert');
     REDES.forEach(function (r) {
@@ -169,7 +184,10 @@
     var autoriza = K.el('button', 'orc-op orc-op--toque', 'Autorizo a Beyon Zero a olhar essas redes para preparar os modelos');
     autoriza.type = 'button';
     autoriza.setAttribute('aria-pressed', String(!!p.d.autoriza_redes));
-    autoriza.addEventListener('click', function () { autoriza.setAttribute('aria-pressed', String(autoriza.getAttribute('aria-pressed') !== 'true')); });
+    autoriza.addEventListener('click', function () {
+      autoriza.setAttribute('aria-pressed', String(autoriza.getAttribute('aria-pressed') !== 'true'));
+      erro.textContent = ''; autoriza.removeAttribute('aria-describedby');
+    });
     var seguir = K.el('button', 'btn btn--primary btn--sm', 'Seguir');
     seguir.type = 'button';
     seguir.addEventListener('click', function (ev) {
@@ -178,7 +196,12 @@
       var redes = {};
       REDES.forEach(function (r) { var v = String(caixas[r[0]].value || '').trim().slice(0, 120); if (v) redes[r[0]] = v; });
       var aut = autoriza.getAttribute('aria-pressed') === 'true';
-      if (Object.keys(redes).length && !aut) { erro.textContent = 'Para olharmos as suas redes, toque na autorização (ou deixe em branco).'; K.focar(autoriza); return; }
+      if (Object.keys(redes).length && !aut) {
+        mostrarErro(erro, 'Para olharmos as suas redes, toque na autorização (ou deixe em branco).');
+        autoriza.setAttribute('aria-describedby', erro.id);
+        K.focar(autoriza);
+        return;
+      }
       K.fechar(li, null);
       p.d.redes = redes; p.d.autoriza_redes = aut && Object.keys(redes).length > 0;
       K.bolha(Object.keys(redes).length ? REDES.filter(function (r) { return redes[r[0]]; }).map(function (r) { return r[1]; }).join(' · ') : 'Pular');
@@ -192,8 +215,12 @@
 
   /* ---------- 8e: o cartão de aceite ---------- */
   function cartao() {
-    var pergunta = K.fala('Pronto. Confira o que você me passou:');
+    var pergunta = K.fala('Pronto. Confira o que você me passou:', true);
     var li = K.el('li', 'orc-toque orc-toque--aceite'), lista = K.el('ul', 'orc-aceite__resumo');
+    /* o foco vai ao cartão (rotulado pela fala), não ao botão: o leitor de tela percorre o resumo e o aceite antes do "Concordo" */
+    li.setAttribute('role', 'group');
+    li.setAttribute('aria-labelledby', K.ultimaFala());
+    li.setAttribute('tabindex', '-1');
     var itens = [['negocio', 'Nome do negócio', p.d.negocio], ['vende', 'O que vende', p.d.vende], ['telefone', 'WhatsApp', p.d.telefone]];
     OPCIONAIS.forEach(function (o) {
       if (!preenchido(o.chave)) return;
@@ -208,7 +235,8 @@
       lista.appendChild(item);
     });
     var aceite = K.el('p', 'orc-aceite__texto', R.ACEITE.texto), link = K.el('a', 'orc-aceite__link', 'Como tratamos os dados');
-    link.href = '/privacidade#orcamento'; link.target = '_blank'; link.rel = 'noopener';
+    link.href = '/privacidade#orcamento'; link.target = '_blank'; link.rel = 'noopener';   /* (outra aba: o pedido só existe nesta página) */
+    link.appendChild(K.el('span', 'sr-only', NOVA_ABA));
     var concordo = K.el('button', 'btn btn--primary orc-aceite__concordo', 'Concordo e quero os modelos');
     concordo.type = 'button';
     concordo.setAttribute('aria-describedby', 'o-pedido-aceite-texto');
@@ -217,7 +245,7 @@
     li.appendChild(lista); li.appendChild(aceite); li.appendChild(link); li.appendChild(concordo);
     K.inserir(li);
     abrir(pergunta, li);
-    K.focar(concordo);
+    K.focar(li);
   }
   function corrigirCampo(chave) {
     if (chave === 'negocio') passoNegocio();
@@ -235,6 +263,7 @@
     botao.textContent = 'Enviando…';
     /* (a faixa da planta, se estiver à vista, se recolhe: o bloco acima dela vai trocar, js/orcamento-planta.js) */
     li.setAttribute('aria-busy', 'true');
+    K.anunciar('Enviando o seu pedido…');
     $('o-log').dispatchEvent(new CustomEvent('bz:pedido-enviando'));
     var d = p.d;
     return API.detalhes({ negocio: d.negocio, vende: d.vende, telefone: d.telefone, nome: d.nome || '', publico: d.publico || '', diferencial: d.diferencial || '',
@@ -243,6 +272,7 @@
       K.fechar(li, null);
       K.bolha('Concordo e quero os modelos');
       p = null;
+      enviado = true;
       doc.dispatchEvent(new CustomEvent('bz:detalhes-enviados', { detail: { codigo: r && r.codigo } }));
     }, function (e) {
       li.removeAttribute('aria-busy');
@@ -254,6 +284,8 @@
       if (e && e.dados && e.dados.fila_cheia) { K.fechar(li, null); K.fala(m); p = null; filaCheia(); return; }
       /* a versão do aceite mudou (aba velha, página em cache): recarregar mostra o texto novo */
       if (e && e.status === 409 && /Recarregue/.test(m)) { K.fala(m); return; }
+      /* outro 409 (o pedido já entrou por outra aba, ou a resposta se perdeu): o cartão sai e a página relê o estado, que mostra o que valeu */
+      if (e && e.status === 409) { K.fechar(li, null); K.fala(m); p = null; ganchos.reler(); return; }
       var chave = e && e.status === 400 ? campoDaMensagem(m) : null;
       K.fala(m);
       if (chave) { K.fechar(li, null); p.corrigindo = true; corrigirCampo(chave); }
@@ -265,6 +297,7 @@
     if (!aviso) return;
     aviso.hidden = false;
     if (bloco) bloco.hidden = false;
+    if (typeof aviso.scrollIntoView === 'function') aviso.scrollIntoView({ block: 'center' });   /* (o aviso fica abaixo da conversa: o foco não pode cair fora da tela) */
     K.focar(aviso);
   }
   function campoDaMensagem(m) {
@@ -277,7 +310,7 @@
     iniciar: function () {
       var a = passoAberto();
       if (a) { aoFim(a); K.focar(a.li.querySelector('input, button')); return; }
-      if (p && p.enviando) return;
+      if (enviado || (p && p.enviando)) return;
       p = { d: { negocio: '', vende: '', telefone: '', redes: {}, autoriza_redes: false }, corrigindo: false, enviando: false };
       passoNegocio();
     },
@@ -286,7 +319,8 @@
     trazerAoFim: function () { var a = passoAberto(); if (a) aoFim(a); },
     configurar: function (g) {
       if (!g || typeof g.sessaoTerminou !== 'function' || typeof g.avisarSessao !== 'function') return;
-      ganchos = { sessaoTerminou: g.sessaoTerminou, avisarSessao: g.avisarSessao, estado: typeof g.estado === 'function' ? g.estado : ganchos.estado };
+      ganchos = { sessaoTerminou: g.sessaoTerminou, avisarSessao: g.avisarSessao, estado: typeof g.estado === 'function' ? g.estado : ganchos.estado,
+        reler: typeof g.reler === 'function' ? g.reler : ganchos.reler };
     }
   };
 })();

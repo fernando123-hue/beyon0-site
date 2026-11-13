@@ -29,6 +29,18 @@ test('rótulos: toda sugestão de um ramo existe, tem rótulo curto e diz em que
   }
 });
 
+/* (revisão de segurança do PR 3, M1) a trava do aceite versionado: o hash do texto de CADA versão fica escrito aqui. Mudou uma vírgula do texto
+   sem subir a versão, este teste fica vermelho (senão o servidor gravaria a versão velha com o hash de um texto que a pessoa não viu) */
+const HASH_DO_ACEITE = { a1: '903b0538b6fff006ba911dbdc126911f3cec71d508b9f37744e196eff1049688' };
+test('aceite: o texto da versão vigente é exatamente o que tem o hash registrado (mudou o texto, sobe a versão e registra o hash novo)', async () => {
+  const { createHash } = await import('node:crypto');
+  const { VERSAO_ACEITE, TEXTO_ACEITE } = await import('../../api/_vendas/aceite.mjs');
+  assert.equal(VERSAO_ACEITE, R.ACEITE.versao, 'servidor e tela na mesma versão');
+  assert.equal(TEXTO_ACEITE, R.ACEITE.texto, 'servidor e tela com o mesmo texto');
+  assert.ok(Object.hasOwn(HASH_DO_ACEITE, R.ACEITE.versao), 'a versão vigente tem o hash registrado neste teste');
+  assert.equal(createHash('sha256').update(R.ACEITE.texto, 'utf8').digest('hex'), HASH_DO_ACEITE[R.ACEITE.versao]);
+});
+
 test('rótulos: a fala do "Mudar" é estável, legível e sempre começa pelo molde', () => {
   const f = R.falaDoMudar({ ramo: 'saude', objetivos: ['agendamentos', 'achado_google'], site_atual: 'instagram', material: 'parte' });
   assert.equal(f, 'Mudei minhas respostas: Saúde · Agendamentos · Ser achado no Google e no mapa · Só o Instagram · Logo e textos: tenho uma parte');

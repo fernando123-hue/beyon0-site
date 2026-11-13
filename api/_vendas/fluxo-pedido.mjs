@@ -55,11 +55,12 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limite
     async detalhes({ request, corpo }) {
       const vid = await visitante(request);
       if (!ehUuid(corpo?.conversa_id)) throw new Recusa(400, 'Conversa inválida.');
+      /* (orçamento como conversa, spec §5) a versão do texto do aceite que a tela mostrou: só a vigente vale (aba velha, página em cache: recarrega).
+         Antes da validação, que chama a triagem por IA: versão errada não gasta modelo */
+      if (!aceiteVigente(corpo?.aceite_versao)) throw new Recusa(409, ACEITE_MUDOU);
       const v = await validarDetalhes(corpo);
       if (v.erros) throw new Recusa(400, v.erros[0]);
       const d = v.dados;
-      /* (orçamento como conversa, spec §5) a versão do texto do aceite que a tela mostrou: só a vigente vale (aba velha, página em cache: recarrega) */
-      if (!aceiteVigente(corpo?.aceite_versao)) throw new Recusa(409, ACEITE_MUDOU);
       const telefoneHash = chaveDoTelefone(d.telefone, segredoFreio, env || {});
       /* (na Vercel sem FREIO_SEGREDO nem SUPABASE_CHAVE_SECRETA: sem freio por telefone, nada é gravado) */
       if (!telefoneHash) indisponivel('detalhes sem o segredo do freio');

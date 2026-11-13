@@ -18,15 +18,18 @@ const montar = o => {
   return { ...p, P, aberto, caixa, seguir, cartao, corrigir };
 };
 /* do início ao cartão, sem opcionais */
+const depoisDoErro = () => new Promise(r => setTimeout(r, 80));   /* (o texto do erro entra depois do nó do alerta, js/orcamento-pedido.js mostrarErro) */
 const ateCartao = p => { p.P.iniciar(); p.seguir('Padaria Sol'); p.seguir('Pães e bolos'); p.seguir('(11) 98765-4321'); p.tocar('Não, pode seguir'); };
 
-test('os passos: nome do negócio, o que vende (com sugestões do ramo), WhatsApp com o teclado de telefone, opcionais e o cartão', () => {
+test('os passos: nome do negócio, o que vende (com sugestões do ramo), WhatsApp com o teclado de telefone, opcionais e o cartão', async () => {
   const p = montar();
   p.P.iniciar();
   assert.ok(p.P.ativo());
   assert.match(p.falas().at(-1), /nome do negócio/);
   assert.equal(p.caixa().getAttribute('autocomplete'), 'organization');
+  assert.equal(p.caixa().getAttribute('aria-required'), 'true');
   p.seguir('B');
+  await depoisDoErro();
   assert.equal(p.aberto('.orc-toque--campo').querySelector('.orc-toque__erro-campo').textContent, 'Informe o nome do negócio.');
   assert.equal(p.caixa().getAttribute('aria-invalid'), 'true', 'o erro fica preso ao campo');
   assert.equal(p.doc.activeElement, p.caixa(), 'o foco volta ao campo com erro');
@@ -47,12 +50,14 @@ test('os passos: nome do negócio, o que vende (com sugestões do ramo), WhatsAp
   assert.equal(tel.getAttribute('inputmode'), 'tel');
   assert.equal(tel.getAttribute('autocomplete'), 'tel');
   p.seguir('1234');
+  await depoisDoErro();
   assert.match(p.aberto('.orc-toque--campo').querySelector('.orc-toque__erro-campo').textContent, /WhatsApp com DDD/);
   p.seguir('(11) 98765-4321');
 
   const opc = p.abertos().at(-1).querySelectorAll('button').map(b => b.textContent);
   assert.deepEqual(opc, ['Como quer ser chamado', 'Um site que eu admiro', 'Para quem eu vendo', 'O que me diferencia', 'As redes do negócio', 'Não, pode seguir']);
   p.tocar('Como quer ser chamado');
+  assert.equal(p.caixa().getAttribute('aria-required'), null, 'opcional não é obrigatório');
   p.botao('Pular').clicar();
   assert.equal(p.bolhas().at(-1), 'Pular');
   p.tocar('Para quem eu vendo');
@@ -70,7 +75,10 @@ test('os passos: nome do negócio, o que vende (com sugestões do ramo), WhatsAp
   assert.equal(link.href, '/privacidade#orcamento');
   assert.equal(link.target, '_blank');
   assert.equal(link.rel, 'noopener');
-  assert.equal(p.doc.activeElement, p.botao('Concordo e quero os modelos'));
+  assert.equal(p.doc.activeElement, c, 'o foco vai ao cartão (o leitor percorre o resumo e o aceite antes do botão)');
+  assert.equal(c.getAttribute('role'), 'group');
+  assert.equal(c.getAttribute('tabindex'), '-1');
+  assert.ok(link.textContent.includes('(abre em outra aba)'));
   assert.equal(p.pedidos.length, 0, 'nada vai ao servidor antes do aceite');
 });
 
@@ -94,7 +102,7 @@ test('sem ramo tocado nesta visita (recarregou com o pacote gravado): as sugest�
   assert.deepEqual(q.aberto('.orc-toque--campo').querySelectorAll('button.orc-op').map(b => b.textContent), ['Serviços', 'Produtos', 'Encomendas'], 'segmento desconhecido: as de "outro"');
 });
 
-test('as redes: a autorização nunca vem marcada e é exigida quando há endereço; sem endereço, segue sem autorização', () => {
+test('as redes: a autorização nunca vem marcada e é exigida quando há endereço; sem endereço, segue sem autorização', async () => {
   const p = montar();
   p.P.iniciar(); p.seguir('Padaria Sol'); p.seguir('Pães'); p.seguir('11987654321');
   p.tocar('As redes do negócio');
@@ -102,11 +110,16 @@ test('as redes: a autorização nunca vem marcada e é exigida quando há endere
   const autoriza = p.botao('Autorizo a Beyon Zero a olhar essas redes para preparar os modelos');
   assert.equal(autoriza.getAttribute('aria-pressed'), 'false');
   redes.querySelectorAll('input')[0].value = '@padariasol';
+  assert.equal(redes.getAttribute('role'), 'group', 'os 5 campos num grupo rotulado pela pergunta');
   p.botao('Seguir').clicar();
-  assert.match(redes.querySelector('.orc-toque__erro-campo').textContent, /toque na autorização/);
+  await depoisDoErro();
+  const erroRedes = redes.querySelector('.orc-toque__erro-campo');
+  assert.match(erroRedes.textContent, /toque na autorização/);
   assert.equal(p.doc.activeElement, autoriza);
+  assert.equal(autoriza.getAttribute('aria-describedby'), erroRedes.id, 'o botão focado diz o motivo');
   autoriza.clicar();
   assert.equal(autoriza.getAttribute('aria-pressed'), 'true');
+  assert.equal(erroRedes.textContent, '', 'tocar na autorização limpa o erro');
   p.botao('Seguir').clicar();
   assert.equal(p.bolhas().at(-1), 'Instagram');
   p.tocar('Não, pode seguir');
@@ -123,6 +136,34 @@ test('as redes: a autorização nunca vem marcada e é exigida quando há endere
   q.tocar('Não, pode seguir');
   q.botao('Concordo e quero os modelos').clicar();
   assert.equal(q.pedidos[0].autoriza_redes, false, 'autorização sem rede nenhuma não vale');
+});
+
+test('a conversa vai ao servidor (ou o consultor cai) no meio do pedido: os toques fecham os grupos deles, nunca o passo do pedido', () => {
+  const p = montar();
+  p.T.iniciar({ consultor: true });
+  p.P.iniciar(); p.seguir('Padaria Sol');
+  const passo = p.aberto('.orc-toque--campo');
+  p.T.entregues();
+  assert.equal(passo.hasAttribute('data-feito'), false, 'segue aberto');
+  assert.equal(p.caixa(), passo.querySelector('.orc-toque__campo'));
+  p.T.semConsultor();
+  assert.equal(passo.hasAttribute('data-feito'), false);
+});
+
+test('as sugestões marcadas acompanham a caixa: ao corrigir com o texto de antes e ao escrever à mão; o que não cabe é avisado', () => {
+  const p = montar();
+  ateCartao(p);
+  p.corrigir('o que vende');
+  const marcadas = () => p.aberto('.orc-toque--campo').querySelectorAll('button.orc-op').filter(b => b.getAttribute('aria-pressed') === 'true').map(b => b.textContent);
+  p.seguir('Produtos, Encomendas');
+  p.corrigir('o que vende');
+  assert.deepEqual(marcadas(), ['Produtos', 'Encomendas'], 'o texto de antes já vem marcado');
+  p.caixa().digitar('Serviços');
+  assert.deepEqual(marcadas(), ['Serviços']);
+  p.caixa().digitar('x'.repeat(195));
+  p.botao('Produtos').clicar();
+  assert.equal(p.caixa().value.length, 195, 'não passa do limite');
+  assert.match(p.anuncios.at(-1), /Não cabe mais: até 200 caracteres/);
 });
 
 test('"Corrigir" volta ao campo com o valor e, depois, direto ao cartão', () => {
@@ -144,6 +185,7 @@ test('o envio vai uma vez só, com a versão do aceite, e avisa a página; nada 
   assert.equal(b.textContent, 'Enviando…');
   assert.equal(b.getAttribute('aria-disabled'), 'true');
   assert.deepEqual(p.enviandoNoLog, [true], 'avisa a caixa uma vez, com o cartão marcado em envio (a faixa da planta se recolhe)');
+  assert.equal(p.anuncios.at(-1), 'Enviando o seu pedido…');
   await tique();
   assert.equal(p.log.querySelectorAll('[aria-busy]').length, 0, 'terminado o envio, nada fica marcado em envio');
   assert.equal(p.pedidos.length, 1);
@@ -152,6 +194,9 @@ test('o envio vai uma vez só, com a versão do aceite, e avisa a página; nada 
   assert.deepEqual(p.eventos, ['bz:detalhes-enviados:BZ-K7M3Q']);
   assert.equal(p.bolhas().at(-1), 'Concordo e quero os modelos');
   assert.ok(!p.P.ativo());
+  const n = p.log.children.length;
+  p.P.iniciar();
+  assert.equal(p.log.children.length, n, 'pedido que já entrou: um "Quero" que sobrou não abre outro');
   assert.equal(p.enviados.length, 0, 'nada do pedido vira mensagem da conversa (não vai ao modelo)');
   const fonte = fs.readFileSync(new URL('../../js/orcamento-pedido.js', import.meta.url), 'utf8');
   assert.doesNotMatch(fonte, /localStorage|sessionStorage|document\.cookie|indexedDB/);
@@ -218,6 +263,28 @@ test('409 com a versão velha do aceite: pede para recarregar e o cartão fica (
   assert.equal(p.cartao().getAttribute('aria-busy'), null, 'o cartão sai do envio');
   assert.equal(p.pedidos.length, 1);
   assert.deepEqual(p.eventos, []);
+});
+
+test('outro 409 (o pedido já entrou por outra aba): o cartão sai, o Zero diz o motivo e a página relê o estado', async () => {
+  const p = montar({ detalhes: async () => { throw Object.assign(new Error('Os detalhes vêm depois do preço e só uma vez. Se precisar mudar algo, deixe um recado para a equipe.'), { status: 409 }); } });
+  let relidas = 0;
+  p.P.configurar({ sessaoTerminou: () => false, avisarSessao: () => {}, reler: () => { relidas++; } });
+  ateCartao(p);
+  p.botao('Concordo e quero os modelos').clicar();
+  await tique();
+  assert.match(p.falas().at(-1), /só uma vez/);
+  assert.ok(!p.cartao());
+  assert.equal(relidas, 1);
+  assert.ok(!p.P.ativo());
+});
+
+test('erro 400 do servidor: a fala do erro é a que se anuncia (a pergunta do passo reaberto vem pelo foco, sem anúncio por cima)', async () => {
+  const p = montar({ detalhes: async () => { throw Object.assign(new Error('Informe o seu WhatsApp com DDD.'), { status: 400 }); } });
+  ateCartao(p);
+  p.botao('Concordo e quero os modelos').clicar();
+  await tique();
+  assert.equal(p.anuncios.at(-1), 'Zero: Informe o seu WhatsApp com DDD.');
+  assert.equal(p.doc.activeElement, p.caixa());
 });
 
 test('fila cheia: a fala do Zero, o aviso da página aparece e o pedido termina', async () => {

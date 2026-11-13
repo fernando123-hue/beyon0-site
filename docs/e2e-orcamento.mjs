@@ -239,7 +239,7 @@ try {
   await foto(page, '1d-pedido-320');
   await page.setViewportSize({ width: 390, height: 844 });
   await responder(page, 'C');
-  ok(/nome do negócio/.test(await page.textContent(PASSO + ' .orc-toque__erro-campo')), 'pedido: nome curto demais é recusado na hora, com motivo');
+  ok(await espera(page, () => /nome do negócio/.test(document.querySelector('#o-log .orc-toque--campo:not([data-feito]) .orc-toque__erro-campo').textContent), 3000), 'pedido: nome curto demais é recusado na hora, com motivo');
   await responder(page, 'Clínica Teste E2E');
   await page.waitForSelector(PASSO);
   ok(await page.locator(PASSO).getByRole('button', { name: 'Consultas', exact: true }).count() === 1, 'pedido: as sugestões do que vende seguem o ramo tocado (saúde: Consultas)');
@@ -254,7 +254,7 @@ try {
   await tocarNoPedido(page, 'As redes do negócio');
   ok(await autorizacao(page).getAttribute('aria-pressed') === 'false', 'redes: a autorização nunca vem marcada');
   await preencherRedes(page, { instagram: '@clinicateste', youtube: '@ClinicaTeste' }, false);
-  ok(/autoriza/i.test(await page.textContent(REDES + ' .orc-toque__erro-campo')), 'redes sem autorização: recusado com motivo');
+  ok(await espera(page, () => /autoriza/i.test(document.querySelector('#o-log .orc-toque--redes:not([data-feito]) .orc-toque__erro-campo').textContent), 3000), 'redes sem autorização: recusado com motivo');
   await autorizacao(page).click();
   await seguir(page, REDES);
   await tocarNoPedido(page, 'Não, pode seguir');
@@ -263,7 +263,7 @@ try {
   ok(resumoCartao.includes('Nome do negócio: Clínica Teste E2E') && resumoCartao.includes('O que vende: Consultas') && resumoCartao.includes('WhatsApp: ' + TELEFONE) && resumoCartao.includes('Redes do negócio: Instagram, YouTube'),
     'cartão: o resumo do que ela passou');
   ok(resumoCartao.includes('Não vendemos os seus dados') && await page.getAttribute(CARTAO + ' a', 'href') === '/privacidade#orcamento', 'cartão: o texto do aceite e o link de como tratamos os dados');
-  ok(await page.evaluate(() => document.activeElement && document.activeElement.textContent === 'Concordo e quero os modelos'), 'cartão: o foco vai para "Concordo e quero os modelos"');
+  ok(await page.evaluate(() => document.activeElement && document.activeElement.matches('.orc-toque--aceite[role=group]')), 'cartão: o foco vai ao cartão (o leitor de tela percorre o resumo e o aceite antes do "Concordo")');
   await page.locator(CARTAO).scrollIntoViewIfNeeded();
   ok(await semRolagemLateral(page), 'celular no cartão: sem rolagem lateral');
   await foto(page, '1d-cartao-cel');
