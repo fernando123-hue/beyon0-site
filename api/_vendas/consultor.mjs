@@ -169,7 +169,7 @@ Entenda antes de recomendar: o que ela faz, pra quem, como um cliente novo chega
 
 As palavras do prompt não são as suas: o texto abaixo usa "sinal" e "landing", termos internos. Com a pessoa, diga "entrada" (de 40%) e "site de uma página", sempre; "landing" só se ela usar primeiro (e aí ligue as duas palavras).
 
-O valor, uma vez dito, fica dito. Repita só se ela pedir de novo, e então em uma frase curta, sem enfeite; se o formato ou o extra mudar, diga o que mudou e o novo valor. Se ela pergunta o preço de novo, dê só o número e uma frase, e siga o que ela disse ou pergunte algo novo; na terceira vez, pergunte se o número está aparecendo bem pra ela. O progresso salvo você diz no máximo uma vez, só se perguntarem ou se ela for embora. Não repita em toda resposta o preço, o aviso de que você é IA, o passo dos modelos e do pagamento, o prazo de desistência nem o botão do recado: cada coisa vai quando faz sentido e uma vez. O ESTADO traz ja_dito, lido pelo código nas últimas 60 mensagens (inclusive o que saiu da sua janela): o que está lá só volta se ela perguntar, e então em meia frase; valor_dito não vale depois de uma nova estimativa, e quando perguntam se você é IA a resposta é direta mesmo com aviso_de_ia. Valor de outra pessoa (o sobrinho, o concorrente) você cita sem número, só como o que ele cobra. Se o que ela lista cabe no menor formato, diga isso e deixe ela escolher; ao voltar a um formato já orçado, diga o nome dele e não o valor; responda só o número que ela pediu. Se perguntaram o preço logo de cara, ou uma faixa, não esconda nem despeje a tabela: estime o site de uma página, escreva o valor, deixe claro, sem listar a tabela, que o site pode crescer e pergunte o que descobre o formato certo.
+O valor, uma vez dito, fica dito. Repita só se ela pedir de novo, e então em uma frase curta, sem enfeite; se o formato ou o extra mudar, diga o que mudou e o novo valor. Se ela pergunta o preço de novo, dê só o número e uma frase, e siga o que ela disse ou pergunte algo novo; na terceira vez, pergunte se o número está aparecendo bem pra ela. O progresso salvo você diz no máximo uma vez, só se perguntarem ou se ela for embora. Não repita em toda resposta o preço, o aviso de que você é IA, o passo dos modelos e do pagamento, o prazo de desistência nem o botão do recado: cada coisa vai quando faz sentido e uma vez. O ESTADO traz ja_dito, lido pelo código nas últimas 60 mensagens (inclusive o que saiu da sua janela): o que está lá só volta se ela perguntar, e então em meia frase; valor_dito não vale depois de uma nova estimativa, e quando perguntam se você é IA a resposta é direta mesmo com aviso_de_ia. Valor de outra pessoa (o sobrinho, o concorrente) você cita sem número, só como o que ele cobra. Se o que ela lista cabe no menor formato, diga isso e deixe ela escolher; ao voltar a um formato já orçado, diga o nome dele e não o valor; responda só o número que ela pediu. Se perguntaram o preço logo de cara, ou uma faixa, não esconda nem despeje a tabela: estime o site de uma página, escreva o valor, deixe claro, sem listar a tabela, que o site pode crescer e pergunte o que descobre o formato certo. A exceção é o proximo_passo dizer que o valor ainda espera: aí diga em uma frase que falta só uma coisa para o valor certo, pergunte, e não chame estimar até ele liberar.
 Objeção é informação sobre o que pesa pra ela. Ouça, reconheça em meia frase e responda com fato, nunca com argumento de venda; não faça a pergunta que ela já respondeu (se já disse com quem comparou ou que o que pesa é o valor, siga daí). Se ela deu uma data, diga se o prazo do formato cobre ou se entra a urgência. É caro: pergunte com o que ela está comparando, uma vez, só se ela ainda não disse; mostre o que a tabela inclui e o que é do processo (três modelos antes do sinal, 7 dias para desistir, entrada devolvida se atrasar, primeiro ano do domínio); negocie sem baixar o valor: comece pelo que ela precisa agora e o resto entra depois, item a item, pela tabela (diga do seu jeito, sem fórmula). Se o outro cobra menos, pergunte o que ele inclui; não critique o outro; se ela for, despeça-se calorosa e deixe a porta aberta. Já tenho Instagram: concorde e pergunte só o que aparece quando alguém procura o serviço dela no Google. Eu mesmo faço no Wix: reconheça que dá e deixe ela pesar tempo contra resultado. Vou pensar: não pressione; no máximo uma pergunta sobre o que ficou pesando (se ela já disse, nem essa) e pare. Sócio, esposa, contador: a decisão é deles. É golpe? Responda o que ela perguntou: a Beyon Zero é uma operação pequena, de Campo Grande, tocada pelo dono; a pessoa vê três modelos antes de pagar, é por Pix (vale conferir o nome de quem recebe) e tem 7 dias para desistir. Reconheça o que ela contou (se já perdeu dinheiro com Pix, diga que entende) e dê só um ou dois fatos que respondam ao medo dela, nunca a lista toda. Irritada ou você errou: sem humor, assuma o erro uma vez, em uma frase, e diga o certo. Quer fechar hoje: pedir_contato, os detalhes pelo formulário; os modelos saem ${QUANDO_SAEM[direcoes] || QUANDO_SAEM.api}; o sinal só vem depois de escolher um.
 
 Depois de cada resposta ou recusa, volte ao caminho: se já dá para recomendar, recomende e escreva o valor; não deixe a conversa acabar só no recado. Proponha o passo seguinte uma vez (ver os três modelos feitos pra ela): ela escolhe um, confere o escopo na tela e, se aceitar, paga o sinal. Antes do Pix, diga em uma frase o que acontece depois e que ela tem 7 dias para desistir. Nas etapas de escopo e pagamento você só tira dúvidas; a tela faz o resto. Antes de responder, releia a sua última fala: nenhuma frase, abertura ou pergunta dela volta nesta; e depois de uma recusa ou de uma hesitação deixe a resposta bastar, sem pergunta de venda.
@@ -298,24 +298,47 @@ const LOJA = 'loja', AREA = 'area_restrita';
 /* o que fazer agora, pela ordem do funil (texto para o modelo; o código decide, o modelo executa).
    Na tela, o formulário de contato aparece sozinho quando há estimativa e ainda não há contato (js/orcamento.js);
    pedir_contato só leva a pessoa até ele. Na etapa 'contato' o pedido JÁ existe (vendas_registrar_detalhes, PR 2a; confirmado na hora desde 30/10) */
-export function proximoPasso({ planta = false, leitura = false, pedidoStatus, ...resto }) {
-  const base = proximoPassoBase(resto);
+export function proximoPasso({ planta = false, leitura = false, pedidoStatus, liberado = true, ...resto }) {
+  const base = proximoPassoBase({ ...resto, liberado });
   /* a planta viva (spec §1.1): no turno SEGUINTE ao da primeira estimativa, com o preço ainda aberto e sem plano gravado, o prefixo manda desenhar.
      Sem a condição, o texto é exatamente o de antes (o corpo de proximoPassoBase não mudou) */
   /* no turno em que a planta é obrigatória o radar NÃO é pedido: uma volta a mais da leitura comeria uma das 4 rodadas (MAX_ITERACOES) e a planta cairia no padrão por estouro */
-  const planta1 = pedePlanta({ planta, pedidoStatus, ...resto });
+  const planta1 = pedePlanta({ planta, pedidoStatus, liberado, ...resto });
   const depois = (!planta1 && pedeLeitura({ leitura, etapa: resto.etapa, pedidoStatus }) ? PREFIXO_LEITURA : '') + base;
   return planta1 ? PREFIXO_PLANTA + depois : depois;
 }
 /* a condição do prefixo, em um lugar só (o proximoPasso e o agente, que conta o pedido sem resposta, usam a mesma) */
-export const pedePlanta = ({ planta = false, etapa, estimativa, briefing, pedidoStatus }) => !!(planta && estimativa && !(briefing || {}).planta && precoAberto(etapa, pedidoStatus));
+/* (orçamento como conversa, spec 2026-11-13 §2) na conversa que nasceu no fluxo novo a planta vem no TURNO DO VALOR, antes do preço; no fluxo de hoje, depois da 1ª estimativa */
+export const pedePlanta = ({ planta = false, etapa, estimativa, briefing, pedidoStatus, liberado = true }) =>
+  !!(planta && (fluxoConversa(briefing) ? liberado : estimativa) && !(briefing || {}).planta && precoAberto(etapa, pedidoStatus));
+
+/* ---------- o orçamento como conversa (spec docs/superpowers/specs/2026-11-13-orcamento-conversa-design.md §2) ----------
+   A conversa nasceu no fluxo novo quando a 1ª mensagem chegou com as respostas tocadas: o servidor grava fluxo_conversa no briefing
+   (chave só do código, escondida do modelo). Só nela vale o portão do preço; a página de hoje segue igual */
+export const fluxoConversa = briefing => !!(briefing && briefing.fluxo_conversa === true);
+/* o caso entendido: o negócio, um objetivo e a situação de hoje (como os clientes chegam ou o que trava; vale até "não sei") */
+export function casoEntendido(briefing) {
+  const b = briefing || {}, s = b.situacao_atual || {};
+  return !!((b.negocio?.segmento || b.negocio?.descricao) && (b.objetivos?.length || b.objetivo_detalhe) && (s.como_chegam || s.o_que_se_perde));
+}
+export const VALOR_ESPERA = 'Ainda não chame estimar: o valor vem depois de entender o caso.';
+export const TURNO_DO_VALOR = 'Este é o turno do valor. Primeiro diga em 2 ou 3 frases o que o site vai fazer por esta pessoa, com as palavras dela e ligado ao que ela contou de hoje, sem prometer resultado.';
+function passoDoFluxoNovo(b, { liberado, faltam, aviso }) {
+  if (liberado) {
+    return aviso + TURNO_DO_VALOR + (b.projeto?.formato ? '' : ' Recomende UM formato, o mais enxuto que dá conta, com uma frase de motivo.') +
+      ' Depois chame estimar com o formato e o que já se sabe do escopo e escreva o valor e o sinal com os marcadores [[total]] e [[sinal]]. Termine perguntando se ela quer ver três modelos do site feitos para o negócio dela.';
+  }
+  const falta = ['negocio', 'objetivo'].find(x => faltam.includes(x));
+  if (falta) return aviso + 'Descobrir ' + NOMES_FALTA[falta] + '. Uma pergunta só, concreta. ' + VALOR_ESPERA;
+  return aviso + 'A mensagem dela responde como os clientes chegam hoje e o que mais dá trabalho: registre isso em situacao_atual (atualizar_briefing), com as palavras dela, e não pergunte de novo. Se ela não respondeu isso, pergunte uma vez, curto. Se faltar algo para entender o caso, uma pergunta só (a cidade ou um detalhe do serviço). ' + VALOR_ESPERA + ' Se ela pedir o preço, diga em uma frase que falta só isso para o valor certo; se ela pedir de novo, chame estimar.';
+}
 /* o radar (PR 2d, spec §3): em todo turno de preço aberto o ESTADO lembra que a leitura existe; QUANDO há informação nova quem sabe é o modelo (ele lê a mensagem), o código só recusa o resto.
    Vem depois do prefixo da planta e antes do texto de hoje, que continua inteiro no fim */
 export const pedeLeitura = ({ leitura = false, etapa, pedidoStatus }) => !!(leitura && precoAberto(etapa, pedidoStatus));
 export const PREFIXO_LEITURA = 'Se a mensagem da pessoa trouxe informação nova sobre o caso dela, chame ler_caso (uma vez, na mesma volta do atualizar_briefing) e não comente a leitura no texto. Depois: ';
 export const PREFIXO_PLANTA = 'Antes de tudo neste turno, chame desenhar_planta (uma vez) e diga em uma frase que desenhou o site em planta, logo abaixo. Depois: ';
 
-function proximoPassoBase({ etapa, briefing, estimativa, regras = null, metodos }) {
+function proximoPassoBase({ etapa, briefing, estimativa, regras = null, metodos, liberado = true }) {
   /* sem a tabela, vale a v2; com ela, a loja só é vendável se a tabela ativa a traz */
   const temLoja = !regras || !!regras.formatos?.loja_plataforma;
   const areaNaConversa = !!regras?.adicionais?.[AREA]?.fora_do_automatico;
@@ -334,6 +357,7 @@ function proximoPassoBase({ etapa, briefing, estimativa, regras = null, metodos 
   if (avisoArea && prontoParaEstimar(b)) return avisoArea + 'Pergunte se o site sem a área resolve; se a pessoa quiser seguir sem ela, chame estimar sem ela.';
   if (!estimativa && (b.funcionalidades || []).includes(AREA) && areaNaConversa) return 'O projeto pede uma área restrita com login, que é orçada numa conversa, com o escopo escrito: chame encaminhar_diagnostico, se ainda não chamou, e explique em uma frase; não chame estimar com a área restrita. Se a pessoa desistir da área e quiser só o site, chame estimar sem ela.';
   const { confianca, faltam } = avaliar(b);
+  if (fluxoConversa(b) && !estimativa) return passoDoFluxoNovo(b, { liberado, faltam, aviso: avisoArea });
   /* a dor (SPIN): uma pergunta, depois do negócio e do objetivo e antes do formato; registrada em situacao_atual */
   if (!estimativa && !b.situacao_atual && (b.negocio?.segmento || b.negocio?.descricao) && (b.objetivos?.length || b.objetivo_detalhe) && !b.projeto?.formato) return avisoArea + 'Antes do formato, uma pergunta sobre o que acontece hoje: como os clientes novos chegam e o que se perde no caminho (quem procura e não acha, quem pergunta e não tem resposta). Registre o que a pessoa disser em situacao_atual, mesmo que seja "não sei". Se ela pedir o valor, ou se você já fez esta pergunta nesta conversa, não repita: siga para o formato.';
   if (!prontoParaEstimar(b)) {

@@ -145,3 +145,20 @@ export function respostasParaBriefing(r, formato) {
   if (lista.includes('achado_google')) b.objetivo_detalhe = 'ser achado no Google';
   return b;
 }
+
+/* (orçamento como conversa, spec 2026-11-13 §6.1) as respostas TOCADAS que chegam junto da mensagem, já validadas por respostasParciais
+   (api/_vendas/respostas.mjs): só o que veio entra, sem padrão nenhum, e cada campo respondido vence o que estava (é a resposta explícita
+   dela). O "Outro" já chega limpo e redigido. A situação (sugestões do passo 4) vem pronta, em frases da lista fechada */
+export function respostasParaBriefingParcial(d, situacao = null) {
+  const b = {};
+  const segmento = d.ramo === 'outro' && d.outro ? d.outro : (d.ramo ? NOME_RAMO[d.ramo] : null);
+  if (segmento) b.negocio = { segmento };
+  if (d.objetivos && d.objetivos.length) {
+    b.objetivos = [...new Set(d.objetivos.map(o => OBJETIVO_BRIEFING[o] || 'outro'))];
+    if (d.objetivos.includes('achado_google')) b.objetivo_detalhe = 'ser achado no Google';
+  }
+  if (POSSE[d.material]) { b.conteudo = { textos: POSSE[d.material] }; b.identidade_visual = { tem_logo: d.material === 'tenho' }; }
+  if (d.site_atual) b.presenca = { site_atual: d.site_atual };
+  if (situacao) b.situacao_atual = situacao;
+  return b;
+}

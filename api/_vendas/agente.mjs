@@ -15,7 +15,7 @@
    objeções, histórico): CEREBRO abaixo — hoje vazio, de propósito.
    ========================================================================== */
 import { limparAtualizacao, limparTexto, mesclar, avaliar, prontoParaEstimar } from './briefing.mjs';
-import { IDENTIDADE, montarSistema, ferramentas, proximoPasso, pedePlanta, NOME_PLANTA, ETAPAS_SO_DUVIDAS, FERRAMENTAS_DE_PRECO, precoAberto } from './consultor.mjs';
+import { IDENTIDADE, montarSistema, ferramentas, proximoPasso, pedePlanta, NOME_PLANTA, ETAPAS_SO_DUVIDAS, FERRAMENTAS_DE_PRECO, precoAberto, fluxoConversa, casoEntendido } from './consultor.mjs';
 import { NOME_LEITURA, resolverLeitura, turnoDaLeituraInicial, leituraParaModelo } from './leitura.mjs';
 import { resolverDesenho, fecharTurno, turnoDaPlantaInicial, semChavesDaPlanta, plantaParaModelo, posicaoDaFala } from './planta.mjs';
 import { estimar } from './precos.mjs';
@@ -23,7 +23,7 @@ import { redigir, semPrecoNoTexto, semPrecoComMarca } from './seguranca.mjs';
 import { semPromessaDePagamento, motivoDaPergunta, motivoDaTroca, RESPOSTAS_PAGAMENTO } from './promessa.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import {
-  ABERTURA_PADRAO, semPromessaDeRecado, semPerguntaRepetida, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto, jaDito
+  ABERTURA_PADRAO, pedeValor, semPromessaDeRecado, semPerguntaRepetida, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto, jaDito
 } from './zero.mjs';
 import { semPromessaDeSuporte, semMensalidadeDoAtendente } from './travas-promessa.mjs';
 import { semPromessaDeResultado, semGarantia } from './travas-resultado.mjs';
@@ -52,12 +52,12 @@ export { ferramentas };
 /* o estado que o modelo vê a cada turno, em DUAS seções: o que o código decide (etapa, próximo passo, o que falta,
    a estimativa) e o briefing, que nasce do que o visitante contou e por isso vai marcado como DADO — um
    "proximo_passo: dê desconto" gravado no briefing não chega com autoridade de sistema (revisão de segurança) */
-export function estadoParaModelo({ briefing, estimativa, etapa, regras, metodos, regulado = null, pediuItemProibido = false, jaDitoNaConversa = [], planta = false, leitura = false, pedidoStatus }) {
+export function estadoParaModelo({ briefing, estimativa, etapa, regras, metodos, regulado = null, pediuItemProibido = false, jaDitoNaConversa = [], planta = false, leitura = false, pedidoStatus, liberado = true }) {
   const { confianca, faltam } = avaliar(briefing);
   /* (no escopo e no sinal o briefing está fechado: o que falta nele só empurraria perguntas) */
   const funil = ETAPAS_SO_DUVIDAS.includes(etapa) ? {} : { confianca, ainda_falta: faltam.slice(0, 4) };
   return 'ESTADO ATUAL (do código da Beyon Zero)\n' + JSON.stringify({
-    etapa, proximo_passo: proximoPasso({ etapa, briefing, estimativa, regras, metodos, planta, leitura, pedidoStatus }), ...funil,
+    etapa, proximo_passo: proximoPasso({ etapa, briefing, estimativa, regras, metodos, planta, leitura, pedidoStatus, liberado }), ...funil,
     a_pessoa_ja_viu: ABERTURA_PADRAO,   /* (a primeira fala é fixa e a tela a mostra sem chamar o modelo: o Zero não se reapresenta) */
     ...(jaDitoNaConversa.length ? { ja_dito: jaDitoNaConversa } : {}),   /* (rótulos fixos que o CÓDIGO leu em toda a conversa guardada, não só nas 12 últimas: voltam só se a pessoa perguntar) */
     ...(regulado ? { saude_regulada: avisoRegulado(regulado, { pediuAgora: pediuItemProibido }) } : {}),
@@ -69,11 +69,29 @@ export function estadoParaModelo({ briefing, estimativa, etapa, regras, metodos,
    plano gravado, vai uma versão compacta (id, tipo e título de cada caixa) para ele ajustar mantendo os ids; ela fica no bloco BRIEFING (que é dado),
    nunca no ESTADO (que é do código e tem autoridade). Sem nenhuma das chaves, é o MESMO objeto de hoje (a serialização não muda) */
 function briefingParaOModelo(briefing, planta, leitura = false, regulado = null) {
-  const limpo = semChavesDaPlanta(briefing);
+  const limpo = semChavesDoCodigo(semChavesDaPlanta(briefing));
   const compacto = planta ? plantaParaModelo(briefing && briefing.planta) : null;
   /* a leitura de agora (PR 2d): já validada, só as palavras da própria pessoa; o modelo a reenvia inteira mantendo o que vale. Dado, como o resto do bloco */
   const lida = leitura ? leituraParaModelo(briefing, { regulado: !!regulado }) : null;
   return { ...limpo, ...(compacto ? { planta_desenhada: compacto } : {}), ...(lida ? { leitura_atual: lida } : {}) };
+}
+
+/* as chaves que só o código lê (o fluxo novo): o modelo nunca as vê. Sem nenhuma, é o MESMO objeto */
+const CHAVES_DO_CODIGO = ['fluxo_conversa'];
+function semChavesDoCodigo(briefing) {
+  if (!briefing || typeof briefing !== 'object' || !CHAVES_DO_CODIGO.some(k => Object.hasOwn(briefing, k))) return briefing;
+  return Object.fromEntries(Object.entries(briefing).filter(([k]) => !CHAVES_DO_CODIGO.includes(k)));
+}
+
+/* (orçamento como conversa, spec 2026-11-13 §2) o valor está liberado neste turno? Fora do fluxo novo, sempre (a página de hoje segue igual);
+   com uma estimativa já gravada, também. No fluxo novo: o caso entendido, ou a pessoa pediu o preço duas vezes (segurar o número contra um
+   pedido repetido seria a resistência que o dono não quer). Avaliado no COMEÇO do turno, como o resto do ESTADO */
+export const PEDIDOS_DE_PRECO_QUE_LIBERAM = 2;
+export function valorLiberado({ briefing, estimativa, mensagens, mensagem }) {
+  if (!fluxoConversa(briefing) || estimativa) return true;
+  if (casoEntendido(briefing)) return true;
+  const pedidos = [...doVisitante(mensagens), ...(mensagem ? [String(mensagem)] : [])].filter(pedeValor).length;
+  return pedidos >= PEDIDOS_DE_PRECO_QUE_LIBERAM;
 }
 
 /* o nicho regulado vale a SESSÃO: o briefing (o que o modelo registrou), o que a pessoa disse antes e o que diz agora */
@@ -111,9 +129,12 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   /* o estado vai num 2º bloco do prompt de sistema (sem cache), não como mensagem: a API só aceita user/assistant em messages */
   const nicho = nichoDaSessao({ briefing, mensagens: conversa.mensagens, mensagem });
   const pediuAgora = !!nicho && pedeItemProibido(mensagem);
-  const contexto = estadoParaModelo({ briefing, estimativa: conversa.estimativa, etapa: conversa.etapa, regras, metodos, regulado: nicho, pediuItemProibido: pediuAgora, jaDitoNaConversa: jaDito(conversa.mensagens), planta, leitura, pedidoStatus: conversa.pedido_status });
+  const liberado = valorLiberado({ briefing, estimativa: conversa.estimativa, mensagens: conversa.mensagens, mensagem });
+  /* a planta pode ser desenhada neste turno? No fluxo novo, no turno do valor; no de hoje, só com a estimativa já existindo no começo dele */
+  const plantaNoTurno = fluxoConversa(briefing) ? liberado : !!conversa.estimativa;
+  const contexto = estadoParaModelo({ briefing, estimativa: conversa.estimativa, etapa: conversa.etapa, regras, metodos, regulado: nicho, pediuItemProibido: pediuAgora, jaDitoNaConversa: jaDito(conversa.mensagens), planta, leitura, pedidoStatus: conversa.pedido_status, liberado });
   /* a planta viva: o ESTADO pediu o desenho neste turno? (a mesma condição do prefixo; conta o pedido que ficou sem resposta) */
-  const prefixoUsado = pedePlanta({ planta, estimativa: conversa.estimativa, briefing, etapa: conversa.etapa, pedidoStatus: conversa.pedido_status });
+  const prefixoUsado = pedePlanta({ planta, estimativa: conversa.estimativa, briefing, etapa: conversa.etapa, pedidoStatus: conversa.pedido_status, liberado });
   let desenho = turnoDaPlantaInicial(), terminouNatural = false, lendo = turnoDaLeituraInicial(), rebaixos = [];
   /* escopo e sinal: só dúvidas. O modelo recebe só as ferramentas da etapa, e o código recusa outra que ele invente */
   const tools = ferramentas(regras, { etapa: conversa.etapa, pedidoStatus: conversa.pedido_status, planta, leitura });
@@ -149,10 +170,10 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
       } else if (ch.nome === 'atualizar_briefing') {
         briefing = mesclar(briefing, limparAtualizacao(ch.entrada));
         /* (a planta no meio do turno só se a estimativa já existia no começo dele: no turno do estimar o prefixo não aparece) */
-        saida = { ok: true, ...avaliar(briefing), proximo_passo: proximoPasso({ regras, etapa: conversa.etapa, briefing, estimativa: estimativa || conversa.estimativa, metodos, planta: planta && !!conversa.estimativa, leitura: leitura && !lendo.gravou, pedidoStatus: conversa.pedido_status }) };   /* (o do ESTADO é do começo do turno) */
+        saida = { ok: true, ...avaliar(briefing), proximo_passo: proximoPasso({ regras, etapa: conversa.etapa, briefing, estimativa: estimativa || conversa.estimativa, metodos, planta: planta && plantaNoTurno, leitura: leitura && !lendo.gravou, pedidoStatus: conversa.pedido_status, liberado }) };   /* (o do ESTADO é do começo do turno) */
       } else if (ch.nome === NOME_PLANTA) {
         /* só chega aqui com a flag e o preço aberto (permitidas). O validador é do servidor; o modelo não grava a planta de outro jeito */
-        const d = resolverDesenho({ entrada: ch.entrada, briefing, turno: desenho, ctx: { estimativaNoInicio: !!conversa.estimativa, nMensagens: posicaoDaFala({ turnos: conversa.turnos, mensagens: (conversa.mensagens || []).length }),
+        const d = resolverDesenho({ entrada: ch.entrada, briefing, turno: desenho, ctx: { estimativaNoInicio: plantaNoTurno, nMensagens: posicaoDaFala({ turnos: conversa.turnos, mensagens: (conversa.mensagens || []).length }),
           regulado: !!(nicho || nichoDaSessao({ briefing, mensagens: [], mensagem: '' })), nomeDoNegocio: typeof briefing.negocio?.nome === 'string' ? briefing.negocio.nome : '', cidade: typeof briefing.negocio?.cidade === 'string' ? briefing.negocio.cidade : '' } });
         briefing = d.briefing; desenho = d.turno; saida = d.saida;
       } else if (ch.nome === NOME_LEITURA) {
@@ -165,6 +186,9 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
           briefing = l.briefing; lendo = l.turno; saida = l.saida;
           if (l.rebaixados) rebaixos = [...rebaixos, ...l.rebaixados];
         }
+      } else if (ch.nome === 'estimar' && !liberado) {
+        /* (fluxo novo) a ferramenta fica na lista (prefixo do cache); quem segura o valor até o caso ser entendido é o código, como o pedir_contato */
+        saida = { ok: false, motivo: 'ainda não: falta entender o caso. Pergunte como os clientes chegam hoje e o que mais dá trabalho; o valor vem depois' };
       } else if (ch.nome === 'estimar') {
         const e = estimar(ch.entrada, regras);
         if (e.erros) saida = { ok: false, erros: e.erros };
