@@ -94,6 +94,10 @@
   /* a coreografia do turno do valor (spec §2): a fala já entrou; com a planta, o valor espera ela consagrar (js/planta-desenho.js avisa); sem ela, um respiro */
   /* em dois tempos: ESCUTA já (o aviso da planta pode vir durante a releitura do estado) e devolve armar(), que põe o prazo quando o estado novo
      diz se há planta (com ela, até PLANTA_MAX_MS; sem ela, o respiro) */
+  /* a planta já consagrou nesta página? (o aviso pode chegar antes de alguém escutar: uma releitura do estado desenha a planta, e ela termina antes
+     de a coreografia armar o prazo; revisão do PR 2) */
+  var plantaJaPronta = false;
+  document.addEventListener('bz:planta-pronta', function () { plantaJaPronta = true; });
   function coreografiaDoValor() {
     var feito = false, t = null;
     function fim() {
@@ -104,7 +108,11 @@
       Toques.liberarValor();
     }
     document.addEventListener('bz:planta-pronta', fim);
-    return function armar() { if (!feito) t = setTimeout(fim, E && E.planta ? PLANTA_MAX_MS : ESPERA_VALOR_MS); };
+    return function armar() {
+      if (feito) return;
+      if (E && E.planta && plantaJaPronta) { fim(); return; }
+      t = setTimeout(fim, E && E.planta ? PLANTA_MAX_MS : ESPERA_VALOR_MS);
+    };
   }
   /* "Quero os três modelos" com o consultor: o pacote é a estimativa do Zero; leva ao contato (o PR 3 traz o pedido para dentro da conversa) */
   document.addEventListener('bz:quero-com-zero', function () { if (!$('o-contato').hidden) irPara('o-contato'); });

@@ -107,7 +107,7 @@
       li.appendChild(ns);
     }
     inserir(li);
-    if (botoes[0] && (focoPendente || porTeclado || (o.focar !== false && podeFocar()))) { focoPendente = false; focar(botoes[0]); }
+    if (botoes[0] && !o.semFoco && (focoPendente || porTeclado || (o.focar !== false && podeFocar()))) { focoPendente = false; focar(botoes[0]); }
     return li;
   }
   /* depois do toque o grupo vira registro e sai de cena (a resposta fica na bolha da pessoa). Se o foco estava nele, o próximo passo o recebe */
@@ -214,8 +214,9 @@
       }
       bolha(rotulos && rotulos.length ? rotulos.join(' · ') : NAO_SEI);
       resumoSemConsultor();
-    }, { multi: true, naoSei: !consultor, focar: !consultor, falaId: ultimaFala, marcados: marcados });
-    if (consultor && $('o-texto') && podeFocar() && !porTeclado && !focoPendente) focar($('o-texto'));
+    }, { multi: true, naoSei: !consultor, focar: !consultor, semFoco: consultor, falaId: ultimaFala, marcados: marcados });
+    /* com o consultor, escrever é o caminho principal da dor: o foco (do teclado, do grupo que saiu de cena ou do mouse) vai à caixa de texto */
+    if (consultor && $('o-texto') && (focoPendente || porTeclado || podeFocar())) { focoPendente = false; focar($('o-texto')); }
   }
   /* o passo 6 sem o consultor: o que o site faz por ela (listas fechadas), e então o valor da conta */
   function resumoSemConsultor() {
@@ -302,9 +303,15 @@
        saem da tela, porque a fala dela e a resposta do Zero entram na conversa na ordem certa; antes disso, ou sem ele, fica tudo aqui */
     if (s.consultor && s.entregue && window.BZOrcConversa && typeof window.BZOrcConversa.enviar === 'function') {
       s.aEnviar = { respostas: soMudanca(novas) };
-      if (mudanca) { mudanca.fala.remove(); mudanca.li.remove(); mudanca = null; }
+      var m = mudanca;
       focarSaida();
-      window.BZOrcConversa.enviar(texto);
+      /* a pergunta e o bloco só saem depois de o envio ENTRAR; se não entrou (conversa ocupada, falha que não gravou), a mudança não fica pendurada
+         para ir escondida na próxima mensagem: o bloco volta, com o que ela tinha marcado */
+      Promise.resolve(window.BZOrcConversa.enviar(texto)).then(function (entrou) {
+        if (entrou === false) { s.aEnviar = null; if (m) { m.fala.remove(); m.li.remove(); } mudanca = null; reabrir(); return; }
+        if (m) { m.fala.remove(); m.li.remove(); }
+        if (mudanca === m) mudanca = null;
+      }, function () { s.aEnviar = null; });
       return;
     }
     bolha(texto.slice(R.MOLDE_MUDAR.length));

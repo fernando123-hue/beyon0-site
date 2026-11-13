@@ -489,6 +489,53 @@ O dono, 13/11: "O nosso JEV está poderoso igual o original? Ele funciona especi
   2. **Um vídeo do mapa do caso para cada uma das 5 conversas do teste com a IA real**, gravado na própria rodada (as conversas não se pagam duas vezes). Se a câmera lenta não combinar com a IA real, a página real reproduz a resposta gravada da IA, e o `LEIA.md` diz como foi.
   - Mesmo gravador e mesmas regras dos de 13/11: câmera lenta controlada se a CPU estiver cheia (com a velocidade dita), conferência quadro a quadro (nada cortado, nenhum salto, sem blur), cópias até 25 MB. Os caminhos vão à sessão principal, nunca ao dono direto.
 
+## 9E. O pente fino (parte E), antes do teste dos amigos e da promoção
+
+O dono, 13/11: "E a parte da tabela viva, orçamento e o Zero? Estão perfeitos? Eles também merecem um pente fino quando concluídos."
+
+**Quando:** depois das partes C (a IA real) e D (os vídeos).
+
+**Onde:** no site de teste (staging), com a IA **real** e a flag ligada só lá.
+
+**Processo de referência:** o dos criativos, no cofre (`04 Comercial/Instagram/PENTE-FINO.md`), adaptado ao site.
+
+**A rodada:**
+
+1. **Inventário:** o caminho inteiro do orçamento novo, no celular 390 primeiro e depois no computador.
+2. **Análise:** pelo menos dois revisores independentes, que não veem o parecer um do outro. Cada um percorre a lista abaixo por conta própria, com fotos e quadros da página real.
+3. **Juntar:** cada achado vira uma linha na tabela da rodada, com onde, o achado, a gravidade (obrigatório ou opcional), a correção e quem confere.
+4. **Correção:** cada correção vai em PR com o processo de sempre.
+5. **Conferência:** a correção é conferida na página real. A que não resolveu volta para a rodada seguinte.
+
+**Fim:** **duas rodadas seguidas sem nenhum achado obrigatório**, com revisores diferentes a cada rodada. Só então vêm o teste dos 2 amigos do dono e a promoção (do dono).
+
+**A lista** (cada item: ok, achado ou não se aplica):
+
+- **A tela:** leitura de relance; nada cortado nem sobreposto; vãos iguais; sem blur nem brilho suave; o movimento aprovado intacto. Celular 390 e 320 primeiro, depois 768, 1280 e 1440.
+- **O Zero em conversas reais e difíceis:**
+  - insiste no preço logo de cara;
+  - "é golpe?";
+  - cliente irritado;
+  - área de saúde (regulada);
+  - tentativa de dar ordens ao sistema;
+  - pede uma pessoa;
+  - muda de ramo no meio;
+  - escreve em vez de tocar.
+- **O mapa do caso:**
+  - as 5 estruturas;
+  - a unicidade, incluindo dois negócios do mesmo ramo com histórias diferentes;
+  - o "Ficou certo?" e o ajuste;
+  - legível para um leigo de relance.
+- **O momento do preço:** o valor só depois do caso; a exceção do pedido repetido; recarregar com o valor já dado.
+- **O pedido na conversa:** o cartão de aceite (LGPD, o texto, o "Corrigir", o link da política) e o caminho sem IA (sem chave, limite, "Seguir tocando").
+- **Acessibilidade:** teclado, leitor de tela, contraste, 200% de zoom e movimento reduzido.
+- **Tempo de resposta:** a mediana e o pior turno, medidos.
+- **Os textos:** voz humana em todas as falas fixas, no resumo fixo, no aceite e nos avisos.
+
+**Custo:** as conversas reais do pente fino entram no teto de testes do dono; se for passar, aviso antes.
+
+**Registro:** os achados, as correções e as rodadas ficam em `docs/superpowers/pente-fino-orcamento.md` (neste repositório, sem dado de cliente). A sessão principal recebe o arquivo quando as duas rodadas limpas fecharem.
+
 ## 10. Os PRs (na ordem, um por vez, porque os arquivos se cruzam)
 
 Todos são nível 3, exceto onde dito. Cada um traz teste visto vermelho, revisão de código e de segurança por agentes diferentes, suíte inteira, checks lidos um a um e `--match-head-commit`.

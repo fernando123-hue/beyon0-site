@@ -202,7 +202,21 @@ test('conversa retomada: o que ela tocou volta do briefing; o "Mudar" abre marca
   bloco.querySelectorAll('button').find(b => b.textContent === 'Pronto').clicar();
   assert.deepEqual(p.enviados, ['Mudei minhas respostas: Beleza · Agendamentos · Só o Instagram · Logo e textos: tenho']);
   assert.deepEqual(puro(p.T.pendentes()), { ramo: 'beleza', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' });
-  assert.equal(p.log.querySelectorAll('.orc-toque--mudar').length, 0, 'a pergunta e o bloco saem: a fala dela e a resposta entram na conversa na ordem certa');
+  await tique(); await tique();
+  assert.equal(p.log.querySelectorAll('.orc-toque--mudar').length, 0, 'o envio entrou: a pergunta e o bloco saem (a fala dela e a resposta entram na conversa na ordem certa)');
+});
+
+test('"Mudar" com o envio que NÃO entrou: o bloco volta e a mudança não fica pendurada para a próxima mensagem', async () => {
+  const p = montar({ enviar: async () => false });
+  p.T.configurar({ consultor: true });
+  p.T.atualizar({ conversa: { briefing: { fluxo_conversa: true, fluxo_toques: { ramo: 'saude', objetivos: ['agendamentos'] } } }, mensagens: [{ papel: 'visitante', conteudo: 'x' }] });
+  p.T.reabrir();
+  const bloco = p.log.querySelector('.orc-toque--mudar');
+  bloco.querySelectorAll('button').find(b => b.textContent === 'Beleza').clicar();
+  bloco.querySelectorAll('button').find(b => b.textContent === 'Pronto').clicar();
+  await tique(); await tique();
+  assert.equal(p.T.pendentes(), null, 'nada pendurado');
+  assert.equal(p.log.querySelectorAll('.orc-toque--mudar:not([data-feito])').length, 1, 'o bloco voltou, aberto');
 });
 
 test('o foco nunca se perde: com o teclado ele segue para o próximo grupo; sem próximo grupo, vai à caixa de texto', async () => {
