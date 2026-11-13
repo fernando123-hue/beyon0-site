@@ -610,3 +610,17 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .orc-toque__campo:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; border-color: var(--ac); }
 .orc-toque__bloco { display: grid; gap: .4rem; }
 .orc-toque__titulo { margin: 0; font-size: var(--fs-b); color: var(--t2); }
+
+/* ---------- O PEDIDO DENTRO DA CONVERSA (spec §5, PR 3; js/orcamento-pedido.js): os campos, as redes e o cartão de aceite, na largura da caixa ---------- */
+.orc-toque--campo, .orc-toque--redes { justify-items: stretch; }
+.orc-toque__linha { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.orc-toque__erro-campo { margin: 0; font-size: var(--fs-b); color: rgb(var(--aviso-rgb)); }
+.orc-toque__erro-campo:empty { display: none; }
+.orc-toque__rede { display: grid; gap: .3rem; font-size: var(--fs-b); }
+.orc-log__lista > .orc-toque--aceite { justify-items: stretch; gap: .8rem; padding: .9rem; border: 1px solid var(--line-hi); border-radius: var(--raio); }
+.orc-aceite__resumo { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.orc-aceite__item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .2rem .8rem; overflow-wrap: anywhere; }
+.orc-aceite__texto { margin: 0; font-size: var(--fs-b); line-height: 1.5; color: var(--t2); }
+.orc-aceite__link { justify-self: start; font-size: var(--fs-b); color: var(--t1); text-decoration: underline; text-underline-offset: 4px; }
+.orc-aceite__concordo { justify-self: start; font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
+.orc-aceite__concordo[aria-disabled="true"] { opacity: .6; }

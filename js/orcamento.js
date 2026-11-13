@@ -115,7 +115,9 @@
     };
   }
   /* "Quero os três modelos" com o consultor: o pacote é a estimativa do Zero; leva ao contato (o PR 3 traz o pedido para dentro da conversa) */
-  document.addEventListener('bz:quero-com-zero', function () { if (!$('o-contato').hidden) irPara('o-contato'); });
+  /* (orçamento como conversa, PR 3) os passos do pedido abrem na conversa (js/orcamento-pedido.js); sem o módulo, o contato de antes */
+  function abrirPedido() { if (window.BZPedido) window.BZPedido.iniciar(); else if (!$('o-contato').hidden) irPara('o-contato'); }
+  document.addEventListener('bz:quero-com-zero', abrirPedido);
   window.BZOrcConversa = { enviar: function (texto) { return enviar(texto); }, anunciar: function (texto) { anunciar(texto); } };
   /* o pacote pede conversa (fora do automático ou acima do limite): nada do preço anterior (valor, prazo, itens) fica
      na tela, e a voz avisa uma vez */
@@ -128,9 +130,9 @@
     if (!jaAvisou) anunciar(SEM_VALOR + ' Deixe um recado para a equipe.');
   }
 
-  /* o pacote foi gravado: a tela segue o servidor (o contato aparece) e leva a pessoa até ele */
+  /* o pacote foi gravado: a tela segue o servidor e os passos do pedido abrem na conversa */
   document.addEventListener('bz:pacote-confirmado', function seguir() {
-    recarregar().then(function () { if (!$('o-contato').hidden) irPara('o-contato'); })
+    recarregar().then(abrirPedido)
       .catch(function (e) { falhou(e, function () { seguir(); }); });
   });
   /* os detalhes viraram pedido (PR 2a): a tela segue o servidor e leva a pessoa até o código do pedido recebido */
@@ -236,6 +238,7 @@
   $('o-tentar').addEventListener('click', function () { var a = ultimaAcao; limparAviso(); if (a) a(); });
   /* o formulário de detalhes trata a sessão recusada como o contato antigo tratava (PR 2a) */
   window.BZDetalhes.iniciar({ sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao });
+  if (window.BZPedido) window.BZPedido.configurar({ sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao });
 
   /* ---------- o código do pedido (F1, F6) ---------- */
   var codigoMostrado = null;
@@ -374,7 +377,7 @@
     var armar = reter ? coreografiaDoValor() : null;
     try { await recarregar(); } catch (e) { /* o turno já está gravado; a espera ou a próxima ação atualizam */ }
     if (armar) armar();
-    if (r.pedir_contato && !$('o-contato').hidden) $('o-contato').scrollIntoView({ block: 'start' });   /* (sem tirar o foco: a resposta ainda está sendo lida) */
+    if (r.pedir_contato) abrirPedido();   /* (o Zero ofereceu os modelos e ela quer: os passos do pedido abrem na conversa) */
     return true;
   }
   /* enviar() devolve se o turno ENTROU (true) ou não (false: a conversa estava ocupada, ou o envio falhou sem gravar): quem manda por fora, como "Está certo" da planta

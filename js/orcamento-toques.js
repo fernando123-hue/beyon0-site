@@ -384,6 +384,10 @@
       if (s.entregue) { s.iniciado = true; resumoSemConsultor(); return; }
       if (s.passo === 'dor') opcoesDor(s.situacao);
     },
-    situacao: function () { return s.situacao.slice(); }
+    situacao: function () { return s.situacao.slice(); },
+    respostas: function () { return copiar(s.respostas); },
+    /* o kit da conversa para os outros passos dentro da caixa (o pedido, js/orcamento-pedido.js): as mesmas falas, bolhas, grupos, foco e anúncios */
+    kit: { el: el, fala: fala, bolha: bolha, inserir: inserir, opcoes: opcoes, fechar: fechar, anunciar: anunciar, focar: focar, focarSaida: focarSaida,
+      ultimaFala: function () { return ultimaFala; }, teclado: function (sim) { if (typeof sim === 'boolean') porTeclado = sim; return porTeclado; } }
   };
 })();

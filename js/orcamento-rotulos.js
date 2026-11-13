@@ -118,7 +118,20 @@
       'Sem contrato, a conversa é apagada em 2 meses e o contato em 12 meses, ou antes, se você pedir. As redes do negócio, se você passar, são apagadas em 60 dias.'
   });
 
+  /* as sugestões do "o que você vende" (passo 8b do pedido), pelo ramo tocado; as mesmas de js/orcamento-detalhes.js */
+  var VENDE_POR_RAMO = congelar({
+    servicos: congelar(['Conserto e manutenção', 'Consultoria', 'Instalação', 'Atendimento em casa']),
+    saude: congelar(['Consultas', 'Exames', 'Fisioterapia', 'Tratamentos estéticos']),
+    beleza: congelar(['Corte e escova', 'Unhas', 'Barba', 'Estética facial']),
+    alimentacao: congelar(['Marmitas', 'Doces e bolos', 'Lanches', 'Encomendas para festas']),
+    comercio: congelar(['Roupas', 'Material de construção', 'Presentes', 'Peças e acessórios']),
+    educacao: congelar(['Aulas particulares', 'Cursos livres', 'Reforço escolar', 'Idiomas']),
+    associacao: congelar(['Atividades para associados', 'Eventos', 'Cursos', 'Atendimento jurídico']),
+    outro: congelar(['Serviços', 'Produtos', 'Encomendas'])
+  });
+
   return congelar({
+    VENDE_POR_RAMO: VENDE_POR_RAMO,
     RAMOS: RAMOS, OBJETIVOS: OBJETIVOS, SITE_ATUAL: SITE_ATUAL, MATERIAL: MATERIAL,
     SUGESTOES: SUGESTOES, SUGESTOES_POR_RAMO: SUGESTOES_POR_RAMO,
     MOLDE_MUDAR: MOLDE_MUDAR, falaDoMudar: falaDoMudar, resumoFixo: resumoFixo, ACEITE: ACEITE
