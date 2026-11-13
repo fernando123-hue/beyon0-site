@@ -179,9 +179,9 @@ test('a espera nunca fica presa: movimento reduzido ligado ou um ajuste chegando
   }
 });
 
-test('o CSS da espera esconde as rotas (a limpa e a fantasma)', () => {
+test('o CSS da espera esconde as rotas (a limpa e a fantasma) e os rótulos dos ramos (no computador a faixa entrava com "→ serviço simples" solto na grade)', () => {
   const css = fs.readFileSync(new URL('../../css/orcamento-planta.css', import.meta.url), 'utf8');
-  assert.match(css, /\.plv--espera \.plv-limpa,\s*\.plv--espera \.plv-fantasma\s*\{\s*visibility:\s*hidden;?\s*\}/);
+  assert.match(css, /\.plv--espera \.plv-limpa,\s*\.plv--espera \.plv-fantasma,\s*\.plv--espera \.plv-rots\s*\{\s*visibility:\s*hidden;?\s*\}/);
 });
 
 test('is-voo (o quadro sem recorte enquanto o voo dura) sai também quando a entrada é cancelada antes do fim do voo (ajuste, movimento reduzido)', () => {
