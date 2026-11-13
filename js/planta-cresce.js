@@ -125,5 +125,27 @@
     return o;
   }
 
-  return Object.freeze({ LUGARES: LUGARES, FALTA: FALTA, derivar: derivar, diferenca: diferenca, origensDe: origensDe });
+  /* a consagração: o lugar de cada estação conhecida do esboço -> o id da etapa do plano final. A chegada é a chegada; as outras, a 1ª etapa do mesmo
+     tipo ainda livre; quem não achar par (o plano vem do modelo e pode não ter o mesmo tipo) fica com a 1ª etapa livre na ordem do plano: nenhuma
+     estação que a pessoa viu nascer some. Ids do plano só como chaves de um objeto sem protótipo */
+  function casar(esboco, plano) {
+    var usados = Object.create(null), mapa = Object.create(null), sobra = [];
+    var etapas = plano && Array.isArray(plano.etapas) ? plano.etapas : [];
+    var estacoes = esboco && Array.isArray(esboco.estacoes) ? esboco.estacoes : [];
+    estacoes.forEach(function (e) {
+      if (!e || !e.conhecido) return;
+      if (e.lugar === 'chegada') { mapa.chegada = 'chegada'; return; }
+      for (var i = 0; i < etapas.length; i++) {
+        var et = etapas[i];
+        if (et && et.tipo === e.tipo && !usados[et.id]) { usados[et.id] = true; mapa[e.lugar] = et.id; return; }
+      }
+      sobra.push(e.lugar);
+    });
+    sobra.forEach(function (lugar) {
+      for (var i = 0; i < etapas.length; i++) if (etapas[i] && !usados[etapas[i].id]) { usados[etapas[i].id] = true; mapa[lugar] = etapas[i].id; return; }
+    });
+    return mapa;
+  }
+
+  return Object.freeze({ LUGARES: LUGARES, FALTA: FALTA, derivar: derivar, diferenca: diferenca, origensDe: origensDe, casar: casar });
 });

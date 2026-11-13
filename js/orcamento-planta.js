@@ -16,6 +16,10 @@
   var DICA_AJUSTE = 'Diga o que mudar na planta.';
   var ROTULO_BOTAO = 'Ver a planta do seu site';
   var ESPERA_ROLAGEM = 150, FALA_MAX = 120, NOME_MAX = 40;
+  /* a planta viva v2 (decisões do dono de 12/11): abaixo de 960 px a planta consagra NO CARTÃO da conversa (js/orcamento-planta-esboco.js) e a faixa
+     não é usada; a caixa da conversa (nunca a página) rola até o cartão, ESPERA_CARTAO depois da fala aparecer, se a pessoa não rolou a caixa à mão
+     nos últimos MAO_NA_CAIXA ms; a fala fica a FOLGA px do topo */
+  var COMPUTADOR = '(min-width: 960px)', ESPERA_CARTAO = 1200, MAO_NA_CAIXA = 3000, FOLGA = 8;
 
   var ehInteiro = function (n) { return typeof n === 'number' && isFinite(n) && Math.floor(n) === n; };
   var ehObjeto = function (o) { return !!o && typeof o === 'object' && !Array.isArray(o); };
@@ -32,7 +36,8 @@
 
   function criar(win) {
     var doc = win.document;
-    var st = { carga: 'nao', versaoFalha: 0, pegos: {}, elementos: {}, E: null, deps: {}, versao: 0, json: '', assin: '', mostrada: 0, valido: false, recusas: 0, avisouModulos: false, naTela: false, recolhida: false, ouveForm: false, pendente: false, gestos: false, botao: null, certoVersao: 0, timer: 0 };
+    var st = { carga: 'nao', versaoFalha: 0, pegos: {}, elementos: {}, E: null, deps: {}, versao: 0, json: '', assin: '', mostrada: 0, valido: false, recusas: 0, avisouModulos: false, naTela: false, recolhida: false, ouveForm: false, pendente: false, gestos: false, botao: null, certoVersao: 0, timer: 0,
+      lugar: '', raiz: null, maoNaCaixa: -1e9, ouveCaixa: false, timerCartao: 0 };
 
     var $ = function (id) { return doc.getElementById(id); };
     function aviso(e) {
@@ -76,7 +81,7 @@
     /* ---- a faixa ---- */
     function opcoes(E, p, comFala) {
       var nome = E.conversa && E.conversa.briefing && E.conversa.briefing.negocio ? limpo(E.conversa.briefing.negocio.nome, NOME_MAX) : '';
-      var o = { origem: p.origem, editavel: E.planta_editavel === true, aoCerto: aoCerto, aoAjustar: aoAjustar };
+      var o = { origem: p.origem, editavel: E.planta_editavel === true, aoCerto: aoCerto, aoAjustar: aoAjustar, notaEmbaixo: true, som: tocar };
       if (nome) o.nome = nome;
       if (comFala && Array.isArray(E.mensagens)) {
         var m = E.mensagens[p.n_mensagens - 1];
@@ -104,10 +109,49 @@
     }
     function esconder() {
       soltarGestos();
+      soltarCaixa();
       var faixa = $('o-planta');
       if (st.naTela && win.BZPlanta && win.BZPlanta.parar) { try { win.BZPlanta.parar(); } catch (e) { aviso(e); } }
+      if (st.lugar === 'cartao') devolverCartao();
       if (faixa) faixa.hidden = true;
-      st.naTela = false; st.pendente = false; st.recolhida = false;
+      st.naTela = false; st.pendente = false; st.recolhida = false; st.lugar = ''; st.raiz = null;
+    }
+
+    /* ---- o cartão da conversa (celular) ---- */
+    var computador = function () { return !!(win.matchMedia && win.matchMedia(COMPUTADOR).matches); };
+    var esboco = function () { return win.BZOrcEsboco && typeof win.BZOrcEsboco.paraConsagrar === 'function' ? win.BZOrcEsboco : null; };
+    /* abaixo de 960 px, com o esboço na página: a planta vai para o cartão. Sem ele (ou no computador), a faixa de sempre */
+    var noCartao = function () { return !computador() && !!esboco(); };
+    function tocar(nome) { if (win.BZPlantaSom && typeof win.BZPlantaSom.tocar === 'function') win.BZPlantaSom.tocar(nome); }
+    function devolverCartao() { var e = esboco(); if (e && e.devolver) { try { e.devolver(); } catch (x) { aviso(x); } } }
+    function marcarMao() { st.maoNaCaixa = Date.now(); }
+    var GESTOS_NA_CAIXA = ['wheel', 'touchstart', 'touchmove', 'pointerdown', 'keydown'];
+    function ouvirCaixa() {
+      var caixa = $('o-log-caixa');
+      if (!caixa || st.ouveCaixa) return;
+      st.ouveCaixa = true;
+      GESTOS_NA_CAIXA.forEach(function (t) { caixa.addEventListener(t, marcarMao, { passive: true }); });
+    }
+    function soltarCaixa() {
+      var caixa = $('o-log-caixa');
+      if (st.timerCartao) { win.clearTimeout(st.timerCartao); st.timerCartao = 0; }
+      if (!st.ouveCaixa || !caixa) return;
+      st.ouveCaixa = false;
+      GESTOS_NA_CAIXA.forEach(function (t) { caixa.removeEventListener(t, marcarMao, { passive: true }); });
+    }
+    /* a caixa da conversa rola até o topo do cartão (a rolagem suave é a do CSS da caixa; com movimento reduzido ela é instantânea). Só a caixa */
+    function rolarCaixaAoCartao() {
+      var caixa = $('o-log-caixa'), raiz = st.raiz;
+      if (!caixa || !raiz) return;
+      caixa.scrollTop = Math.max(0, caixa.scrollTop + raiz.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA);
+    }
+    /* depois de a fala aparecer: se a pessoa não mexeu na caixa à mão nos últimos 3 s, mostra o desenho; se mexeu, a entrada espera a vista */
+    function talvezRolarAoCartao() {
+      if (st.timerCartao) win.clearTimeout(st.timerCartao);
+      st.timerCartao = win.setTimeout(function () {
+        st.timerCartao = 0;
+        try { if (st.lugar === 'cartao' && Date.now() - st.maoNaCaixa >= MAO_NA_CAIXA) rolarCaixaAoCartao(); } catch (e) { aviso(e); }
+      }, ESPERA_CARTAO);
     }
     /* a faixa é o último bloco do <main>: nasce onde termina o último bloco visível antes dela (escondido ou sem altura não conta) */
     function referencia() {
@@ -132,25 +176,29 @@
         return true;
       }
       if (!p || !faixa || !st.valido || !win.BZPlanta) return false;
-      faixa.hidden = false;
-      var r = null;
-      try { r = win.BZPlanta.montar(faixa, p.plano, opcoes(E, p, false)); } catch (e) { aviso(e); }
+      /* celular: o cartão da conversa (o esboço entrega o lugar e os pontos para o voo); computador: a faixa, com o voo só se o esboço estiver à vista */
+      var c = null, op = opcoes(E, p, false), r = null;
+      if (noCartao()) { try { c = esboco().paraConsagrar(p.plano); } catch (e) { aviso(e); } }
+      if (c && c.raiz) op.esboco = c.pontos;
+      else { c = null; faixa.hidden = false; if (esboco() && esboco().pontosAVista) op.esboco = esboco().pontosAVista(p.plano); }
+      try { r = win.BZPlanta.montar(c ? c.raiz : faixa, p.plano, op); } catch (e) { aviso(e); }
       if (!r || !r.ok) {
-        faixa.hidden = true;
+        if (c) devolverCartao(); else faixa.hidden = true;
         st.recusas++;
         if (r) aviso('montar recusou (' + (r.motivos || []).join(',') + ')');
         /* uma recusa pode ser só uma janela sem largura; na 2a (ou se lançou) o botão que leva a uma faixa que não nasce sai, e os gestos deixam de tentar */
         if (!r || st.recusas >= 2) { st.valido = false; st.pendente = false; tirarBotao(); soltarGestos(); }
         return false;
       }
-      st.naTela = true; st.pendente = false;
-      ouvirFormulario();
+      st.naTela = true; st.pendente = false; st.lugar = c ? 'cartao' : 'faixa'; st.raiz = c ? c.raiz : faixa;
+      if (c) { ouvirCaixa(); talvezRolarAoCartao(); } else ouvirFormulario();
       st.assin = st.versao + '|' + p.origem + '|' + (E.planta_editavel === true) + '|' + st.json; st.mostrada = p.versao;
       soltarGestos();
       return true;
     }
     function tentar() {
       if (!st.pendente || (st.naTela && !st.recolhida)) return;
+      if (noCartao()) { inserir(); return; }   /* o cartão já está na conversa: o desenho entra nele e a entrada espera a vista */
       if (nasceFora()) inserir();
       else esperarGestos();
     }
@@ -162,8 +210,9 @@
     function verAPlanta() {
       try {
         if ((!st.naTela || st.recolhida) && !inserir()) return;
-        var faixa = $('o-planta');
-        if (typeof st.deps.rolarAte === 'function') st.deps.rolarAte(faixa);
+        var faixa = st.raiz || $('o-planta');
+        if (st.lugar === 'cartao') rolarCaixaAoCartao();   /* no celular quem rola é a caixa da conversa */
+        else if (typeof st.deps.rolarAte === 'function') st.deps.rolarAte(faixa);
         var titulo = faixa.querySelector('h2');
         if (titulo) {
           if (!titulo.hasAttribute('tabindex')) titulo.setAttribute('tabindex', '-1');
@@ -177,7 +226,7 @@
     function enviando() { var form = $('o-detalhes-form'); return !!form && form.getAttribute('aria-busy') === 'true'; }
     function aoEnviarFormulario() {
       var faixa = $('o-planta');
-      if (!st.naTela || st.recolhida || !faixa || !enviando()) return;
+      if (!st.naTela || st.lugar !== 'faixa' || st.recolhida || !faixa || !enviando()) return;
       faixa.hidden = true; st.recolhida = true; st.pendente = true;
       tentar();
     }

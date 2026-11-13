@@ -98,3 +98,13 @@ html.menos-movimento .lv *, html.menos-movimento .lv *::before, html.menos-movim
 
 /* o cartão é o último item da conversa (js/orcamento-planta-esboco.js): ocupa a largura da lista, não a de uma fala */
 .orc-log__lista > .lv-item { align-self: stretch; margin-top: .4rem; }
+
+/* a planta consagrada DENTRO da conversa (celular; js/orcamento-planta.js monta o desenho do módulo real no cartão): o título vira o rótulo do
+   cartão, como no esboço (o título grande é o da faixa larga do computador) */
+.lv-item .plv-titulo { max-width: none; margin: 0 0 8px; font: 500 var(--fs-rotulo)/16px var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); text-wrap: nowrap; }
+/* a legenda presa embaixo (a da faixa, no celular) fica com o fundo do cartão da conversa, não o da página */
+.lv-item .plv-leitura { background: var(--s1); }
+
+/* com a planta dentro, a caixa da conversa deixa a rolagem passar para a página quando chega ao fim (a caixa tem overscroll-behavior: contain,
+   css/orcamento.css): com o desenho inteiro dentro dela, o dedo ficava preso na caixa (medido em 12/11). js/orcamento-planta-esboco.js põe a classe */
+.orc-log.com-planta { overscroll-behavior-y: auto; }

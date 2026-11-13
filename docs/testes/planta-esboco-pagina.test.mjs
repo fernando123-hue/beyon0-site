@@ -302,3 +302,17 @@ test('js/orcamento.js rola a CAIXA: sem o cartão, até o fim (como sempre); com
   await p.enviar('com o cartão');
   assert.equal(caixa.scrollTop, 100 * n - 8, 'com o cartão: a última fala criada a 8 px do topo da caixa');
 });
+
+test('com a planta na conversa, a caixa marca com-planta (o CSS deixa a rolagem passar para a página no fim da caixa: com o desenho dentro, ela prendia o dedo); sem a planta, a marca sai', () => {
+  const amb = ambiente();
+  amb.L.atualizar(estado(BRIEF_3, 3));
+  prontos(amb);
+  amb.L.atualizar(estado(BRIEF_3, 3));
+  assert.ok(amb.caixa._classes.has('com-planta'));
+  amb.L.atualizar(estado(BRIEF_3, 3, { planta_editavel: undefined }));
+  assert.ok(!amb.caixa._classes.has('com-planta'));
+});
+
+test('css/planta-esboco.css: a caixa com a planta deixa a rolagem passar para a página (overscroll-behavior-y: auto)', () => {
+  assert.match(lerFonte('css/planta-esboco.css'), /\.orc-log\.com-planta\s*\{\s*overscroll-behavior-y:\s*auto;\s*\}/);
+});

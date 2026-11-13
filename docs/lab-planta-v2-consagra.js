@@ -1,4 +1,4 @@
-/* PLANTA VIVA v2 (laboratório): a CONSAGRAÇÃO. window.BZPlantaConsagra.consagrar(esboco, plano, opcoes). Quando o preço sai, o Zero chama
+/* PLANTA VIVA v2 (LABORATÓRIO, fora do deploy; a de produção é a entrada de js/planta-desenho.js): a CONSAGRAÇÃO. window.BZPlantaConsagra.consagrar(esboco, plano, opcoes). Quando o preço sai, o Zero chama
    desenhar_planta (já existe) e o esboço vira o desenho final DO MÓDULO REAL: o quadro é montado por BZPlanta.interno.construirQuadro com a
    geometria de BZPlantaLayout (retrato no celular, faixa larga no computador), e as classes e o CSS são os de css/orcamento-planta.css. O que
    muda é só o PROGRAMA da entrada (no lugar do emaranhado do 05/11, o esboço que a conversa construiu):

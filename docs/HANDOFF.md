@@ -2,6 +2,11 @@
 
 > **ESTADO DA SESSÃO "PLANTA VIVA v2" (2026-11-12, worktree `03 Projetos/site-planta-espetaculo`, branch `planta-espetaculo`).**
 > <!-- passagem-auto: 1-811cdf27-da18-484d-b51f-6ae6a93d4a32 -->
+> **13/11, madrugada: PR 1 (crescimento) MESCLADO (#141, main 2f3d98f). PR 2 (consagração) no ramo `planta-consagracao`:**
+> - o módulo real (`js/planta-desenho.js`) agora entra a partir do esboço (voo, luz, ouro); o emaranhado saiu;
+> - no celular consagra no cartão; a caixa rola sozinha (regra dos 3 s); a caixa deixa a rolagem passar para a página (`com-planta`);
+> - no computador, a faixa larga. Medido na página real: o esboço nunca está à vista quando a faixa entra, então é luz e ouro, sem voo;
+> - laboratório: `docs/lab-planta-v2-consagra.js` (voltou para docs/).
 > **ATUALIZAÇÃO 12/11, noite: o dono decidiu (via sessão principal) e a planta v2 virou PR em DUAS partes.**
 > - **PR 1, o crescimento** (este ramo): o esboço cresce dentro da conversa.
 >   - Módulos em `js/planta-{cresce,relogio,esboco,consagra,som}.js`, ligação em `js/orcamento-planta-esboco.js`, CSS em `css/planta-esboco.css`.

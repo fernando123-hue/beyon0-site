@@ -1,7 +1,7 @@
 /* PLANTA VIVA v2 (laboratório): o ESBOÇO que cresce com a conversa. window.BZPlantaEsboco.criar(raiz, opcoes) -> { crescer(esboco), interno, parar }.
    O desenho não é um fluxograma de caixas: é um TRILHO de 1 px que desce do núcleo do Zero, com as estações como peças no trilho (o ícone num
    chip de canto cortado) e o texto ao lado. Cinco lugares e o objetivo, sempre os mesmos: a altura só depende da largura (nada desloca a
-   página). O que o Zero ainda não entendeu fica FANTASMA (traço tracejado e "a entender"). A consagração (js/planta-consagra.js) parte
+   página). O que o Zero ainda não entendeu fica FANTASMA (traço tracejado e "a entender"). A consagração (js/planta-desenho.js, entrada que parte do esboço; js/orcamento-planta.js) parte
    daqui.
    MOVIMENTO (a assinatura do site, "a luz passa e imprime"): a SEMENTE acende o núcleo (aro desenhado, rumos girando, disco, duas ondas) e
    solta o primeiro traço; cada ESTAÇÃO nasce pela luz que desce do núcleo (350 ms), o chip e o ícone se desenham traço a traço (300 ms), o
