@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Laboratório das estruturas do mapa do caso</title>
+  <link rel="preload" href="/assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/css/tokens.css" />
+  <link rel="stylesheet" href="/docs/lab-estruturas.css" />
+  <script src="/js/planta-pecas.js" defer></script>
+  <script src="/docs/lab-estruturas-casos.js" defer></script>
+  <script src="/docs/lab-estruturas.js" defer></script>
+</head>
+<body>
+  <!-- Laboratório do PR 5 (spec 2026-11-13, §7.5): as 5 estruturas do mapa do caso com 3 casos, para o dono ver ANTES de o desenho ir para
+       js/planta-*. Fora do deploy (docs/ não entra em cloudflare/montar-publico.mjs). Os casos são EXEMPLOS de laboratório, escritos aqui, sem dado
+       de cliente real. Parâmetros: ?caso=clinica|embalagens|loja  &estatico=1 (quadro final, sem animação)  &captura=1 (sem os botões, para as fotos).
+       Fotos e conferência de geometria: node docs/lab-estruturas-fotos.mjs -->
+  <main class="lab">
+    <header class="lab-topo">
+      <p class="lab-kicker">Laboratório · Mapa do caso</p>
+      <h1 class="lab-h1">Cinco estruturas, o mesmo caso</h1>
+      <p class="lab-nota">Cada caso desenhado nas 5 estruturas. Na conversa, o Zero escolhe uma só: a que conta a história que a pessoa contou.</p>
+    </header>
+    <div class="lab-casos" role="group" aria-label="Caso de exemplo">
+      <button type="button" class="lab-btn" data-caso="clinica" aria-pressed="true">Clínica</button>
+      <button type="button" class="lab-btn" data-caso="embalagens" aria-pressed="false">Embalagens</button>
+      <button type="button" class="lab-btn" data-caso="loja" aria-pressed="false">Loja</button>
+    </div>
+    <p class="lab-hoje" id="hoje"></p>
+    <div id="estruturas"></div>
+    <p class="lab-erros" id="erros" hidden></p>
+  </main>
+</body>
+</html>

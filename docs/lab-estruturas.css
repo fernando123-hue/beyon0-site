@@ -1,0 +1,92 @@
+/* Laboratório das estruturas do mapa do caso (docs/lab-estruturas.js). Só tokens do site. Sem desfoque, sombra, filtro nem gradiente: traço de
+   1 px e cor chapada. Estados por classe (is-aceso, is-ouro); a entrada é opacity + transform, uma vez; movimento reduzido = quadro final. */
+body { margin: 0; background: var(--bg); color: var(--t2); font-family: var(--sans); }
+.lab { max-width: 1136px; margin: 0 auto; padding: 24px 20px 72px; }
+.lab-kicker { font: 500 var(--fs-rotulo)/16px var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-3); margin: 0 0 10px; }
+.lab-h1 { font: 300 26px/1.15 var(--sans); color: var(--t1); letter-spacing: -.01em; margin: 0; }
+.lab-nota { margin: 10px 0 0; font-size: var(--fs-s); line-height: 1.5; color: var(--t3); max-width: 60ch; }
+.lab-casos { display: flex; gap: 8px; margin: 16px 0 14px; }
+.lab-btn {
+  flex: 1 1 0; min-height: 44px; padding: .6rem .8rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: transparent; color: var(--t1);
+  font: 500 var(--fs-ctrl)/1.2 var(--mono); letter-spacing: var(--tr-ctrl); text-transform: uppercase; cursor: pointer;
+}
+.lab-btn[aria-pressed="true"] { border-color: var(--ac); }
+.lab-btn:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.lab-captura .lab-casos { display: none; }
+.lab-hoje { margin: 0 0 8px; font-size: var(--fs-s); line-height: 1.5; color: var(--t2); }
+.lab-hoje__rot { color: var(--t1); font-weight: 500; }
+.lab-hoje__origens { color: var(--t3); }
+.lab-erros { color: rgb(var(--ouro-3-rgb)); font: 400 13px/1.5 var(--mono); }
+
+.le-estrutura { padding: 22px 0 6px; border-top: 1px solid var(--line); margin-top: 18px; }
+.le-h2 { font: 300 20px/1.2 var(--sans); color: var(--t1); margin: 0; }
+.le-quando { margin: 4px 0 14px; font-size: 13px; line-height: 1.45; color: var(--t3); }
+
+/* o quadro: altura gravada pelo JS antes de aparecer; tudo dentro é absoluto, posto por transform */
+.le-quadro { position: relative; contain: layout paint; }
+.le-svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.le-no, .le-rot, .le-cab, .le-luz { position: absolute; left: 0; top: 0; }
+
+/* o nó: caixa de 1 px; a cor do contorno e do ícone diz o papel */
+.le-no {
+  --cor: var(--ac-3);
+  box-sizing: border-box; display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--cor); border-radius: var(--raio-s);
+  background: var(--bg); color: var(--t1); opacity: 0; transition: opacity .32s var(--ease), border-color .5s var(--ease);
+}
+.le-no > * { transform: translateY(5px); transition: transform .42s var(--ease); transition-delay: inherit; }
+.le-ico { flex: 0 0 auto; width: 22px; height: 22px; fill: none; stroke: var(--t3); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+/* o ícone entra junto com o texto (transform, com o atraso herdado da caixa) e muda de cor na hora do ouro (o 2º atraso, 0) */
+.le-no > .le-ico { transition: transform .42s var(--ease), stroke .5s var(--ease); transition-delay: inherit; }
+.le-ico__ac { stroke: var(--cor); }
+.le-no__txt { display: flex; flex-direction: column; min-width: 0; }
+.le-no__origem, .le-no__marca { font-size: 12px; line-height: 15px; color: var(--cor); }
+.le-no__titulo { font-size: 14px; line-height: 18px; color: var(--t1); overflow-wrap: anywhere; }
+.le-no__frase { display: none; font-size: 13px; line-height: 18px; color: var(--t3); margin-top: 4px; }
+.le-quadro--desk .le-no { flex-direction: column; gap: 6px; padding: 10px 12px 12px; }
+.le-quadro--desk .le-no__titulo { font-size: 15px; line-height: 20px; }
+.le-quadro--desk .le-no__frase { display: block; }
+
+.le-no--hoje { --cor: var(--stroke); }
+.le-no--hoje .le-no__titulo { color: var(--t2); }
+.le-no--trava { --cor: var(--t1); }
+.le-no--trava .le-ico { stroke: var(--t1); }
+.le-no--origem { --cor: var(--ac-3); }
+.le-no--site { --cor: var(--ac); }
+.le-no--conversa { --cor: var(--ac-2); }
+.le-no--acao { --cor: var(--ac); }
+.le-no--volta { --cor: var(--ac-3); }
+.le-no--ajustado { --cor: var(--ac-2); }
+.le-no--objetivo { --cor: var(--ac); }
+.is-ouro .le-no--objetivo { --cor: rgb(var(--ouro-rgb)); }
+.is-ouro .le-no--objetivo .le-ico { stroke: rgb(var(--ouro-2-rgb)); }
+.is-ouro .le-no--objetivo .le-no__titulo { color: rgb(var(--ouro-2-rgb)); }
+
+/* o título de cada faixa do antes/depois */
+.le-cab { font-size: 12px; line-height: 16px; color: var(--t3); opacity: 0; transition: opacity .4s var(--ease); }
+
+/* as setas: linha de 1 px, ponta aberta, rótulo em mono minúsculo (o único mono do mapa) */
+.le-seta { fill: none; stroke: var(--ac-3); stroke-width: 1; opacity: 0; transition: opacity .3s var(--ease); }
+.le-seta--cinza { stroke: var(--stroke); }
+.le-seta__origem { fill: var(--bg); }
+.le-rot {
+  box-sizing: border-box; padding: 1px 4px; background: var(--bg); font: 400 11px/13px var(--mono); letter-spacing: var(--tr-dado); color: var(--ac-2);
+  text-align: center; overflow-wrap: break-word; opacity: 0; transition: opacity .3s var(--ease);
+}
+.le-quadro--cel .le-rot { text-align: left; }
+.le-rot--cinza { color: var(--t3); }
+.le-luz { width: 6px; height: 6px; border-radius: 50%; background: var(--ac-2); opacity: 0; pointer-events: none; }
+
+.is-aceso .le-no, .is-aceso .le-seta, .is-aceso .le-rot, .is-aceso .le-cab { opacity: 1; }
+.is-aceso .le-no > * { transform: none; }
+.is-parado .le-no, .is-parado .le-no > *, .is-parado .le-no > .le-ico, .is-parado .le-seta, .is-parado .le-rot, .is-parado .le-cab { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .le-no, .le-no > *, .le-no > .le-ico, .le-seta, .le-rot, .le-cab { transition: none; }
+  .le-luz { display: none; }
+}
+
+@media (min-width: 760px) {
+  .lab { padding: 36px 32px 96px; }
+  .lab-h1 { font-size: 36px; }
+  .lab-casos { max-width: 520px; }
+  .le-h2 { font-size: 24px; }
+}
