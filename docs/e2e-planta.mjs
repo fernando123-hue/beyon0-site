@@ -8,6 +8,7 @@
    da planta é baixado, a conversa é a de sempre. Cada rodada cria sessões no freio local (8 por 10 min por IP): o script manda um IP novo por rodada. */
 import { chromium } from 'playwright';
 import { esperarToques, responderAteADor } from './e2e-toques.mjs';
+import { ateOCartao, telefoneNovo } from './e2e-pedido.mjs';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
@@ -232,25 +233,26 @@ console.log('\n== "Está certo" depois de um envio que entrou sem a página sabe
 }
 
 /* ---------- 320 px e a faixa à vista ---------- */
-/* ---------- enviar o formulário com a faixa à vista logo abaixo do botão (achado da medida do 2c-B) ---------- */
-console.log('\n== enviar o formulário com a faixa abaixo do botão ==');
+/* ---------- (orçamento como conversa, PR 3) enviar o pedido com a faixa à vista: o cartão do aceite marca o envio e a faixa se recolhe ---------- */
+console.log('\n== enviar o pedido com a faixa à vista ==');
 {
   const { ctx, page, erros } = await abrir(ON);
   await turno(page, T1);
   await turno(page, 'planta-boa pode desenhar');
   await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
-  const botao = page.locator('#o-detalhes-form button[type=submit]');
-  await botao.scrollIntoViewIfNeeded(); await espera(400);
-  await botao.click(); await espera(600);   /* envio RECUSADO pela própria tela (campos vazios): a faixa não se recolhe */
-  ok(await page.evaluate(() => !document.getElementById('o-planta').hidden && document.getElementById('o-contato-erro').textContent.length > 0), 'envio recusado pela tela (campos vazios): o erro aparece e a faixa NÃO se recolhe');
-  await page.fill('#o-d-negocio', 'Clínica Teste'); await page.fill('#o-d-vende', 'Consultas');
-  await page.fill('#o-tel', '(21) 9' + String(1000 + Math.floor(Math.random() * 9000)) + '-' + String(1000 + Math.floor(Math.random() * 9000))); await page.check('#o-aceite');
-  await botao.scrollIntoViewIfNeeded(); await espera(400);
+  /* (13/11) com o consultor o valor espera o caso entendido, e este roteiro da IA simulada não chega lá: o pedido abre direto pelo módulo e o envio é
+     respondido pela rede. O caminho real do "Quero" até o pedido recebido é do docs/e2e-orcamento.mjs; aqui importa só a faixa no instante do envio */
+  await page.evaluate(() => window.BZPedido.iniciar());
+  await ateOCartao(page, { negocio: 'Clínica Teste', vende: 'Consultas', telefone: telefoneNovo() });
+  ok(await page.evaluate(() => !document.getElementById('o-planta').hidden), 'com o cartão do aceite aberto (sem enviar), a faixa segue à vista');
+  await page.evaluate(() => document.getElementById('o-planta').scrollIntoView({ block: 'center' })); await espera(400);
   const visivel = await page.evaluate(() => { const q = document.getElementById('o-planta').getBoundingClientRect(); return Math.round(Math.min(innerHeight, q.bottom) - Math.max(0, q.top)); });
-  ok(visivel > 100, 'antes do envio a faixa está à vista logo abaixo do botão (' + visivel + ' px)');
+  ok(visivel > 100, 'antes do envio a faixa está à vista (' + visivel + ' px)');
   await page.evaluate(() => { window.__ls2 = []; new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__ls2.push([e.value, e.hadRecentInput, (e.sources || []).map((s) => s.node && (s.node.id || s.node.className)).join('+')]))).observe({ type: 'layout-shift', buffered: false }); });
-  await page.route('**/api/vendas?acao=detalhes*', async (rr) => { await espera(1500); rr.continue(); });
-  await botao.click();
+  await page.route('**/api/vendas?acao=detalhes*', async (rr) => { await espera(1500); rr.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ codigo: 'BZ-K7M3Q', status: 'confirmado' }) }); });
+  /* o envio pelo teclado, sem rolar: a faixa continua na tela no instante do envio */
+  await page.evaluate(() => [...document.querySelectorAll('#o-log .orc-toque--aceite:not([data-feito]) button')].find((b) => b.textContent === 'Concordo e quero os modelos').focus({ preventScroll: true }));
+  await page.keyboard.press('Enter');
   await espera(400); await page.mouse.click(2, 2);   /* um toque no vazio durante o envio não devolve a faixa antes da resposta */
   await page.waitForFunction(() => document.getElementById('o-planta').hidden, null, { timeout: 3000 }).then(() => ok(true, 'ao enviar, a faixa se recolhe na hora'), () => ok(false, 'ao enviar, a faixa se recolhe na hora'));
   await espera(6000);

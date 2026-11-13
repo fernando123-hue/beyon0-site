@@ -83,6 +83,17 @@ test('as sugestões seguem o ramo tocado na conversa', () => {
   assert.deepEqual(p.aberto('.orc-toque--campo').querySelectorAll('button.orc-op').map(b => b.textContent), ['Consultas', 'Exames', 'Fisioterapia', 'Tratamentos estéticos']);
 });
 
+test('sem ramo tocado nesta visita (recarregou com o pacote gravado): as sugestões vêm do ramo que o servidor guardou no caso', () => {
+  const p = montar();
+  p.P.configurar({ sessaoTerminou: () => false, avisarSessao: () => {}, estado: () => ({ conversa: { briefing: { negocio: { segmento: 'saúde' } } } }) });
+  p.P.iniciar(); p.seguir('Clínica Boa');
+  assert.deepEqual(p.aberto('.orc-toque--campo').querySelectorAll('button.orc-op').map(b => b.textContent), ['Consultas', 'Exames', 'Fisioterapia', 'Tratamentos estéticos']);
+  const q = montar();
+  q.P.configurar({ sessaoTerminou: () => false, avisarSessao: () => {}, estado: () => ({ conversa: { briefing: { negocio: { segmento: '<script>' } } } }) });
+  q.P.iniciar(); q.seguir('Loja');
+  assert.deepEqual(q.aberto('.orc-toque--campo').querySelectorAll('button.orc-op').map(b => b.textContent), ['Serviços', 'Produtos', 'Encomendas'], 'segmento desconhecido: as de "outro"');
+});
+
 test('as redes: a autorização nunca vem marcada e é exigida quando há endereço; sem endereço, segue sem autorização', () => {
   const p = montar();
   p.P.iniciar(); p.seguir('Padaria Sol'); p.seguir('Pães'); p.seguir('11987654321');
@@ -132,7 +143,9 @@ test('o envio vai uma vez só, com a versão do aceite, e avisa a página; nada 
   b.clicar(); b.clicar();
   assert.equal(b.textContent, 'Enviando…');
   assert.equal(b.getAttribute('aria-disabled'), 'true');
+  assert.deepEqual(p.enviandoNoLog, [true], 'avisa a caixa uma vez, com o cartão marcado em envio (a faixa da planta se recolhe)');
   await tique();
+  assert.equal(p.log.querySelectorAll('[aria-busy]').length, 0, 'terminado o envio, nada fica marcado em envio');
   assert.equal(p.pedidos.length, 1);
   assert.deepEqual(puro(p.pedidos[0]), { negocio: 'Padaria Sol', vende: 'Pães e bolos', telefone: '(11) 98765-4321', nome: '', publico: '', diferencial: '', admira: '',
     redes: {}, autoriza_redes: false, aceite: true, aceite_versao: 'a1' });
@@ -152,6 +165,30 @@ test('um segundo "iniciar" com o pedido aberto leva ao passo aberto, sem duplica
   p.P.iniciar();
   assert.equal(p.log.children.length, antes);
   assert.equal(p.doc.activeElement, p.caixa());
+});
+
+test('o Zero fala no meio do pedido: o passo aberto (a pergunta e a caixa) volta ao fim da conversa, com o foco onde estava', () => {
+  const p = montar();
+  p.P.iniciar(); p.seguir('Padaria Sol');
+  const caixa = p.caixa();
+  const outra = p.doc.createElement('li'); outra.className = 'msg msg--visitante'; p.log.appendChild(outra);
+  const fala = p.doc.createElement('li'); fala.className = 'msg msg--agente'; fala.textContent = 'Resposta do Zero'; p.log.appendChild(fala);
+  caixa.focus();
+  p.P.trazerAoFim();
+  const ultimos = p.log.children.slice(-2);
+  assert.match(ultimos[0].textContent, /o que vocês vendem/, 'a pergunta do passo vem logo depois da resposta');
+  assert.equal(ultimos[1], p.aberto('.orc-toque--campo'));
+  assert.equal(p.doc.activeElement, caixa);
+});
+
+test('"Quero" de novo com os opcionais abertos: leva ao passo aberto, sem recomeçar o pedido', () => {
+  const p = montar();
+  p.P.iniciar(); p.seguir('Padaria Sol'); p.seguir('Pães'); p.seguir('11987654321');
+  const antes = p.log.children.length;
+  p.P.iniciar();
+  assert.equal(p.log.children.length, antes, 'nada novo na conversa');
+  assert.ok(p.botao('Não, pode seguir'), 'os opcionais seguem abertos');
+  assert.equal(p.doc.activeElement && p.doc.activeElement.textContent, 'Como quer ser chamado');
 });
 
 test('erro 400 do servidor: a fala do Zero e o campo certo reabre; corrigido, volta ao cartão e envia de novo', async () => {
@@ -178,6 +215,7 @@ test('409 com a versão velha do aceite: pede para recarregar e o cartão fica (
   assert.match(p.falas().at(-1), /Recarregue/);
   const b = p.botao('Concordo e quero os modelos');
   assert.equal(b.getAttribute('aria-disabled'), null);
+  assert.equal(p.cartao().getAttribute('aria-busy'), null, 'o cartão sai do envio');
   assert.equal(p.pedidos.length, 1);
   assert.deepEqual(p.eventos, []);
 });
@@ -189,6 +227,8 @@ test('fila cheia: a fala do Zero, o aviso da página aparece e o pedido termina'
   await tique();
   assert.equal(p.falas().at(-1), 'A fila de pedidos está cheia agora.');
   assert.equal(p.fila.hidden, false);
+  assert.equal(p.contato.hidden, false, 'o bloco do aviso aparece (no modo conversa ele fica escondido)');
+  assert.equal(p.doc.activeElement, p.fila, 'o foco vai para o aviso');
   assert.ok(!p.P.ativo());
   assert.ok(!p.cartao());
 });

@@ -50,6 +50,7 @@ function elemento(tag, doc, porId) {
     querySelectorAll(sel) { const partes = sel.split(','); return e.todos().filter(n => partes.some(p => casa(n, p))); },
     querySelector(sel) { return e.querySelectorAll(sel)[0] || null; },
     addEventListener(t, f) { (ouvintes[t] = ouvintes[t] || []).push(f); },
+    dispatchEvent(ev) { (ouvintes[ev.type] || []).slice().forEach(f => f(ev)); return true; },
     clicar(detail = 1) { if (e.disabled) return; (ouvintes.click || []).forEach(f => f({ type: 'click', detail, preventDefault() {} })); },
     tecla(key) { (ouvintes.keydown || []).forEach(f => f({ key, preventDefault() {} })); },
     digitar(v) { e.value = v; (ouvintes.input || []).forEach(f => f({ type: 'input' })); },
@@ -65,8 +66,11 @@ export function montarConversa({ ponteiroFino = false, enviar = async () => true
   const caixa = doc.createElement('div'); caixa.id = 'o-log-caixa';
   const log = doc.createElement('ol'); log.id = 'o-log';
   const abertura = doc.createElement('li'); abertura.className = 'msg msg--agente'; log.appendChild(abertura);
+  const enviandoNoLog = [];   /* (o aviso do pedido na caixa da conversa: o cartão em envio, com aria-busy, js/orcamento-planta.js) */
+  log.addEventListener('bz:pedido-enviando', () => enviandoNoLog.push(!!log.querySelector('.orc-toque--aceite[aria-busy]')));
   const form = doc.createElement('form'); form.id = 'o-form';
   const texto = doc.createElement('textarea'); texto.id = 'o-texto';
+  const contato = doc.createElement('section'); contato.id = 'o-contato'; contato.hidden = true;
   const fila = doc.createElement('div'); fila.id = 'o-fila-cheia'; fila.hidden = true;
   const anuncios = [], definidos = [], enviados = [], eventos = [], pedidos = [];
   const win = {
@@ -83,5 +87,5 @@ export function montarConversa({ ponteiroFino = false, enviar = async () => true
   const botao = txt => { const b = abertos().flatMap(li => li.querySelectorAll('button')).find(x => x.textContent === txt); if (!b) throw new Error('sem botão "' + txt + '"'); return b; };
   const falas = () => log.children.filter(li => li.classList.contains('msg--agente')).map(li => li.textContent);
   const bolhas = () => log.children.filter(li => li.classList.contains('msg--visitante')).map(li => li.textContent);
-  return { doc, log, texto, form, fila, T: win.BZToques, win, anuncios, definidos, enviados, eventos, pedidos, abertos, botao, falas, bolhas, tocar: (t, d) => botao(t).clicar(d) };
+  return { doc, log, texto, form, fila, contato, T: win.BZToques, win, enviandoNoLog, anuncios, definidos, enviados, eventos, pedidos, abertos, botao, falas, bolhas, tocar: (t, d) => botao(t).clicar(d) };
 }

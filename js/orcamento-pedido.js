@@ -27,14 +27,14 @@
   var FALHA = 'Não consegui guardar agora. Tente de novo ou deixe um recado para a equipe.';
 
   var p = null;   /* o pedido em andamento, só em memória: { d: os dados, corrigindo, enviando } */
-  var ganchos = { sessaoTerminou: function () { return false; }, avisarSessao: function () {} };
+  var ganchos = { sessaoTerminou: function () { return false; }, avisarSessao: function () {}, estado: function () { return null; } };
 
   function limpo(v, max) { return String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max); }
   var digitos = function (v) { return String(v || '').replace(/\D/g, ''); };
 
   /* um campo dentro da conversa: a pergunta (fala do Zero), a caixa, as sugestões (se houver), "Seguir" e, nos opcionais, "Pular" */
   function campo(cfg) {
-    K.fala(cfg.pergunta);
+    var pergunta = K.fala(cfg.pergunta);
     var li = K.el('li', 'orc-toque orc-toque--campo'), linha = K.el('div', 'orc-toque__linha'), caixa = K.el('input', 'orc-toque__campo');
     var erro = K.el('p', 'orc-toque__erro-campo'), seguir = K.el('button', 'btn btn--primary btn--sm', 'Seguir');
     caixa.type = cfg.tipo || 'text';
@@ -70,6 +70,7 @@
     }
     li.appendChild(erro);
     K.inserir(li);
+    abrir(pergunta, li);
     K.focar(caixa);
     return li;
   }
@@ -95,6 +96,17 @@
     return grupo;
   }
 
+  /* o passo aberto agora (a pergunta e o grupo): o que volta ao fim da conversa quando o Zero fala no meio do pedido */
+  function abrir(pergunta, li) { p.aberto = { pergunta: pergunta, li: li }; }
+  function passoAberto() { return p && p.aberto && !p.aberto.li.hasAttribute('data-feito') && p.aberto.li.parentNode ? p.aberto : null; }
+  function aoFim(a) {
+    var log = $('o-log'), u = log.lastElementChild, fim = u && u.hasAttribute('data-fica') ? u : null;
+    var tinhaFoco = doc.activeElement && a.li.contains(doc.activeElement) ? doc.activeElement : null;
+    if (a.pergunta && a.pergunta.parentNode) log.insertBefore(a.pergunta, fim);
+    log.insertBefore(a.li, fim);
+    if (tinhaFoco) K.focar(tinhaFoco);   /* (mover o nó tira o foco dele) */
+  }
+
   /* ---------- os passos (8a a 8e) ---------- */
   function seguirOu(proximo) { return function () { if (p.corrigindo) { p.corrigindo = false; cartao(); } else proximo(); }; }
   function passoNegocio() {
@@ -102,10 +114,18 @@
       validar: function (v) { return v.length < 2 ? 'Informe o nome do negócio.' : null; },
       depois: function (v) { p.d.negocio = v; seguirOu(passoVende)(); } });
   }
+  /* o ramo das sugestões: o tocado nesta visita; senão o que o servidor guardou no caso (o pacote gravado, uma visita de antes); senão "outro" */
+  function ramoDoCaso() {
+    var r = (T.respostas() || {}).ramo;
+    if (r && R.VENDE_POR_RAMO[r]) return r;
+    var E = ganchos.estado(), b = E && E.conversa && E.conversa.briefing, seg = b && b.negocio && typeof b.negocio.segmento === 'string' ? b.negocio.segmento.toLowerCase() : '';
+    for (var k in R.RAMOS) if (R.RAMOS[k].toLowerCase() === seg && R.VENDE_POR_RAMO[k]) return k;
+    return 'outro';
+  }
   function passoVende() {
-    var ramo = (T.respostas() || {}).ramo;
+    var ramo = ramoDoCaso();
     campo({ chave: 'vende', pergunta: 'E o que vocês vendem ou fazem, em poucas palavras?', max: 200, valor: p.d.vende,
-      sugestoes: R.VENDE_POR_RAMO[ramo] || R.VENDE_POR_RAMO.outro,
+      sugestoes: R.VENDE_POR_RAMO[ramo],
       validar: function (v) { return v.length < 3 ? 'Conte o que você vende (pode tocar numa sugestão).' : null; },
       depois: function (v) { p.d.vende = v; seguirOu(passoTelefone)(); } });
   }
@@ -117,15 +137,16 @@
   }
   /* 8d: o que mais ela quiser contar, em toques; cada toque abre a pergunta daquele campo e volta aqui; "Não, pode seguir" leva ao aceite */
   function passoOpcionais(depoisDeUm) {
-    K.fala(depoisDeUm ? 'Mais alguma coisa?' : 'Quer me contar mais alguma coisa? Ajuda a acertar os modelos.');
+    var pergunta = K.fala(depoisDeUm ? 'Mais alguma coisa?' : 'Quer me contar mais alguma coisa? Ajuda a acertar os modelos.');
     var itens = OPCIONAIS.filter(function (o) { return !preenchido(o.chave); }).map(function (o) { return { valor: o.chave, rotulo: o.toque }; });
     itens.push({ valor: 'seguir', rotulo: 'Não, pode seguir' });
-    K.opcoes('Mais alguma coisa', itens, function (v) {
+    var grupo = K.opcoes('Mais alguma coisa', itens, function (v) {
       if (v === 'seguir') { K.bolha('Não, pode seguir'); cartao(); return; }
       var o = OPCIONAIS.filter(function (x) { return x.chave === v; })[0];
       K.bolha(o.toque);
       if (v === 'redes') passoRedes(); else passoOpcional(o);
     }, { falaId: K.ultimaFala() });
+    abrir(pergunta, grupo);
   }
   function preenchido(chave) { return chave === 'redes' ? Object.keys(p.d.redes).length > 0 : !!p.d[chave]; }
   function passoOpcional(o) {
@@ -134,7 +155,7 @@
   }
   /* as redes: os endereços (ou o @) e a autorização PRÓPRIA, um toque claro que nunca vem marcado; o servidor também a exige */
   function passoRedes() {
-    K.fala('Quais são as redes do negócio? Preencha só as que quiser.');
+    var pergunta = K.fala('Quais são as redes do negócio? Preencha só as que quiser.');
     var li = K.el('li', 'orc-toque orc-toque--redes'), caixas = {}, erro = K.el('p', 'orc-toque__erro-campo');
     erro.id = 'o-pedido-erro-redes';
     erro.setAttribute('role', 'alert');
@@ -165,12 +186,13 @@
     });
     li.appendChild(autoriza); li.appendChild(seguir); li.appendChild(erro);
     K.inserir(li);
+    abrir(pergunta, li);
     K.focar(caixas.instagram);
   }
 
   /* ---------- 8e: o cartão de aceite ---------- */
   function cartao() {
-    K.fala('Pronto. Confira o que você me passou:');
+    var pergunta = K.fala('Pronto. Confira o que você me passou:');
     var li = K.el('li', 'orc-toque orc-toque--aceite'), lista = K.el('ul', 'orc-aceite__resumo');
     var itens = [['negocio', 'Nome do negócio', p.d.negocio], ['vende', 'O que vende', p.d.vende], ['telefone', 'WhatsApp', p.d.telefone]];
     OPCIONAIS.forEach(function (o) {
@@ -194,6 +216,7 @@
     concordo.addEventListener('click', function (ev) { if (li.hasAttribute('data-feito')) return; K.teclado(!!ev && ev.detail === 0); enviar(li, concordo); });
     li.appendChild(lista); li.appendChild(aceite); li.appendChild(link); li.appendChild(concordo);
     K.inserir(li);
+    abrir(pergunta, li);
     K.focar(concordo);
   }
   function corrigirCampo(chave) {
@@ -210,26 +233,39 @@
     p.enviando = true;
     botao.setAttribute('aria-disabled', 'true');
     botao.textContent = 'Enviando…';
+    /* (a faixa da planta, se estiver à vista, se recolhe: o bloco acima dela vai trocar, js/orcamento-planta.js) */
+    li.setAttribute('aria-busy', 'true');
+    $('o-log').dispatchEvent(new CustomEvent('bz:pedido-enviando'));
     var d = p.d;
     return API.detalhes({ negocio: d.negocio, vende: d.vende, telefone: d.telefone, nome: d.nome || '', publico: d.publico || '', diferencial: d.diferencial || '',
       admira: d.admira || '', redes: d.redes, autoriza_redes: !!d.autoriza_redes, aceite: true, aceite_versao: R.ACEITE.versao }).then(function (r) {
+      li.removeAttribute('aria-busy');
       K.fechar(li, null);
       K.bolha('Concordo e quero os modelos');
       p = null;
       doc.dispatchEvent(new CustomEvent('bz:detalhes-enviados', { detail: { codigo: r && r.codigo } }));
     }, function (e) {
+      li.removeAttribute('aria-busy');
       p.enviando = false;
       botao.removeAttribute('aria-disabled');
       botao.textContent = 'Concordo e quero os modelos';
       if (ganchos.sessaoTerminou(e)) { ganchos.avisarSessao(); return; }
       var m = (e && e.message) || FALHA;
-      if (e && e.dados && e.dados.fila_cheia) { K.fechar(li, null); K.fala(m); if ($('o-fila-cheia')) $('o-fila-cheia').hidden = false; p = null; return; }
+      if (e && e.dados && e.dados.fila_cheia) { K.fechar(li, null); K.fala(m); p = null; filaCheia(); return; }
       /* a versão do aceite mudou (aba velha, página em cache): recarregar mostra o texto novo */
       if (e && e.status === 409 && /Recarregue/.test(m)) { K.fala(m); return; }
       var chave = e && e.status === 400 ? campoDaMensagem(m) : null;
       K.fala(m);
       if (chave) { K.fechar(li, null); p.corrigindo = true; corrigirCampo(chave); }
     });
+  }
+  /* a fila encheu no envio: o aviso com o recado (dentro do bloco do contato, como quando a fila já vem cheia do servidor) e o foco nele */
+  function filaCheia() {
+    var aviso = $('o-fila-cheia'), bloco = $('o-contato');
+    if (!aviso) return;
+    aviso.hidden = false;
+    if (bloco) bloco.hidden = false;
+    K.focar(aviso);
   }
   function campoDaMensagem(m) {
     for (var i = 0; i < MENSAGEM_DO_CAMPO.length; i++) if (MENSAGEM_DO_CAMPO[i][0].test(m)) return MENSAGEM_DO_CAMPO[i][1];
@@ -239,12 +275,18 @@
   window.BZPedido = {
     /* "Quero os três modelos" ou o pedir_contato do Zero: os passos começam (uma vez por vez; um segundo toque leva ao que está aberto) */
     iniciar: function () {
-      if (p) { var aberto = $('o-log').querySelector('.orc-toque--campo:not([data-feito]), .orc-toque--aceite:not([data-feito]), .orc-toque--redes:not([data-feito])');
-        if (aberto) { K.focar(aberto.querySelector('input, button')); return; } }
+      var a = passoAberto();
+      if (a) { aoFim(a); K.focar(a.li.querySelector('input, button')); return; }
+      if (p && p.enviando) return;
       p = { d: { negocio: '', vende: '', telefone: '', redes: {}, autoriza_redes: false }, corrigindo: false, enviando: false };
       passoNegocio();
     },
     ativo: function () { return !!p; },
-    configurar: function (g) { if (g && typeof g.sessaoTerminou === 'function' && typeof g.avisarSessao === 'function') ganchos = g; }
+    /* o Zero falou no meio do pedido (ela escreveu na caixa): o passo aberto volta ao fim da conversa, logo abaixo da fala */
+    trazerAoFim: function () { var a = passoAberto(); if (a) aoFim(a); },
+    configurar: function (g) {
+      if (!g || typeof g.sessaoTerminou !== 'function' || typeof g.avisarSessao !== 'function') return;
+      ganchos = { sessaoTerminou: g.sessaoTerminou, avisarSessao: g.avisarSessao, estado: typeof g.estado === 'function' ? g.estado : ganchos.estado };
+    }
   };
 })();
