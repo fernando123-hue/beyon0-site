@@ -284,7 +284,7 @@
 
     function aplicarFinal() {
       var R = inst.R;
-      inst.quadro.classList.remove('plv--pre'); inst.quadro.classList.remove('plv--aj');
+      inst.quadro.classList.remove('plv--pre'); inst.quadro.classList.remove('plv--espera'); inst.quadro.classList.remove('plv--aj');
       Object.keys(R.nos).forEach(function (id) { var x = R.nos[id]; x.lit = true; acender(x); x.li.classList.remove('is-novo'); x.g.classList.remove('is-novo'); });
       R.rotas.forEach(function (x) { classe(x.seta, 'is-ligada'); });
     }

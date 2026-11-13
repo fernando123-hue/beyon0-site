@@ -160,6 +160,25 @@ test('movimento reduzido: o quadro final não fica na espera', () => {
   assert.ok(!quadroDe(raiz)._classes.has('plv--espera'));
 });
 
+test('a espera nunca fica presa: movimento reduzido ligado ou um ajuste chegando antes de a entrada começar levam ao desenho com as rotas (revisão técnica)', () => {
+  {
+    const { w, A, raiz } = ambiente();
+    A.montar(raiz, fx('clinica'), V2({ esboco: () => null }));
+    assert.ok(quadroDe(raiz)._classes.has('plv--espera'));
+    w.BEYON.emit('reduzir', true);   /* o cartão ainda fora da vista: a pessoa liga o movimento reduzido */
+    assert.ok(noDe(raiz, 'led')._classes.has('is-ouro'), 'o quadro final');
+    assert.ok(!quadroDe(raiz)._classes.has('plv--espera'), 'reduzido no meio da espera: sem a espera');
+  }
+  {
+    const { A, raiz } = ambiente();
+    const plano = fx('clinica');
+    A.montar(raiz, plano, V2({ esboco: () => null }));
+    const novo = JSON.parse(JSON.stringify(plano)); novo.etapas[1].id = 'nova-etapa';
+    assert.equal(A.atualizar(novo, {}).ok, true);
+    assert.ok(!quadroDe(raiz)._classes.has('plv--espera'), 'ajuste no meio da espera: sem a espera');
+  }
+});
+
 test('o CSS da espera esconde as rotas (a limpa e a fantasma)', () => {
   const css = fs.readFileSync(new URL('../../css/orcamento-planta.css', import.meta.url), 'utf8');
   assert.match(css, /\.plv--espera \.plv-limpa,\s*\.plv--espera \.plv-fantasma\s*\{\s*visibility:\s*hidden;?\s*\}/);
