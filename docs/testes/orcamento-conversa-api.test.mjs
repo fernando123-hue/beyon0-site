@@ -136,6 +136,20 @@ test('"Mudar": nenhum resto da resposta anterior (o detalhe do Google sai com o 
   assert.equal(b2.fluxo_mudancas, 1);
 });
 
+test('reenviar as mesmas respostas não conta como mudança nem apaga o que o modelo registrou', async () => {
+  const n = navegador(), c = await n.iniciar();
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica odontológica e os pacientes chegam pelo Instagram', respostas: { ...TOQUES, responde: 'dor' } });
+  const descricao = (await briefingDe(c)).negocio.descricao;
+  assert.ok(descricao);
+  for (let i = 0; i < 5; i++) {
+    const r = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Mais um detalhe ' + i, respostas: TOQUES });
+    assert.equal(r.status, 200, 'a ' + (i + 1) + 'ª reenviada: ' + JSON.stringify(r.corpo));
+  }
+  const b = await briefingDe(c);
+  assert.equal(b.fluxo_mudancas, undefined, 'nada mudou');
+  assert.equal(b.negocio.descricao, descricao, 'a descrição fica');
+});
+
 test('a rede da dor não grava um pedido de preço como se fosse a dor', async () => {
   const n = navegador(), c = await n.iniciar();
   const r = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Quanto custa?', respostas: { ...TOQUES, responde: 'dor' } });

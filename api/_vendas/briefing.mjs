@@ -74,9 +74,9 @@ export function limparAtualizacao(a) {
   return limpar(o);
 }
 
-/* (orçamento como conversa, spec 2026-11-13) as chaves que só o código lê e grava: o fluxo novo e o contador das mudanças. Nunca vão ao modelo
+/* (orçamento como conversa, spec 2026-11-13) as chaves que só o código lê e grava: o fluxo novo, o que ela tocou e o contador das mudanças. Nunca vão ao modelo
    (agente.mjs) nem à geração das direções (gerador.mjs). Sem nenhuma, devolve o MESMO objeto */
-export const CHAVES_DO_CODIGO = Object.freeze(['fluxo_conversa', 'fluxo_mudancas']);
+export const CHAVES_DO_CODIGO = Object.freeze(['fluxo_conversa', 'fluxo_mudancas', 'fluxo_toques']);
 export function semChavesDoCodigo(briefing) {
   if (!briefing || typeof briefing !== 'object' || Array.isArray(briefing) || !CHAVES_DO_CODIGO.some(k => Object.hasOwn(briefing, k))) return briefing;
   return Object.fromEntries(Object.entries(briefing).filter(([k]) => !CHAVES_DO_CODIGO.includes(k)));

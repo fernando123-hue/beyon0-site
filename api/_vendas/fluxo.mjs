@@ -110,24 +110,38 @@ const ETAPAS_PACOTE = ['descoberta', 'estimativa'];
    valem no máximo 4 vezes por conversa. O contador mora no briefing (fluxo_mudancas, chave só do código): não depende da janela de mensagens nem do texto */
 const MUDAR_MAX = 4;
 const MUDAR_DEMAIS = 'Você já mudou as respostas algumas vezes. Conte aqui na conversa o que mudou, ou deixe um recado.';
-const CAMPOS_QUE_MUDAM = ['ramo', 'objetivos', 'site_atual', 'material'];
-const mudaOCaso = dados => CAMPOS_QUE_MUDAM.some(k => dados[k] !== undefined);
 const mudancasFeitas = b => (b && Number.isInteger(b.fluxo_mudancas) ? b.fluxo_mudancas : 0);
-/* as respostas tocadas entram no briefing lido no começo do turno: cada campo respondido VENCE (é a resposta explícita dela; as listas são
-   trocadas, nunca somadas) e não deixa resto da resposta anterior (o detalhe "ser achado no Google" sai com o objetivo; a descrição do negócio
-   sai com a troca do ramo). O nome e a cidade, que vêm da conversa, ficam. Marca a conversa como do fluxo novo e conta as mudanças */
+const DETALHE_GOOGLE = 'ser achado no Google';
+const ordenada = l => JSON.stringify([...(l || [])].sort());
+const CAMPOS_TOCADOS = ['ramo', 'objetivos', 'site_atual', 'material'];
+const semChave = (o, chave) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== chave));
+/* um campo tocado é diferente do que ela tocou antes? (compara com fluxo_toques, o que ELA tocou, e não com o briefing, que o modelo também enriquece) */
+function difereDoTocado(k, dados, tocadas) {
+  if (k === 'objetivos') return ordenada(dados.objetivos) !== ordenada(tocadas.objetivos);
+  if (k === 'ramo') return dados.ramo !== tocadas.ramo || (dados.ramo === 'outro' && (dados.outro || '') !== (tocadas.outro || ''));
+  return dados[k] !== tocadas[k];
+}
+/* as respostas tocadas entram no briefing lido no começo do turno. Na 1ª mensagem do fluxo novo, todas. Depois, só o campo que ela MUDOU em relação ao
+   que tinha tocado (reenviar a mesma resposta não mexe em nada, não apaga o que o modelo registrou e não conta): esse vence (é a resposta explícita dela;
+   as listas são trocadas, nunca somadas) e não deixa resto da resposta anterior (o detalhe "ser achado no Google" sai com o objetivo; a descrição do
+   negócio sai com a troca do ramo). O nome e a cidade, que vêm da conversa, ficam. Marca o fluxo novo, guarda os toques e conta as mudanças */
 function fundirRespostas(briefing, dados) {
   const antes = briefing || {};
-  const b = { ...antes };
-  const novo = respostasParaBriefingParcial(dados, dados.situacao ? situacaoDeCodigos(dados.situacao) : null);
+  const primeira = antes.fluxo_conversa !== true;
+  const tocadas = antes.fluxo_toques && typeof antes.fluxo_toques === 'object' ? antes.fluxo_toques : {};
+  const campos = CAMPOS_TOCADOS.filter(k => dados[k] !== undefined && (primeira || difereDoTocado(k, dados, tocadas)));
+  const aplicar = Object.fromEntries(campos.map(k => [k, dados[k]]));
+  if (campos.includes('ramo') && dados.outro) aplicar.outro = dados.outro;
+  const novo = respostasParaBriefingParcial(aplicar, dados.situacao ? situacaoDeCodigos(dados.situacao) : null);
+  let b = { ...antes };
   for (const [k, v] of Object.entries(novo)) {
     b[k] = Array.isArray(v) ? v : (v && typeof v === 'object' ? { ...(b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) ? b[k] : {}), ...v } : v);
   }
-  if (dados.ramo && b.negocio && 'descricao' in b.negocio) b.negocio = Object.fromEntries(Object.entries(b.negocio).filter(([k]) => k !== 'descricao'));
-  if (dados.objetivos && !dados.objetivos.includes('achado_google') && 'objetivo_detalhe' in b) delete b.objetivo_detalhe;
-  if (antes.fluxo_conversa === true && mudaOCaso(dados)) b.fluxo_mudancas = mudancasFeitas(antes) + 1;
-  b.fluxo_conversa = true;
-  return b;
+  if (!primeira && campos.includes('ramo') && b.negocio && 'descricao' in b.negocio) b = { ...b, negocio: semChave(b.negocio, 'descricao') };
+  if (!primeira && campos.includes('objetivos') && !dados.objetivos.includes('achado_google') && b.objetivo_detalhe === DETALHE_GOOGLE) b = semChave(b, 'objetivo_detalhe');
+  const mudou = !primeira && campos.length > 0;
+  const toques = { ...tocadas, ...aplicar };
+  return { briefing: { ...b, fluxo_conversa: true, fluxo_toques: toques, ...(mudou ? { fluxo_mudancas: mudancasFeitas(antes) + 1 } : {}) }, mudou };
 }   /* = app.vendas_registrar_respostas: depois do contato o pacote não muda por aqui */
 const CONFIANCA_FORMULARIO = 0.4;   /* fixa: o formulário dá o começo do briefing; nunca vem do corpo */
 const TABELA_EM_ATUALIZACAO = 'A tabela de valores está em atualização. Deixe um recado para a equipe.';
@@ -318,7 +332,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     /* (fluxo novo) a rede da dor: a mensagem respondeu à pergunta fixa "como os clientes chegam e o que mais dá trabalho" e o modelo não a registrou;
        o código grava a própria resposta dela, redigida (nunca inventa), para o turno do valor não depender do modelo (spec §2) */
     /* (um pedido de preço ou um texto com cara de ordem ao sistema não é a resposta da dor: aí o portão segue pelos dois pedidos de preço) */
-    if (respondeDor && r.briefing && !r.briefing.situacao_atual && !pedeValor(msg) && !pareceInjecao(msg)) {
+    if (respondeDor && r.briefing && !r.briefing.situacao_atual && !pedeValor(msg) && !pareceInjecao(semInvisiveis(msg))) {
       const situacao = limparAtualizacao({ situacao_atual: { como_chegam: redigir(semInvisiveis(msg)) } }).situacao_atual;
       if (situacao) r = { ...r, briefing: { ...r.briefing, situacao_atual: situacao } };
     }
@@ -506,9 +520,10 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
         /* só com o preço aberto: depois do pedido, ninguém reescreve o ramo ou os objetivos que o gerador e o painel leem */
         exigir(ETAPAS_PACOTE.includes(est.conversa.etapa) && precoAberto(est.conversa.etapa, est.pedido?.status), 409, 'Agora o seu orçamento segue pelas etapas abaixo da conversa.');
         if (msg.startsWith(MOLDE_MUDAR)) exigir(ehFalaDoMudar(msg, resp.dados), 400, 'Resposta fora da lista.');
-        if (fluxoConversa(est.conversa.briefing) && mudaOCaso(resp.dados)) exigir(mudancasFeitas(est.conversa.briefing) < MUDAR_MAX, 429, MUDAR_DEMAIS);
+        const fusao = fundirRespostas(est.conversa.briefing, resp.dados);
+        if (fusao.mudou) exigir(mudancasFeitas(est.conversa.briefing) < MUDAR_MAX, 429, MUDAR_DEMAIS);
         if (resp.injecao) await banco('vendas_registrar_evento', { conversa_id: corpo.conversa_id, visitante_id: vid, tipo: 'tentativa_bloqueada' }).catch(() => {});
-        est = { ...est, conversa: { ...est.conversa, briefing: fundirRespostas(est.conversa.briefing, resp.dados) } };
+        est = { ...est, conversa: { ...est.conversa, briefing: fusao.briefing } };
       }
       const respondeDor = !!(resp && resp.dados.responde === 'dor');
       exigir(est.conversa.turnos < TETOS.turnos_por_conversa, 429, 'Esta conversa ficou longa. Deixe um recado para a equipe: seu briefing já está salvo.');
