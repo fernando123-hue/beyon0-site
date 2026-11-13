@@ -140,6 +140,50 @@ test('os números do voo: o grupo sai do ponto do esboço na tela (relativo ao q
   assert.ok(Math.abs(n.x + lx - 50) < 0.2 && Math.abs(n.y + ly - 100) < 0.2, 'o texto sai do canto do texto do esboço: ' + kli);
 });
 
+test('à espera da vista (antes de a entrada começar): nenhuma rota do desenho final aparece sem as estações; ao começar, a espera sai (achado do vídeo da página real, 13/11)', () => {
+  const { w, A, raiz } = ambiente();
+  A.montar(raiz, fx('clinica'), V2({ esboco: () => null }));
+  const q = quadroDe(raiz);
+  assert.ok(q._classes.has('plv--pre'));
+  assert.ok(q._classes.has('plv--espera'), 'esperando a vista: as rotas ficam escondidas');
+  w.mostrar(1);
+  assert.ok(!q._classes.has('plv--espera'), 'a entrada começou: as rotas passam a ser da animação');
+  w.avancar(15000);
+  assert.ok(!q._classes.has('plv--espera'));
+  raiz.porClasse('plv-btn--txt')[0].disparar('click');   /* "Rever a montagem", com o quadro à vista: a entrada recomeça na hora */
+  assert.ok(!quadroDe(raiz)._classes.has('plv--espera'));
+});
+
+test('movimento reduzido: o quadro final não fica na espera', () => {
+  const { A, raiz } = ambiente({ reduzido: true });
+  A.montar(raiz, fx('clinica'), V2());
+  assert.ok(!quadroDe(raiz)._classes.has('plv--espera'));
+});
+
+test('a espera nunca fica presa: movimento reduzido ligado ou um ajuste chegando antes de a entrada começar levam ao desenho com as rotas (revisão técnica)', () => {
+  {
+    const { w, A, raiz } = ambiente();
+    A.montar(raiz, fx('clinica'), V2({ esboco: () => null }));
+    assert.ok(quadroDe(raiz)._classes.has('plv--espera'));
+    w.BEYON.emit('reduzir', true);   /* o cartão ainda fora da vista: a pessoa liga o movimento reduzido */
+    assert.ok(noDe(raiz, 'led')._classes.has('is-ouro'), 'o quadro final');
+    assert.ok(!quadroDe(raiz)._classes.has('plv--espera'), 'reduzido no meio da espera: sem a espera');
+  }
+  {
+    const { A, raiz } = ambiente();
+    const plano = fx('clinica');
+    A.montar(raiz, plano, V2({ esboco: () => null }));
+    const novo = JSON.parse(JSON.stringify(plano)); novo.etapas[1].id = 'nova-etapa';
+    assert.equal(A.atualizar(novo, {}).ok, true);
+    assert.ok(!quadroDe(raiz)._classes.has('plv--espera'), 'ajuste no meio da espera: sem a espera');
+  }
+});
+
+test('o CSS da espera esconde as rotas (a limpa e a fantasma) e os rótulos dos ramos (no computador a faixa entrava com "→ serviço simples" solto na grade)', () => {
+  const css = fs.readFileSync(new URL('../../css/orcamento-planta.css', import.meta.url), 'utf8');
+  assert.match(css, /\.plv--espera \.plv-limpa,\s*\.plv--espera \.plv-fantasma,\s*\.plv--espera \.plv-rots\s*\{\s*visibility:\s*hidden;?\s*\}/);
+});
+
 test('is-voo (o quadro sem recorte enquanto o voo dura) sai também quando a entrada é cancelada antes do fim do voo (ajuste, movimento reduzido)', () => {
   const { w, A, raiz } = ambiente();
   const plano = fx('clinica');

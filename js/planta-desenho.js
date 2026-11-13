@@ -253,6 +253,7 @@
         inst.anims.forEach(function (a) { try { a.pause(); } catch (e) { aviso(e); } });
       }
       inst.iniciada = true; inst.aguardando = false;
+      inst.quadro.classList.remove('plv--espera');
       inst.anims.forEach(function (a) { try { a.play(); } catch (e) { aviso(e); } });
       inst.relogio.iniciar();
     }
@@ -283,7 +284,7 @@
 
     function aplicarFinal() {
       var R = inst.R;
-      inst.quadro.classList.remove('plv--pre'); inst.quadro.classList.remove('plv--aj');
+      inst.quadro.classList.remove('plv--pre'); inst.quadro.classList.remove('plv--espera'); inst.quadro.classList.remove('plv--aj');
       Object.keys(R.nos).forEach(function (id) { var x = R.nos[id]; x.lit = true; acender(x); x.li.classList.remove('is-novo'); x.g.classList.remove('is-novo'); });
       R.rotas.forEach(function (x) { classe(x.seta, 'is-ligada'); });
     }
@@ -502,6 +503,7 @@
       var pre = modo === 'entrada' && animavel;
       inst.R = construirQuadro(inst.quadro, g, inst.plano, { pre: pre, ajustados: ajust });
       if (pre) inst.quadro.classList.add('plv--pre'); else inst.quadro.classList.remove('plv--pre');
+      inst.quadro.classList[pre ? 'add' : 'remove']('plv--espera');   /* até a entrada começar, nenhuma rota sem as estações */
       inst.animada = animavel;
       inst.aguardando = false;
       if (pre) {
