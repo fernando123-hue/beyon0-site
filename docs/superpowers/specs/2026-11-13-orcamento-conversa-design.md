@@ -102,7 +102,7 @@ O "caso entendido" nunca depende do formato nem dos toques práticos, que já vi
 - o `pedePlanta`;
 - o `proximoPasso`;
 - a contagem do plano padrão (`planta.mjs:173-178`);
-- o `caso_entendido` do `estado`.
+- o `valor_liberado` do `estado`.
 
 Assim a planta e o valor nunca saem em turnos diferentes.
 
@@ -115,7 +115,7 @@ Nele:
   4. `estimar`.
 - O `ler_caso` (a leitura do radar) **nunca roda no turno do valor**: ele fica no turno seguinte, para caber nas `MAX_ITERACOES = 4` (`agente.mjs:32`; nesse turno: briefing, planta com uma correção, `estimar`).
 - Se o desenho falhar duas vezes, o plano padrão do nicho entra, como hoje (`fecharTurno`).
-- O `estado` passa a devolver `caso_entendido` (calculado, sem coluna nova), que o cliente usa na liberação do valor.
+- O `estado` passa a devolver `valor_liberado` (calculado, sem coluna nova), que o cliente usa na liberação do valor.
 
 **O servidor garante a ordem.**
 
@@ -287,7 +287,7 @@ O E2E roda os dois modos: com consultor (IA simulada) e com `BZ_SEM_CONSULTOR=1`
    - a ordem do turno do valor, com o `ler_caso` no turno da dor;
    - o simulado;
    - o prompt (`montarSistema`, `consultor.mjs` ~`:168, 172, 200, 209`) e a descrição da ferramenta da planta (`planta.mjs:64`);
-   - `caso_entendido` no `estado`.
+   - `valor_liberado` no `estado`.
 4. **Alarme de custo:** um aviso ao dono quando o custo de IA do dia passar de 80% do teto (`api/_aviso.mjs`, que já existe). Não muda nenhum limite.
 5. **Nada muda** em:
    - `detalhes`, `simular`, pagamentos, Turnstile, as travas de saída e os limites de custo;
@@ -557,7 +557,7 @@ Todos são nível 3, exceto onde dito. Cada um traz teste visto vermelho, revis�
 
 **Do arquiteto:**
 
-- **O turno do valor** ficou mal definido. Os toques práticos passaram para antes da dor, então todos chegam no 1º turno e o valor sai no primeiro turno que começa com o caso entendido (o 1º ou o 2º). O `ler_caso` nunca roda nesse turno, e o `estado` devolve `caso_entendido`.
+- **O turno do valor** ficou mal definido. Os toques práticos passaram para antes da dor, então todos chegam no 1º turno e o valor sai no primeiro turno que começa com o caso entendido (o 1º ou o 2º). O `ler_caso` nunca roda nesse turno, e o `estado` devolve `valor_liberado`.
 - **As travas de texto da planta** recusariam as palavras dela. As origens vão por código, a palavra "Hoje:" é da tela e os campos do "hoje" têm regra própria, com teste.
 - **v2 e v3:** a distinção é por `estrutura` contra `topologia`. O v2 fica só para leitura, o `plantaParaModelo` ganha a forma do v3, o cliente ignora a versão desconhecida e os PRs 4 e 5 entram em sequência.
 - **A fala do "Mudar"** é montada pelo módulo comum de rótulos e conferida pelo servidor, o que mantém a deduplicação.

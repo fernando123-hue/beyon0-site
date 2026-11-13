@@ -129,7 +129,7 @@ function conversa({ mensagens, contexto, ferramentas = [] }) {
      palavras da pessoa e não estima; no turno do valor, recomenda o formato que faltar e desenha a planta (se o código pediu) antes de estimar */
   const passo = typeof estado.proximo_passo === 'string' ? estado.proximo_passo : '';
   const valorEspera = passo.includes(VALOR_ESPERA_NO_PASSO), turnoDoValor = passo.includes(TURNO_DO_VALOR_NO_PASSO);
-  if (valorEspera && !estado.briefing?.situacao_atual && texto.trim().length > 10) atualizacao.situacao_atual = { como_chegam: texto.slice(0, 300) };
+  if (valorEspera && !estado.briefing?.situacao_atual && texto.trim().length > 10 && !/quanto|pre[çc]o|valor/i.test(texto)) atualizacao.situacao_atual = { como_chegam: texto.slice(0, 300) };
   if (turnoDoValor && !estado.briefing?.projeto?.formato && !atualizacao.projeto?.formato) atualizacao.projeto = { ...(atualizacao.projeto || {}), formato: 'institucional' };
   if (turnoDoValor && passo.startsWith('Antes de tudo neste turno, chame desenhar_planta') && ferramentas.some(f => f.name === 'desenhar_planta')) chamadas.push({ id: id(), nome: 'desenhar_planta', entrada: plantaDoDuble(false) });
   if (Object.keys(atualizacao).length) chamadas.push({ id: id(), nome: 'atualizar_briefing', entrada: atualizacao });

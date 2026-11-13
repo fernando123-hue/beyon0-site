@@ -14,7 +14,7 @@
    Pontos de integração do "cérebro" futuro (conhecimento da empresa,
    objeções, histórico): CEREBRO abaixo — hoje vazio, de propósito.
    ========================================================================== */
-import { limparAtualizacao, limparTexto, mesclar, avaliar, prontoParaEstimar } from './briefing.mjs';
+import { limparAtualizacao, limparTexto, mesclar, avaliar, prontoParaEstimar, semChavesDoCodigo } from './briefing.mjs';
 import { IDENTIDADE, montarSistema, ferramentas, proximoPasso, pedePlanta, NOME_PLANTA, ETAPAS_SO_DUVIDAS, FERRAMENTAS_DE_PRECO, precoAberto, fluxoConversa, casoEntendido } from './consultor.mjs';
 import { NOME_LEITURA, resolverLeitura, turnoDaLeituraInicial, leituraParaModelo } from './leitura.mjs';
 import { resolverDesenho, fecharTurno, turnoDaPlantaInicial, semChavesDaPlanta, plantaParaModelo, posicaoDaFala } from './planta.mjs';
@@ -74,13 +74,6 @@ function briefingParaOModelo(briefing, planta, leitura = false, regulado = null)
   /* a leitura de agora (PR 2d): já validada, só as palavras da própria pessoa; o modelo a reenvia inteira mantendo o que vale. Dado, como o resto do bloco */
   const lida = leitura ? leituraParaModelo(briefing, { regulado: !!regulado }) : null;
   return { ...limpo, ...(compacto ? { planta_desenhada: compacto } : {}), ...(lida ? { leitura_atual: lida } : {}) };
-}
-
-/* as chaves que só o código lê (o fluxo novo): o modelo nunca as vê. Sem nenhuma, é o MESMO objeto */
-const CHAVES_DO_CODIGO = ['fluxo_conversa'];
-function semChavesDoCodigo(briefing) {
-  if (!briefing || typeof briefing !== 'object' || !CHAVES_DO_CODIGO.some(k => Object.hasOwn(briefing, k))) return briefing;
-  return Object.fromEntries(Object.entries(briefing).filter(([k]) => !CHAVES_DO_CODIGO.includes(k)));
 }
 
 /* (orçamento como conversa, spec 2026-11-13 §2) o valor está liberado neste turno? Fora do fluxo novo, sempre (a página de hoje segue igual);

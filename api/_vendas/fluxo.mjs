@@ -12,7 +12,8 @@ import { executarTurno, nichoDaSessao } from './agente.mjs';
 import { estimar, LANDING_GRANDE, CHAVE as CHAVE_EXTRA } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
 import { montarEscopo } from './escopo.mjs';
-import { limparMensagem, pareceInjecao, redigir } from './seguranca.mjs';
+import { limparMensagem, pareceInjecao, redigir, semInvisiveis } from './seguranca.mjs';
+import { pedeValor } from './zero.mjs';
 import { ehUuid } from '../_valida-app.mjs';
 import { TETOS, reservaUsd } from '../_ia/config.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
@@ -105,19 +106,26 @@ const canonico = v => (Array.isArray(v) ? v.map(canonico)
   : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canonico(v[k])])) : v);
 const mesmoJson = (a, b) => JSON.stringify(canonico(a)) === JSON.stringify(canonico(b));
 const ETAPAS_PACOTE = ['descoberta', 'estimativa'];
-/* (orçamento como conversa, spec 2026-11-13 §6.1) o "Mudar o que eu respondi" com IA: no máximo 4 por conversa (contadas pelo molde da fala) */
+/* (orçamento como conversa, spec 2026-11-13 §6.1) depois da 1ª mensagem do fluxo novo, as respostas que MUDAM o caso (ramo, objetivos, site, material)
+   valem no máximo 4 vezes por conversa. O contador mora no briefing (fluxo_mudancas, chave só do código): não depende da janela de mensagens nem do texto */
 const MUDAR_MAX = 4;
 const MUDAR_DEMAIS = 'Você já mudou as respostas algumas vezes. Conte aqui na conversa o que mudou, ou deixe um recado.';
-const RESPOSTA_DA_DOR_MAX = 300;
-const contarMudar = mensagens => (mensagens || []).filter(m => m.papel === 'visitante' && String(m.conteudo ?? '').startsWith(MOLDE_MUDAR)).length;
+const CAMPOS_QUE_MUDAM = ['ramo', 'objetivos', 'site_atual', 'material'];
+const mudaOCaso = dados => CAMPOS_QUE_MUDAM.some(k => dados[k] !== undefined);
+const mudancasFeitas = b => (b && Number.isInteger(b.fluxo_mudancas) ? b.fluxo_mudancas : 0);
 /* as respostas tocadas entram no briefing lido no começo do turno: cada campo respondido VENCE (é a resposta explícita dela; as listas são
-   trocadas, nunca somadas); o resto fica. O nome e a cidade do negócio, que vêm da conversa, ficam. Marca a conversa como do fluxo novo */
+   trocadas, nunca somadas) e não deixa resto da resposta anterior (o detalhe "ser achado no Google" sai com o objetivo; a descrição do negócio
+   sai com a troca do ramo). O nome e a cidade, que vêm da conversa, ficam. Marca a conversa como do fluxo novo e conta as mudanças */
 function fundirRespostas(briefing, dados) {
-  const b = { ...(briefing || {}) };
+  const antes = briefing || {};
+  const b = { ...antes };
   const novo = respostasParaBriefingParcial(dados, dados.situacao ? situacaoDeCodigos(dados.situacao) : null);
   for (const [k, v] of Object.entries(novo)) {
     b[k] = Array.isArray(v) ? v : (v && typeof v === 'object' ? { ...(b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) ? b[k] : {}), ...v } : v);
   }
+  if (dados.ramo && b.negocio && 'descricao' in b.negocio) b.negocio = Object.fromEntries(Object.entries(b.negocio).filter(([k]) => k !== 'descricao'));
+  if (dados.objetivos && !dados.objetivos.includes('achado_google') && 'objetivo_detalhe' in b) delete b.objetivo_detalhe;
+  if (antes.fluxo_conversa === true && mudaOCaso(dados)) b.fluxo_mudancas = mudancasFeitas(antes) + 1;
   b.fluxo_conversa = true;
   return b;
 }   /* = app.vendas_registrar_respostas: depois do contato o pacote não muda por aqui */
@@ -309,8 +317,10 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     const soDuvidas = ETAPAS_SO_DUVIDAS.includes(est.conversa.etapa);
     /* (fluxo novo) a rede da dor: a mensagem respondeu à pergunta fixa "como os clientes chegam e o que mais dá trabalho" e o modelo não a registrou;
        o código grava a própria resposta dela, redigida (nunca inventa), para o turno do valor não depender do modelo (spec §2) */
-    if (respondeDor && r.briefing && !r.briefing.situacao_atual) {
-      r = { ...r, briefing: { ...r.briefing, situacao_atual: { como_chegam: redigir(msg).replace(/\s+/g, ' ').trim().slice(0, RESPOSTA_DA_DOR_MAX) } } };
+    /* (um pedido de preço ou um texto com cara de ordem ao sistema não é a resposta da dor: aí o portão segue pelos dois pedidos de preço) */
+    if (respondeDor && r.briefing && !r.briefing.situacao_atual && !pedeValor(msg) && !pareceInjecao(msg)) {
+      const situacao = limparAtualizacao({ situacao_atual: { como_chegam: redigir(semInvisiveis(msg)) } }).situacao_atual;
+      if (situacao) r = { ...r, briefing: { ...r.briefing, situacao_atual: situacao } };
     }
     await banco('vendas_registrar_turno', { conversa_id: conversaId, visitante_id: vid, mensagem_visitante: redigir(msg), mensagem_agente: r.resposta,
       ...(soDuvidas ? {} : { briefing: r.briefing, confianca: r.confianca }), custo_usd: r.custo_usd })
@@ -419,7 +429,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       return { ...e, painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env),
         ...(planta ? { ...(planta.planta ? { planta: planta.planta } : {}), ...(planta.leitura ? { leitura: planta.leitura } : {}), planta_editavel: planta.planta_editavel } : {}),
         /* (fluxo novo, spec §2) a tela segura o valor até o caso ser entendido; fora do fluxo novo a chave não existe (a resposta é a de hoje) */
-        ...(fluxoConversa(briefingBruto) ? { caso_entendido: valorLiberado({ briefing: briefingBruto, estimativa: e.estimativa, mensagens: e.mensagens }) } : {}) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
+        ...(fluxoConversa(briefingBruto) ? { valor_liberado: valorLiberado({ briefing: briefingBruto, estimativa: e.estimativa, mensagens: e.mensagens }) } : {}) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
     },
 
     /* o catálogo público da tabela ativa (o "Quer ajustar?"): só com a sessão e a conversa deste visitante, antes do contato */
@@ -495,10 +505,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       if (resp) {
         /* só com o preço aberto: depois do pedido, ninguém reescreve o ramo ou os objetivos que o gerador e o painel leem */
         exigir(ETAPAS_PACOTE.includes(est.conversa.etapa) && precoAberto(est.conversa.etapa, est.pedido?.status), 409, 'Agora o seu orçamento segue pelas etapas abaixo da conversa.');
-        if (msg.startsWith(MOLDE_MUDAR)) {
-          exigir(ehFalaDoMudar(msg, resp.dados), 400, 'Resposta fora da lista.');
-          exigir(contarMudar(est.mensagens) < MUDAR_MAX, 429, MUDAR_DEMAIS);
-        }
+        if (msg.startsWith(MOLDE_MUDAR)) exigir(ehFalaDoMudar(msg, resp.dados), 400, 'Resposta fora da lista.');
+        if (fluxoConversa(est.conversa.briefing) && mudaOCaso(resp.dados)) exigir(mudancasFeitas(est.conversa.briefing) < MUDAR_MAX, 429, MUDAR_DEMAIS);
         if (resp.injecao) await banco('vendas_registrar_evento', { conversa_id: corpo.conversa_id, visitante_id: vid, tipo: 'tentativa_bloqueada' }).catch(() => {});
         est = { ...est, conversa: { ...est.conversa, briefing: fundirRespostas(est.conversa.briefing, resp.dados) } };
       }

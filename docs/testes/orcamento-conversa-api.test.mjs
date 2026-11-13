@@ -42,7 +42,7 @@ test('fluxo novo: a dor escrita não traz o valor no 1º turno; o turno seguinte
   assert.deepEqual(e1.conversa.briefing.objetivos, ['agendamentos']);
   assert.deepEqual(e1.conversa.briefing.presenca, { site_atual: 'instagram' });
   assert.ok(e1.conversa.briefing.situacao_atual?.como_chegam, 'a dor registrada');
-  assert.equal(e1.caso_entendido, true);
+  assert.equal(e1.valor_liberado, true);
   const t2 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Fica em Niterói' });
   assert.equal(t2.status, 200, JSON.stringify(t2.corpo));
   assert.ok(t2.corpo.estimativa && t2.corpo.estimativa.valor_total > 0, 'o turno do valor estima');
@@ -55,7 +55,7 @@ test('fluxo novo: o modelo que não registra a dor não prende o valor (a rede d
   const t1 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Indicação', respostas: { ...TOQUES, responde: 'dor' } });
   assert.equal(t1.status, 200, JSON.stringify(t1.corpo));
   assert.deepEqual((await briefingDe(c)).situacao_atual, { como_chegam: 'Indicação' });
-  assert.equal((await estadoDe(n, c)).caso_entendido, true);
+  assert.equal((await estadoDe(n, c)).valor_liberado, true);
 });
 
 test('fluxo novo: tocar uma sugestão da dor faz do 1º turno o do valor', async () => {
@@ -81,7 +81,7 @@ test('fluxo de hoje (sem respostas): igual, o valor sai no turno em que dá para
   assert.equal(t.status, 200, JSON.stringify(t.corpo));
   assert.ok(t.corpo.estimativa, 'como hoje');
   const e = await estadoDe(n, c);
-  assert.equal(e.caso_entendido, undefined, 'fora do fluxo novo o estado é o de hoje');
+  assert.equal(e.valor_liberado, undefined, 'fora do fluxo novo o estado é o de hoje');
   assert.equal(e.conversa.briefing.fluxo_conversa, undefined);
 });
 
@@ -113,6 +113,52 @@ test('"Mudar o que eu respondi": só a fala montada vale; o ramo é trocado; no 
   assert.equal((await briefingDe(c)).negocio.segmento, 'serviços', 'o último toque vence');
   const quinta = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Mudei minhas respostas: Beleza', respostas: { ramo: 'beleza' } });
   assert.equal(quinta.status, 429);
+  /* (o teto vale para TODA mensagem que mude o caso, com ou sem a fala do molde) */
+  const disfarcada = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Na verdade é uma loja', respostas: { ramo: 'comercio' } });
+  assert.equal(disfarcada.status, 429);
+  const soSituacao = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Também por indicação', respostas: { situacao: ['indicacao'] } });
+  assert.equal(soSituacao.status, 200, 'a sugestão tocada não muda o caso: não conta');
+});
+
+test('"Mudar": nenhum resto da resposta anterior (o detalhe do Google sai com o objetivo, a descrição sai com o ramo)', async () => {
+  const n = navegador(), c = await n.iniciar();
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica odontológica e os pacientes chegam pelo Instagram',
+    respostas: { ...TOQUES, objetivos: ['agendamentos', 'achado_google'], responde: 'dor' } });
+  const b1 = await briefingDe(c);
+  assert.equal(b1.objetivo_detalhe, 'ser achado no Google');
+  assert.ok(b1.negocio.descricao, 'o dublê registrou a descrição');
+  const r = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Mudei minhas respostas: Beleza · Agendamentos', respostas: { ramo: 'beleza', objetivos: ['agendamentos'] } });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  const b2 = await briefingDe(c);
+  assert.equal(b2.objetivo_detalhe, undefined);
+  assert.deepEqual(b2.objetivos, ['agendamentos']);
+  assert.equal(b2.negocio.segmento, 'beleza');
+  assert.equal(b2.fluxo_mudancas, 1);
+});
+
+test('a rede da dor não grava um pedido de preço como se fosse a dor', async () => {
+  const n = navegador(), c = await n.iniciar();
+  const r = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Quanto custa?', respostas: { ...TOQUES, responde: 'dor' } });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  assert.equal((await briefingDe(c)).situacao_atual, undefined);
+  assert.equal((await estadoDe(n, c)).valor_liberado, false);
+});
+
+test('com a planta ligada: o turno do valor desenha e estima no mesmo turno, nessa ordem de ferramentas', async () => {
+  const comPlanta = { ...deps, env: { BZ_PLANTA: 'ligada' } };
+  const ip = '198.51.100.' + (120 + (++ipSeq));
+  const chamar = async (acao, corpo, token, query = '') => {
+    const r = await atender(new Request(BASE + '/api/vendas?acao=' + acao + query, { method: corpo ? 'POST' : 'GET', body: corpo ? JSON.stringify(corpo) : undefined,
+      headers: { 'x-forwarded-for': ip, ...(corpo ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: 'Bearer ' + token } : {}) } }), {}, corpo ? 'POST' : 'GET', comPlanta);
+    return { status: r.status, corpo: await r.json() };
+  };
+  const s = (await chamar('sessao', {})).corpo;
+  const t = await chamar('mensagem', { conversa_id: s.conversa_id, texto: 'Pelo Instagram; Paciente marca e falta', respostas: { ...TOQUES, situacao: ['instagram', 'falta_consulta'], responde: 'dor' } }, s.token);
+  assert.equal(t.status, 200, JSON.stringify(t.corpo));
+  assert.ok(t.corpo.estimativa, 'o valor saiu');
+  const e = (await chamar('estado', null, s.token, '&conversa=' + s.conversa_id)).corpo;
+  assert.ok(e.planta, 'a planta saiu no mesmo turno, antes do preço');
+  assert.equal(e.valor_liberado, true);
 });
 
 test('o "Outro" com cara de ordem ao sistema não entra no briefing e deixa o evento', async () => {
