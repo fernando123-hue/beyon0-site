@@ -575,7 +575,13 @@ export const SABOTAGENS = [
   { nome: "planta: o corpo grande segue para a forma (o corte de antes da forma some)", fonte: "api/_vendas/planta-esquema.mjs", testes: ['docs/testes/planta-esquema.test.mjs'],
     de: "if (corte) return falha(corte);", para: "if (false) return falha(corte);" },
   { nome: "planta: o gerador das direções lê a planta do briefing", fonte: "api/_vendas/gerador.mjs", testes: ['docs/testes/planta-geracao.test.mjs'],
-    de: "export const briefingParaGeracao = b => (b && typeof b === 'object' && !Array.isArray(b) ? semChavesDaPlanta(b) : {});", para: "export const briefingParaGeracao = b => (b && typeof b === 'object' && !Array.isArray(b) ? b : {});" },
+    de: "export const briefingParaGeracao = b => (b && typeof b === 'object' && !Array.isArray(b) ? semChavesDoCodigo(semChavesDaPlanta(b)) : {});", para: "export const briefingParaGeracao = b => (b && typeof b === 'object' && !Array.isArray(b) ? semChavesDoCodigo(b) : {});" },
+  /* (orçamento como conversa, spec 2026-11-13 §2) o portão do preço: sem a recusa do código, o estimar sai antes de o caso ser entendido */
+  { nome: "conversa: o estimar sai antes de o caso ser entendido (a recusa do código some)", fonte: "api/_vendas/agente.mjs", testes: ['docs/testes/orcamento-conversa.test.mjs', 'docs/testes/orcamento-conversa-api.test.mjs'],
+    de: "} else if (ch.nome === 'estimar' && !liberado) {", para: "} else if (false) {" },
+  /* as respostas tocadas reescrevendo o caso depois do pedido (a trava das etapas de preço aberto some) */
+  { nome: "conversa: as respostas tocadas entram com o preço fechado", fonte: "api/_vendas/fluxo.mjs", testes: ['docs/testes/orcamento-conversa-api.test.mjs'],
+    de: "exigir(ETAPAS_PACOTE.includes(est.conversa.etapa) && precoAberto(est.conversa.etapa, est.pedido?.status), 409,", para: "exigir(true, 409," },
   { nome: "planta: o modelo desenha de novo no mesmo turno (o teto de um plano por turno some)", fonte: "api/_vendas/planta.mjs", testes: ['docs/testes/planta-ferramenta.test.mjs'],
     de: "if (turno.gravou) return recusa('a planta já foi desenhada neste turno; uma por vez');", para: "if (false) return recusa('a planta já foi desenhada neste turno; uma por vez');" },
   { nome: "planta: a 5ª versão é aceita (o teto de versões some)", fonte: "api/_vendas/planta.mjs", testes: ['docs/testes/planta-ferramenta.test.mjs'],
