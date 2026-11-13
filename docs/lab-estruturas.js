@@ -76,13 +76,28 @@
     if (!entram.objetivo) e.push('nenhuma seta chega ao objetivo');
     if (e.length) return e;   /* o resto (camadas) só roda sobre um plano com ids e setas válidos */
     p.nos.forEach(function (n) { if (!saem[n.id] && !entram[n.id]) e.push(n.id + ' solto'); });
-    var lay = camadas(p);
+    var lay = camadas(p), fx = faixas(est, p, lay);
+    /* no celular cada camada é uma linha: 5 linhas é o que cabe nos 440 px (medido com títulos de 2 linhas; a conferência mede de novo) */
+    if (lay.porCamada.length > 5) e.push(est + ': ' + lay.porCamada.length + ' camadas (máximo 5, com o objetivo)');
+    /* duas caixas na mesma camada precisam de faixas diferentes (senão uma cai em cima da outra) */
+    lay.porCamada.forEach(function (ids, i) {
+      if (ids.length < 2) return;
+      var usadas = {};
+      ids.forEach(function (id) { if (fx.f[id] < 0 || usadas[fx.f[id]]) e.push(est + ': camada ' + i + ' sem faixa livre para ' + id); usadas[fx.f[id]] = 1; });
+    });
+    /* a seta que pula camada só passa por uma faixa VAZIA (a linha correria por baixo da caixa do meio) */
+    lay.diretas.forEach(function (x) {
+      var a = lay.camada[x.de], b = lay.camada[x.para], fa = fx.f[x.de], fb = fx.f[x.para], faixa = fa >= 0 ? fa : fb, k;
+      if (b - a < 2) return;
+      if ((fa >= 0 && fb >= 0 && fa !== fb) || faixa < 0) { e.push(est + ': a seta ' + x.de + '→' + x.para + ' pula camada sem faixa própria'); return; }
+      for (k = a + 1; k < b; k++) lay.porCamada[k].forEach(function (id) { if (fx.f[id] < 0 || fx.f[id] === faixa) e.push(est + ': a seta ' + x.de + '→' + x.para + ' passa por baixo de ' + id); });
+    });
     if (est === 'ciclo' && lay.volta.length !== 1) e.push('ciclo: precisa de exatamente 1 seta de volta');
     if (est !== 'ciclo' && lay.volta.length) e.push(est + ': seta de volta só no ciclo');
     if (est === 'ramos' && !p.nos.some(function (n) { return saem[n.id] === 2; })) e.push('ramos: nenhum nó se divide em 2');
     if (est === 'antes_depois' && !(p.nos.some(function (n) { return n.papel === 'trava'; }) && p.nos.some(function (n) { return n.papel === 'site' || n.papel === 'acao'; }))) e.push('antes_depois: falta a trava ou o site');
     if (est === 'caminho' && p.nos.some(function (n) { return saem[n.id] > 1 || entram[n.id] > 1; })) e.push('caminho: não se divide');
-    lay.porCamada.forEach(function (c, i) { if (c.length > 2) e.push(est + ': camada ' + i + ' com ' + c.length + ' nós (máximo 2)'); });
+    lay.porCamada.forEach(function (c, i) { if (c.length > fx.n) e.push(est + ': camada ' + i + ' com ' + c.length + ' nós (máximo ' + fx.n + ')'); });
     return e;
   }
 
@@ -127,15 +142,18 @@
       Object.keys(lay.camada).forEach(function (id) { f[id] = -1; });
       var div = null;
       p.nos.forEach(function (x) { if (!div && lay.diretas.filter(function (s) { return s.de === x.id; }).length === 2) div = x.id; });
+      /* cada ramo pinta o que alcança; o nó alcançado pelos dois (onde os ramos se juntam) volta a ocupar a largura toda */
+      var alcance = {};
       lay.diretas.filter(function (s) { return s.de === div; }).forEach(function (s, i) {
-        var fila = [s.para];
+        var fila = [s.para], visto = {};
         while (fila.length) {
           var id = fila.shift();
-          if (id === 'objetivo' || f[id] !== -1) continue;
-          f[id] = i;
+          if (id === 'objetivo' || visto[id]) continue;
+          visto[id] = 1; alcance[id] = (alcance[id] || 0) + 1; f[id] = i;
           lay.diretas.forEach(function (x) { if (x.de === id) fila.push(x.para); });
         }
       });
+      Object.keys(alcance).forEach(function (id) { if (alcance[id] > 1) f[id] = -1; });
     } else if (est === 'mapa') {
       n = 2;
       /* dentro da camada, a ordem pela média das faixas de quem aponta para o nó (menos cruzamento); empate: a ordem do plano */
@@ -150,6 +168,17 @@
     } else {
       Object.keys(lay.camada).forEach(function (id) { f[id] = 0; });
     }
+    /* numa camada com mais de um nó, o que ocuparia a largura toda vai para a faixa livre (duas origens na entrada dos ramos; a origem ao
+       lado do site no antes/depois). Sem faixa livre, fica -1 e o validador recusa o plano. */
+    if (n > 1) lay.porCamada.forEach(function (ids) {
+      if (ids.length < 2) return;
+      var usadas = {};
+      ids.forEach(function (id) { if (f[id] >= 0) usadas[f[id]] = 1; });
+      ids.forEach(function (id) {
+        if (f[id] >= 0) return;
+        for (var k = 0; k < n; k++) if (!usadas[k]) { f[id] = k; usadas[k] = 1; return; }
+      });
+    });
     return { f: f, n: n };
   }
 
@@ -177,7 +206,7 @@
   }
 
   /* ---------- geometria ---------- */
-  var M = { gapX: 104, gapXJusto: 80, gapY: 36, celGapX: 14, celGapY: 34, celCab: 22, margemVolta: 104, noMax: 224, rotMax: 96 };
+  var M = { gapX: 104, gapXJusto: 80, gapY: 36, celGapX: 14, celGapY: 30, celCab: 22, margemVolta: 104, noMax: 224, rotMax: 96 };
   /* com 5 camadas ou mais o vão encolhe (o rótulo quebra em mais linhas) para a caixa não ficar estreita demais */
   var vaoDe = function (nCam) { return nCam >= 5 ? M.gapXJusto : M.gapX; };
   function ponto(c, tt) {
@@ -266,11 +295,11 @@
         var xa2 = a.x + a.w, xb2 = b.x, ya2 = clamp(b.y + b.h / 2, a.y + 14, a.y + a.h - 14), yb2 = clamp(a.y + a.h / 2, b.y + 14, b.y + b.h - 14), mx = (xa2 + xb2) / 2;
         r.curva = [[xa2, ya2], [mx, ya2], [mx, yb2], [xb2, yb2]];
         var meio = ponto(r.curva, 0.5);
-        r.ponta = 'dir'; r.rot = { x: meio[0], y: meio[1], lado: 'meio', max: Math.min(M.rotMax, xb2 - xa2 - 8) };
+        r.ponta = 'dir'; r.rot = { x: meio[0], y: meio[1], lado: 'meio', max: Math.min(M.rotMax, xb2 - xa2 - 16) };   /* 8 px de linha à vista de cada lado do rótulo */
       }
       return r;
     });
-    return { altura: altura, caixas: cx, setas: setas, nos: nos, ordem: ordem(lay, fx) };
+    return { altura: altura, caixas: cx, setas: setas, nos: nos, ordem: ordem(lay, fx), fx: fx };
   }
   /* a ordem da história: camada, depois faixa */
   function ordem(lay, fx) {
@@ -297,7 +326,7 @@
       /* o rótulo: HTML (quebra de linha de verdade), medido e posto do lado da linha */
       var rot = el('span', 'le-rot' + (r.cinza ? ' le-rot--cinza' : ''), r.s.rotulo);
       rot.setAttribute('aria-hidden', 'true');
-      rot.style.maxWidth = Math.max(60, r.rot.max) + 'px';
+      rot.style.maxWidth = Math.max(48, r.rot.max) + 'px';
       quadro.appendChild(rot);
       var w = rot.offsetWidth, hh = rot.offsetHeight;
       var x = r.rot.lado === 'meio' ? r.rot.x - w / 2 : r.rot.x, y = r.rot.y - hh / 2;
@@ -383,17 +412,16 @@
       quadro.style.height = Math.ceil(comp.altura) + 'px';
       svgEl.setAttribute('width', largura); svgEl.setAttribute('height', Math.ceil(comp.altura));
       if (E.id === 'antes_depois') {
-        /* os títulos das faixas: no celular em cima de cada coluna; no computador em cima de cada faixa */
+        /* os títulos das faixas: no celular no topo do quadro, em cima de cada coluna (o vão reservado; entre as linhas ficam os rótulos das
+           setas); no computador em cima da 1ª caixa de cada faixa (cada faixa tem o seu vão por cima) */
         var hs = quadro.querySelectorAll('.le-cab'), prim = {};
         Object.keys(comp.caixas).forEach(function (id) {
-          var b = comp.caixas[id], f = p.nos.filter(function (n) { return n.id === id; })[0];
-          if (!f || f.papel === 'origem') return;
-          var faixa = CINZA[f.papel] ? 0 : 1;
-          if (!prim[faixa] || b.x < prim[faixa].x || (celular && b.y < prim[faixa].y)) prim[faixa] = b;
+          var b = comp.caixas[id], faixa = comp.fx.f[id];
+          if (faixa >= 0 && (!prim[faixa] || b.x < prim[faixa].x)) prim[faixa] = b;
         });
         Array.prototype.forEach.call(hs, function (h, i) {
           var b = prim[i] || { x: 0, y: M.celCab };
-          h.style.transform = 'translate(' + b.x + 'px,' + (b.y - M.celCab) + 'px)';
+          h.style.transform = 'translate(' + b.x + 'px,' + (celular ? 0 : b.y - M.celCab) + 'px)';
         });
       }
       desenharSetas(quadro, svgEl, comp);

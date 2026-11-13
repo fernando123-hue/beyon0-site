@@ -3,10 +3,32 @@
 // Falha (código 1) quando: o plano não passa no validador; no celular (≤ 430) um quadro passa de 440 px de altura (spec §7.5) ou o objetivo
 // fica fora dele; uma caixa invade outra; um rótulo cobre uma caixa ou outro rótulo; algo sai do quadro; a página rola de lado; erro no console.
 import { chromium } from 'playwright';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import { textoDoPlanoPermitido } from '../api/_vendas/planta-textos.mjs';
+
+/* 1º: todo texto dos casos passa no validador de texto REAL do servidor (o que recusaria o plano em produção). Em `hoje.texto` e
+   `hoje.trava` a spec (§7.3) afrouxa só prazo (palavras de tempo do cotidiano) e marca; preço, promessa e número continuam valendo. */
+const janela = {};
+vm.runInNewContext(fs.readFileSync(new URL('./lab-estruturas-casos.js', import.meta.url), 'utf8'), { window: janela });
+const recusados = [];
+for (const [id, caso] of Object.entries(janela.LAB_ESTRUTURAS_CASOS)) {
+  const conferir = (texto, onde, afrouxa = []) => {
+    const r = textoDoPlanoPermitido(texto);
+    if (!r.ok && !afrouxa.includes(r.motivo)) recusados.push(`${id} ${onde}: "${texto}" (${r.motivo})`);
+  };
+  conferir(caso.hoje.texto, 'hoje.texto', ['prazo', 'marca']); conferir(caso.hoje.trava, 'hoje.trava', ['prazo', 'marca']);
+  conferir(caso.objetivo.titulo, 'objetivo.titulo'); conferir(caso.objetivo.frase, 'objetivo.frase'); conferir(caso.fecho, 'fecho');
+  for (const [est, p] of Object.entries(caso.estruturas)) {
+    p.nos.forEach(n => { conferir(n.titulo, `${est}.${n.id}.titulo`); conferir(n.frase, `${est}.${n.id}.frase`); });
+    p.setas.forEach(x => conferir(x.rotulo, `${est}.${x.de}→${x.para}`));
+  }
+}
+console.log(recusados.length ? 'textos recusados pelo validador do servidor:\n  ✗ ' + recusados.join('\n  ✗ ') : 'textos dos casos: todos passam no validador do servidor ✓');
 const BASE = process.env.BASE || 'http://127.0.0.1:8899', pasta = process.argv[2] || '.';
-const larguras = (process.env.LARGURAS || '390,320,768,1280').split(',').map(Number), casos = (process.env.CASOS || 'clinica,embalagens,loja').split(',');
+const larguras = (process.env.LARGURAS || '390,320,768,1280').split(',').map(Number), casos = (process.env.CASOS || 'clinica,embalagens,loja,limites').split(',');
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
-let falhas = 0;
+let falhas = recusados.length;
 for (const w of larguras) {
   const ctx = await b.newContext({ viewport: { width: w, height: w >= 960 ? 900 : 844 }, deviceScaleFactor: w >= 960 ? 1 : 2 });
   for (const caso of casos) {

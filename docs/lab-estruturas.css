@@ -15,7 +15,7 @@ body { margin: 0; background: var(--bg); color: var(--t2); font-family: var(--sa
 .lab-captura .lab-casos { display: none; }
 .lab-hoje { margin: 0 0 8px; font-size: var(--fs-s); line-height: 1.5; color: var(--t2); }
 .lab-hoje__rot { color: var(--t1); font-weight: 500; }
-.lab-hoje__origens { color: var(--t3); white-space: nowrap; }
+.lab-hoje__origens { color: var(--t3); }
 .lab-erros { color: rgb(var(--ouro-3-rgb)); font: 400 13px/1.5 var(--mono); }
 
 .le-estrutura { padding: 22px 0 6px; border-top: 1px solid var(--line); margin-top: 18px; }
