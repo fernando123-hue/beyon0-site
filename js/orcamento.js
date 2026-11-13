@@ -48,7 +48,7 @@
      diz se há consultor; sem ele (sem chave, ou a configuração não veio), a caixa de texto some e tudo vai por toques */
   var temConsultor = false, perguntasIniciadas = false;
   var configPronta = API.sessaoConfig().then(function (cfg) { temConsultor = !!(cfg && cfg.consultor); }, function () { temConsultor = false; })
-    .then(function () { verConversa(); });
+    .then(function () { Toques.configurar({ consultor: temConsultor }); verConversa(); });
   function verConversa() {
     var aberta = !E || CONVERSA_ABERTA.indexOf(E.conversa.etapa) >= 0;
     mostrar('o-conversa', true);
@@ -92,6 +92,8 @@
     } else if (ultimaSim && !Toques.comConsultor()) mostrarSim(ultimaSim);
   });
   /* a coreografia do turno do valor (spec §2): a fala já entrou; com a planta, o valor espera ela consagrar (js/planta-desenho.js avisa); sem ela, um respiro */
+  /* em dois tempos: ESCUTA já (o aviso da planta pode vir durante a releitura do estado) e devolve armar(), que põe o prazo quando o estado novo
+     diz se há planta (com ela, até PLANTA_MAX_MS; sem ela, o respiro) */
   function coreografiaDoValor() {
     var feito = false, t = null;
     function fim() {
@@ -102,11 +104,11 @@
       Toques.liberarValor();
     }
     document.addEventListener('bz:planta-pronta', fim);
-    t = setTimeout(fim, E && E.planta ? PLANTA_MAX_MS : ESPERA_VALOR_MS);
+    return function armar() { if (!feito) t = setTimeout(fim, E && E.planta ? PLANTA_MAX_MS : ESPERA_VALOR_MS); };
   }
   /* "Quero os três modelos" com o consultor: o pacote é a estimativa do Zero; leva ao contato (o PR 3 traz o pedido para dentro da conversa) */
   document.addEventListener('bz:quero-com-zero', function () { if (!$('o-contato').hidden) irPara('o-contato'); });
-  window.BZOrcConversa = { enviar: function (texto) { return enviar(texto); } };
+  window.BZOrcConversa = { enviar: function (texto) { return enviar(texto); }, anunciar: function (texto) { anunciar(texto); } };
   /* o pacote pede conversa (fora do automático ou acima do limite): nada do preço anterior (valor, prazo, itens) fica
      na tela, e a voz avisa uma vez */
   function semValorAutomatico() {
@@ -360,8 +362,10 @@
     anunciar((r.resposta || 'Entendi.') + (valorNovo ? ' Investimento estimado: ' + valorNovo + '.' : ''));
     if (r.sugestoes_ia && r.sugestoes_ia.length) sugestao(r.sugestoes_ia[0]);
     if (r.diagnostico) mostrar('o-diagnostico', true);
+    /* (a coreografia escuta a planta ANTES da releitura: é o render dela que desenha a planta, e o aviso de pronta não pode passar antes do ouvido) */
+    var armar = reter ? coreografiaDoValor() : null;
     try { await recarregar(); } catch (e) { /* o turno já está gravado; a espera ou a próxima ação atualizam */ }
-    if (reter) coreografiaDoValor();
+    if (armar) armar();
     if (r.pedir_contato && !$('o-contato').hidden) $('o-contato').scrollIntoView({ block: 'start' });   /* (sem tirar o foco: a resposta ainda está sendo lida) */
     return true;
   }
@@ -383,7 +387,13 @@
       if (!$('o-texto').value) $('o-texto').value = texto;
     }
     if (sessaoTerminou(e)) { anunciar(''); avisarSessao(); return gravada; }
-    if (gravada) { anunciar(ultimaDoAgente()); return gravada; }   /* a resposta já está na conversa: nada a refazer */
+    if (gravada) {
+      /* a resposta já está na conversa: nada a refazer. Os toques foram junto, e um valor que veio nesse turno segue a coreografia */
+      Toques.entregues();
+      if (E && E.estimativa && Toques.reterValor(E)) coreografiaDoValor()();
+      anunciar(ultimaDoAgente());
+      return gravada;
+    }
     /* o sinal caiu enquanto o consultor respondia: a tela já mostra o projeto em produção; um erro ali só assustaria
        (revisões do PR 34) */
     if (E && CONVERSA_ABERTA.indexOf(E.conversa.etapa) < 0) { anunciar(''); return gravada; }
@@ -740,8 +750,12 @@
   function conversa() {
     var log = $('o-log'), fica = ficaNoFim(), ultima = null;
     /* refaz as falas; a abertura fixa (o 1º item) e o cartão da planta ficam onde estão (tirá-lo do DOM reiniciaria o desenho) */
-    [].slice.call(log.children).forEach(function (c, i) { if (i > 0 && c !== fica && !c.hasAttribute('data-toque')) log.removeChild(c); });   /* (os toques ficam: são da tela) */
+    /* os toques do começo ficam onde estão (antes das falas do servidor); os TARDIOS (nascidos depois de a conversa ir ao servidor: o "Mudar", uma falha)
+       saem e voltam depois das falas, na ordem em que estavam */
+    var tardios = [].slice.call(log.children).filter(function (c) { return c.hasAttribute('data-toque-tardio'); });
+    [].slice.call(log.children).forEach(function (c, i) { if (i > 0 && c !== fica && (!c.hasAttribute('data-toque') || c.hasAttribute('data-toque-tardio'))) log.removeChild(c); });
     E.mensagens.forEach(function (m) { ultima = msg(m.papel === 'agente' ? 'agente' : 'visitante', m.conteudo, true); });
+    tardios.forEach(function (c) { log.insertBefore(c, ficaNoFim()); });
     rolarConversa(ultima);
     if (E.mensagens.length > 0) esconderAtalhos(); else $('o-atalhos').hidden = Toques.ativo();
   }

@@ -24,7 +24,6 @@
   var FALHA_CALCULO = 'Não consegui calcular agora. Tente de novo ou deixe um recado.';
   var FALHA_GRAVAR = 'Não consegui guardar agora. Tente de novo.';
   var QUERO = 'Quero os três modelos', GUARDANDO = 'Guardando…';
-  var SETAS = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
   /* o que fica parado enquanto o pacote é gravado (nada muda o pedido no meio) */
   var CONTROLES = ['o-ajustar-principais', 'o-ajustar-mais', 'o-x-urgencia', 'o-ajustar-abrir', 'o-p-refazer', 'o-est-sugerido'];
 

@@ -64,7 +64,7 @@ export function criarPagina(inicial = {}) {
   const win = {
     BZOrcamento: API, BZPrevia: po(), BZVisor: po(), BZPerguntas: po(), BZDetalhes: po(), BZEspera: po(), BZAjustes: po(),
     /* (orçamento como conversa) os toques: aqui, uma conversa que já existe, sem passos fixos nem valor retido */
-    BZToques: { iniciar() {}, pendentes: () => null, entregues() {}, atualizar() {}, comConsultor: () => true, ativo: () => false, reterValor: () => false, liberarValor() {}, semConsultor() {}, reabrir() {}, situacao: () => [] },
+    BZToques: { iniciar() {}, configurar() {}, pendentes: () => null, entregues() {}, atualizar() {}, comConsultor: () => true, ativo: () => false, reterValor: () => false, liberarValor() {}, semConsultor() {}, reabrir() {}, situacao: () => [] },
     BZOrcPlanta: { atualizar(E, deps) { capturado.deps = deps; } },
     addEventListener() {}, matchMedia: undefined, BEYON: undefined, document: doc
   };

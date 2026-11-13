@@ -599,7 +599,9 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .orc-op--toque:disabled { cursor: default; }
 .orc-toque[data-feito] { display: none; }
 .orc-toque__pronto { font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
-.orc-toque__pronto:disabled { opacity: .5; cursor: default; }
+.orc-toque__pronto[aria-disabled="true"] { opacity: .6; }   /* (focável e lido: o toque vazio diz o que falta, js/orcamento-toques.js) */
+/* marcado não é só cor (WCAG 1.4.1): o ✓ antes do texto */
+.orc-op--toque[aria-pressed="true"]::before { content: "✓ "; }
 .orc-toque__naosei { min-height: 44px; padding: .4rem 0; background: none; border: 0; color: var(--t2); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 4px; font: inherit; font-size: var(--fs-b); cursor: pointer; }
 .orc-toque__naosei:hover { color: var(--t1); text-decoration-color: var(--ac); }
 .orc-toque__naosei:focus-visible, .orc-toque__pronto:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
