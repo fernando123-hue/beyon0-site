@@ -108,9 +108,19 @@
     return 'Pelo que você contou, quem chega' + (chegadas.length ? ' ' + juntar(chegadas) : ' até você') + ' cai numa página sua que ' + juntar(faz) + '.' + (alivio ? ' ' + alivio : '');
   }
 
+  /* ---------- o texto do aceite (spec §5, cartão 8e), com VERSÃO: a tela manda a versão que mostrou e o servidor só aceita a vigente,
+     gravando a versão e o hash deste texto junto do aceite (LGPD art. 8º §2º: a prova do consentimento é do controlador). Mudou uma
+     vírgula, sobe a versão (um teste fixa o hash da vigente) ---------- */
+  var ACEITE = congelar({
+    versao: 'a1',
+    texto: 'A Beyon Zero guarda estes dados e a nossa conversa para preparar os três modelos e te avisar no WhatsApp quando ficarem prontos. ' +
+      'Não vendemos os seus dados. Usamos empresas que fazem o serviço funcionar (guardar os dados e a inteligência artificial que conversa com você e ajuda a montar os modelos); a lista está em "Como tratamos os dados". ' +
+      'Sem contrato, a conversa é apagada em 2 meses e o contato em 12 meses, ou antes, se você pedir. As redes do negócio, se você passar, são apagadas em 60 dias.'
+  });
+
   return congelar({
     RAMOS: RAMOS, OBJETIVOS: OBJETIVOS, SITE_ATUAL: SITE_ATUAL, MATERIAL: MATERIAL,
     SUGESTOES: SUGESTOES, SUGESTOES_POR_RAMO: SUGESTOES_POR_RAMO,
-    MOLDE_MUDAR: MOLDE_MUDAR, falaDoMudar: falaDoMudar, resumoFixo: resumoFixo
+    MOLDE_MUDAR: MOLDE_MUDAR, falaDoMudar: falaDoMudar, resumoFixo: resumoFixo, ACEITE: ACEITE
   });
 });

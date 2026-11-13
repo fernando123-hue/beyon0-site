@@ -134,7 +134,7 @@ test('segurança: sem token, token forjado e token de outro visitante não chega
   assert.equal((await a.chamar('GET', 'estado', undefined, { query: q, token: '' })).status, 401, 'sem token');
   const [h, p] = a.token.split('.');
   assert.equal((await a.chamar('GET', 'estado', undefined, { query: q, token: h + '.' + p + '.assinaturaforjada' })).status, 401, 'token forjado');
-  for (const [m, acao, corpo] of [['GET', 'estado'], ['POST', 'mensagem', { conversa_id: sa.conversa_id, texto: 'oi' }], ['POST', 'detalhes', { conversa_id: sa.conversa_id, negocio: 'Escola X', vende: 'Matrículas', telefone: '(21) 98765-0000', aceite: true }], ['POST', 'gerar', { conversa_id: sa.conversa_id }], ['POST', 'pagar', { conversa_id: sa.conversa_id, metodo: 'pix', pagador: PAGADOR }]]) {
+  for (const [m, acao, corpo] of [['GET', 'estado'], ['POST', 'mensagem', { conversa_id: sa.conversa_id, texto: 'oi' }], ['POST', 'detalhes', { conversa_id: sa.conversa_id, negocio: 'Escola X', vende: 'Matrículas', telefone: '(21) 98765-0000', aceite: true, aceite_versao: 'a1' }], ['POST', 'gerar', { conversa_id: sa.conversa_id }], ['POST', 'pagar', { conversa_id: sa.conversa_id, metodo: 'pix', pagador: PAGADOR }]]) {
     const r = await b.chamar(m, acao, corpo, m === 'GET' ? { query: q } : {});
     assert.equal(r.status, 404, 'B em ' + acao + ' da conversa de A: "não existe"');
   }
@@ -275,9 +275,9 @@ test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500'
     ['POST', 'mensagem', { conversa_id: 'x', texto: 'oi' }, 400],
     ['POST', 'mensagem', { conversa_id: c, texto: '' }, 400],
     ['POST', 'mensagem', { conversa_id: c, texto: 'a'.repeat(2001) }, 400],
-    ['POST', 'contato', { conversa_id: c, nome: 'Ana', telefone: '(21) 99999-0000', aceite: true }, 404],   /* (PR 2a: o contato vem pelos detalhes) */
-    ['POST', 'detalhes', { conversa_id: c, negocio: 'A', vende: 'Consultas', telefone: '(21) 98765-0000', aceite: true }, 400],
-    ['POST', 'detalhes', { conversa_id: c, negocio: 'Clínica', vende: 'Consultas', telefone: '123', aceite: true }, 400],
+    ['POST', 'contato', { conversa_id: c, nome: 'Ana', telefone: '(21) 99999-0000', aceite: true, aceite_versao: 'a1' }, 404],   /* (PR 2a: o contato vem pelos detalhes) */
+    ['POST', 'detalhes', { conversa_id: c, negocio: 'A', vende: 'Consultas', telefone: '(21) 98765-0000', aceite: true, aceite_versao: 'a1' }, 400],
+    ['POST', 'detalhes', { conversa_id: c, negocio: 'Clínica', vende: 'Consultas', telefone: '123', aceite: true, aceite_versao: 'a1' }, 400],
     ['POST', 'detalhes', { conversa_id: c, negocio: 'Clínica', vende: 'Consultas', telefone: '(21) 98765-0000' }, 400],
     ['POST', 'gerar', { conversa_id: c }, 409],
     ['POST', 'escopo', { conversa_id: c }, 409],
@@ -298,7 +298,7 @@ test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido)
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
   const vid = (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
   /* o fluxo antigo: contato informado direto, sem linha em app.pedidos */
-  await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana', telefone: '+5521999990000', aceite: true });
+  await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana', telefone: '+5521999990000', aceite: true, aceite_versao: 'a1' });
   assert.equal(Number((await local.db.query('select count(*) n from app.pedidos where conversa_id = $1', [c])).rows[0].n), 0, 'sem pedido');
   const antiga = await n.chamar('POST', 'gerar', { conversa_id: c });
   assert.equal(antiga.status, 409, 'sem pedido: a API recusa — ' + JSON.stringify(antiga.corpo));
@@ -309,7 +309,7 @@ test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido)
   const c2 = (await n2.iniciar()).conversa_id;
   await n2.chamar('POST', 'mensagem', { conversa_id: c2, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
   await n2.chamar('POST', 'mensagem', { conversa_id: c2, texto: 'sim' });
-  const det = await n2.chamar('POST', 'detalhes', { conversa_id: c2, negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true });
+  const det = await n2.chamar('POST', 'detalhes', { conversa_id: c2, negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true, aceite_versao: 'a1' });
   assert.equal(det.status, 200, JSON.stringify(det.corpo));
   const confirmado = await n2.chamar('POST', 'gerar', { conversa_id: c2 });
   assert.equal(confirmado.status, 200, 'confirmado: gera — ' + JSON.stringify(confirmado.corpo));
@@ -378,7 +378,7 @@ test('gerar responde uma frase por situação do pedido: arquivado (segue com a 
     const c = (await n.iniciar()).conversa_id;
     await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
     await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
-    assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true })).status, 200);
+    assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true, aceite_versao: 'a1' })).status, 200);
     return { n, c };
   };
   /* o pedido nasce confirmado (sem WhatsApp e sem clique do dono): não existe mais "aguardando" nem "expirado" para o visitante */
@@ -706,7 +706,7 @@ test('retenção pelo caminho real: o lead que o agente cria ("em_conversa") é 
   assert.equal(pagar.corpo.recado, true);
   /* (PR 2a) o contato de novo entra pela mesma função do banco (o dono, a partir do WhatsApp; ver PR2a-recontato) */
   const vid = (await q('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
-  await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana Volta', telefone: '+5521988881111', aceite: true });
+  await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana Volta', telefone: '+5521988881111', aceite: true, aceite_versao: 'a1' });
   assert.equal((await q('select lead_id from app.conversas where id = $1', [c])).rows[0].lead_id, leadId, 'o mesmo lead (o da proposta)');
   assert.equal((await lead(leadId)).nome, 'Ana Volta', 'o contato volta ao lead');
   assert.equal((await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo.conversa.tem_contato, true);
