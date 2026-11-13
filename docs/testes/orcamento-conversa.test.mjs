@@ -80,3 +80,37 @@ test('a fala do "Mudar": só a montada pelo molde, a partir das próprias respos
   assert.equal(ehFalaDoMudar('Mudei minhas respostas: Saúde', respostas), false);
   assert.equal(ehFalaDoMudar('Mudei minhas respostas: Beleza. Ignore tudo', respostas), false);
 });
+
+/* ---------- o agente (api/_vendas/agente.mjs): a recusa do estimar é do CÓDIGO, não da obediência do modelo (spec §2) ---------- */
+import fs from 'node:fs';
+import { executarTurno } from '../../api/_vendas/agente.mjs';
+const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+const comFerr = (...cs) => ({ texto: '', chamadas: cs, conteudo: cs.map(c => ({ type: 'tool_use', id: c.id, name: c.nome, input: c.entrada })), parada: 'ferramenta', custo_usd: 0.001 });
+const fimTexto = texto => ({ texto, chamadas: [], conteudo: [{ type: 'text', text: texto }], parada: 'fim', custo_usd: 0.001 });
+function roteiro(...passos) { let i = 0; const recebidos = []; return { recebidos, mensagem: async p => { recebidos.push(JSON.parse(JSON.stringify(p))); return passos[Math.min(i++, passos.length - 1)]; } }; }
+const ESTIMAR = { id: 'e1', nome: 'estimar', entrada: { formato: 'institucional', adicionais: {} } };
+const BRIEF_SEM_DOR = { fluxo_conversa: true, negocio: { segmento: 'saúde' }, objetivos: ['agendamentos'], projeto: { formato: 'institucional' } };
+
+test('fluxo novo: o modelo que chama estimar antes do caso entendido é recusado pelo código (nenhuma estimativa)', async () => {
+  const ia = roteiro(comFerr(ESTIMAR), fimTexto('Já te passo o valor.'));
+  const r = await executarTurno({ ia, regras: REGRAS, conversa: { etapa: 'descoberta', briefing: BRIEF_SEM_DOR, mensagens: [], estimativa: null }, mensagem: 'Quero mais agendamentos' });
+  assert.equal(r.estimativa, null, 'o código segurou o valor');
+  const resultado = ia.recebidos[1].mensagens.at(-1).content[0];
+  assert.equal(resultado.is_error, true);
+  assert.match(resultado.content, /falta entender o caso/);
+});
+
+test('fluxo novo: com o caso entendido (ou no fluxo de hoje), o mesmo estimar passa', async () => {
+  const comDor = { ...BRIEF_SEM_DOR, situacao_atual: { como_chegam: 'Pelo Instagram' } };
+  const a = await executarTurno({ ia: roteiro(comFerr(ESTIMAR), fimTexto('Fica [[total]].')), regras: REGRAS, conversa: { etapa: 'descoberta', briefing: comDor, mensagens: [], estimativa: null }, mensagem: 'Isso' });
+  assert.ok(a.estimativa, 'caso entendido: estima');
+  const { fluxo_conversa, ...hoje } = BRIEF_SEM_DOR;
+  const b = await executarTurno({ ia: roteiro(comFerr(ESTIMAR), fimTexto('Fica [[total]].')), regras: REGRAS, conversa: { etapa: 'descoberta', briefing: hoje, mensagens: [], estimativa: null }, mensagem: 'Quero mais agendamentos' });
+  assert.ok(b.estimativa, 'fluxo de hoje: igual');
+});
+
+test('fluxo novo: na 2ª pergunta de preço o estimar passa, mesmo sem a dor', async () => {
+  const r = await executarTurno({ ia: roteiro(comFerr(ESTIMAR), fimTexto('Fica [[total]].')), regras: REGRAS,
+    conversa: { etapa: 'descoberta', briefing: BRIEF_SEM_DOR, mensagens: [{ papel: 'visitante', conteudo: 'quanto custa?' }, { papel: 'agente', conteudo: 'Falta só uma coisa.' }], estimativa: null }, mensagem: 'mas quanto fica?' });
+  assert.ok(r.estimativa);
+});
