@@ -150,6 +150,18 @@ test('reenviar as mesmas respostas não conta como mudança nem apaga o que o mo
   assert.equal(b.negocio.descricao, descricao, 'a descrição fica');
 });
 
+test('quem escreveu em vez de tocar e toca depois: o 1º toque de cada campo não conta como mudança nem apaga a descrição', async () => {
+  const n = navegador(), c = await n.iniciar();
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica odontológica e os pacientes chegam pelo Instagram', respostas: {} });
+  const descricao = (await briefingDe(c)).negocio.descricao;
+  const r = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Quero mais agendamentos', respostas: { ramo: 'saude', objetivos: ['agendamentos'] } });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  const b = await briefingDe(c);
+  assert.equal(b.fluxo_mudancas, undefined);
+  assert.equal(b.negocio.descricao, descricao);
+  assert.equal(b.negocio.segmento, 'saúde');
+});
+
 test('a rede da dor não grava um pedido de preço como se fosse a dor', async () => {
   const n = navegador(), c = await n.iniciar();
   const r = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Quanto custa?', respostas: { ...TOQUES, responde: 'dor' } });

@@ -129,17 +129,22 @@ function fundirRespostas(briefing, dados) {
   const antes = briefing || {};
   const primeira = antes.fluxo_conversa !== true;
   const tocadas = antes.fluxo_toques && typeof antes.fluxo_toques === 'object' ? antes.fluxo_toques : {};
-  const campos = CAMPOS_TOCADOS.filter(k => dados[k] !== undefined && (primeira || difereDoTocado(k, dados, tocadas)));
+  /* um campo que ela nunca tinha tocado (escreveu em vez de tocar e tocou depois) entra sem contar como mudança e sem apagar nada */
+  const campos = CAMPOS_TOCADOS.filter(k => dados[k] !== undefined && (primeira || tocadas[k] === undefined || difereDoTocado(k, dados, tocadas)));
+  const trocados = primeira ? [] : campos.filter(k => tocadas[k] !== undefined);
   const aplicar = Object.fromEntries(campos.map(k => [k, dados[k]]));
   if (campos.includes('ramo') && dados.outro) aplicar.outro = dados.outro;
-  const novo = respostasParaBriefingParcial(aplicar, dados.situacao ? situacaoDeCodigos(dados.situacao) : null);
+  /* a situação tocada também só vale quando muda (o reenvio não desfaz o que o modelo refinou) */
+  const situacaoNova = dados.situacao && ordenada(dados.situacao) !== ordenada(tocadas.situacao) ? dados.situacao : null;
+  if (situacaoNova) aplicar.situacao = situacaoNova;
+  const novo = respostasParaBriefingParcial(aplicar, situacaoNova ? situacaoDeCodigos(situacaoNova) : null);
   let b = { ...antes };
   for (const [k, v] of Object.entries(novo)) {
     b[k] = Array.isArray(v) ? v : (v && typeof v === 'object' ? { ...(b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) ? b[k] : {}), ...v } : v);
   }
-  if (!primeira && campos.includes('ramo') && b.negocio && 'descricao' in b.negocio) b = { ...b, negocio: semChave(b.negocio, 'descricao') };
-  if (!primeira && campos.includes('objetivos') && !dados.objetivos.includes('achado_google') && b.objetivo_detalhe === DETALHE_GOOGLE) b = semChave(b, 'objetivo_detalhe');
-  const mudou = !primeira && campos.length > 0;
+  if (trocados.includes('ramo') && b.negocio && 'descricao' in b.negocio) b = { ...b, negocio: semChave(b.negocio, 'descricao') };
+  if (trocados.includes('objetivos') && !dados.objetivos.includes('achado_google') && b.objetivo_detalhe === DETALHE_GOOGLE) b = semChave(b, 'objetivo_detalhe');
+  const mudou = trocados.length > 0;
   const toques = { ...tocadas, ...aplicar };
   return { briefing: { ...b, fluxo_conversa: true, fluxo_toques: toques, ...(mudou ? { fluxo_mudancas: mudancasFeitas(antes) + 1 } : {}) }, mudou };
 }   /* = app.vendas_registrar_respostas: depois do contato o pacote não muda por aqui */
