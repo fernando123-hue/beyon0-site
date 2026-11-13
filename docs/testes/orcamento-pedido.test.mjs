@@ -278,13 +278,28 @@ test('outro 409 (o pedido já entrou por outra aba): o cartão sai, o Zero diz o
   assert.ok(!p.P.ativo());
 });
 
-test('erro 400 do servidor: a fala do erro é a que se anuncia (a pergunta do passo reaberto vem pelo foco, sem anúncio por cima)', async () => {
+test('erro 400 do servidor: o erro fica preso ao campo reaberto (alerta e aria-invalid), sem anúncio de fala por cima', async () => {
   const p = montar({ detalhes: async () => { throw Object.assign(new Error('Informe o seu WhatsApp com DDD.'), { status: 400 }); } });
   ateCartao(p);
+  const antes = p.anuncios.length;
   p.botao('Concordo e quero os modelos').clicar();
   await tique();
-  assert.equal(p.anuncios.at(-1), 'Zero: Informe o seu WhatsApp com DDD.');
-  assert.equal(p.doc.activeElement, p.caixa());
+  assert.deepEqual(p.anuncios.slice(antes), ['Enviando o seu pedido…'], 'nem a fala do erro nem a pergunta passam pela região viva');
+  const caixa = p.caixa(), erro = p.aberto('.orc-toque--campo').querySelector('.orc-toque__erro-campo');
+  assert.equal(p.doc.activeElement, caixa);
+  assert.equal(caixa.getAttribute('aria-invalid'), 'true');
+  assert.equal(caixa.getAttribute('aria-describedby'), erro.id);
+  await depoisDoErro();
+  assert.equal(erro.textContent, 'Informe o seu WhatsApp com DDD.');
+});
+
+test('erro corrigido antes do tique: o texto velho não volta', async () => {
+  const p = montar();
+  p.P.iniciar();
+  p.seguir('B');
+  p.caixa().digitar('Padaria');
+  await depoisDoErro();
+  assert.equal(p.aberto('.orc-toque--campo').querySelector('.orc-toque__erro-campo').textContent, '');
 });
 
 test('fila cheia: a fala do Zero, o aviso da página aparece e o pedido termina', async () => {

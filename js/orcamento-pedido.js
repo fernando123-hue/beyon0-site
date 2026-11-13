@@ -33,7 +33,10 @@
   /* o erro de um passo: o nó do alerta aparece primeiro e o texto entra no tique seguinte (alguns leitores de tela não anunciam um alerta que já nasce
      com o texto; e o mesmo erro repetido também é lido) */
   var ERRO_MS = 50;
-  function mostrarErro(erro, texto) { erro.textContent = '\u00a0'; setTimeout(function () { erro.textContent = texto; }, ERRO_MS); }
+  function mostrarErro(erro, texto) {
+    erro.textContent = '\u00a0';
+    setTimeout(function () { if (erro.textContent === '\u00a0') erro.textContent = texto; }, ERRO_MS);   /* (corrigido antes do tique: o erro velho não volta) */
+  }
 
   function limpo(v, max) { return String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max); }
   var digitos = function (v) { return String(v || '').replace(/\D/g, ''); };
@@ -287,8 +290,12 @@
       /* outro 409 (o pedido já entrou por outra aba, ou a resposta se perdeu): o cartão sai e a página relê o estado, que mostra o que valeu */
       if (e && e.status === 409) { K.fechar(li, null); K.fala(m); p = null; ganchos.reler(); return; }
       var chave = e && e.status === 400 ? campoDaMensagem(m) : null;
-      K.fala(m);
-      if (chave) { K.fechar(li, null); p.corrigindo = true; corrigirCampo(chave); }
+      if (!chave) { K.fala(m); return; }
+      /* o erro do servidor fica na conversa (fala) e PRESO ao campo reaberto (alerta, aria-invalid): o leitor de tela ouve o alerta mesmo com o foco
+         mudando, e a fala não é anunciada por cima dele */
+      K.fala(m, true);
+      K.fechar(li, null); p.corrigindo = true; corrigirCampo(chave);
+      erroNoPasso(m);
     });
   }
   /* a fila encheu no envio: o aviso com o recado (dentro do bloco do contato, como quando a fila já vem cheia do servidor) e o foco nele */
@@ -299,6 +306,12 @@
     if (bloco) bloco.hidden = false;
     if (typeof aviso.scrollIntoView === 'function') aviso.scrollIntoView({ block: 'center' });   /* (o aviso fica abaixo da conversa: o foco não pode cair fora da tela) */
     K.focar(aviso);
+  }
+  function erroNoPasso(m) {
+    var a = passoAberto(), erro = a && a.li.querySelector('.orc-toque__erro-campo'), alvo = a && a.li.querySelector('input');
+    if (!erro) return;
+    mostrarErro(erro, m);
+    if (alvo) { alvo.setAttribute('aria-invalid', 'true'); alvo.setAttribute('aria-describedby', erro.id); }
   }
   function campoDaMensagem(m) {
     for (var i = 0; i < MENSAGEM_DO_CAMPO.length; i++) if (MENSAGEM_DO_CAMPO[i][0].test(m)) return MENSAGEM_DO_CAMPO[i][1];
