@@ -222,8 +222,8 @@ test('animado de ponta a ponta: a luz acende as caixas na ordem, o ouro vem só 
   const plano = fx('clinica');
   A.montar(raiz, plano, {});
   w.mostrar(1);
-  /* no meio do caminho: algumas acesas, o LED ainda não */
-  w.avancar(3500);
+  /* no meio do caminho (a entrada da planta viva v2 leva ~3,3 s: reorganiza em ~1 s e a luz corre em 2,3 s): algumas acesas, o LED ainda não */
+  w.avancar(2000);
   const acesas = quadroDe(raiz).achar((n) => n._classes.has('plv-no') && aceso(n)).length;
   assert.ok(acesas >= 2 && acesas < 10, 'acendendo aos poucos: ' + acesas);
   assert.ok(!noDe(raiz, 'led')._classes.has('is-ouro'), 'o ouro ainda não');

@@ -36,6 +36,8 @@
 /* ---- o quadro: a altura vem do JS (alturaReservada) no mesmo instante em que o quadro nasce ---- */
 .plv-quadro { position: relative; border: 1px solid var(--line); border-radius: var(--raio); background: var(--s1); overflow: hidden; contain: layout paint; }
 .plv-svg { position: absolute; left: 0; top: 0; max-width: none; }
+/* a consagração da planta viva v2: as estações voam do esboço, que fica fora do quadro; enquanto o voo dura (~1 s) nada o corta */
+.plv-quadro.is-voo, .plv-quadro.is-voo .plv-svg { overflow: visible; contain: none; }
 .plv-lista, .plv-rots { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; pointer-events: none; }
 .plv-grade { fill: none; stroke: rgb(205 212 212 / .05); stroke-width: 1; }
 
