@@ -1,0 +1,77 @@
+/* Laboratório da planta viva v2: a página (barra, conversa, entrada, painel) e o ESBOÇO (classes lv-). O quadro final é o do módulo real
+   (css/orcamento-planta.css, classes plv-) e o do esboço é o de produção (css/planta-esboco.css); aqui só a página e o que a consagração precisa a mais (o voo sai do quadro). Mesmas regras do site: sem
+   desfoque, sem sombra, sem gradiente; traço de 1 px e cor chapada; movimento contínuo só em transform e opacity; geometria em px. */
+body { margin: 0; background: var(--bg); color: var(--t2); font-family: var(--sans); }
+
+/* ---- a barra do laboratório (some com ?captura=1: aí fica só a marca, como a página) ---- */
+.lab-barra { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+.lab-kicker { margin: 0 0 8px; font: 500 var(--fs-rotulo)/16px var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-3); }
+.lab-marca { display: none; margin: 0; font: 500 var(--fs-rotulo)/16px var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.lab-marca span { color: var(--t1); }
+.lab-ctrl { display: flex; flex-wrap: wrap; gap: 6px; }
+.lab-ctrl .plv-btn { min-height: 36px; padding: .35rem .7rem; }
+.lab-ctrl .plv-btn[aria-pressed="true"][data-nicho] { border-color: var(--ac); color: var(--ac); }
+.lab-captura .lab-kicker, .lab-captura .lab-ctrl { display: none; }
+.lab-captura .lab-marca { display: block; }
+.lab-captura .lab-barra { padding: 14px 16px; }
+
+/* ---- a conversa (as regras de .msg e .orc-pensando copiadas de css/orcamento.css, para o lab não carregar a página inteira) ---- */
+.palco { max-width: 1216px; margin: 0 auto; }
+.conversa__log { padding: 18px 16px 8px; }
+.conversa__log:focus { outline: none; }
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .8rem; }
+.msg { max-width: 92%; font-size: var(--fs-b); line-height: 1.55; }
+.msg p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; text-wrap: pretty; }
+.msg--agente { align-self: flex-start; color: var(--t1); padding-left: .8rem; border-left: 1px solid var(--line-hi); }
+.msg--visitante { align-self: flex-end; color: var(--t1); background: var(--s2); border: 1px solid var(--line); border-radius: var(--raio); padding: .6rem .8rem; }
+.msg--entra { animation: lv-msg .35s var(--ease) both; }
+@keyframes lv-msg { from { opacity: 0; transform: translateY(6px); } }
+.orc-pensando { display: flex; align-items: center; gap: .7rem; font-family: var(--mono); font-size: var(--fs-ctrl); color: var(--t2); }
+.orc-pensando__fio { position: relative; width: 48px; height: 1px; background: var(--line-2); overflow: hidden; }
+.orc-pensando__fio::after { content: ""; position: absolute; inset: 0; background: var(--ac); transform: translateX(-100%); animation: orc-fio 1.2s var(--ease-io) infinite; }
+@keyframes orc-fio { to { transform: translateX(100%); } }
+.lv-item { align-self: stretch; margin-top: .4rem; }
+
+.entrada { position: sticky; bottom: 0; z-index: 3; display: flex; gap: 8px; padding: 10px 16px 12px; background: var(--bg); border-top: 1px solid var(--line); }
+.entrada__campo { flex: 1; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--s1); color: var(--t1); font: 400 var(--fs-b)/1.2 var(--sans); }
+.entrada__campo::placeholder { color: var(--t3); }
+.entrada__enviar { flex: 0 0 auto; }
+
+/* a consagração: o quadro final é o do módulo real; enquanto as estações voam do esboço, nada corta o voo */
+/* a nota real reserva altura para trocar a nota padrão pela do modelo; aqui só há uma nota, então sem vão */
+.lv-nota { margin: 12px 0 0; min-height: 0; }
+.lv-final.is-voo, .lv-final.is-voo .plv-svg { overflow: visible; contain: none; }
+/* o quadro final montado antes da consagração: na página, com estilo e layout prontos, mas sem ocupar lugar nem aparecer */
+.lv-final.lv-escondido { position: absolute; left: 0; right: 0; top: 0; visibility: hidden; pointer-events: none; }
+.lv-final .plv-no.lv-voa { opacity: 1; }
+/* as rotas ficam apagadas até a luz passar (as animações da luz nascem um pouco depois da troca) */
+.lv-final.plv--pre .plv-limpa { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+/* o rótulo do objetivo voa à vista (o CSS real esconde a ponta ainda apagada) e só vira ouro quando a luz chega */
+.lv-final.plv--pre .plv-ponta.lv-voa > * { opacity: 1; transform: none; }
+.is-consagrada .plv-acoes { margin-top: 10px; }
+.is-consagrada .lv-leitura { margin-top: 12px; }
+
+/* ---- celular primeiro: a conversa rola com a página, a planta é um item da conversa, a entrada fica presa embaixo ---- */
+.painel { display: none; }
+
+/* ---- computador: a conversa à esquerda, a planta no painel ao lado; na consagração a planta abre na faixa larga ---- */
+@media (min-width: 960px) {
+  .lab-barra { padding: 14px 32px 10px; }
+  .lab-captura .lab-barra { padding: 16px 32px; }
+  .palco { display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 32px; padding: 0 32px; height: calc(100vh - var(--lab-barra, 49px)); box-sizing: border-box; }
+  .conversa { display: flex; flex-direction: column; min-height: 0; }
+  .conversa__log { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 8px 12px 0; }
+  .entrada { position: static; padding: 12px 0 16px; }
+  .painel { display: block; min-height: 0; overflow-y: auto; padding: 22px 0 16px; }
+  .palco.is-faixa { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; gap: 16px; height: auto; }
+  .palco.is-faixa .conversa__log { padding-top: 14px; overflow: visible; }
+  /* na faixa larga a conversa fica só com a última fala do Zero (a que apresenta a planta), inteira, sem tira cortada */
+  .palco.is-faixa .log > li:not(:last-child) { display: none; }
+  .palco.is-faixa .entrada { display: none; }
+  .palco.is-faixa .painel { overflow: visible; padding-top: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .msg--entra, .orc-pensando__fio::after { animation: none !important; transition: none !important; }
+}
+html.menos-movimento .msg--entra { animation: none !important; transition: none !important; }

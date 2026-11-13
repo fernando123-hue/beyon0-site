@@ -24,6 +24,10 @@ function elemento(id) {
     addEventListener(t, f) { (escutas[t] = escutas[t] || []).push(f); },
     disparar(t, ev) { (escutas[t] || []).forEach((f) => f(ev || { preventDefault() {}, stopPropagation() {}, target: this })); },
     appendChild(c) { this.children.push(c); this.firstElementChild = this.firstElementChild || c; return c; },
+    insertBefore(c, ref) { const i = ref ? this.children.indexOf(ref) : -1; if (i < 0) return this.appendChild(c); this.children.splice(i, 0, c); this.firstElementChild = this.children[0]; return c; },
+    removeChild(c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); this.firstElementChild = this.children[0] || null; return c; },
+    get lastElementChild() { return this.children[this.children.length - 1] || null; },
+    getBoundingClientRect() { return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 }; },
     remove() { this.isConnected = false; },
     setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }, removeAttribute(k) { delete this.attrs[k]; }, hasAttribute(k) { return k in this.attrs; },
     contains: () => false, focus() {}, scrollIntoView() {}, querySelector: () => null, querySelectorAll: () => [], closest: () => null, matches: () => false

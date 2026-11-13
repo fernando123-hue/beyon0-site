@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Laboratório · Planta viva v2 (o poder do Zero)</title>
+  <link rel="preload" href="/assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/css/tokens.css" />
+  <link rel="stylesheet" href="/css/orcamento-planta.css" />
+  <link rel="stylesheet" href="/css/planta-esboco.css" />
+  <link rel="stylesheet" href="/docs/lab-planta-v2.css" />
+  <script src="/js/orcamento-planta-forma.js" defer></script>
+  <script src="/js/planta-pecas.js" defer></script>
+  <script src="/js/planta-layout.js" defer></script>
+  <script src="/js/planta-desenho.js" defer></script>
+  <script src="/js/planta-cresce.js" defer></script>
+  <script src="/docs/lab-planta-v2-roteiro.js" defer></script>
+  <script src="/js/planta-som.js" defer></script>
+  <script src="/docs/lab-planta-v2-som.js" defer></script>
+  <script src="/js/planta-relogio.js" defer></script>
+  <script src="/js/planta-esboco.js" defer></script>
+  <script src="/js/planta-consagra.js" defer></script>
+  <script src="/docs/lab-planta-v2.js" defer></script>
+</head>
+<body>
+  <!-- Laboratório da planta viva v2 (fora do deploy: docs/ não entra em cloudflare/montar-publico.mjs). Direção: docs/design/planta-espetaculo-2026-11-12.md.
+       Parâmetros: ?nicho=clinica|servico|loja  &auto=1 (o roteiro anda sozinho, digitando as falas)  &captura=1 (sem os controles do laboratório)
+       &passo=N (já mostra o estado depois de N turnos; 7 = consagrada)  &ritmo=0.5..2 (velocidade do roteiro)  &semplanta=1 (a conversa sem a planta: o A/B das medidas)
+       &estatico=1 (html.menos-movimento) -->
+  <header class="lab-barra">
+    <p class="lab-kicker">Laboratório · Planta viva v2</p>
+    <p class="lab-marca"><span>Beyon Zero</span> · Orçamento</p>
+    <div class="lab-ctrl" role="group" aria-label="Controles do laboratório">
+      <button type="button" class="plv-btn" data-nicho="clinica" aria-pressed="false">Clínica</button>
+      <button type="button" class="plv-btn" data-nicho="servico" aria-pressed="false">Serviço</button>
+      <button type="button" class="plv-btn" data-nicho="loja" aria-pressed="false">Loja</button>
+      <button type="button" class="plv-btn plv-btn--txt" data-acao="auto">Tocar sozinho</button>
+      <button type="button" class="plv-btn plv-btn--txt" data-som aria-pressed="true">Som ligado</button>
+    </div>
+  </header>
+  <main class="palco" id="palco">
+    <section class="conversa" aria-label="Conversa com o Zero">
+      <div class="conversa__log" id="log-caixa" tabindex="0" aria-label="Mensagens">
+        <ol class="log" id="log" aria-live="polite"></ol>
+      </div>
+      <form class="entrada" id="entrada" autocomplete="off">
+        <label class="lv-sr" for="campo">Sua mensagem</label>
+        <input class="entrada__campo" id="campo" type="text" readonly placeholder="Escreva para o Zero" />
+        <button type="submit" class="plv-btn plv-btn--primario entrada__enviar">Enviar</button>
+      </form>
+    </section>
+    <aside class="painel" id="painel" aria-label="A planta do seu site"></aside>
+  </main>
+</body>
+</html>

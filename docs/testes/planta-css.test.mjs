@@ -123,3 +123,11 @@ test('(b) abaixo de 360 px o título das caixas é de 12 px (13 px quebra em 3 l
   assert.match(limpo, /@media \(max-width: 359px\)\s*\{\s*\.plv-tit\s*\{\s*font-size:\s*12px/);
   assert.match(limpo, /\.plv-est\.plv-lin3 \.plv-tit\s*\{[^}]*line-clamp:\s*3/);
 });
+
+test('o CSS do esboço da planta v2 (css/planta-esboco.css) segue as mesmas regras: sem desfoque nem brilho, e os @keyframes só mexem em transform e opacity', () => {
+  const esboco = fs.readFileSync(new URL('../../css/planta-esboco.css', import.meta.url), 'utf8');
+  assert.deepEqual(achados(esboco), []);
+  const quadros = [...semComentarios(esboco).matchAll(/@keyframes\s+[\w-]+\s*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g)].map((m) => m[1]);
+  assert.ok(quadros.length > 0, 'achou os @keyframes');
+  for (const q of quadros) for (const [, prop] of q.matchAll(/([a-z-]+)\s*:/g)) assert.ok(['transform', 'opacity'].includes(prop), 'propriedade animada: ' + prop);
+});
