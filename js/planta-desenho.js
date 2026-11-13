@@ -230,6 +230,7 @@
       inst.relogio.encerrar();
       inst.anims.forEach(function (a) { try { a.cancel(); } catch (e) { aviso(e); } });
       inst.anims = []; inst.pausadas = []; inst.vida = []; inst.iniciada = false; inst.adiado = false;
+      inst.quadro.classList.remove('is-voo');   /* a entrada cancelada no meio do voo (ajuste, movimento reduzido, "Rever") não deixa o quadro sem recorte */
     }
     function pausarTudo() {
       if (!inst) return;
@@ -375,7 +376,6 @@
             classe(x.seta, 'is-ligada');
             var alvo = x.r.alvo ? R.nos[x.r.alvo] : null;
             if (!alvo || alvo.lit) return;
-            if (x.r.alvo === 'nucleo') R.volta = true;
             ligar(x.r.alvo);
             if (alvo.n.ponta === 'led') { som('ouro'); leituraDe('led'); } else if (!alvo.n.ponta) som('passa');
           });

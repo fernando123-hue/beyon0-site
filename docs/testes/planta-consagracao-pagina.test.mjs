@@ -23,7 +23,7 @@ const Faixa = require('../../js/orcamento-planta.js');
 const Ligacao = require('../../js/orcamento-planta-esboco.js');
 const fx = (n) => JSON.parse(fs.readFileSync(new URL('./fixtures/planta/' + n + '.json', import.meta.url), 'utf8'));
 
-function ambiente({ largura = 390 } = {}) {
+function ambiente({ largura = 390, recusar = false } = {}) {
   const w = criarJanela({ largura });
   const doc = w.document;
   const ids = {};
@@ -52,7 +52,7 @@ function ambiente({ largura = 390 } = {}) {
   const sons = [];
   const fonte = {
     'js/orcamento-planta-forma.js': () => { w.BZPlantaForma = Forma; }, 'js/planta-pecas.js': () => { w.BZPlantaPecas = Pecas; },
-    'js/planta-layout.js': () => { w.BZPlantaLayout = Layout; }, 'js/planta-desenho.js': () => { w.BZPlanta = Desenho.criar(w); },
+    'js/planta-layout.js': () => { w.BZPlantaLayout = Layout; }, 'js/planta-desenho.js': () => { w.BZPlanta = Desenho.criar(w); if (recusar) w.BZPlanta.montar = () => ({ ok: false, motivos: ['sem_largura'] }); },
     'js/planta-cresce.js': () => { w.BZPlantaCresce = Cresce; }, 'js/planta-relogio.js': () => { w.BZPlantaRelogio = Relogio.para(w); },
     'js/planta-som.js': () => { w.BZPlantaSom = { tocar: (n) => sons.push(n), mostrarBotoes() {}, preparar() {} }; },
     'js/planta-esboco.js': () => { w.BZPlantaEsboco = Esboco.para(w); }
@@ -195,4 +195,66 @@ test('computador: com o esboço à vista quando a entrada começa, o voo sai del
   amb.w.mostrar(1);
   const voos = amb.faixa.achar((n) => n._classes && n._classes.has('plv-mov')).filter((m) => m.animacoes.some((a) => /scale\(/.test(a.keyframes[0].transform || '')));
   assert.ok(voos.length >= 3, 'voou: ' + voos.length);
+});
+
+function consagrado(amb) {
+  comEsboco(amb);
+  amb.render(estado(3, true)); ate(amb, 20); amb.render(estado(3, true));
+  amb.w.mostrar(1); ate(amb, 15000);
+  return cartao(amb);
+}
+const plv = (li) => li.porClasse('plv')[0];
+
+test('celular: uma 2ª versão do plano (ajuste) é desenhada NO MESMO cartão, sem montar de novo nem abrir a faixa', () => {
+  const amb = ambiente();
+  const li = consagrado(amb);
+  const antes = plv(li);
+  const E = estado(4, true); E.planta = { versao: 2, origem: 'modelo', n_mensagens: E.mensagens.length - 1, plano: fx('clinica') };
+  E.planta.plano.etapas[1].id = 'nova-etapa';
+  amb.render(E);
+  assert.ok(plv(cartao(amb)) === antes, 'o mesmo desenho, ajustado');
+  assert.equal(amb.faixa.hidden, true);
+  ate(amb, 8000);
+  assert.ok(cartao(amb).achar((n) => n.attrs && n.attrs['data-id'] === 'nova-etapa').length > 0, 'a etapa nova está no cartão');
+});
+
+test('celular: "Rever a montagem" refaz no cartão', () => {
+  const amb = ambiente();
+  const li = consagrado(amb);
+  li.porClasse('plv-btn--txt')[0].disparar('click');
+  amb.w.mostrar(1); ate(amb, 15000);
+  assert.equal(li.porClasse('plv-leitura__tag')[0].textContent, 'Planta pronta');
+  assert.equal(amb.faixa.hidden, true);
+});
+
+test('celular: se o desenho recusa a montagem, o cartão volta ao esboço e nada fica pela metade', () => {
+  const amb = ambiente({ recusar: true });
+  comEsboco(amb);
+  amb.render(estado(3, true)); ate(amb, 20);
+  amb.render(estado(3, true));
+  assert.equal(cartao(amb).porClasse('plv').length, 0);
+  assert.equal(cartao(amb).porClasse('lv').length, 1, 'o esboço voltou');
+  assert.equal(amb.faixa.hidden, true);
+  assert.ok(amb.avisos.some((a) => /montar recusou/.test(a)), 'o aviso [beyon]');
+});
+
+test('celular: esconder (a planta some) solta os ouvintes da caixa e o tempo da rolagem automática', () => {
+  const amb = ambiente();
+  comEsboco(amb);
+  amb.render(estado(3, true)); ate(amb, 20); amb.render(estado(3, true));
+  assert.ok((amb.caixa.ouvintes.wheel || []).length > 0, 'ouve a mão na caixa');
+  amb.render(estado(3, false));
+  assert.equal((amb.caixa.ouvintes.wheel || []).length, 0);
+  assert.equal((amb.caixa.ouvintes.touchmove || []).length, 0);
+  const st = amb.caixa.scrollTop;
+  ate(amb, 2000);
+  assert.equal(amb.caixa.scrollTop, st, 'a rolagem automática agendada não acontece mais');
+});
+
+test('a planta consagrada fica onde nasceu ao cruzar 960 px (no cartão continua no cartão; a faixa não abre): o módulo refaz na largura nova ali mesmo', () => {
+  const amb = ambiente();
+  const li = consagrado(amb);
+  amb.w.innerWidth = 1280; amb.w.disparar('resize'); ate(amb, 400);
+  assert.ok(plv(li), 'segue no cartão');
+  assert.equal(amb.faixa.hidden, true);
 });

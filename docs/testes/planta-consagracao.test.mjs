@@ -12,6 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import M from '../../js/planta-desenho.js';
+import L from '../../js/planta-layout.js';
 import { criarJanela } from './planta-dom-falso.mjs';
 
 const fx = (n) => JSON.parse(fs.readFileSync(new URL('./fixtures/planta/' + n + '.json', import.meta.url), 'utf8'));
@@ -116,4 +117,41 @@ test('"Rever a montagem" refaz a entrada v2 sem emaranhado', () => {
   w.mostrar(1);
   w.avancar(15000);
   assert.ok(noDe(raiz, 'led')._classes.has('is-ouro'));
+});
+
+test('os números do voo: o grupo sai do ponto do esboço na tela (relativo ao quadro final) com a escala do chip, e o texto sai do canto do texto', () => {
+  const { w, A, raiz } = ambiente();
+  const plano = fx('clinica');
+  A.montar(raiz, plano, V2({ esboco: () => ({ chegada: { x: 140, y: 260, s: 24, tx: 150, ty: 300 } }) }));
+  quadroDe(raiz).getBoundingClientRect = () => ({ left: 100, top: 200, right: 490, bottom: 1136, width: 390, height: 936 });
+  w.mostrar(1);
+  const no = noDe(raiz, 'chegada');
+  const n = { x: Number(/translate\(([-\d.]+)/.exec(no.attrs.transform)[1]), y: Number(/translate\([-\d.]+ ([-\d.]+)/.exec(no.attrs.transform)[1]) };
+  const kf = movDe(raiz, 'chegada').animacoes.find((a) => /scale\(/.test(a.keyframes[0].transform || '')).keyframes[0].transform;
+  const [, tx, ty, s] = /translate\(([-\d.]+)px,([-\d.]+)px\) scale\(([-\d.]+)\)/.exec(kf).map(Number);
+  /* o centro do ícone (pela geometria do layout: ic = [x, y, escala], 40 de lado na escala 1) cai no ponto do esboço relativo ao quadro (140 - 100, 260 - 200) */
+  const ic = L.montarGeometria(plano, 390).nos.find((x) => x.id === 'chegada').ic || [11, 34, 1];
+  const cx = ic[0] + 20 * ic[2], cy = ic[1] + 20 * ic[2];
+  assert.ok(Math.abs(s - 24 / (40 * ic[2])) < 0.011, 'escala: a metade do chip (24) sobre a metade do ícone: ' + s + ' ic ' + ic);
+  assert.ok(Math.abs(n.x + tx + s * cx - 40) < 0.5 && Math.abs(n.y + ty + s * cy - 60) < 0.5, 'o centro do ícone sai do ponto do esboço: ' + kf + ' ic ' + ic + ' n ' + JSON.stringify(n));
+  const li = quadroDe(raiz).porTag('li').find((l) => l.dataset.id === 'chegada');
+  const kli = li.animacoes.find((a) => /translate/.test(a.keyframes[0].transform || '')).keyframes[0].transform;
+  const [, lx, ly] = /translate\(([-\d.]+)px,([-\d.]+)px\)/.exec(kli).map(Number);
+  assert.ok(Math.abs(n.x + lx - 50) < 0.2 && Math.abs(n.y + ly - 100) < 0.2, 'o texto sai do canto do texto do esboço: ' + kli);
+});
+
+test('is-voo (o quadro sem recorte enquanto o voo dura) sai também quando a entrada é cancelada antes do fim do voo (ajuste, movimento reduzido)', () => {
+  const { w, A, raiz } = ambiente();
+  const plano = fx('clinica');
+  A.montar(raiz, plano, V2({ esboco: () => ({ chegada: { x: 40, y: 60, s: 24, tx: 50, ty: 50 } }) }));
+  w.mostrar(1);
+  assert.ok(quadroDe(raiz)._classes.has('is-voo'));
+  w.avancar(300);
+  const novo = JSON.parse(JSON.stringify(plano)); novo.etapas[1].id = 'nova-etapa';   /* um id novo e os outros em comum: é um AJUSTE */
+  assert.equal(A.atualizar(novo, {}).ok, true);
+  assert.ok(!quadroDe(raiz)._classes.has('is-voo'), 'o ajuste cancelou a entrada: sem is-voo');
+  A.montar(raiz, plano, V2({ esboco: () => ({ chegada: { x: 40, y: 60, s: 24, tx: 50, ty: 50 } }) }));
+  w.mostrar(1); w.avancar(300);
+  w.BEYON.emit('reduzir', true);
+  assert.ok(!quadroDe(raiz)._classes.has('is-voo'), 'movimento reduzido no meio do voo: sem is-voo');
 });
