@@ -12,7 +12,8 @@ import { executarTurno, nichoDaSessao } from './agente.mjs';
 import { estimar, LANDING_GRANDE, CHAVE as CHAVE_EXTRA } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
 import { montarEscopo } from './escopo.mjs';
-import { limparMensagem, pareceInjecao, redigir } from './seguranca.mjs';
+import { limparMensagem, pareceInjecao, redigir, semInvisiveis } from './seguranca.mjs';
+import { pedeValor } from './zero.mjs';
 import { ehUuid } from '../_valida-app.mjs';
 import { TETOS, reservaUsd } from '../_ia/config.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
@@ -38,6 +39,11 @@ import { criarAcoesDaPrevia } from './fluxo-previa.mjs';
 import { criarAcoesDoRecado } from './fluxo-recado.mjs';
 import { entregaLigada, FRASE_DESLIGADA } from '../_material/interruptor.mjs';
 import { plantaLigada, semChavesDaPlanta, montarPlanta, leituraParaTela } from './planta.mjs';
+import { avisarDono } from '../_aviso.mjs';
+import { respostasParciais, situacaoDeCodigos, ehFalaDoMudar, MOLDE_MUDAR } from './respostas.mjs';
+import { respostasParaBriefingParcial } from './catalogo.mjs';
+import { valorLiberado } from './agente.mjs';
+import { fluxoConversa } from './consultor.mjs';
 
 import { ORG } from './org.mjs';
 export { ORG };
@@ -51,6 +57,7 @@ const TRAVA_IA_S = 300;
 const RESERVA_S = 600;   /* a reserva de custo vence sozinha se a função cair no meio (a geração cabe em 300 s) */
 const USO_IP48_IA = 'ia48';   /* o "uso" da chave /48 do consultor em privado.freio_ip (o do pedido é 'pedido48': contadores separados) */
 const LIMITE_CONVERSA = 'Chegamos ao limite desta conversa por aqui. Deixe um recado para a equipe: o seu briefing já está salvo.';
+const ALARME_CUSTO_DIA = 0.8;
 const LIMITE_DIA = 'O consultor está com muita procura agora. Seu briefing está salvo; tente de novo mais tarde ou deixe um recado.';
 
 /* respostas de erro: o que o visitante vê (sem detalhe interno). A classe mora em recusa.mjs (o fluxo do pedido
@@ -98,7 +105,49 @@ const TABELA_MUDOU = 'A tabela de valores mudou enquanto você montava o orçame
 const canonico = v => (Array.isArray(v) ? v.map(canonico)
   : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canonico(v[k])])) : v);
 const mesmoJson = (a, b) => JSON.stringify(canonico(a)) === JSON.stringify(canonico(b));
-const ETAPAS_PACOTE = ['descoberta', 'estimativa'];   /* = app.vendas_registrar_respostas: depois do contato o pacote não muda por aqui */
+const ETAPAS_PACOTE = ['descoberta', 'estimativa'];
+/* (orçamento como conversa, spec 2026-11-13 §6.1) depois da 1ª mensagem do fluxo novo, as respostas que MUDAM o caso (ramo, objetivos, site, material)
+   valem no máximo 4 vezes por conversa. O contador mora no briefing (fluxo_mudancas, chave só do código): não depende da janela de mensagens nem do texto */
+const MUDAR_MAX = 4;
+const MUDAR_DEMAIS = 'Você já mudou as respostas algumas vezes. Conte aqui na conversa o que mudou, ou deixe um recado.';
+const mudancasFeitas = b => (b && Number.isInteger(b.fluxo_mudancas) ? b.fluxo_mudancas : 0);
+const DETALHE_GOOGLE = 'ser achado no Google';
+const ordenada = l => JSON.stringify([...(l || [])].sort());
+const CAMPOS_TOCADOS = ['ramo', 'objetivos', 'site_atual', 'material'];
+const semChave = (o, chave) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== chave));
+/* um campo tocado é diferente do que ela tocou antes? (compara com fluxo_toques, o que ELA tocou, e não com o briefing, que o modelo também enriquece) */
+function difereDoTocado(k, dados, tocadas) {
+  if (k === 'objetivos') return ordenada(dados.objetivos) !== ordenada(tocadas.objetivos);
+  if (k === 'ramo') return dados.ramo !== tocadas.ramo || (dados.ramo === 'outro' && (dados.outro || '') !== (tocadas.outro || ''));
+  return dados[k] !== tocadas[k];
+}
+/* as respostas tocadas entram no briefing lido no começo do turno. Na 1ª mensagem do fluxo novo, todas. Depois, só o campo que ela MUDOU em relação ao
+   que tinha tocado (reenviar a mesma resposta não mexe em nada, não apaga o que o modelo registrou e não conta): esse vence (é a resposta explícita dela;
+   as listas são trocadas, nunca somadas) e não deixa resto da resposta anterior (o detalhe "ser achado no Google" sai com o objetivo; a descrição do
+   negócio sai com a troca do ramo). O nome e a cidade, que vêm da conversa, ficam. Marca o fluxo novo, guarda os toques e conta as mudanças */
+function fundirRespostas(briefing, dados) {
+  const antes = briefing || {};
+  const primeira = antes.fluxo_conversa !== true;
+  const tocadas = antes.fluxo_toques && typeof antes.fluxo_toques === 'object' ? antes.fluxo_toques : {};
+  /* um campo que ela nunca tinha tocado (escreveu em vez de tocar e tocou depois) entra sem contar como mudança e sem apagar nada */
+  const campos = CAMPOS_TOCADOS.filter(k => dados[k] !== undefined && (primeira || tocadas[k] === undefined || difereDoTocado(k, dados, tocadas)));
+  const trocados = primeira ? [] : campos.filter(k => tocadas[k] !== undefined);
+  const aplicar = Object.fromEntries(campos.map(k => [k, dados[k]]));
+  if (campos.includes('ramo') && dados.outro) aplicar.outro = dados.outro;
+  /* a situação tocada também só vale quando muda (o reenvio não desfaz o que o modelo refinou) */
+  const situacaoNova = dados.situacao && ordenada(dados.situacao) !== ordenada(tocadas.situacao) ? dados.situacao : null;
+  if (situacaoNova) aplicar.situacao = situacaoNova;
+  const novo = respostasParaBriefingParcial(aplicar, situacaoNova ? situacaoDeCodigos(situacaoNova) : null);
+  let b = { ...antes };
+  for (const [k, v] of Object.entries(novo)) {
+    b[k] = Array.isArray(v) ? v : (v && typeof v === 'object' ? { ...(b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) ? b[k] : {}), ...v } : v);
+  }
+  if (trocados.includes('ramo') && b.negocio && 'descricao' in b.negocio) b = { ...b, negocio: semChave(b.negocio, 'descricao') };
+  if (trocados.includes('objetivos') && !dados.objetivos.includes('achado_google') && b.objetivo_detalhe === DETALHE_GOOGLE) b = semChave(b, 'objetivo_detalhe');
+  const mudou = trocados.length > 0;
+  const toques = { ...tocadas, ...aplicar };
+  return { briefing: { ...b, fluxo_conversa: true, fluxo_toques: toques, ...(mudou ? { fluxo_mudancas: mudancasFeitas(antes) + 1 } : {}) }, mudou };
+}   /* = app.vendas_registrar_respostas: depois do contato o pacote não muda por aqui */
 const CONFIANCA_FORMULARIO = 0.4;   /* fixa: o formulário dá o começo do briefing; nunca vem do corpo */
 const TABELA_EM_ATUALIZACAO = 'A tabela de valores está em atualização. Deixe um recado para a equipe.';
 
@@ -160,7 +209,7 @@ const publicaRec = rec => ({ formato: rec.formato, alternativa: rec.alternativa,
 /* o segundo plano padrão (servidor local, testes): a promessa segue sozinha; no Worker, vendas.mjs entrega o ctx.waitUntil */
 const soltar = p => { Promise.resolve(p).catch(() => {}); };
 
-export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId, direcoes, env, limitesPedido = PEDIDOS, armazem, sombra = null, segundoPlano = soltar }) {
+export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId, direcoes, env, limitesPedido = PEDIDOS, armazem, sombra = null, segundoPlano = soltar, avisar = avisarDono }) {
   /* as direções: geradas pela API na hora, ou na FILA MANUAL (o dono produz no Claude Code, em até 24 horas úteis;
      decisão do dono 2026-10-08). Os testes passam o modo; o site lê BZ_DIRECOES */
   const modo = direcoes === 'manual' || direcoes === 'api' ? direcoes : 'manual';
@@ -261,6 +310,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     if (Number(est.conversa.custo_ia_usd) >= TETOS.conversa_usd) throw new Recusa(429, LIMITE_CONVERSA, { recado: true });
     const dia = await banco('vendas_custo_dia', { org_slug: ORG });
     if (Number(dia.custo_usd) >= TETOS.dia_usd) throw new Recusa(503, LIMITE_DIA, { recado: true });
+    /* (orçamento como conversa, spec 2026-11-13 §6.4) com a IA aberta a todo visitante, o dono sabe antes do teto: um aviso a 80% do dia
+       (o aviso tem freio de 1 por hora por tipo; em segundo plano, nunca segura a resposta). Não muda nenhum limite */
+    if (Number(dia.custo_usd) >= ALARME_CUSTO_DIA * TETOS.dia_usd) segundoPlano(Promise.resolve().then(() => avisar(env, 'custo_dia')).catch(() => false));
     /* o disjuntor: o provedor de IA falhou nas últimas 5 chamadas (10 min) → não chama, oferece o recado */
     /* (consulta que falha — ex.: migration ainda não aplicada — não derruba o agente: na dúvida, chama; o log avisa) */
     const disjuntor = await banco('vendas_ia_disponivel', { org_slug: ORG })
@@ -270,7 +322,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
 
   /* um turno com a trava da IA já reservada. O que se GRAVA é o texto redigido (sem telefone, e-mail,
      documento ou cartão), o mesmo que o modelo recebe */
-  async function turno(vid, conversaId, est, regras, msg) {
+  async function turno(vid, conversaId, est, regras, msg, { respondeDor = false } = {}) {
     let r;
     try {
       r = await executarTurno({ ia, direcoes: modo, metodos: pagamentos?.metodos, planta: plantaLigada(env), regras: regras.regras, conversa: { etapa: est.conversa.etapa, turnos: est.conversa.turnos, pedido_status: est.pedido?.status, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
@@ -282,6 +334,13 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     /* o custo do turno é gravado junto com as mensagens; se a gravação falhar, ele entra assim mesmo. No escopo e no sinal
        (só dúvidas) o briefing e a confiança ficam como estão: o escopo já foi montado com eles */
     const soDuvidas = ETAPAS_SO_DUVIDAS.includes(est.conversa.etapa);
+    /* (fluxo novo) a rede da dor: a mensagem respondeu à pergunta fixa "como os clientes chegam e o que mais dá trabalho" e o modelo não a registrou;
+       o código grava a própria resposta dela, redigida (nunca inventa), para o turno do valor não depender do modelo (spec §2) */
+    /* (um pedido de preço ou um texto com cara de ordem ao sistema não é a resposta da dor: aí o portão segue pelos dois pedidos de preço) */
+    if (respondeDor && r.briefing && !r.briefing.situacao_atual && !pedeValor(msg) && !pareceInjecao(semInvisiveis(msg))) {
+      const situacao = limparAtualizacao({ situacao_atual: { como_chegam: redigir(semInvisiveis(msg)) } }).situacao_atual;
+      if (situacao) r = { ...r, briefing: { ...r.briefing, situacao_atual: situacao } };
+    }
     await banco('vendas_registrar_turno', { conversa_id: conversaId, visitante_id: vid, mensagem_visitante: redigir(msg), mensagem_agente: r.resposta,
       ...(soDuvidas ? {} : { briefing: r.briefing, confianca: r.confianca }), custo_usd: r.custo_usd })
       .catch(async e => { await somarCusto(conversaId, vid, r.custo_usd); throw e; });
@@ -387,7 +446,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       if (e.conversa && briefingLimpo !== briefingBruto) e.conversa = { ...e.conversa, briefing: briefingLimpo };
       const planta = plantaLigada(env) ? ((regulado) => ({ planta: montarPlanta(briefingBruto, { regulado, turnos: e.conversa?.turnos, mensagensNaJanela: (e.mensagens || []).length }), leitura: leituraParaTela(briefingBruto, { regulado }), planta_editavel: precoAberto(e.conversa?.etapa, e.pedido?.status) }))(!!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens })) : null;
       return { ...e, painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env),
-        ...(planta ? { ...(planta.planta ? { planta: planta.planta } : {}), ...(planta.leitura ? { leitura: planta.leitura } : {}), planta_editavel: planta.planta_editavel } : {}) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
+        ...(planta ? { ...(planta.planta ? { planta: planta.planta } : {}), ...(planta.leitura ? { leitura: planta.leitura } : {}), planta_editavel: planta.planta_editavel } : {}),
+        /* (fluxo novo, spec §2) a tela segura o valor até o caso ser entendido; fora do fluxo novo a chave não existe (a resposta é a de hoje) */
+        ...(fluxoConversa(briefingBruto) ? { valor_liberado: valorLiberado({ briefing: briefingBruto, estimativa: e.estimativa, mensagens: e.mensagens }) } : {}) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
     },
 
     /* o catálogo público da tabela ativa (o "Quer ajustar?"): só com a sessão e a conversa deste visitante, antes do contato */
@@ -419,6 +480,10 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
       const dono = await donoDaConversa(vid, corpo.conversa_id, ETAPAS_PACOTE);
       exigir(!freioConfirmar(corpo.conversa_id), 429, 'Muitas tentativas seguidas. Espere um pouco ou deixe um recado.');
+      /* (fluxo novo sem consultor, spec §4) as sugestões tocadas no passo 4 viram a situação de hoje, pelos rótulos da lista fechada */
+      const sit = corpo?.respostas && corpo.respostas.situacao !== undefined ? respostasParciais({ situacao: corpo.respostas.situacao }) : null;
+      exigir(!sit || !sit.erro, 400, sit && sit.erro);
+      const situacao = sit && sit.dados.situacao ? situacaoDeCodigos(sit.dados.situacao) : null;
       let { regras, rec, e, formato } = await pacote(corpo, CACHE);
       if (corpo?.versao !== regras.id) {
         /* a tabela guardada pode ter até 30 s: antes de dizer que a versão mudou, confere no banco. A leitura sem cache também
@@ -431,7 +496,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       if (dono.estimativa && dono.estimativa.regras_id === regras.id && mesmoJson(dono.estimativa.fatores, e.fatores)) return { estimativa: cartao(e) };
       try {
         await banco('vendas_registrar_respostas', { conversa_id: corpo.conversa_id, visitante_id: vid,
-          briefing: limparAtualizacao(respostasParaBriefing(rec.respostas, formato)), confianca: CONFIANCA_FORMULARIO });
+          briefing: limparAtualizacao({ ...respostasParaBriefing(rec.respostas, formato), ...(situacao ? { situacao_atual: situacao } : {}) }), confianca: CONFIANCA_FORMULARIO });
         await banco('vendas_registrar_estimativa', { conversa_id: corpo.conversa_id, visitante_id: vid, regras_id: regras.id, fatores: e.fatores,
           valor_total: e.valor_total, sinal: e.sinal, prazo_dias: e.prazo_dias, fase: e.fase, detalhes: e });
       } catch (x) {
@@ -449,10 +514,23 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     async mensagem({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
+      /* (fluxo novo) as respostas tocadas, opcionais: esquema fechado, sem padrão; o erro não repete o valor */
+      const resp = corpo?.respostas === undefined || corpo?.respostas === null ? null : respostasParciais(corpo.respostas);
+      exigir(!resp || !resp.erro, 400, resp && resp.erro);
       const msg = limparMensagem(corpo?.texto);
       exigir(msg, 400, 'Escreva uma mensagem de até 2.000 caracteres.');
-      const est = await estado(vid, corpo.conversa_id);
+      let est = await estado(vid, corpo.conversa_id);
       exigir(CONVERSA_ABERTA.includes(est.conversa.etapa), 409, 'Agora o seu orçamento segue pelas etapas abaixo da conversa.');
+      if (resp) {
+        /* só com o preço aberto: depois do pedido, ninguém reescreve o ramo ou os objetivos que o gerador e o painel leem */
+        exigir(ETAPAS_PACOTE.includes(est.conversa.etapa) && precoAberto(est.conversa.etapa, est.pedido?.status), 409, 'Agora o seu orçamento segue pelas etapas abaixo da conversa.');
+        if (msg.startsWith(MOLDE_MUDAR)) exigir(ehFalaDoMudar(msg, resp.dados), 400, 'Resposta fora da lista.');
+        const fusao = fundirRespostas(est.conversa.briefing, resp.dados);
+        if (fusao.mudou) exigir(mudancasFeitas(est.conversa.briefing) < MUDAR_MAX, 429, MUDAR_DEMAIS);
+        if (resp.injecao) await banco('vendas_registrar_evento', { conversa_id: corpo.conversa_id, visitante_id: vid, tipo: 'tentativa_bloqueada' }).catch(() => {});
+        est = { ...est, conversa: { ...est.conversa, briefing: fusao.briefing } };
+      }
+      const respondeDor = !!(resp && resp.dados.responde === 'dor');
       exigir(est.conversa.turnos < TETOS.turnos_por_conversa, 429, 'Esta conversa ficou longa. Deixe um recado para a equipe: seu briefing já está salvo.');
       await dentroDoCusto(est);
       const regras = await regrasAtivas(banco);
@@ -462,7 +540,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       try {
         /* (planta viva) todo turno com a flag ligada e o preço aberto reserva o pior caso de 4 chamadas (a planta e a leitura, que já vem no 1º turno, dividem as rodadas); os outros, a reserva de sempre */
         const papelDaReserva = plantaLigada(env) && precoAberto(est.conversa.etapa, est.pedido?.status) ? 'conversa_planta' : 'conversa';
-        return await comReserva(corpo.conversa_id, vid, papelDaReserva, () => turno(vid, corpo.conversa_id, est, regras, msg));
+        return await comReserva(corpo.conversa_id, vid, papelDaReserva, () => turno(vid, corpo.conversa_id, est, regras, msg, { respondeDor }));
       } finally {
         await banco('vendas_liberar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid }).catch(() => {});
       }

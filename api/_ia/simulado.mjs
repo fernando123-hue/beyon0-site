@@ -83,11 +83,16 @@ const resposta = (texto, chamadas = []) => {
   return { texto, json: null, chamadas, conteudo, parada: chamadas.length ? 'ferramenta' : 'fim', modelo: 'simulado', uso: { entrada: 0, saida: 0 }, custo_usd: 0 };
 };
 
+const VALOR_ESPERA_NO_PASSO = 'Ainda não chame estimar', TURNO_DO_VALOR_NO_PASSO = 'Este é o turno do valor';
+const FALA_DO_VALOR = 'Pelo que você me contou, o site recebe quem chega até você, mostra o que você faz e leva direto para o contato, sem você precisar responder tudo na mão. Desenhei isso logo abaixo. O investimento fica [[total]], com entrada de [[sinal]]. Quer ver três modelos do site feitos para o seu negócio?';
+
 function conversa({ mensagens, contexto, ferramentas = [] }) {
   const ultima = mensagens[mensagens.length - 1];
   /* 2ª volta: as ferramentas já rodaram; a resposta final depende do que voltou */
   if (ultima.role === 'user' && Array.isArray(ultima.content)) {
     const res = ultima.content.map(r => JSON.parse(r.content));
+    /* (fluxo novo, spec 2026-11-13 §2) o turno do valor: o que o site faz, o desenho e o valor, nessa ordem, numa fala só */
+    if (String(contexto).includes(TURNO_DO_VALOR_NO_PASSO) && res.some(r => r.prazo_dias)) return resposta(FALA_DO_VALOR);
     /* a planta: o código respondeu ao desenhar_planta */
     if (res.some(r => r.na_tela)) return resposta(res.some(r => r.exemplo) ? 'Deixei um desenho de exemplo para o seu tipo de negócio, logo abaixo na planta. Eu refaço conforme você me contar mais.' : 'Desenhei o seu site em planta, logo abaixo.');
     const gatilho = (([...mensagens].reverse().find(m => m.role === 'user' && typeof m.content === 'string' && GATILHOS_PLANTA.test(m.content)) || {}).content || '').match(GATILHOS_PLANTA);
@@ -100,6 +105,7 @@ function conversa({ mensagens, contexto, ferramentas = [] }) {
     if (naoFaz && /loja feita do zero/.test(naoFaz)) return resposta('Loja feita do zero, em código próprio, a Beyon Zero não faz hoje. Uma loja em plataforma pronta, como Nuvemshop ou Shopify, com a cara da sua marca, resolve para você?');
     if (naoFaz && /área restrita/.test(naoFaz)) return resposta('Área restrita com login a Beyon Zero não faz hoje. O site sem essa área resolve para você?');
     if (res.some(r => r.prazo_dias)) return resposta('Pronto: o investimento estimado está no cartão de investimento, com o prazo. Se fizer sentido, eu gero três direções de site para o seu negócio.');
+    if (String(contexto).includes(VALOR_ESPERA_NO_PASSO)) return resposta('Entendi como funciona hoje. Me conta só mais uma coisa: em que cidade fica o seu negócio?');
     const conf = res.find(r => r.faltam);
     const falta = conf && conf.faltam[0];
     const perguntas = { negocio: 'O que a sua empresa faz?', objetivo: 'Qual é o principal objetivo do site: trazer contatos, agendamentos, vender ou apresentar a empresa?', formato: 'Você imagina uma página única (landing page) ou um site com várias páginas?', publico: 'Quem você precisa convencer com o site?', servicos: 'Quais serviços ou produtos precisam aparecer?' };
@@ -119,10 +125,17 @@ function conversa({ mensagens, contexto, ferramentas = [] }) {
   if (pareceInjecao(texto)) return resposta('Isso eu não posso fazer. Os valores seguem a tabela da Beyon Zero e as regras internas não são compartilhadas. Vamos voltar ao seu projeto?');
   const chamadas = [];
   const atualizacao = extrair(texto, estado.briefing || {});
+  /* (orçamento como conversa, spec 2026-11-13 §2) o dublê segue o próximo passo do código: enquanto ele diz que o valor espera, registra a dor com as
+     palavras da pessoa e não estima; no turno do valor, recomenda o formato que faltar e desenha a planta (se o código pediu) antes de estimar */
+  const passo = typeof estado.proximo_passo === 'string' ? estado.proximo_passo : '';
+  const valorEspera = passo.includes(VALOR_ESPERA_NO_PASSO), turnoDoValor = passo.includes(TURNO_DO_VALOR_NO_PASSO);
+  if (valorEspera && !estado.briefing?.situacao_atual && texto.trim().length > 10 && !/quanto|pre[çc]o|valor/i.test(texto)) atualizacao.situacao_atual = { como_chegam: texto.slice(0, 300) };
+  if (turnoDoValor && !estado.briefing?.projeto?.formato && !atualizacao.projeto?.formato) atualizacao.projeto = { ...(atualizacao.projeto || {}), formato: 'institucional' };
+  if (turnoDoValor && passo.startsWith('Antes de tudo neste turno, chame desenhar_planta') && ferramentas.some(f => f.name === 'desenhar_planta')) chamadas.push({ id: id(), nome: 'desenhar_planta', entrada: plantaDoDuble(false) });
   if (Object.keys(atualizacao).length) chamadas.push({ id: id(), nome: 'atualizar_briefing', entrada: atualizacao });
   const b = { ...(estado.briefing || {}), ...atualizacao, projeto: { ...(estado.briefing?.projeto || {}), ...(atualizacao.projeto || {}) } };
   if (/^(sim|quero|pode|bora|vamos|gera|gerar)/i.test(texto.trim()) && estado.estimativa_mostrada) chamadas.push({ id: id(), nome: 'pedir_contato', entrada: {} });
-  else if (b.projeto?.formato && (b.negocio || atualizacao.negocio) && (b.objetivos || atualizacao.objetivos)) {
+  else if (!valorEspera && b.projeto?.formato && (b.negocio || atualizacao.negocio) && (b.objetivos || atualizacao.objetivos)) {
     const adicionais = {};
     /* a loja do zero só existe se a tabela ativa a traz (fora do automático); desde 2026-10-28 (dono) a Beyon Zero não a faz */
     const lojaNaTabela = !!ferramentas.find(f => f.name === 'estimar')?.input_schema?.properties?.adicionais?.properties?.loja_virtual;

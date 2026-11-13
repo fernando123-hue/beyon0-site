@@ -61,7 +61,7 @@ const ESQUEMA_PLANTA = { type: 'object', additionalProperties: false, required: 
 
 const EXEMPLOS = ['saude_agenda', 'industria_b2b', 'loja_online'];
 const DESCRICAO = 'Desenha na tela, logo abaixo da conversa, a planta do site desta pessoa: o caminho de quem chega, em 8 ou 9 caixas, do começo até o objetivo. ' +
-  'Chame UMA vez, no turno em que o proximo_passo do ESTADO mandar (é depois da estimativa), e de novo só se a pessoa pedir para mudar a planta ou o caso mudar de verdade (até 4 versões por conversa; mantenha o id das etapas que não mudam). ' +
+  'Chame UMA vez, no turno em que o proximo_passo do ESTADO mandar, e de novo só se a pessoa pedir para mudar a planta ou o caso mudar de verdade (até 4 versões por conversa; mantenha o id das etapas que não mudam). ' +
   'Se ela disser que a planta está certa, não desenhe de novo. Quem desenha é o código: você só entrega o plano em JSON, com as listas fechadas do esquema. ' +
   'Escreva em português do Brasil, na voz da Beyon ("a gente"), em terceira pessoa para quem chega, no presente, sem jargão. É o desenho do que o site PODE fazer a partir do que a pessoa contou, nunca promessa: ' +
   'proibido qualquer número ou algarismo, preço, custo, prazo, resultado, garantia, suporte, marca ou nome de terceiro (vale só o nome do negócio que a pessoa deu), link, e-mail, emoji e formatação; nada de "mais clientes" nem "vende sozinho". ' +

@@ -8,7 +8,7 @@ import { criarAcoesDoRecado } from '../../api/_vendas/fluxo-recado.mjs';
 
 test('aviso: os textos são fixos e não carregam dado de ninguém', () => {
   for (const t of Object.values(AVISOS)) assert.ok(!/[@\d]|BZ-|\+55/.test(t.replace(/\./g, '')), t);
-  assert.deepEqual(Object.keys(AVISOS).sort(), ['atendente_cliente', 'atendente_contatos', 'atendente_global', 'fila_cheia', 'pedido', 'recado']);
+  assert.deepEqual(Object.keys(AVISOS).sort(), ['atendente_cliente', 'atendente_contatos', 'atendente_global', 'custo_dia', 'fila_cheia', 'pedido', 'recado']);
 });
 
 /* canal de e-mail (dono, 10/11: "Primeiro e mail até termos o APP, depois disso exclua o email"): binding send_email da Cloudflare */
