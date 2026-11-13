@@ -72,9 +72,45 @@
     return partes.length ? MOLDE_MUDAR + partes.join(SEP) : null;
   }
 
+  /* ---------- o resumo fixo do passo 6 sem o consultor (spec §3): o que o site faz por ela, montado só de listas fechadas ----------
+     Mecanismo, nunca promessa de resultado. A ordem: de onde chegam, o que a página faz (os objetivos) e a trava que ela tocou */
+  var CHEGADA = congelar({ instagram: 'pelo Instagram', whatsapp: 'pelo WhatsApp', indicacao: 'por indicação', google: 'pelo Google', passa_na_frente: 'passando na frente' });
+  var FAZ = congelar({
+    pedidos_whatsapp: 'leva a pessoa direto para o seu WhatsApp, já sabendo o que você faz',
+    achado_google: 'organiza o que você faz do jeito que quem procura no Google entende',
+    agendamentos: 'deixa a pessoa marcar sem precisar te chamar',
+    vender_online: 'mostra os produtos com preço e leva até a compra',
+    apresentar: 'mostra o seu trabalho do jeito que você quer ser visto',
+    campanha: 'dá à sua campanha uma página só dela'
+  });
+  var ALIVIA = congelar({
+    responde_na_mao: 'Preço e horário ficam na página, e você responde menos coisa na mão.',
+    pergunta_e_some: 'A dúvida mais comum já tem resposta ali, antes de a pessoa desistir.',
+    nao_me_acham: 'Fica fácil entender quem você é e o que você faz.',
+    falta_consulta: 'Quem marca já sai com o dia e a hora por escrito.',
+    horario_vago: 'Os horários livres ficam à vista para quem quer marcar.',
+    visita_perdida: 'O pedido de visita chega organizado, com o que você precisa saber.',
+    pedido_perdido: 'O pedido chega organizado, sem se perder na correria.',
+    pergunta_estoque: 'O que você tem fica à vista, com o jeito de pedir.',
+    matricula_demora: 'Quem quer se matricular já encontra o caminho ali.',
+    ninguem_sabe: 'Os eventos ficam num lugar só, fácil de passar adiante.'
+  });
+  function juntar(partes) { return partes.length < 2 ? partes.join('') : partes.slice(0, -1).join(', ') + ' e ' + partes[partes.length - 1]; }
+  function resumoFixo(r, situacao) {
+    var cods = situacao || [], i, chegadas = [], alivio = '', faz = [];
+    for (i = 0; i < cods.length; i++) {
+      if (CHEGADA[cods[i]]) chegadas.push(CHEGADA[cods[i]]);
+      else if (!alivio && ALIVIA[cods[i]]) alivio = ALIVIA[cods[i]];
+    }
+    var obj = (r && r.objetivos) || [];
+    for (i = 0; i < obj.length && !faz.length; i++) if (FAZ[obj[i]]) faz.push(FAZ[obj[i]]);
+    if (!faz.length) faz.push(FAZ.apresentar);
+    return 'Pelo que você contou, quem chega' + (chegadas.length ? ' ' + juntar(chegadas) : ' até você') + ' cai numa página sua que ' + juntar(faz) + '.' + (alivio ? ' ' + alivio : '');
+  }
+
   return congelar({
     RAMOS: RAMOS, OBJETIVOS: OBJETIVOS, SITE_ATUAL: SITE_ATUAL, MATERIAL: MATERIAL,
     SUGESTOES: SUGESTOES, SUGESTOES_POR_RAMO: SUGESTOES_POR_RAMO,
-    MOLDE_MUDAR: MOLDE_MUDAR, falaDoMudar: falaDoMudar
+    MOLDE_MUDAR: MOLDE_MUDAR, falaDoMudar: falaDoMudar, resumoFixo: resumoFixo
   });
 });

@@ -1,6 +1,8 @@
 /* ==========================================================================
-   AS PERGUNTAS DO ORÇAMENTO SEM IA (spec docs/specs/2026-10-11-orcamento-sem-ia.md §2–§3).
-   Uma pergunta por tela → o preço (do servidor, nunca calculado aqui) →
+   OS CONTROLES DO PACOTE (spec docs/specs/2026-10-11-orcamento-sem-ia.md §2–§3; desde o orçamento como conversa, spec
+   docs/superpowers/specs/2026-11-13-orcamento-conversa-design.md, as respostas vêm dos toques na conversa, js/orcamento-toques.js,
+   por BZPerguntas.definir: a tela de perguntas saiu).
+   As respostas → o preço (do servidor, nunca calculado aqui) →
    as sugestões e "Ver todos os extras" com o preço ao vivo (simular, que não grava) → "Quero os
    três modelos" grava o pacote (confirmar-pacote) e entrega a vez ao resto
    da página (evento bz:pacote-confirmado). Todo texto por textContent.
@@ -14,7 +16,7 @@
   'use strict';
   var API = window.BZOrcamento;
   var $ = function (id) { return document.getElementById(id); };
-  if (!API || !$('o-perguntas')) return;
+  if (!API || !$('o-est-acoes')) return;
 
   var ESPERA_MS = 300;   /* o preço ao vivo espera a pessoa parar de marcar (o servidor freia 60 cálculos por hora por conversa) */
   var NOMES = { landing_page: 'Site de uma página', institucional: 'Site com várias páginas', sob_medida: 'Atelier (site com visual exclusivo)', loja_plataforma: 'Loja virtual' };
@@ -22,7 +24,6 @@
   var FALHA_CALCULO = 'Não consegui calcular agora. Tente de novo ou deixe um recado.';
   var FALHA_GRAVAR = 'Não consegui guardar agora. Tente de novo.';
   var QUERO = 'Quero os três modelos', GUARDANDO = 'Guardando…';
-  var SETAS = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
   /* o que fica parado enquanto o pacote é gravado (nada muda o pedido no meio) */
   var CONTROLES = ['o-ajustar-principais', 'o-ajustar-mais', 'o-x-urgencia', 'o-ajustar-abrir', 'o-p-refazer', 'o-est-sugerido'];
 
@@ -32,10 +33,10 @@
   var conhecidos = false;             /* a tela já sabe quais extras a recomendação traz (veio um preço com valor no formato recomendado) */
   var urgencia = false, catalogo = null, catalogoDe = null;
   var seq = 0, ultimaDeu = false, emVoo = null, adiado = null, gravando = false, gravado = false, opcoes = {};
+  var ultimoRes = null;  /* a última conta desenhada: os controles aparecem quando o valor é liberado */
   var mostrado = null;   /* as escolhas do último preço que deu certo ({formato, extras, urgencia}): para onde a tela volta se a conta falhar */
   var valido = null;     /* o pedido e a versão do último preço mostrado; null sem preço ou com diagnóstico. É o que "Quero" grava */
   var sugerido = null;   /* o formato que o servidor indicou na recusa (a landing grande demais) */
-  var telas = [].slice.call(document.querySelectorAll('#o-perguntas .orc-p'));
 
   var dinheiro = function (n) { return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 2 }); };
   var todos = function (seletor) { return [].slice.call(document.querySelectorAll(seletor)); };
@@ -43,78 +44,26 @@
   var com = function (obj, chave, valor) { var c = Object.assign({}, obj); c[chave] = valor; return c; };
   var todosExtras = function () { return catalogo ? catalogo.extras.principais.concat(catalogo.extras.mais) : []; };
 
-  /* ---------- as telas ---------- */
-  function irPara(n, focar) {
-    telas.forEach(function (t) { t.hidden = t.getAttribute('data-p') !== String(n); });
-    $('o-p-passo').textContent = 'Passo ' + n + ' de 3';
-    if (!focar) return;
-    $('o-perguntas').scrollIntoView({ block: 'start' });
-    var h = telas[n - 1].querySelector('h2');
-    if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
-  }
-  /* escolha única (ramo, site atual, material): grupo de rádio com roving tabindex, como as formas de pagamento —
-     só o marcado entra no Tab (nada marcado: o 1º) e as setas trocam */
-  function marcarUm(attr, valor, campo) {
-    var botoes = todos('[' + attr + ']');
-    botoes.forEach(function (b) { var sim = b.getAttribute(attr) === valor; b.setAttribute('aria-checked', String(sim)); b.tabIndex = sim ? 0 : -1; });
-    if (valor == null) botoes[0].tabIndex = 0;
-    r = valor == null ? sem(r, campo) : com(r, campo, valor);
-  }
-  function grupoUnico(attr, campo, depois) {
-    var botoes = todos('[' + attr + ']');
-    botoes.forEach(function (b, i) {
-      b.addEventListener('click', function () { marcarUm(attr, b.getAttribute(attr), campo); if (depois) depois(); });
-      b.addEventListener('keydown', function (ev) {
-        /* (com Alt, Ctrl ou Meta a tecla é do navegador: Alt+← volta a página) */
-        if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
-        var alvo = ev.key === 'Home' ? 0 : ev.key === 'End' ? botoes.length - 1 : SETAS[ev.key] ? (i + SETAS[ev.key] + botoes.length) % botoes.length : -1;
-        if (alvo < 0) return;
-        ev.preventDefault();
-        var outro = botoes[alvo];
-        outro.focus();
-        outro.click();
-      });
-    });
-  }
-  grupoUnico('data-ramo', 'ramo', function () { $('o-p-outro-rotulo').hidden = r.ramo !== 'outro'; });
-  grupoUnico('data-site-atual', 'site_atual');
-  grupoUnico('data-material', 'material');
-  /* os objetivos são de marcar vários: botões de alternar (aria-pressed) */
-  todos('[data-objetivo]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var o = b.getAttribute('data-objetivo'), tinha = r.objetivos.indexOf(o) >= 0;
-      r = com(r, 'objetivos', tinha ? r.objetivos.filter(function (x) { return x !== o; }) : r.objetivos.concat([o]));
-      b.setAttribute('aria-pressed', String(!tinha));
-    });
-  });
-  todos('.orc-p__seguir').forEach(function (b) {
-    if (b.id === 'o-p-ver-preco') return;
-    b.addEventListener('click', function () { irPara(Number(b.closest('.orc-p').getAttribute('data-p')) + 1, true); });
-  });
-  /* "Não sei, escolha por mim": esquece a resposta da tela (o servidor assume e a tela do preço diz o que assumiu) */
-  todos('[data-naosei]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var n = Number(b.getAttribute('data-naosei'));
-      if (n === 1) { marcarUm('data-ramo', null, 'ramo'); $('o-p-outro-rotulo').hidden = true; }
-      else { r = com(r, 'objetivos', []); todos('[data-objetivo]').forEach(function (o) { o.setAttribute('aria-pressed', 'false'); }); }
-      irPara(n + 1, true);
-    });
-  });
-
+  /* ---------- as respostas (dos toques da conversa) ---------- */
   function respostas() {
-    return { ramo: r.ramo, outro: r.ramo === 'outro' ? $('o-p-outro').value.trim() : '', cidade: $('o-p-cidade').value.trim(), objetivos: r.objetivos.slice(), site_atual: r.site_atual, material: r.material };
+    var t = Toques(), sit = t && !t.comConsultor() ? t.situacao() : [];   /* (sem o consultor, a dor tocada vai junto ao gravar o pacote) */
+    var o = { ramo: r.ramo, outro: r.ramo === 'outro' ? (r.outro || '') : '', objetivos: (r.objetivos || []).slice(), site_atual: r.site_atual, material: r.material };
+    if (sit.length) o.situacao = sit;
+    return o;
   }
+  /* o valor espera o caso (js/orcamento-toques.js): enquanto isso, a conta só alimenta o radar e nenhum controle aparece. Com o consultor, o valor é o
+     da estimativa do Zero: os extras e os formatos ao lado (que fariam outra conta) ficam na conversa; ficam o "Quero" e o "Mudar as respostas" */
+  var Toques = function () { return window.BZToques || null; };
+  var retido = function () { var t = Toques(); return !!(t && t.reterValor(null)); };
+  var comZero = function () { var t = Toques(); return !!(t && t.comConsultor()); };
   function lista(ul, itens) { ul.textContent = ''; itens.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }); }
   /* o erro vai para onde a pessoa está olhando: as perguntas ou o cartão do preço. No cartão, a recusa que indica outro
      formato (a landing passou de 3 páginas) ganha o botão para ver esse formato */
   function erro(msg, formatoIndicado) {
     /* (o 1º preço em voo: as perguntas saíram só por enquanto e a falha volta a elas. A mensagem fica guardada e o "Ver o preço" a escreve quando
        elas estiverem à vista: o #o-p-erro é role="alert", e um alerta escrito num bloco escondido não é anunciado pelo leitor de tela) */
-    erroGuardado = perguntandoPreco ? msg : '';
-    var texto = perguntandoPreco ? '' : msg;
-    var noCartao = $('o-perguntas').hidden && !perguntandoPreco;
-    $('o-p-erro').textContent = noCartao ? '' : texto;
-    $('o-est-erro').textContent = noCartao ? texto : '';
+    var texto = msg, noCartao = true;
+    $('o-est-erro').textContent = texto;
     /* (a conta que falhou já devolveu a tela ao formato mostrado: se é o indicado, o botão não levaria a lugar nenhum) */
     sugerido = noCartao && texto && NOMES[formatoIndicado] && formatoIndicado !== formato ? formatoIndicado : null;
     $('o-est-sugerido').hidden = !sugerido;
@@ -206,6 +155,8 @@
       atualizarExtras();
     }
     erro(mensagem(e, FALHA_CALCULO), e && e.status === 400 && e.dados ? e.dados.formato_sugerido : null);
+    /* (enquanto o valor espera, o cartão está fora de cena: a falha vai para a conversa, js/orcamento-toques.js; nunca fica muda) */
+    if (retido()) document.dispatchEvent(new CustomEvent('bz:conta-falhou', { detail: { mensagem: mensagem(e, FALHA_CALCULO) } }));
   }
   function agendar() { clearTimeout(adiado); adiado = setTimeout(function () { adiado = null; calcular(); }, ESPERA_MS); }
   /* antes de gravar: as contas pendentes (espera ou em voo, inclusive uma que começou durante a espera) terminam, para
@@ -237,7 +188,10 @@
     vizinhos(rec, atual);
     incluidos(atual);
     $('o-quero-modelos').hidden = !res.estimativa;   /* (pacote que pede conversa não se grava por aqui) */
-    $('o-est-acoes').hidden = false;
+    ultimoRes = { res: res, urgencia: comUrgencia };
+    $('o-est-acoes').hidden = retido();
+    ['o-reco', 'o-ajustar-abrir', 'o-vizinhos', 'o-est-sugerido'].forEach(function (id) { if (comZero()) $(id).hidden = true; });
+    if (comZero()) return;
     /* as sugestões (refeitas quando o catálogo muda: outro formato, outro ramo) e as marcas dos dois lugares */
     if (catalogo && sugestoesDe !== catalogoDe) montarSugestoes();
     if (catalogo) atualizarExtras();
@@ -359,41 +313,6 @@
   }
 
   /* ---------- os botões ---------- */
-  /* "Ver o preço": as perguntas saem NO TOQUE e o painel (o radar "Identificando", pelo bz:calculando) fica à vista enquanto a conta voa. Se elas
-     saíssem só com a resposta, um servidor lento (> 500 ms, o perdão do navegador depois de uma ação) fazia a mesa subir sem toque recente: CLS 0,32
-     a 0,43 medido com 900 ms de atraso. Na falha, tudo volta como antes: as perguntas, a mensagem de sempre nelas (o `perguntandoPreco` faz o erro()
-     escrever lá, e não no cartão) e o foco no botão */
-  var perguntandoPreco = false, erroGuardado = '';
-  $('o-p-ver-preco').addEventListener('click', async function () {
-    var b = this;
-    if (b.getAttribute('aria-disabled') === 'true') return;
-    b.setAttribute('aria-disabled', 'true');
-    b.textContent = 'Calculando…';
-    perguntandoPreco = true;
-    $('o-perguntas').hidden = true;
-    var t = $('o-est-titulo'), painel = t.closest('.orc-painel');
-    /* enquanto a 1ª conta voa: o cartão de baixo ("o preço aparece aqui") sai e o painel guarda a altura da tela (css/orcamento.css, .is-1o-preco).
-       Assim, quando o preço chega, as ações e o cartão cheio ENTRAM no espaço vazio, sem empurrar nada que já estava à vista (o cartão e o
-       rodapé desciam: CLS 0,15 a 390 px com 900 ms de atraso) */
-    painel.classList.add('is-1o-preco');
-    $('o-est').hidden = true;
-    painel.scrollIntoView({ block: 'start' });
-    t.setAttribute('tabindex', '-1');
-    t.focus({ preventScroll: true });
-    var deu = await calcular();
-    perguntandoPreco = false;
-    painel.classList.remove('is-1o-preco');
-    $('o-est').hidden = false;
-    if (window.BZPainel && typeof window.BZPainel.focavel === 'function') window.BZPainel.focavel();   /* (a altura do painel mudou: no computador ele pode passar a rolar por dentro, e o tabindex segue isso) */
-    b.removeAttribute('aria-disabled');
-    b.textContent = 'Ver o preço';
-    if (deu) return;
-    $('o-perguntas').hidden = false;
-    $('o-p-erro').textContent = erroGuardado;   /* (com as perguntas já à vista: o alerta é anunciado) */
-    erroGuardado = '';
-    b.scrollIntoView({ block: 'center' });
-    b.focus({ preventScroll: true });
-  });
   $('o-ajustar-abrir').addEventListener('click', function () {
     var abrir = $('o-ajustar').hidden;
     if (abrir && catalogo) montarExtras();
@@ -403,19 +322,23 @@
   });
   $('o-x-urgencia').addEventListener('change', function () { urgencia = this.checked; agendar(); });
   $('o-est-sugerido').addEventListener('click', function () { var k = sugerido; erro(''); if (k) trocarFormato(k); });
-  /* "Mudar as respostas": volta às perguntas; o preço será recomendado de novo */
-  $('o-p-refazer').addEventListener('click', function () {
+  /* recomeça o pacote: o preço será recomendado de novo para as respostas novas */
+  function recomecar() {
     clearTimeout(adiado); adiado = null; seq++;
     ocupado(false); emVoo = null;   /* (a conta em voo foi descartada pelo seq: ela não solta o cartão sozinha) */
     /* (o catálogo também: com ele, os extras iriam explícitos em 0 e apagariam os da nova recomendação) */
     formato = null; extras = {}; iniciais = {}; conhecidos = false; urgencia = false; catalogo = null; catalogoDe = null; sugestoesDe = null;
-    mostrado = null; valido = null;
+    mostrado = null; valido = null; ultimoRes = null;
     erro('');
     fecharControles();
-    $('o-perguntas').hidden = false;
-    document.dispatchEvent(new CustomEvent('bz:perguntas'));
-    irPara(1, true);
+  }
+  /* "Mudar as respostas": as perguntas fixas voltam DENTRO da conversa (js/orcamento-toques.js), com as respostas de agora marcadas */
+  $('o-p-refazer').addEventListener('click', function () {
+    var t = Toques();
+    if (t) t.reabrir();
   });
+  /* o valor foi liberado (o caso entendido): os controles da última conta aparecem */
+  document.addEventListener('bz:valor-liberado', function () { if (ultimoRes && !gravado) desenhar(ultimoRes.res, ultimoRes.urgencia); });
   function fecharControles() {
     $('o-est-acoes').hidden = true;
     $('o-ajustar').hidden = true;
@@ -431,6 +354,8 @@
   $('o-quero-modelos').addEventListener('click', async function () {
     var b = this;
     if (gravando || gravado) return;
+    /* com o consultor, o pacote é a estimativa que o Zero gravou: nada a confirmar por aqui (confirmar-pacote a trocaria pela do classificador, spec §2) */
+    if (comZero()) { document.dispatchEvent(new CustomEvent('bz:quero-com-zero')); return; }
     gravando = true;
     travar(true, b);
     erro('');
@@ -454,12 +379,16 @@
     }
   });
 
-  /* a página (js/orcamento.js) abre as perguntas numa conversa nova, sem tirar o foco nem rolar */
+  /* a página (js/orcamento.js) dá as opções; os toques (js/orcamento-toques.js) dão as respostas e pedem a conta (o radar se preenche) */
   window.BZPerguntas = {
-    iniciar: function (o) {
-      opcoes = o || {};
-      $('o-perguntas').hidden = false;
-      irPara(1, false);
-    }
+    iniciar: function (o) { opcoes = o || {}; },
+    /* respostas novas: o pacote recomeça e a conta sai já (sem a espera dos extras, que é para quem marca vários seguidos) */
+    definir: function (novas) {
+      var n = novas || {};
+      r = { ramo: n.ramo, outro: n.outro || '', objetivos: (n.objetivos || []).slice(), site_atual: n.site_atual, material: n.material };
+      recomecar();
+      return calcular();
+    },
+    respostas: function () { return respostas(); }
   };
 })();

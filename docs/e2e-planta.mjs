@@ -7,6 +7,7 @@
    rede porque a IA simulada só tem um plano) marca só o id novo, preço fechado desliga os botões, a faixa à vista espera o gesto. Desligada: nada aparece, nenhum módulo
    da planta é baixado, a conversa é a de sempre. Cada rodada cria sessões no freio local (8 por 10 min por IP): o script manda um IP novo por rodada. */
 import { chromium } from 'playwright';
+import { esperarToques, responderAteADor } from './e2e-toques.mjs';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
@@ -34,14 +35,9 @@ async function abrir(base, { larg = 1280, alt = 844 } = {}) {
   page.on('console', (m) => { if (m.type() === 'error' || (m.type() === 'warning' && /planta|beyon/.test(m.text()))) erros.push(m.text()); });
   page.on('dialog', (d) => { erros.push('diálogo: ' + d.message()); d.dismiss(); });
   await page.goto(base + '/orcamento', { waitUntil: 'load', timeout: 90000 });
-  await page.waitForSelector('#o-perguntas:not([hidden])');
-  await page.click('[data-ramo="saude"]'); await page.fill('#o-p-cidade', 'Goiânia');
-  await page.click('.orc-p:not([hidden]) .orc-p__seguir');
-  await page.click('[data-objetivo="agendamentos"]'); await page.click('.orc-p:not([hidden]) .orc-p__seguir');
-  await page.click('[data-site-atual="instagram"]'); await page.click('[data-material="tenho"]');
-  await page.click('#o-p-ver-preco');
-  await page.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 20000 });
-  await page.click('#o-conversar');
+  /* (orçamento como conversa) os toques do começo até a pergunta da dor: o 1º turno de texto é a resposta dela */
+  await esperarToques(page);
+  await responderAteADor(page);
   return { ctx, page, baixados, erros };
 }
 async function turno(page, texto) {

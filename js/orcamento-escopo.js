@@ -164,9 +164,11 @@
     }
   }
 
+  /* (orçamento como conversa, spec 2026-11-13 §2) quem decide se o valor ainda espera é o motor dos toques (js/orcamento-toques.js); sem ele, nada é retido */
+  function reterValor() { return !!(W.BZToques && typeof W.BZToques.reterValor === 'function' && W.BZToques.reterValor(E)); }
   /* idempotente: o mesmo estado não redesenha nem anima de novo */
   function desenhar() {
-    var st = Estado.estadoDoEscopo(E, sim, at), ass = JSON.stringify(st), antes = ultimo, tr;
+    var st = Estado.estadoDoEscopo(E, sim, at, { reterValor: reterValor() }), ass = JSON.stringify(st), antes = ultimo, tr;
     if (ass === assinatura) return;
     assinatura = ass;
     tr = Estado.transicao(antes, st);
@@ -217,6 +219,7 @@
   doc.addEventListener('bz:perguntas', function () { sim = null; desenhar(); });
   if (W.BEYON && W.BEYON.on) W.BEYON.on('reduzir', function (sim3) { if (sim3) { pararAnimacoes(); largarSelo(); } });
 
+  doc.addEventListener('bz:valor-liberado', function () { desenhar(); });
   W.BZOrcEscopo = { atualizar: function (novo) { E = novo || null; desenhar(); } };
   desenhar();
 })();

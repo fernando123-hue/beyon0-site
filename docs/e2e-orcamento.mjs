@@ -84,47 +84,49 @@ try {
   ok(await page.evaluate(() => localStorage.getItem('bz-orcamento') === null), 'nenhuma sessão criada só por abrir a página');
   await foto(page, '1-inicio-cel');
 
-  /* orçamento sem IA (spec 2026-10-11): 4 perguntas → preço → ajustar → quero os três modelos */
-  await page.waitForSelector('#o-perguntas:not([hidden])');
-  /* (orçamento leve) as perguntas da 1ª pintura (html.orc-nova, js/ancoras.js): o js/orcamento.js assumiu e tirou a classe */
-  ok(await page.evaluate(() => !document.documentElement.classList.contains('orc-nova')), 'visita nova: depois que a página assume, a classe da 1ª pintura (orc-nova) sai');
-  ok(await page.locator('#o-conversa').isHidden(), 'sem IA: a conversa com o consultor não aparece');
-  await page.locator('#o-perguntas').scrollIntoViewIfNeeded();
-  await foto(page, '1a-perguntas-cel');
-  await page.click('[data-ramo="saude"]');
-  await page.fill('#o-p-cidade', 'Goiânia');
-  await page.click('.orc-p:not([hidden]) .orc-p__seguir');
-  await page.click('[data-objetivo="agendamentos"]');
-  await page.click('.orc-p:not([hidden]) .orc-p__seguir');
-  await page.click('[data-site-atual="instagram"]');
-  await page.click('[data-material="tenho"]');
-  /* (orçamento leve) "Ver o preço" que FALHA: as perguntas saem no toque (o radar calcula) e voltam como antes, com a mensagem de sempre nelas e o
-     foco no botão. O 503 é lento (900 ms), como um servidor ruim de verdade */
-  {
-    falhaForcada = true;
-    const lento503 = async route => { await new Promise(r => setTimeout(r, 900)); await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ erro: 'O serviço está lento agora.' }) }); };
-    await page.route(SIMULAR, lento503);
-    await page.click('#o-p-ver-preco');
-    ok(await page.evaluate(() => document.getElementById('o-perguntas').hidden && document.activeElement && document.activeElement.id === 'o-est-titulo'), '"Ver o preço": as perguntas saem no toque e o foco vai ao título do painel');
-    await page.waitForFunction(() => !document.getElementById('o-perguntas').hidden, null, { timeout: 15000 });
-    /* (a rolagem de volta ao botão é suave no celular, html { scroll-behavior: smooth }: espera ela assentar antes de conferir o que está à vista) */
-    await espera(page, () => { const r = document.getElementById('o-p-erro').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }, 3000);
-    const falha = await page.evaluate(() => ({ erro: document.getElementById('o-p-erro').textContent, cartao: document.getElementById('o-est-erro').textContent, foco: document.activeElement && document.activeElement.id,
-      botao: document.getElementById('o-p-ver-preco').textContent, vista: (() => { const r = document.getElementById('o-p-erro').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })() }));
-    ok(falha.erro.length > 0 && !falha.cartao && falha.foco === 'o-p-ver-preco' && falha.botao === 'Ver o preço' && falha.vista, '"Ver o preço" que falha: as perguntas voltam, a mensagem nelas e à vista, o foco no botão ' + JSON.stringify(falha));
-    await foto(page, '1a-preco-falhou-cel');
-    await page.unroute(SIMULAR, lento503);
-    falhaForcada = false;
+  /* (orçamento como conversa, spec docs/superpowers/specs/2026-11-13-orcamento-conversa-design.md) a conversa É a página: as perguntas fixas
+     são falas do Zero com opções para tocar, dentro da caixa (js/orcamento-toques.js). O valor espera o caso: o radar se preenche sem número */
+  await page.waitForSelector('#o-log .orc-toque button');
+  ok(await page.locator('#o-conversa').isVisible(), 'a conversa é a página: à vista desde a 1ª pintura');
+  ok(await page.locator('#o-perguntas').count() === 0 && await page.locator('#o-conversar').count() === 0, 'sem tela de perguntas e sem "Prefere conversar?"');
+  ok(CONSULTOR ? await page.locator('#o-form').isVisible() : await page.locator('#o-form').isHidden(), CONSULTOR ? 'com consultor: a caixa de texto está à mão' : 'sem consultor: tudo por toques, sem caixa de texto');
+  await foto(page, '1a-conversa-cel');
+  const tocar = async texto => { const b = page.locator('#o-log .orc-toque:not([data-feito]) button', { hasText: texto }).first(); await b.scrollIntoViewIfNeeded(); await b.click(); };
+  await tocar('Saúde');
+  ok(await espera(page, () => localStorage.getItem('bz-orcamento') !== null, 15000), 'a sessão nasce no 1º toque (com o anti-robô), não ao abrir a página');
+  await tocar('Agendamentos');
+  await tocar('Pronto');
+  await tocar('Só o Instagram');
+  await tocar('Tenho');
+  await page.waitForFunction(() => /Site com/.test(document.getElementById('o-rde-entrega').textContent), null, { timeout: 15000 });
+  ok((await page.textContent('#o-rde-valor')).trim() === '—' && /Entendendo/.test(await page.textContent('#o-rde-estado')), 'o valor espera o caso: os cantos do radar se preenchem, o miolo fica sem número');
+  ok(await page.locator('#o-est-cheio').isHidden(), 'o cartão do investimento também espera');
+  ok(await semRolagemLateral(page), 'celular nos toques: sem rolagem lateral');
+  await foto(page, '1b-toques-cel');
+  await page.setViewportSize({ width: 320, height: 700 });
+  ok(await semRolagemLateral(page), '320 px nos toques: sem rolagem lateral');
+  await page.setViewportSize({ width: 390, height: 844 });
+  const zeroAntes = await page.locator('#o-log .msg--agente').count();
+  await tocar('Pelo Instagram');
+  await tocar('Paciente marca e falta');
+  await tocar('Pronto');
+  if (!CONSULTOR) ok(await espera(page, () => [...document.querySelectorAll('#o-log .msg--agente')].some(li => /Pelo que você contou/.test(li.textContent)), 5000), 'sem consultor: o resumo fixo diz o que o site faz, antes do valor');
+  else await page.waitForFunction(n => document.querySelectorAll('#o-log .msg--agente').length > n, zeroAntes, { timeout: 30000 });
+  /* (com a planta ligada no servidor local, o valor espera ela consagrar no cartão; no máximo 20 s) */
+  await page.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 30000 });
+  if (!CONSULTOR) {
+    ok((await page.textContent('#o-est-valor')).includes('8.350'), 'preço pela tabela: R$ 8.350 (institucional 7.900 + agendamento 450, tabela de 28/10)');
+    ok(/agend/i.test(await page.textContent('#o-est-motivo')), 'o motivo da recomendação, nas palavras da pessoa');
+    ok(await page.locator('#o-vizinhos [data-formato="landing_page"]').isVisible(), 'o formato vizinho ao lado (âncora honesta)');
+  } else {
+    ok(/R\$/.test(await page.textContent('#o-est-valor')), 'com consultor: o valor é o da estimativa que o Zero gravou');
+    ok(await page.locator('#o-vizinhos').isHidden() && await page.locator('#o-ajustar-abrir').isHidden(), 'com consultor: os extras e os formatos ao lado ficam na conversa (sem outra conta na tela)');
   }
-  await page.click('#o-p-ver-preco');
-  await page.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 15000 });
-  ok((await page.textContent('#o-est-valor')).includes('8.350'), 'preço pela tabela: R$ 8.350 (institucional 7.900 + agendamento 450, tabela de 28/10)');
-  ok(/agend/i.test(await page.textContent('#o-est-motivo')), 'o motivo da recomendação, nas palavras da pessoa');
-  ok(await page.locator('#o-vizinhos [data-formato="landing_page"]').isVisible(), 'o formato vizinho ao lado (âncora honesta)');
   ok(/não paga nada/i.test(await page.textContent('#o-est-sem-risco')), 'sem risco até confirmar');
   ok(await semRolagemLateral(page), 'celular no preço: sem rolagem lateral');
-  ok(await page.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'estimativa', 'com o preço na tela, a etapa já é "Preço"');
+  ok(await page.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'conversa', 'com o preço na tela, a etapa segue "Conversa" (o preço mora nela)');
   await foto(page, '1b-preco-cel');
+  if (!CONSULTOR) {
   /* AS SUGESTÕES (dono, 2026-11-10, opção A): os cartões antes do "Quero", pelo ramo (saúde: agendamento, textos, imagens), o da
      recomendação já marcado; um toque no cartão soma no preço e a lista completa acompanha */
   ok(await page.locator('#o-reco').isVisible() && await page.isChecked('#o-r-agendamento'), 'sugestões: os cartões à vista, com o agendamento da recomendação já marcado');
@@ -181,21 +183,26 @@ try {
   const corpoGravar = JSON.parse((await pedidoGravar).postData() || '{}');
   ok(corpoGravar.formato === 'institucional' && corpoGravar.extras && corpoGravar.extras.agendamento === 1 && corpoGravar.extras.imagens === 1,
     'Quero com conta pendente: espera e grava o pedido do último preço (institucional, agendamento e imagens), não o da conta que falhou nem o de antes: ' + JSON.stringify({ formato: corpoGravar.formato, extras: corpoGravar.extras }));
+  ok(JSON.stringify(corpoGravar.respostas && corpoGravar.respostas.situacao) === '["instagram","falta_consulta"]', 'sem consultor: a dor tocada vai junto do pacote gravado');
   ok(await page.textContent('#o-quero-modelos') === 'Guardando…', 'enquanto grava, o botão diz "Guardando…"');
   ok(await page.evaluate(() => document.getElementById('o-ajustar-principais').disabled && document.getElementById('o-x-urgencia').disabled), 'enquanto grava, os extras ficam travados');
   await page.waitForSelector('#o-contato:not([hidden])');
   await page.unroute(GRAVAR, gravarDevagar);
   ok(true, 'pacote gravado: segue para o contato');
   ok((await page.textContent('#o-est-valor')).includes('8.600'), 'o cartão depois de gravar mostra o preço gravado (8.350 + imagens 250 = 8.600)');
-  ok((await page.textContent('#o-detalhes-form button[type=submit]')).trim() === 'Quero os três modelos', 'detalhes: o botão diz "Quero os três modelos"');
-  ok(await page.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'estimativa', 'etapa atual: preço');
   ok(await page.locator('#o-ajustar').isHidden() && await page.locator('#o-quero-modelos').isHidden(), 'pacote gravado: os controles do preço saem de cena');
-
-  if (CONSULTOR) {
-    /* com o consultor: "Prefere conversar?" abre a conversa. Segurança na tela: HTML digitado aparece como texto */
-    await page.click('#o-conversar');
+  } else {
+    /* com o consultor, o pacote é a estimativa do Zero: "Quero" leva ao contato, sem gravar outro pacote */
+    let gravouOutro = false;
+    const espiaGravar = route => { gravouOutro = true; return route.continue(); };
+    await page.route(GRAVAR, espiaGravar);
+    await page.click('#o-quero-modelos');
+    await page.waitForSelector('#o-contato:not([hidden])');
+    await page.unroute(GRAVAR, espiaGravar);
+    ok(!gravouOutro, 'com consultor: "Quero" não chama o confirmar-pacote (a estimativa do Zero vale)');
+    /* segurança na tela: HTML digitado aparece como texto */
     const respostas = await page.locator('#o-log .msg--agente').count();
-    await page.fill('#o-texto', '<img src=x onerror=alert(1)> Tenho uma clínica odontológica e quero mais agendamentos');
+    await page.fill('#o-texto', '<img src=x onerror=alert(1)> Também atendo aos sábados');
     await page.press('#o-texto', 'Enter');
     await page.waitForFunction(n => document.querySelectorAll('#o-log .msg--agente').length > n, respostas, { timeout: 30000 });
     ok(await page.locator('#o-log img').count() === 0, 'texto com HTML vira texto (nenhuma <img> criada)');
@@ -215,9 +222,8 @@ try {
     await page.press('#o-texto', 'Enter');   /* Enter repetido */
     await page.waitForSelector('#o-pensando[hidden]', { state: 'attached', timeout: 30000 });
     ok(await page.locator('#o-log .msg--visitante').count() === antes + 1, 'Enter repetido não manda dois turnos');
-  } else {
-    ok(await page.locator('#o-conversar').isHidden(), 'sem consultor: nenhum convite para conversar');
   }
+  ok((await page.textContent('#o-detalhes-form button[type=submit]')).trim() === 'Quero os três modelos', 'detalhes: o botão diz "Quero os três modelos"');
   /* os detalhes (PR 2a): obrigatórios, sugestões pelo ramo, aviso de dado pessoal, aceite e autorização das redes */
   ok(/não escreva CPF/i.test(await page.textContent('#o-detalhes-form')), 'detalhes: o aviso de não escrever CPF, telefone ou dados de outras pessoas');
   await page.locator('#o-contato').scrollIntoViewIfNeeded();
@@ -271,16 +277,16 @@ try {
   await page.unroute(DETALHES, detalhesRecusado);
   falhaForcada = false;
   /* o formulário volta com a recarga (nada digitado fica guardado, D7): preenche de novo e envia de verdade */
-  /* (orçamento leve) a retomada de um pedido SALVO: a cabeça (js/ancoras.js) não marca visita nova, e as perguntas não aparecem em quadro nenhum */
+  /* (orçamento como conversa) a retomada de um pedido SALVO: os toques do começo não voltam em quadro nenhum da carga */
   await page.addInitScript(() => {
-    window.__perguntasVistas = false;
-    const olhar = () => { const p = document.getElementById('o-perguntas'); if (p && p.getClientRects().length) window.__perguntasVistas = true; if (performance.now() < 6000) requestAnimationFrame(olhar); };
+    window.__toquesVistos = false;
+    const olhar = () => { if (document.querySelector('#o-log .orc-toque')) window.__toquesVistos = true; if (performance.now() < 6000) requestAnimationFrame(olhar); };
     requestAnimationFrame(olhar);
   });
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('#o-contato:not([hidden])', { timeout: 30000 });
-  ok(await page.evaluate(() => !document.documentElement.classList.contains('orc-nova') && !window.__perguntasVistas && document.getElementById('o-perguntas').hidden),
-    'retomada com pedido salvo: sem a classe de visita nova e as perguntas em nenhum quadro da carga');
+  ok(await page.evaluate(() => !document.documentElement.classList.contains('orc-nova') && !window.__toquesVistos),
+    'retomada com pedido salvo: sem a classe de visita nova e os toques do começo em nenhum quadro da carga');
   /* (07/11, opção A) "Já vem no pacote" volta depois de recarregar também no site institucional: a lista gravada com a estimativa (formato.no_pacote) */
   ok(await espera(page, () => !document.getElementById('o-est-inclui-caixa').hidden && document.querySelectorAll('#o-est-inclui li').length > 0),
     'retomada com pedido salvo (institucional): "Já vem no pacote" volta, com a lista da tabela');
@@ -415,13 +421,12 @@ try {
   ok(await espera(novo.p, () => !document.getElementById('o-retomada').hidden), 'retomada: o link abre a tela "Abrir o seu pedido"');
   ok(await novo.p.evaluate(() => location.hash === '' && !location.href.includes('retomar')), 'retomada: o código sai da barra de endereço na hora');
   ok(await novo.p.evaluate(() => localStorage.getItem('bz-orcamento') === null) && novo.toques.length === 0, 'retomada: sem o toque, o link não é gasto e nenhuma sessão é criada');
-  ok(await novo.p.evaluate(() => ['o-perguntas', 'o-direcoes'].every(id => document.getElementById(id).hidden)), 'retomada: antes do toque, nem as perguntas nem os modelos aparecem');
+  ok(await novo.p.evaluate(() => !document.querySelector('#o-log .orc-toque') && document.getElementById('o-direcoes').hidden), 'retomada: antes do toque, nem os toques do começo nem os modelos aparecem');
   ok(await novo.p.evaluate(() => document.activeElement.id) === 'o-ret-abrir', 'retomada: o foco fica em "Abrir o meu pedido"');
   /* a página de trás não diz que a pessoa está no começo: sem etapas, sem o texto de abertura, sem a mesa com o cartão do preço */
-  /* (o cartão do preço vazio mora dentro de .orc-mesa, que já entra na conta; o botão da conversa só nasce visível
-     com o consultor ligado: sem CONSULTOR=1 ele já é hidden e a checagem não diria nada) */
-  const escondidos = p => p.evaluate(consultor => ['o-etapas', ...(consultor ? ['o-conversar'] : [])].every(id => !document.getElementById(id).getClientRects().length)
-    && !document.querySelector('.orc-lead').getClientRects().length && !document.querySelector('.orc-mesa').getClientRects().length, CONSULTOR);
+  /* (o cartão do preço vazio e a conversa moram dentro de .orc-mesa, que já entra na conta) */
+  const escondidos = p => p.evaluate(() => !document.getElementById('o-etapas').getClientRects().length
+    && !document.querySelector('.orc-lead').getClientRects().length && !document.querySelector('.orc-mesa').getClientRects().length);
   ok(await escondidos(novo.p), 'retomada: enquanto o link espera o toque, as etapas, o preço vazio e a conversa ficam escondidos');
   ok(Math.round((await novo.p.locator('#o-ret-abrir').boundingBox()).height) >= 44, 'retomada: o botão tem 44 px de altura ou mais');
   ok(await semRolagemLateral(novo.p), 'retomada no celular: sem rolagem lateral');
@@ -455,8 +460,8 @@ try {
   const bloqueada = await novo.c.newPage();
   await bloqueada.route('**/js/orcamento-retomada.js', r => r.abort());
   await bloqueada.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'load', timeout: 90000 });
-  ok(await espera(bloqueada, () => !document.documentElement.classList.contains('orc-retomando') && document.getElementById('o-etapas').getBoundingClientRect().height > 0 && !document.getElementById('o-perguntas').hidden, 15000),
-    'retomada, script bloqueado: no load a classe sai e a página aparece (etapas e perguntas), em vez de ficar só com o título');
+  ok(await espera(bloqueada, () => !document.documentElement.classList.contains('orc-retomando') && document.getElementById('o-etapas').getBoundingClientRect().height > 0 && !!document.querySelector('#o-log .orc-toque'), 15000),
+    'retomada, script bloqueado: no load a classe sai e a página aparece (etapas e os toques da conversa), em vez de ficar só com o título');
   await bloqueada.close();
   /* link cortado: avisa, sem botão de abrir; sem pedido neste aparelho, a saída é o WhatsApp (com o foco nele) */
   const cortada = await novo.c.newPage();
@@ -507,7 +512,7 @@ try {
   /* o aparelho de antes perdeu o acesso: a página começa limpa ou avisa, e não mostra o pedido */
   const velho = await ctx.newPage();
   await velho.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
-  ok(await espera(velho, () => !document.getElementById('o-perguntas').hidden || !document.getElementById('o-aviso').hidden), 'retomada: no aparelho de antes, a página começa limpa ou avisa que a sessão terminou');
+  ok(await espera(velho, () => !!document.querySelector('#o-log .orc-toque') || !document.getElementById('o-aviso').hidden), 'retomada: no aparelho de antes, a página começa limpa (os toques do começo) ou avisa que a sessão terminou');
   ok(await velho.locator('.dir .dir__nome').count() === 0, 'retomada: o aparelho de antes não mostra mais os modelos desse pedido');
   await velho.close();
 
@@ -697,7 +702,7 @@ try {
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('#o-ajustes:not([hidden])', { timeout: 30000 });
   if (CONSULTOR) ok(await page.locator('#o-log .msg').count() >= 5, 'recarregar: a conversa volta');
-  else ok(await page.locator('#o-conversa').isHidden() && await page.locator('#o-perguntas').isHidden(), 'recarregar: nem conversa nem perguntas de novo');
+  else ok(await page.locator('#o-log .orc-toque').count() === 0, 'recarregar: os toques do começo não recomeçam');
   ok(await page.locator('#o-versao button').isVisible(), 'recarregar: a versão ajustada volta');
 
   ok((await page.textContent('#o-fechar-escopo')).trim() === 'Está bom assim: ver o resumo', 'ajustes: o botão diz "ver o resumo"');
@@ -763,8 +768,8 @@ try {
   await new Promise(r => setTimeout(r, 61e3));
 
   /* o pacote que pede conversa (estimativa nula com diagnóstico, como passar do limite automático): forçado aqui pela
-     resposta do servidor, porque a tabela de teste não chega ao limite pelos botões da tela */
-  {
+     resposta do servidor, porque a tabela de teste não chega ao limite pelos botões da tela. Só sem o consultor: com ele, o pacote é a estimativa do Zero */
+  if (!CONSULTOR) {
     const c = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const p = await c.newPage();
     anotar(p, 'diagnóstico');
@@ -775,22 +780,23 @@ try {
       const corpo = await real.json();
       await route.fulfill({ response: real, json: { ...corpo, estimativa: null, diagnostico: { itens: [] } } });
     });
-    /* (as respostas ficam ao voltar por "Mudar as respostas": o objetivo só é marcado na 1ª vez) */
+    const tocarEm = async texto => { const b = p.locator('#o-log .orc-toque:not([data-feito]) button', { hasText: texto }).first(); await b.scrollIntoViewIfNeeded(); await b.click(); };
+    /* (a 1ª vez, os toques do começo; depois, "Mudar as respostas" reabre as perguntas na conversa com as respostas de agora, e o "Pronto" refaz a conta) */
     const verOPreco = async primeira => {
-      await p.click('.orc-p:not([hidden]) .orc-p__seguir');   /* (o ramo é a saúde marcada pela seta, abaixo) */
-      if (primeira) await p.click('[data-objetivo="agendamentos"]');   /* (com saúde, a recomendação traz o agendamento: um extra que não pode sumir) */
-      await p.click('.orc-p:not([hidden]) .orc-p__seguir');
-      await p.click('#o-p-ver-preco');
+      if (!primeira) { await tocarEm('Pronto'); return; }
+      await tocarEm('Saúde');
+      await tocarEm('Agendamentos');   /* (com saúde, a recomendação traz o agendamento: um extra que não pode sumir) */
+      await tocarEm('Pronto');
+      await tocarEm('Só o Instagram');
+      await tocarEm('Tenho');
+      await tocarEm('Pelo Instagram');
+      await tocarEm('Pronto');
     };
     const emConversa = () => !document.getElementById('o-est-vazio').hidden && /precisa de uma conversa/i.test(document.getElementById('o-est-vazio').textContent)
       && document.getElementById('o-est-cheio').hidden;
     await p.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });   /* (contexto novo: a 1ª carga pode ser lenta, como na linha 67) */
-    await p.waitForSelector('#o-perguntas:not([hidden])');
-    /* escolha única é grupo de rádio: as setas marcam a vizinha e levam o foco */
-    await p.focus('[data-ramo="servicos"]');
-    await p.keyboard.press('ArrowDown');
-    ok(await p.evaluate(() => { const b = document.querySelector('[data-ramo="saude"]'); return b === document.activeElement && b.getAttribute('aria-checked') === 'true' && b.tabIndex === 0
-      && document.querySelector('[data-ramo="servicos"]').getAttribute('aria-checked') === 'false' && b.closest('[role="radiogroup"]') !== null; }), 'ramo: grupo de rádio, a seta marca o próximo');
+    await p.waitForSelector('#o-log .orc-toque button');
+    ok(await p.evaluate(() => { const g = document.querySelector('#o-log .orc-toque [role="group"]'); return !!g && !!g.getAttribute('aria-label') && [...g.querySelectorAll('button')].every(b => b.type === 'button'); }), 'toques: grupo rotulado de botões de verdade (teclado e leitor de tela)');
     await verOPreco(true);
     ok(await espera(p, emConversa, 15000), 'diagnóstico no 1º preço: o cartão diz que o pacote precisa de uma conversa');
     ok(await p.locator('#o-p-refazer').isVisible(), 'diagnóstico no 1º preço: "Mudar as respostas" continua ao alcance');
@@ -853,7 +859,7 @@ try {
     await c.close();
   }
 
-  /* 320px e desktop: o layout das perguntas, do preço e do "Quer ajustar?"
+  /* 320px e desktop: o layout dos toques, do preço e do "Quer ajustar?"
      Antes, espera a janela do freio geral (90 chamadas por minuto por IP, api/vendas.mjs) esvaziar: numa máquina rápida
      (o CI) o fluxo principal soma mais de 90 no mesmo minuto e a sessão do 1440 levava 429 (visto no diário do CI). O
      freio é real e fica como está; quem espera é o teste */
@@ -865,14 +871,20 @@ try {
     await p.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
     ok(await semRolagemLateral(p), w + 'px: sem rolagem lateral');
     await foto(p, nome);
-    await p.waitForSelector('#o-perguntas:not([hidden])');
-    await p.locator('#o-perguntas').scrollIntoViewIfNeeded();
-    await foto(p, nome + '-perguntas');
-    await p.click('[data-naosei="1"]');
-    await p.click('[data-objetivo="pedidos_whatsapp"]');
-    await p.click('.orc-p:not([hidden]) .orc-p__seguir');
-    await foto(p, nome + '-passo3');
-    await p.click('#o-p-ver-preco');
+    const tocarEm = async texto => { const b = p.locator('#o-log .orc-toque:not([data-feito]) button', { hasText: texto }).first(); await b.scrollIntoViewIfNeeded(); await b.click(); };
+    await p.waitForSelector('#o-log .orc-toque button');
+    await p.locator('#o-conversa').scrollIntoViewIfNeeded();
+    await foto(p, nome + '-conversa');
+    await tocarEm('Serviços');
+    await tocarEm('Receber pedidos e orçamentos pelo WhatsApp');
+    await tocarEm('Pronto');
+    await tocarEm('Não sei, escolha por mim');
+    await tocarEm('Não sei, escolha por mim');
+    ok(await semRolagemLateral(p), w + 'px nos toques: sem rolagem lateral');
+    await foto(p, nome + '-toques');
+    if (CONSULTOR) { await c.close(); continue; }   /* (com o consultor, a dor vai à IA: o caminho inteiro já passou no fluxo principal) */
+    await tocarEm('Me chamam no WhatsApp');
+    await tocarEm('Pronto');
     await p.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 15000 });
     ok(/escolhi por você/i.test(await p.textContent('#o-est-assumido')), w + 'px: o "Não sei" assumido aparece escrito');
     ok(await semRolagemLateral(p), w + 'px no preço: sem rolagem lateral');
@@ -883,8 +895,9 @@ try {
     ok(await semRolagemLateral(p), w + 'px no ajustar: sem rolagem lateral');
     await foto(p, nome + '-ajustar');
     await p.click('#o-p-refazer');
-    ok(await p.locator('#o-perguntas').isVisible() && await p.locator('#o-ajustar').isHidden(), w + 'px: "Mudar as respostas" volta às perguntas');
-    ok(await p.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'conversa', w + 'px: e a etapa volta para "Perguntas"');
+    ok(await p.locator('#o-log .orc-toque--mudar').isVisible(), w + 'px: "Mudar as respostas" reabre as perguntas dentro da conversa');
+    ok(await semRolagemLateral(p), w + 'px no "Mudar": sem rolagem lateral');
+    ok(await p.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'conversa', w + 'px: a etapa segue "Conversa"');
     await c.close();
   }
 

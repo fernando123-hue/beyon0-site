@@ -340,3 +340,28 @@ test('segurança: prazo e percentual fora do plausível (0 a 1000) não viram te
   const paginas = estadoDoEscopo(null, simulado({ paginas_incluidas: 100000 }), {});
   assert.ok(!/100000/.test(paginas.dims.escopo.texto), paginas.dims.escopo.texto);
 });
+
+/* ---------- (orçamento como conversa, spec 2026-11-13 §2) o valor retido até o caso ser entendido ---------- */
+test('valor retido: os cantos se preenchem pela simulação, o miolo fica sem número e o estado é "entendendo"', () => {
+  const r = estadoDoEscopo(estado(), simulado(), {}, { reterValor: true });
+  assert.equal(r.estado, 'entendendo');
+  assert.equal(r.valor, null);
+  assert.equal(r.fonteValor, null);
+  assert.equal(r.rotulo, 'Entendendo o seu caso');
+  assert.deepEqual(NIVEIS_DE(r), { entrega: 1, escopo: 1, integracoes: 1, prazo: 1 }, 'o que entra já aparece');
+  assert.deepEqual(r.detalhes.podeMudar, []);
+});
+
+test('valor retido também vale para a estimativa gravada (o Zero estimou e a coreografia ainda não terminou)', () => {
+  const r = estadoDoEscopo(estado({ etapa: 'estimativa' }, { estimativa: salvo() }), null, {}, { reterValor: true });
+  assert.equal(r.valor, null);
+  assert.equal(r.estado, 'entendendo');
+  const solto = estadoDoEscopo(estado({ etapa: 'estimativa' }, { estimativa: salvo() }), null, {}, { reterValor: false });
+  assert.equal(solto.valor, 8600, 'liberado: o valor da estimativa gravada');
+});
+
+test('valor retido não segura o que já foi confirmado (proposta, escopo, ouro): só vale antes do pedido', () => {
+  const comContato = estadoDoEscopo(estado({ etapa: 'contato', tem_contato: true }, { estimativa: salvo() }), null, {}, { reterValor: true });
+  assert.equal(comContato.estado, 'proposta');
+  assert.equal(comContato.valor, 8600);
+});
