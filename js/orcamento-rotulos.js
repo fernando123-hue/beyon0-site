@@ -87,7 +87,7 @@
     responde_na_mao: 'Preço e horário ficam na página, e você responde menos coisa na mão.',
     pergunta_e_some: 'A dúvida mais comum já tem resposta ali, antes de a pessoa desistir.',
     nao_me_acham: 'Fica fácil entender quem você é e o que você faz.',
-    falta_consulta: 'Quem marcou recebe o horário certinho e tem como confirmar.',
+    falta_consulta: 'Quem marca já sai com o dia e a hora por escrito.',
     horario_vago: 'Os horários livres ficam à vista para quem quer marcar.',
     visita_perdida: 'O pedido de visita chega organizado, com o que você precisa saber.',
     pedido_perdido: 'O pedido chega organizado, sem se perder na correria.',

@@ -156,6 +156,8 @@
       atualizarExtras();
     }
     erro(mensagem(e, FALHA_CALCULO), e && e.status === 400 && e.dados ? e.dados.formato_sugerido : null);
+    /* (enquanto o valor espera, o cartão está fora de cena: a falha vai para a conversa, js/orcamento-toques.js; nunca fica muda) */
+    if (retido()) document.dispatchEvent(new CustomEvent('bz:conta-falhou', { detail: { mensagem: mensagem(e, FALHA_CALCULO) } }));
   }
   function agendar() { clearTimeout(adiado); adiado = setTimeout(function () { adiado = null; calcular(); }, ESPERA_MS); }
   /* antes de gravar: as contas pendentes (espera ou em voo, inclusive uma que começou durante a espera) terminam, para

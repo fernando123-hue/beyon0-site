@@ -484,7 +484,10 @@ O dono, 13/11: "O nosso JEV está poderoso igual o original? Ele funciona especi
     - o valor aparece só depois do mapa.
   - **Entrega:** os 3 mapas lado a lado (celular e computador), com o que cada pessoa disse ao lado, e o tempo de cada turno.
   - Se as estruturas saírem iguais, o prompt da escolha é ajustado e medido de novo, dentro do teto.
-- **Vídeos novos da página real** (celular primeiro), quando as seções 1 a 7 estiverem na `main`. Mesmo gravador e mesmas regras dos de hoje: câmera lenta controlada se a CPU estiver cheia, conferência quadro a quadro, cópias até 25 MB.
+- **Vídeos** [D] 13/11 ("Quando tudo estiver pronto quero um video de apresentação geral. E alguns vídeos da tabela viva"), em `00 Entrada/orcamento-conversa/videos/` (cofre), com `LEIA.md`:
+  1. **Apresentação geral**, celular 390 primeiro (computador opcional), com som: da página inicial até "Pedido recebido", passando pelo orçamento novo inteiro (toques, dor, mapa do caso, valor depois, pedido na conversa e cartão de aceite), em ritmo de uso real, sem corte que esconda espera. Quando as seções 1 a 7 estiverem na `main`.
+  2. **Um vídeo do mapa do caso para cada uma das 5 conversas do teste com a IA real**, gravado na própria rodada (as conversas não se pagam duas vezes). Se a câmera lenta não combinar com a IA real, a página real reproduz a resposta gravada da IA, e o `LEIA.md` diz como foi.
+  - Mesmo gravador e mesmas regras dos de 13/11: câmera lenta controlada se a CPU estiver cheia (com a velocidade dita), conferência quadro a quadro (nada cortado, nenhum salto, sem blur), cópias até 25 MB. Os caminhos vão à sessão principal, nunca ao dono direto.
 
 ## 10. Os PRs (na ordem, um por vez, porque os arquivos se cruzam)
 

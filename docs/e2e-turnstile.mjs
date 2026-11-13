@@ -13,6 +13,7 @@
    continua nas perguntas com as respostas (a sessão nasce no "Ver o preço").
    ========================================================================== */
 import { chromium } from 'playwright';
+import { esperarToques, tocar } from './e2e-toques.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8899';
 const hostDe = url => { try { return new URL(url).hostname; } catch { return null; } };
@@ -34,24 +35,20 @@ async function cenario(nome, codigoJs, verificar) {
   await p.route('https://challenges.cloudflare.com/**', r => r.fulfill({ status: 200, contentType: 'application/javascript', body: falso(codigoJs) }));
   await p.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
   ok((await (await p.request.get(BASE + '/api/vendas?acao=sessao-config')).json()).turnstile, nome + ': o servidor tem chave (senão o widget nem carrega)');
-  /* orçamento sem IA: a sessão (e o anti-robô) nasce no "Ver o preço" das perguntas */
-  await p.waitForSelector('#o-perguntas:not([hidden])');
-  await p.click('[data-ramo="saude"]');
-  await p.click('.orc-p:not([hidden]) .orc-p__seguir');
-  await p.click('[data-objetivo="agendamentos"]');
-  await p.click('.orc-p:not([hidden]) .orc-p__seguir');
-  await p.click('#o-p-ver-preco');
+  /* (orçamento como conversa) a sessão (e o anti-robô) nasce no 1º toque da conversa */
+  await esperarToques(p);
+  await tocar(p, 'Saúde');
   await verificar(p);
   await ctx.close();
 }
-/* a recusa aparece embaixo das perguntas (js/orcamento-perguntas.js) */
-const aviso = p => p.waitForFunction(() => document.getElementById('o-p-erro').textContent.trim().length > 0, null, { timeout: 20000 }).then(() => p.textContent('#o-p-erro'));
+/* a recusa aparece na conversa, como fala do Zero com "Tentar de novo" e "Deixar um recado" (js/orcamento-toques.js): nunca muda */
+const aviso = p => p.waitForSelector('#o-log .orc-toque--erro:not([data-feito]) .orc-toque__erro', { timeout: 20000 }).then(() => p.textContent('#o-log .orc-toque--erro:not([data-feito]) .orc-toque__erro'));
 
 try {
   for (const codigo of ['110200', '110100', '200500']) {
     await cenario('erro de configuração ' + codigo, `o['error-callback']('${codigo}')`, async p => {
       ok(/WhatsApp/.test(await aviso(p)), codigo + ': mensagem com WhatsApp (recarregar não resolveria)');
-      ok(await p.locator('#o-perguntas').isVisible() && await p.getAttribute('[data-ramo="saude"]', 'aria-checked') === 'true', codigo + ': a pessoa continua nas perguntas, com as respostas');
+      ok(await p.locator('#o-log .msg--visitante', { hasText: 'Saúde' }).count() === 1 && await p.locator('#o-log .orc-toque--erro button', { hasText: 'Tentar de novo' }).isVisible(), codigo + ': a conversa segue, com o toque dela e o "Tentar de novo"');
     });
   }
   await cenario('desafio recusado', `o['error-callback']('600010')`, async p => {

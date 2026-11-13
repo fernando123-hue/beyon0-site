@@ -186,6 +186,27 @@
   }
   var ESPERA_VALOR_MS = 1200;
 
+  /* ---------- a conta ou o anti-robô falhou durante os toques (spec §1: nunca há falha muda) ----------
+     A fala do Zero diz o que houve, com "Tentar de novo" (refaz a conta com as respostas de agora) e "Deixar um recado". Uma por vez */
+  doc.addEventListener('bz:conta-falhou', function (ev) {
+    if (s.liberado) return;
+    var velho = $('o-log').querySelector('.orc-toque--erro:not([data-feito])');
+    if (velho) fechar(velho, null);
+    var texto = ev && ev.detail && ev.detail.mensagem ? ev.detail.mensagem : 'Não consegui calcular agora.';
+    var li = el('li', 'orc-toque orc-toque--erro'), p = el('p', 'msg msg--agente orc-toque__erro', texto), acoes = el('div', 'orc-toque__ops');
+    p.setAttribute('role', 'alert');
+    var tentar = el('button', 'orc-op orc-op--toque', 'Tentar de novo');
+    tentar.type = 'button';
+    tentar.addEventListener('click', function () { if (li.hasAttribute('data-feito')) return; fechar(li, null); contar(); });
+    var recado = el('a', 'orc-op orc-op--toque', 'Deixar um recado');
+    recado.href = '#recado';
+    recado.setAttribute('data-recado-abrir', '');
+    recado.setAttribute('data-recado-origem', 'orcamento');
+    acoes.appendChild(tentar); acoes.appendChild(recado);
+    li.appendChild(p); li.appendChild(acoes);
+    inserir(li);
+  });
+
   /* ---------- "Mudar o que eu respondi": as perguntas fixas de novo, dentro da conversa, com as respostas de agora marcadas ---------- */
   function reabrir() {
     var novas = copiar(s.respostas);
