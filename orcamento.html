@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Orçamento de site online, com valor e prévia | Beyon Zero</title>
-  <meta name="description" content="Conte o seu negócio, veja o investimento calculado pela tabela da Beyon Zero e receba três direções de site para comparar antes de fechar." />
+  <meta name="description" content="Conte do seu negócio para o Zero, veja o site que ele precisa e quanto custa pela tabela da Beyon Zero, e receba três modelos para comparar antes de fechar." />
   <link rel="canonical" href="https://beyonzero.com.br/orcamento" />
   <meta property="og:url" content="https://beyonzero.com.br/orcamento" />
   <meta property="og:site_name" content="Beyon Zero" />
   <meta property="og:locale" content="pt_BR" />
   <meta property="og:title" content="Monte o orçamento do seu site — Beyon Zero" />
-  <meta property="og:description" content="Conte o seu negócio, veja o investimento calculado pela tabela da Beyon Zero e receba três direções de site para comparar antes de fechar." />
+  <meta property="og:description" content="Conte do seu negócio para o Zero, veja o site que ele precisa e quanto custa pela tabela da Beyon Zero, e receba três modelos para comparar antes de fechar." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="https://beyonzero.com.br/assets/og-cover.jpg" />
   <meta property="og:image:width" content="1200" />
@@ -18,7 +18,7 @@
   <meta property="og:image:alt" content="Beyon Zero: “Do problema ao sistema no ar.” Sites · Automação · IA" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Monte o orçamento do seu site — Beyon Zero" />
-  <meta name="twitter:description" content="Veja o investimento pela tabela da Beyon Zero e três direções de site antes de fechar." />
+  <meta name="twitter:description" content="Conte do seu negócio, veja o site que ele precisa e quanto custa pela tabela da Beyon Zero, antes de fechar." />
   <meta name="twitter:image" content="https://beyonzero.com.br/assets/og-cover.jpg" />
   <meta name="twitter:image:alt" content="Beyon Zero: “Do problema ao sistema no ar.” Sites · Automação · IA" />
 
@@ -70,14 +70,13 @@
     <section class="orc-topo" aria-labelledby="orc-titulo">
       <p class="orc-kicker"><span class="dot" aria-hidden="true"></span>Monte seu orçamento</p>
       <h1 id="orc-titulo">Veja o seu site <em>antes</em> de fechar.</h1>
-      <p class="orc-lead">Responda umas perguntas rápidas e veja o preço na hora, sem cadastro. Depois nós desenhamos três modelos e você só paga se escolher um.</p>
+      <p class="orc-lead">Conte do seu negócio para o Zero: ele desenha o site que trabalha por você e mostra quanto custa, sem cadastro. Depois nós fazemos três modelos e você só paga se escolher um.</p>
       <ol class="orc-etapas" id="o-etapas" aria-label="Etapas">
-        <li data-passo="conversa" aria-current="step"><span class="orc-etapas__n">01</span><span class="orc-etapas__nome">Perguntas</span></li>
-        <li data-passo="estimativa"><span class="orc-etapas__n">02</span><span class="orc-etapas__nome">Preço</span></li>
-        <li data-passo="direcoes"><span class="orc-etapas__n">03</span><span class="orc-etapas__nome">Modelos</span></li>
-        <li data-passo="ajustes"><span class="orc-etapas__n">04</span><span class="orc-etapas__nome">Ajustes</span></li>
-        <li data-passo="escopo"><span class="orc-etapas__n">05</span><span class="orc-etapas__nome">Resumo</span></li>
-        <li data-passo="pagamento"><span class="orc-etapas__n">06</span><span class="orc-etapas__nome">Entrada</span></li>
+        <li data-passo="conversa" aria-current="step"><span class="orc-etapas__n">01</span><span class="orc-etapas__nome">Conversa</span></li>
+        <li data-passo="direcoes"><span class="orc-etapas__n">02</span><span class="orc-etapas__nome">Modelos</span></li>
+        <li data-passo="ajustes"><span class="orc-etapas__n">03</span><span class="orc-etapas__nome">Ajustes</span></li>
+        <li data-passo="escopo"><span class="orc-etapas__n">04</span><span class="orc-etapas__nome">Resumo</span></li>
+        <li data-passo="pagamento"><span class="orc-etapas__n">05</span><span class="orc-etapas__nome">Entrada</span></li>
       </ol>
       <p class="orc-codigo" id="o-codigo" hidden>Código do pedido <b id="o-codigo-v"></b><span class="orc-codigo__nota"> · fica salvo neste navegador; cite-o se falar com a Beyon Zero</span></p>
     </section>
@@ -88,6 +87,7 @@
       <p id="o-aviso-texto"></p>
       <div class="orc-aviso__acoes">
         <button class="btn btn--sm" type="button" id="o-tentar">Tentar de novo</button>
+        <button class="btn btn--sm btn--ghost" type="button" id="o-seguir-tocando" hidden>Seguir tocando nas opções</button>
         <a class="btn btn--sm btn--ghost" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixar um recado</a>
       </div>
     </div>
@@ -107,73 +107,17 @@
     <!-- o que um leitor de tela ouve (A2): o preço, os modelos prontos e, com o consultor ligado, a resposta dele -->
     <p class="sr-only" id="o-voz" role="status"></p>
 
-    <!-- AS PERGUNTAS (orçamento sem IA, spec 2026-10-11 §2): uma por tela, botões grandes (js/orcamento-perguntas.js) -->
-    <section class="orc-perguntas" id="o-perguntas" data-origem="orcamento-perguntas" aria-labelledby="o-p-titulo" hidden>
-      <p class="orc-perguntas__passo" id="o-p-passo">Passo 1 de 3</p>
-      <div class="orc-p" data-p="1">
-        <h2 id="o-p-titulo">O que o seu negócio faz?</h2>
-        <div class="orc-opcoes" role="radiogroup" aria-labelledby="o-p-titulo">
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="0" data-ramo="servicos">Serviços <small>oficina, assistência técnica, advocacia…</small></button>
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="saude">Saúde <small>clínica, consultório, fisioterapia…</small></button>
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="beleza">Beleza <small>salão, barbearia, estética…</small></button>
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="alimentacao">Alimentação <small>restaurante, lanchonete, padaria…</small></button>
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="comercio">Comércio <small>loja, mercado, distribuidora…</small></button>
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="educacao">Educação <small>escola, curso, aulas…</small></button>
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="associacao">Associação ou entidade</button>
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="outro">Outro</button>
-        </div>
-        <label class="orc-p__campo" for="o-p-outro" id="o-p-outro-rotulo" hidden>Qual? <input id="o-p-outro" maxlength="60" autocomplete="off" /></label>
-        <label class="orc-p__campo" for="o-p-cidade">Em qual cidade? <input id="o-p-cidade" maxlength="60" autocomplete="address-level2" /></label>
-        <button type="button" class="btn btn--primary orc-p__seguir" id="o-p-seguir">Seguir</button>
-        <button type="button" class="orc-p__naosei" data-naosei="1">Não sei, escolha por mim</button>
-      </div>
-      <div class="orc-p" data-p="2" hidden>
-        <h2 id="o-p2-titulo">O que o site precisa trazer para você?</h2>
-        <p class="orc-p__nota">Pode marcar mais de um.</p>
-        <div class="orc-opcoes" role="group" aria-labelledby="o-p2-titulo">
-          <button type="button" class="orc-op" aria-pressed="false" data-objetivo="pedidos_whatsapp">Receber pedidos e orçamentos pelo WhatsApp</button>
-          <button type="button" class="orc-op" aria-pressed="false" data-objetivo="achado_google">Ser achado no Google e no mapa</button>
-          <button type="button" class="orc-op" aria-pressed="false" data-objetivo="agendamentos">Agendamentos</button>
-          <button type="button" class="orc-op" aria-pressed="false" data-objetivo="vender_online">Vender online</button>
-          <button type="button" class="orc-op" aria-pressed="false" data-objetivo="apresentar">Apresentar a empresa</button>
-          <button type="button" class="orc-op" aria-pressed="false" data-objetivo="campanha">Uma campanha ou lançamento</button>
-        </div>
-        <button type="button" class="btn btn--primary orc-p__seguir" data-seguir="2">Seguir</button>
-        <button type="button" class="orc-p__naosei" data-naosei="2">Não sei, escolha por mim</button>
-      </div>
-      <div class="orc-p" data-p="3" hidden>
-        <h2 id="o-p3-titulo">Já tem site ou endereço próprio?</h2>
-        <div class="orc-opcoes" role="radiogroup" aria-labelledby="o-p3-titulo">
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="0" data-site-atual="nao">Não</button>
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-site-atual="instagram">Só o Instagram</button>
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-site-atual="tenho_site">Tenho site</button>
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-site-atual="so_endereco">Tenho só o endereço (.com.br)</button>
-        </div>
-        <h2 id="o-p4-titulo">Já tem logo e textos?</h2>
-        <div class="orc-opcoes" role="radiogroup" aria-labelledby="o-p4-titulo">
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="0" data-material="tenho">Tenho</button>
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-material="parte">Tenho uma parte</button>
-          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-material="nao">Não tenho</button>
-        </div>
-        <button type="button" class="btn btn--primary orc-p__seguir" id="o-p-ver-preco">Ver o preço</button>
-      </div>
-      <p class="orc-erro" id="o-p-erro" role="alert"></p>
-      <p class="orc-nota">Prefere escrever antes? <a class="orc-sem-quebra" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado</a>.</p>
-    </section>
-
-    <!-- o anti-robô (js/orcamento-turnstile.js): fora da conversa, porque a sessão nasce no "Ver o preço" e a conversa
-         pode estar escondida; vazio, não ocupa espaço -->
+    <!-- o anti-robô (js/orcamento-turnstile.js): a sessão nasce no 1º toque da conversa; vazio, não ocupa espaço -->
     <div class="orc-turnstile" id="o-turnstile"></div>
 
-    <button class="btn btn--ghost btn--sm orc-conversar" type="button" id="o-conversar" hidden>Prefere conversar? Fale com o Zero (IA)</button>
 
     <div class="orc-mesa">
-      <!-- A CONVERSA (só quando há consultor e a pessoa abre "Prefere conversar?", ou a conversa já tem mensagens) -->
-      <section class="orc-conversa" id="o-conversa" data-origem="orcamento-conversa" aria-labelledby="o-conversa-titulo" hidden>
+      <!-- A CONVERSA é a página (spec 2026-11-13): as perguntas fixas são falas do Zero com opções para tocar (js/orcamento-toques.js) -->
+      <section class="orc-conversa" id="o-conversa" data-origem="orcamento-conversa" aria-labelledby="o-conversa-titulo">
         <h2 id="o-conversa-titulo" class="orc-rotulo">Zero, assistente virtual (IA) da Beyon Zero</h2>
         <div class="orc-log" id="o-log-caixa" tabindex="0" role="region" aria-label="Conversa">
           <ol class="orc-log__lista" id="o-log">
-            <li class="msg msg--agente"><p>Oi, eu sou o Zero, a IA da Beyon Zero. Me conta o que você faz que eu te digo qual formato de site serve pro seu negócio e quanto fica.</p></li>
+            <li class="msg msg--agente"><p>Oi, eu sou o Zero, a IA da Beyon Zero. Vou entender o seu negócio e desenhar o site que trabalha por você. Que tipo de negócio é o seu?</p></li>
           </ol>
         </div>
         <p class="orc-pensando" id="o-pensando" hidden><span class="orc-pensando__fio" aria-hidden="true"></span>Analisando o seu caso…</p>
@@ -247,7 +191,7 @@
           <a class="btn btn--sm btn--primary" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixar um recado</a>
         </div>
         <div class="orc-est" id="o-est">
-          <p class="orc-est__vazio" id="o-est-vazio">O preço aparece aqui assim que você responder as perguntas. Ele vem da tabela da Beyon Zero.</p>
+          <p class="orc-est__vazio" id="o-est-vazio">O valor aparece aqui depois que o Zero entender o seu caso. Ele vem da tabela da Beyon Zero.</p>
           <!-- os detalhes, compactos: só números da tabela (quem escreve é o script da página, orcamento.js). "Ver como o valor é formado" (no radar) abre o #o-est-mais -->
           <div id="o-est-cheio" hidden>
             <p class="orc-est__formato" id="o-est-formato"></p>
@@ -750,6 +694,8 @@
   <script src="js/orcamento-pix.js" defer></script>
   <script src="js/orcamento-pagamento.js" defer></script>
   <script src="js/orcamento-recibo.js" defer></script>
+  <script src="js/orcamento-rotulos.js" defer></script>
+  <script src="js/orcamento-toques.js" defer></script>
   <script src="js/orcamento-perguntas.js" defer></script>
   <script src="js/orcamento-painel.js" defer></script>
   <script src="js/orcamento-detalhes.js" defer></script>

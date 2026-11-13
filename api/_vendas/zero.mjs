@@ -28,7 +28,7 @@ const SEM_VALOR = 'Esse valor eu ainda não tenho aqui.';
    A etiqueta fixa da interface é ETIQUETA. O texto vai ao modelo no estado como "a pessoa já viu isto" */
 export const NOME = 'Zero';
 export const ETIQUETA = 'Zero, assistente virtual (IA) da Beyon Zero';
-export const ABERTURA_PADRAO = 'Oi, eu sou o Zero, a IA da Beyon Zero. Me conta o que você faz que eu te digo qual formato de site serve pro seu negócio e quanto fica.';
+export const ABERTURA_PADRAO = 'Oi, eu sou o Zero, a IA da Beyon Zero. Vou entender o seu negócio e desenhar o site que trabalha por você. Que tipo de negócio é o seu?';
 export const ABERTURAS = Object.freeze({
   padrao: ABERTURA_PADRAO,
   sites: 'Oi, eu sou o Zero, a IA da Beyon Zero. Pra qual tipo de negócio você está pensando em site?',

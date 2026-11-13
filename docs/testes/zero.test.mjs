@@ -484,7 +484,7 @@ test('ferramentas: encaminhar_diagnostico só mostra o botão; estimar manda usa
 
 /* ---------- 5. a abertura ---------- */
 test('abertura: texto fixo aprovado, com variantes por página, e o modelo a recebe como "a pessoa já viu isto"', async () => {
-  assert.equal(ABERTURA_PADRAO, 'Oi, eu sou o Zero, a IA da Beyon Zero. Me conta o que você faz que eu te digo qual formato de site serve pro seu negócio e quanto fica.');
+  assert.equal(ABERTURA_PADRAO, 'Oi, eu sou o Zero, a IA da Beyon Zero. Vou entender o seu negócio e desenhar o site que trabalha por você. Que tipo de negócio é o seu?');   /* (orçamento como conversa, 13/11: a 1ª fala é a pergunta do 1º toque; o valor vem depois do caso) */
   assert.equal(ABERTURAS.sites, 'Oi, eu sou o Zero, a IA da Beyon Zero. Pra qual tipo de negócio você está pensando em site?');
   assert.equal(ABERTURAS.atendente, 'Oi, eu sou o Zero, a IA da Beyon Zero. Hoje, quem responde seus clientes quando eles chamam?');
   assert.equal(ABERTURAS.retorno, 'Oi de novo, o Zero aqui, a IA da Beyon Zero. Você parou na escolha dos modelos. Quer continuar de onde parou?');
