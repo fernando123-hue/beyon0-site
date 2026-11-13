@@ -24,7 +24,8 @@ const MODULOS = /\/(orcamento-planta-forma|planta-pecas|planta-layout|planta-des
 const SO_DA_FAIXA = /\/(orcamento-planta-forma|planta-layout|planta-desenho)\.js|orcamento-planta\.css/;
 const nav = await chromium.launch({ executablePath: EXEC });
 
-async function abrir(base, { larg = 390, alt = 844 } = {}) {
+/* (planta viva v2, decisão de 12/11: abaixo de 960 px a planta consagra no cartão da conversa e a faixa não é usada; as seções da FAIXA rodam no computador) */
+async function abrir(base, { larg = 1280, alt = 844 } = {}) {
   const ctx = await nav.newContext({ viewport: { width: larg, height: alt }, isMobile: larg < 500, hasTouch: larg < 500, extraHTTPHeaders: { 'x-forwarded-for': ip() } });
   const page = await ctx.newPage();
   const baixados = [], erros = [];
@@ -65,7 +66,7 @@ console.log('\n== flag ligada (' + ON + ') ==');
   ok(['orcamento-planta-forma.js', 'planta-layout.js', 'planta-desenho.js', 'orcamento-planta.css'].every((m) => baixados.filter((b) => b === m).length === 1) && baixados.includes('planta-pecas.js'), 'os módulos da faixa e o CSS foram baixados, uma vez cada (planta-pecas.js também vem com o esboço): ' + baixados.join(','));
   ok(await page.locator('.plv-ver').count() === 1, 'o botão "Ver a planta do seu site" aparece uma vez');
   ok((await page.evaluate(() => document.querySelector('.plv-ver').closest('li').textContent)).includes('Desenhei o seu site em planta'), 'o botão está dentro da fala do Zero que trouxe a planta');
-  ok(await lateral(page), 'celular com a faixa: sem rolagem lateral');
+  ok(await lateral(page), 'computador com a faixa: sem rolagem lateral');
   ok(await page.evaluate(() => document.querySelectorAll('.plv-lista li').length) >= 9, 'a lista de etapas tem as caixas da planta');
   ok(await page.evaluate(() => [...document.querySelectorAll('.plv-lista li .plv-sr')].every((s) => s.textContent.length > 10)), 'cada etapa leva a frase para o leitor de tela');
   const topoAntes = await page.evaluate(() => Math.round(document.getElementById('o-planta').getBoundingClientRect().top));
@@ -77,7 +78,7 @@ console.log('\n== flag ligada (' + ON + ') ==');
   ok(aposToque.topo < 200 && aposToque.topo > 0, 'tocar no botão leva a faixa ao topo da tela, abaixo do menu fixo (topo em ' + aposToque.topo + ' px)');
   ok(aposToque.foco.includes('plv-titulo'), 'e o foco vai para o título da faixa');
   await espera(9000);
-  await foto(page, 'ligada-390-planta');
+  await foto(page, 'ligada-1280-planta');
   /* um turno novo refaz a lista: o botão e a faixa continuam, sem duplicar */
   await page.evaluate(() => window.scrollTo(0, 0));
   await turno(page, 'E o prazo, como fica?');
@@ -131,7 +132,7 @@ console.log('\n== ajuste e preço fechado (estado forjado na rede) ==');
   ok(await page.locator('.plv-ver').count() === 1, 'o botão passou para a fala da versão nova (um só)');
   ok((await page.evaluate(() => document.querySelector('.plv-ver').closest('li').textContent)).length > 0 && await page.evaluate(() => document.querySelector('.plv-ver').closest('li') === [...document.querySelectorAll('#o-log .msg--agente')].pop()), 'e está sob a última fala do Zero');
   await espera(9000);
-  await foto(page, 'ligada-390-ajuste');
+  await foto(page, 'ligada-1280-ajuste');
   modo = 'fechado';
   await turno(page, 'Entendi, obrigado');
   await espera(500);
@@ -264,26 +265,40 @@ console.log('\n== enviar o formulário com a faixa abaixo do botão ==');
   await ctx.close();
 }
 
-console.log('\n== 320 px ==');
-{
-  const { ctx, page, erros } = await abrir(ON, { larg: 320, alt: 640 });
+for (const [larg, alt] of [[390, 844], [320, 640]]) {
+  console.log('\n== celular ' + larg + ' px: a planta no cartão da conversa (planta viva v2) ==');
+  const { ctx, page, erros } = await abrir(ON, { larg, alt });
   await turno(page, T1);
+  await page.waitForSelector('#o-log .lv-item .lv', { timeout: 20000 });
+  ok(await page.evaluate(() => document.getElementById('o-log').lastElementChild.classList.contains('lv-item')), 'o esboço é o último item da conversa');
   await turno(page, 'planta-boa pode desenhar');
-  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
-  ok(await lateral(page), '320 px com a faixa: sem rolagem lateral');
-  await page.click('.plv-ver'); await espera(10000);
-  await foto(page, 'ligada-320-planta');
-  ok(await lateral(page), '320 px depois de tocar no botão: sem rolagem lateral');
+  await page.waitForSelector('#o-log .lv-item .plv-quadro', { timeout: 20000 });
+  ok(await page.locator('#o-planta').isHidden(), 'a faixa não é usada no celular');
+  ok(await page.evaluate(() => !document.querySelector('.lv-item .lv')), 'o esboço deu lugar ao desenho final no cartão');
+  ok(await lateral(page), larg + ' px com a planta no cartão: sem rolagem lateral');
+  await page.evaluate(() => { document.getElementById('o-conversa').scrollIntoView({ block: 'start' }); document.getElementById('o-log-caixa').scrollTop = 0; });
+  await espera(400);
+  const y0 = await page.evaluate(() => Math.round(scrollY));
+  await page.evaluate(() => document.querySelector('.plv-ver').click());
+  await espera(1200);
+  const depois = await page.evaluate(() => { const c = document.getElementById('o-log-caixa'); return { y: Math.round(scrollY), topo: Math.round(document.querySelector('.lv-item').getBoundingClientRect().top - c.getBoundingClientRect().top), foco: document.activeElement.className }; });
+  ok(depois.y === y0, '"Ver a planta do seu site" não rola a página (' + y0 + ' -> ' + depois.y + ')');
+  ok(Math.abs(depois.topo - 8) <= 2, 'rola a caixa até o cartão (topo do cartão a ' + depois.topo + ' px do topo da caixa)');
+  ok(/plv-titulo/.test(depois.foco), 'e o foco vai ao título');
+  await espera(9000);
+  ok(await page.evaluate(() => document.querySelector('.lv-item .plv-leitura__tag').textContent === 'Planta pronta'), 'a planta termina pronta, com o fecho');
+  await foto(page, 'ligada-' + larg + '-cartao');
+  ok(await lateral(page), larg + ' px no fim: sem rolagem lateral');
   ok(erros.length === 0, 'nenhum erro no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
   await ctx.close();
 }
 console.log('\n== faixa à vista (janela alta): espera o gesto ==');
 {
-  const { ctx, page } = await abrir(ON, { larg: 390, alt: 844 });
+  const { ctx, page } = await abrir(ON, { larg: 1280, alt: 844 });
   await turno(page, T1);
   const fim = await page.evaluate(() => document.querySelector('.orc-mesa').getBoundingClientRect().bottom + window.scrollY);
-  /* a janela alta cobre a mesa E o formulário #o-contato (a faixa vem depois dele e ele aparece com a resposta do Zero: cerca de 1.700 px): a posição da faixa fica à vista */
-  await page.setViewportSize({ width: 390, height: Math.ceil(fim + 2200) });
+  /* a janela alta cobre a mesa E o formulário #o-contato (a faixa vem depois dele e ele aparece com a resposta do Zero: no computador, medido em 12/11, ele termina ~2.850 px abaixo da mesa): a posição da faixa fica à vista */
+  await page.setViewportSize({ width: 1280, height: Math.ceil(fim + 3600) });
   await page.evaluate(() => window.scrollTo(0, 0)); await espera(300);
   await turno(page, 'planta-boa pode desenhar');
   await espera(1500);
@@ -291,7 +306,7 @@ console.log('\n== faixa à vista (janela alta): espera o gesto ==');
   ok(await page.locator('.plv-ver').count() === 1, 'mas o botão do chat está lá');
   await page.mouse.click(2, 2); await espera(800);
   ok(await page.locator('#o-planta:not([hidden]) .plv-quadro').count() === 1, 'o gesto seguinte da pessoa insere a faixa');
-  await foto(page, 'ligada-390-alta-apos-gesto');
+  await foto(page, 'ligada-1280-alta-apos-gesto');
   await ctx.close();
 }
 

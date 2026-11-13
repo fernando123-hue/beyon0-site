@@ -87,6 +87,10 @@
         st.item.setAttribute('data-fica', '');
       }
       if (st.item.parentNode !== log || log.lastElementChild !== st.item) log.appendChild(st.item);
+      /* com a planta dentro, a caixa deixa a rolagem passar para a página no fim dela (css/planta-esboco.css): medido em 12/11, com o desenho de
+         936 px numa caixa de 472, arrastar o dedo no fim da caixa não rolava mais a página */
+      var caixa = $('o-log-caixa');
+      if (caixa) caixa.classList.add('com-planta');
       return true;
     }
     /* o esboço que acabou de nascer: a caixa rola sozinha até a última fala ficar no topo dela, com o cartão logo abaixo (como js/orcamento.js faz a
@@ -102,6 +106,7 @@
       if (st.esb) { try { st.esb.parar(); } catch (e) { aviso(e); } }
       st.esb = null;
       if (st.item && st.item.parentNode) st.item.parentNode.removeChild(st.item);
+      if ($('o-log-caixa')) $('o-log-caixa').classList.remove('com-planta');
       st.item = null; st.largura = 0; st.consagrado = false;
     }
 
