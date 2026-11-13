@@ -76,3 +76,17 @@ for (const nicho of Roteiro.NICHOS) {
     for (const t of R.turnos) for (const fala of [t.pessoa, t.zero]) assert.ok(!/\d/.test(fala), `número na fala: ${fala}`);
   });
 }
+
+test('casar (consagração): a chegada é a chegada; cada estação vai para a 1ª etapa livre do mesmo tipo; sem par, a 1ª livre; nenhuma some', () => {
+  const esb = Cresce.derivar({ negocio: { segmento: 'clínica', descricao: 'x' }, situacao_atual: { como_chegam: 'Google', o_que_se_perde: 'y' }, objetivos: ['agendamentos'], funcionalidades: ['agendamento', 'whatsapp'] });
+  const plano = { etapas: [{ id: 'a', tipo: 'agenda' }, { id: 'b', tipo: 'pagina' }, { id: 'c', tipo: 'formulario' }, { id: 'd', tipo: 'mensagem' }] };
+  const m = Cresce.casar(esb, plano);
+  assert.equal(m.chegada, 'chegada');
+  assert.equal(m.pagina, 'b');
+  assert.equal(m.acao, 'a');
+  assert.equal(m.volta, 'd');
+  assert.equal(m.conversa, 'c', 'sem etapa do tipo conversa: a 1ª livre');
+  assert.equal(Object.getPrototypeOf(m), null);
+  assert.deepEqual(Object.keys(Cresce.casar(null, null)), []);
+  assert.equal(Cresce.casar(esb, { etapas: [{ id: '__proto__', tipo: 'pagina' }] }).pagina, '__proto__', 'id estranho só vira chave, sem tocar protótipo');
+});

@@ -2,7 +2,8 @@
    montar valida a forma (BZPlantaForma), mede a largura, grava a altura reservada e constrói tudo NA MESMA CHAMADA (nada nasce com altura 0
    nem espera fonte ou observador); { ok:false, motivos } se o plano for inválido ou a faixa estiver sem largura. atualizar compara por id: só o
    id novo ganha "Ajustado" e as caixas deslizam; sem id em comum, refaz tudo. opcoes: origem ('modelo'|'padrao'), editavel, nome, aoCerto,
-   aoAjustar, animar, largura, fala.
+   aoAjustar, animar, largura, fala, e da planta viva v2: esboco() (os pontos do esboço na tela para o voo, lidos uma vez quando a entrada
+   começa), som(nome) ("passa" e "ouro") e notaEmbaixo (a nota junto dos botões, decisão de 12/11).
    MOVIMENTO: Web Animations API; nenhum requestAnimationFrame. stroke-dashoffset só uma vez (rotas e cabeça de luz); pulso de repouso e ondas
    só transform/opacity. Estados são classes. Sem a API, com prefers-reduced-motion ou html.menos-movimento: quadro final, parado. A animação
    começa com 35% do quadro na tela e pausa fora dela e com a aba escondida.
@@ -17,7 +18,7 @@
   'use strict';
 
   var NS = 'http://www.w3.org/2000/svg';
-  var CHAMFRO = 7, T_INTRO = 1.9, T_ALVO = 7.6, VIDA_PERIODO_MIN = 6000, VIDA_MAXIMO = 60000, FRACAO_VISIVEL = 0.35, ESPERA_RESIZE = 160, TOLERANCIA_LARGURA = 6;
+  var CHAMFRO = 7, VIDA_PERIODO_MIN = 6000, VIDA_MAXIMO = 60000, FRACAO_VISIVEL = 0.35, ESPERA_RESIZE = 160, TOLERANCIA_LARGURA = 6;
   var NOTA_MODELO = 'É o desenho do que o seu site pode fazer, a partir do que você contou. O que entra de fato é combinado no orçamento.';
   var NOTA_PADRAO = 'Um desenho de exemplo para o seu tipo de negócio. Conforme você contar mais, o Zero refaz.';
 
@@ -57,32 +58,7 @@
     for (y = 24; y < H; y += 24) d += 'M0 ' + y + 'H' + W;
     return d;
   }
-  var semente = function (seed) { return function () { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; }; };
-  function hashDeIds(g) {
-    var h = 2166136261, i, j, id;
-    for (i = 0; i < g.nos.length; i++) { id = g.nos[i].id; for (j = 0; j < id.length; j++) { h ^= id.charCodeAt(j); h = (h * 16777619) % 4294967296; } }
-    return h;
-  }
-  function emaranhado(g, seed) {
-    var r = semente(seed), a = g.mapa.nucleo, b = g.mapa.led, N = 46, i;
-    var ax = a.x + a.w / 2, ay = a.y + a.h / 2, bx = b.x + b.w / 2, by = b.y + b.h / 2;
-    var alvo = Math.atan2(by - ay, bx - ax), len = dist([ax, ay], [bx, by]), passo = Math.min(len / N * 2.6, 70);
-    var pts = [[ax, ay]], x = ax, y = ay, ang = alvo;
-    for (i = 1; i < N - 1; i++) {
-      var fe = i / N;
-      ang = alvo + (ang - alvo) * 0.35 + (r() - 0.5) * Math.PI * 2.6;
-      x = Math.min(g.W - 8, Math.max(8, x + Math.cos(ang) * passo * (0.6 + r()) + (bx - x) / (N - i) * fe));
-      y = Math.min(g.H - 8, Math.max(8, y + Math.sin(ang) * passo * (0.6 + r()) + (by - y) / (N - i) * fe));
-      pts.push([x, y]);
-    }
-    pts.push([bx, by]);
-    var d = 'M' + r1(pts[0][0]) + ' ' + r1(pts[0][1]);
-    for (i = 0; i < pts.length - 1; i++) {
-      var p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
-      d += 'C' + r1(p1[0] + (p2[0] - p0[0]) / 5) + ' ' + r1(p1[1] + (p2[1] - p0[1]) / 5) + ' ' + r1(p2[0] - (p3[0] - p1[0]) / 5) + ' ' + r1(p2[1] - (p3[1] - p1[1]) / 5) + ' ' + r1(p2[0]) + ' ' + r1(p2[1]);
-    }
-    return d;
-  }
+
 
   function criarRelogio(win, aoErro) {
     var ev = [], prox = 0, inicio = 0, decorrido = 0, timer = 0, rodando = false, seq = 0;
@@ -200,7 +176,7 @@
       quadro.classList.remove(g.paisagem ? 'is-retrato' : 'is-paisagem');
       S('path', { d: gradeD(g.W, g.H) }, svg, 'plv-grade');
       var gFan = S('g', {}, svg), gLim = S('g', {}, svg), gCab = S('g', {}, svg), gNos = S('g', {}, svg);
-      var R = { nos: criarMapa(), rotas: [], tang: null, lista: lista, svg: svg, gCab: gCab, g: g, tempo: opc.pre };
+      var R = { nos: criarMapa(), rotas: [], lista: lista, svg: svg, gCab: gCab, g: g, tempo: opc.pre };
 
       g.rotas.forEach(function (r) {
         var d = rotaD(r.pts, 9), cls = r.tipo === 'retorno' ? ' plv-limpa--ret' : r.tipo === 'sat' ? ' plv-limpa--sat' : '';
@@ -209,7 +185,6 @@
         x.cab = S('path', { d: d, pathLength: 1, 'stroke-dasharray': f + ' 2', 'stroke-dashoffset': f }, gCab, 'plv-cab');
         R.rotas.push(x);
       });
-      if (opc.pre) R.tang = S('path', { d: emaranhado(g, hashDeIds(g)), pathLength: 1, 'stroke-dasharray': '1 1', 'stroke-dashoffset': 1 }, gFan, 'plv-tang');
 
       g.nos.forEach(function (n) {
         var gg = S('g', { transform: 'translate(' + r1(n.x) + ' ' + r1(n.y) + ')', 'data-id': n.id }, gNos, 'plv-no' + (n.decisao ? ' plv-no--dec' : ''));
@@ -255,7 +230,6 @@
       inst.relogio.encerrar();
       inst.anims.forEach(function (a) { try { a.cancel(); } catch (e) { aviso(e); } });
       inst.anims = []; inst.pausadas = []; inst.vida = []; inst.iniciada = false; inst.adiado = false;
-      if (inst.R && inst.R.tang && inst.R.tang.remove) inst.R.tang.remove();
     }
     function pausarTudo() {
       if (!inst) return;
@@ -274,7 +248,7 @@
       if (!inst || inst.iniciada) return;
       if (inst.adiado) {   /* o programa da entrada (~45 animações) só nasce agora, quando vai rodar: com a faixa fora da tela ele não custa nada na tarefa que monta o quadro */
         inst.adiado = false;
-        programaEntrada();
+        programaEsboco();
         inst.anims.forEach(function (a) { try { a.pause(); } catch (e) { aviso(e); } });
       }
       inst.iniciada = true; inst.aguardando = false;
@@ -311,7 +285,6 @@
       inst.quadro.classList.remove('plv--pre'); inst.quadro.classList.remove('plv--aj');
       Object.keys(R.nos).forEach(function (id) { var x = R.nos[id]; x.lit = true; acender(x); x.li.classList.remove('is-novo'); x.g.classList.remove('is-novo'); });
       R.rotas.forEach(function (x) { classe(x.seta, 'is-ligada'); });
-      if (R.tang) { R.tang.remove(); R.tang = null; }
     }
     function finalizar(ajuste) {
       cancelarMovimento();
@@ -366,46 +339,75 @@
     }
     var duracaoBase = function (x) { return x.Lp > 420 ? 0.85 : 0.5; };
 
-    function programaEntrada() {
-      var R = inst.R, rel = inst.relogio, g = R.g, ord = g.nos.slice().sort(function (a, b) { return a.ord - b.ord; });
-      var grupos = agrupar(R), total1 = 0, i;
-      leitura('Zero', 'Lendo o caso. Sem estrutura, o caminho de quem chega é um emaranhado.');
-      grupos.forEach(function (gr) {
-        var dg = 0, am = 0; gr.forEach(function (x) { dg = Math.max(dg, duracaoBase(x)); am = Math.max(am, x.r.atraso); });
-        total1 += am + dg + 0.12;
+    /* A ENTRADA (planta viva v2; decisão do dono de 12/11: o esboço que a conversa construiu SUBSTITUI o emaranhado do 05/11, que saiu daqui; a luz
+       que percorre tudo e o ouro no fim continuam iguais):
+       1. reorganiza (0 a ~1 s): cada estação que o esboço tinha voa do lugar dela na TELA até o lugar final (opcoes.esboco(), lido UMA vez, aqui,
+          quando a entrada começa: { id: { x, y (o centro do chip), s (a metade dele), tx, ty (o canto do texto) } }, ou null com o esboço fora da
+          tela); as outras surgem como esboço, e as rotas fantasma aparecem;
+       2. a luz percorre o caminho inteiro, rota a rota na ordem do desenho, acendendo cada estação com um tique (opcoes.som('passa'));
+       3. o objetivo vira ouro com as duas ondas (ligar) e o acorde (opcoes.som('ouro')); o fim é o de sempre (finalizar: "Planta pronta" + o fecho). */
+    var T_REORG = 0.95, T_LUZ = 2.3;
+    function programaEsboco() {
+      var R = inst.R, rel = inst.relogio, g = R.g, op = inst.opcoes, voaram = criarMapa(), pontos = null, q0 = 0;
+      var som = function (nome) { if (typeof op.som === 'function') { try { op.som(nome); } catch (e) { aviso(e); } } };
+      try { pontos = typeof op.esboco === 'function' ? op.esboco() : null; } catch (e) { aviso(e); }
+      leitura('Zero', 'Juntando o que você contou no desenho do seu site.');
+      rel.em(0.05, function () { ligar('nucleo'); });   /* o núcleo é a fonte da luz: acende logo (como na entrada de 05/11) */
+      if (pontos && typeof pontos === 'object') voar(R, g, pontos, voaram);
+      g.nos.slice().sort(function (a, b) { return a.ord - b.ord; }).forEach(function (n) {
+        if (voaram[n.id]) return;
+        var x = R.nos[n.id], k = q0++;
+        rel.em(0.38 + k * 0.07, function () { classe(x.g, 'is-esboco'); classe(x.li, 'is-esboco'); });
       });
-      var k = Math.min(1.3, Math.max(0.7, (T_ALVO - T_INTRO) / total1));
-      rel.em(0, function () { classe(R.nos.nucleo.g, 'is-esboco'); classe(R.nos.nucleo.li, 'is-esboco'); });
-      rel.em(0.05, function () { ligar('nucleo'); });
-      ord.forEach(function (n, q) {
-        if (n.ponta === 'nucleo') return;
-        rel.em(0.35 + (q - 1) * 0.07, function () { classe(R.nos[n.id].g, 'is-esboco'); classe(R.nos[n.id].li, 'is-esboco'); });
-      });
-      R.rotas.forEach(function (x, q) { anim(x.fan, [{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 600 + q * 40, fill: 'both' }); });
-      var t = T_INTRO;
+      R.rotas.forEach(function (x, k) { anim(x.fan, [{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 300 + k * 30, fill: 'both' }); });
+      var grupos = agrupar(R), total = 0;
+      grupos.forEach(function (gr) { var d = 0, am = 0; gr.forEach(function (x) { d = Math.max(d, duracaoBase(x)); am = Math.max(am, x.r.atraso); }); total += am + d + 0.06; });
+      var k = Math.min(1, T_LUZ / Math.max(total, 0.01)), t = T_REORG;
       grupos.forEach(function (gr) {
-        var dg = 0, am = 0, i2;
-        for (i2 = 0; i2 < gr.length; i2++) dg = Math.max(dg, duracaoBase(gr[i2]) * k);
+        var dg = 0, am = 0;
+        gr.forEach(function (x) { dg = Math.max(dg, duracaoBase(x) * k); });
         gr.forEach(function (x) {
-          var t0 = t + x.r.atraso, tf = t0 + dg, f = x.f;
+          var t0 = t + x.r.atraso * k, f = x.f;
           anim(x.limpa, [{ strokeDasharray: '1 1', strokeDashoffset: 1 }, { strokeDasharray: '1 1', strokeDashoffset: 0 }], { duration: dg * 1000, delay: t0 * 1000, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'both' });
           anim(x.cab, [{ strokeDashoffset: f, opacity: 0, offset: 0 }, { strokeDashoffset: f, opacity: 1, offset: 0.01 }, { strokeDashoffset: f - 1, opacity: 1, offset: 0.99 }, { strokeDashoffset: f - 1, opacity: 0, offset: 1 }],
             { duration: dg * 1000, delay: t0 * 1000, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'both' });
-          rel.em(tf, function () {
+          rel.em(t0 + dg, function () {
             classe(x.seta, 'is-ligada');
-            if (x.r.alvo) {
-              if (x.r.alvo === 'nucleo') R.volta = true;
-              ligar(x.r.alvo); leituraDe(x.r.alvo);
-            }
+            var alvo = x.r.alvo ? R.nos[x.r.alvo] : null;
+            if (!alvo || alvo.lit) return;
+            if (x.r.alvo === 'nucleo') R.volta = true;
+            ligar(x.r.alvo);
+            if (alvo.n.ponta === 'led') { som('ouro'); leituraDe('led'); } else if (!alvo.n.ponta) som('passa');
           });
-          am = Math.max(am, x.r.atraso);
+          am = Math.max(am, x.r.atraso * k);
         });
-        t += am + dg + 0.12 * k;
+        t += am + dg + 0.06 * k;
       });
-      anim(R.tang, [{ strokeDashoffset: 1, opacity: 0.85 }, { strokeDashoffset: 0, opacity: 0.85 }], { duration: 1500, delay: 150, easing: 'ease-in-out', fill: 'both' });
-      anim(R.tang, [{ opacity: 0.85 }, { opacity: 0 }], { duration: Math.max(1, (t - T_INTRO) * 1000), delay: T_INTRO * 1000, easing: 'linear', fill: 'both' });
-      rel.em(t + 0.7, function () { finalizar(false); });
-      void i;
+      rel.em(T_REORG, function () { inst.quadro.classList.remove('is-voo'); });
+      rel.em(t + 1.2, function () { finalizar(false); });
+    }
+    /* o voo (fase 1): translate + scale com a origem no canto da caixa do grupo (fill-box), calculada pela geometria (sem getBBox, que forçaria o
+       layout). O LED não acende no voo (o ouro é da luz): voa como esboço. O texto das estações voa junto; o das pontas fica no lugar final */
+    function voar(R, g, pontos, voaram) {
+      var q = inst.quadro.getBoundingClientRect(), ok = function (v) { return typeof v === 'number' && isFinite(v); };
+      g.nos.forEach(function (n) {
+        var a = tem(pontos, n.id) ? pontos[n.id] : null, x = R.nos[n.id];
+        if (!a || !x || !ok(a.x) || !ok(a.y) || !ok(a.s) || a.s <= 0) return;
+        voaram[n.id] = true;
+        var ic = n.ponta ? null : (n.ic || [11, 34, 1]);
+        var lc = ic ? [ic[0] + 20 * ic[2], ic[1] + 20 * ic[2]] : [n.w / 2, n.h / 2];
+        var s = ic ? a.s / (40 * ic[2]) : a.s / (n.w / 2);
+        var o = [0, n.ponta && n.rot && n.rot.topo ? Math.min(0, -(n.guia || 0)) : 0];
+        var tx = a.x - q.left - n.x - o[0] - s * (lc[0] - o[0]), ty = a.y - q.top - n.y - o[1] - s * (lc[1] - o[1]);
+        x.mov.style.transformBox = 'fill-box'; x.mov.style.transformOrigin = '0 0';
+        if (n.ponta === 'led') { classe(x.g, 'is-esboco'); classe(x.li, 'is-esboco'); } else acender(x);
+        anim(x.mov, [{ transform: 'translate(' + r1(tx) + 'px,' + r1(ty) + 'px) scale(' + r1(s * 100) / 100 + ')' }, { transform: 'translate(0px,0px) scale(1)' }], { duration: 900, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'backwards' });
+        var caixa = x.mov.querySelector('.plv-caixa');
+        if (caixa) anim(caixa, [{ opacity: 0 }, { opacity: 0, offset: 0.3 }, { opacity: 1 }], { duration: 900, fill: 'backwards' });
+        if (n.ponta || !ok(a.tx) || !ok(a.ty)) return;
+        anim(x.li, [{ transform: 'translate(' + r1(a.tx - q.left - n.x) + 'px,' + r1(a.ty - q.top - n.y) + 'px)', opacity: 0 }, { opacity: 0, offset: 0.35 }, { transform: 'translate(0px,0px)', opacity: 1 }], { duration: 900, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'backwards' });
+      });
+      inst.quadro.classList.add('is-voo');   /* o voo sai de fora do quadro: nada o corta enquanto dura (css/orcamento-planta.css) */
     }
 
     function programaAjuste(antigos, novos, fala) {
@@ -529,13 +531,15 @@
       var wrap = H('div', 'plv'), op = mesclar({}, opcoes || {});
       limparFilhos(raizEl);
       H('h2', 'plv-titulo', 'A planta do seu site', wrap);
-      var nota = H('p', 'plv-nota', '', wrap);
+      /* a nota: em cima do desenho (05/11) ou embaixo, junto dos botões (opcoes.notaEmbaixo; decisão do dono de 12/11, planta viva v2) */
+      var nota = H('p', 'plv-nota', '', op.notaEmbaixo ? null : wrap);
       var quadro = H('div', 'plv-quadro', null, wrap);
       var cota = H('p', 'plv-cota', null, wrap); cota.setAttribute('aria-hidden', 'true');
       H('i', '', null, cota); var cs = H('span', '', 'Planta · ', cota), cotaNome = H('b', '', '', cs); H('i', '', null, cota);
       var le = H('p', 'plv-leitura', null, wrap); le.setAttribute('aria-hidden', 'true');
       var leTag = H('b', 'plv-leitura__tag', 'Zero', le), leTxt = H('span', 'plv-leitura__txt', 'Lendo o caso.', le);
       var status = H('p', 'plv-status', '', wrap); status.setAttribute('role', 'status');
+      if (op.notaEmbaixo) wrap.appendChild(nota);
       var acoes = H('div', 'plv-acoes', null, wrap);
       var btnCerto = H('button', 'plv-btn plv-btn--primario', 'Está certo', acoes), btnAjuste = H('button', 'plv-btn', 'Quero ajustar algo', acoes), btnRever = H('button', 'plv-btn plv-btn--txt', 'Rever a montagem', acoes);
       [btnCerto, btnAjuste, btnRever].forEach(function (b) { b.setAttribute('type', 'button'); });
