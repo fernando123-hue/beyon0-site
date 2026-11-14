@@ -56,10 +56,13 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limite
       const vid = await visitante(request);
       if (!ehUuid(corpo?.conversa_id)) throw new Recusa(400, 'Conversa inválida.');
       /* (orçamento como conversa, spec §5) a versão do texto do aceite que a tela mostrou: só a vigente vale (aba velha, página em cache: recarrega).
-         Antes da validação, que chama a triagem por IA: versão errada não gasta modelo */
-      if (!aceiteVigente(corpo?.aceite_versao)) throw new Recusa(409, ACEITE_MUDOU);
+         Uma versão velha é recusada antes da validação, que chama a triagem por IA (não gasta modelo); sem versão nenhuma, a validação diz o que
+         falta (o aceite) e só depois vem a recusa da versão */
+      const versao = corpo?.aceite_versao;
+      if (versao !== undefined && !aceiteVigente(versao)) throw new Recusa(409, ACEITE_MUDOU);
       const v = await validarDetalhes(corpo);
       if (v.erros) throw new Recusa(400, v.erros[0]);
+      if (!aceiteVigente(versao)) throw new Recusa(409, ACEITE_MUDOU);
       const d = v.dados;
       const telefoneHash = chaveDoTelefone(d.telefone, segredoFreio, env || {});
       /* (na Vercel sem FREIO_SEGREDO nem SUPABASE_CHAVE_SECRETA: sem freio por telefone, nada é gravado) */

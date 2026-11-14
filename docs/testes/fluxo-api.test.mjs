@@ -279,6 +279,8 @@ test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500'
     ['POST', 'detalhes', { conversa_id: c, negocio: 'A', vende: 'Consultas', telefone: '(21) 98765-0000', aceite: true, aceite_versao: 'a1' }, 400],
     ['POST', 'detalhes', { conversa_id: c, negocio: 'Clínica', vende: 'Consultas', telefone: '123', aceite: true, aceite_versao: 'a1' }, 400],
     ['POST', 'detalhes', { conversa_id: c, negocio: 'Clínica', vende: 'Consultas', telefone: '(21) 98765-0000' }, 400],
+    /* (PR 3, revisão de segurança B2) versão velha do aceite: recusada ANTES da validação (que chama a triagem por IA), mesmo com dado inválido */
+    ['POST', 'detalhes', { conversa_id: c, negocio: 'A', vende: 'Consultas', telefone: '(21) 98765-0000', aceite: true, aceite_versao: 'a0' }, 409],
     ['POST', 'gerar', { conversa_id: c }, 409],
     ['POST', 'escopo', { conversa_id: c }, 409],
     ['POST', 'confirmar', { conversa_id: c, proposta_id: c, confirmo: false }, 400]
