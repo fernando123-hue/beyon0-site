@@ -1105,3 +1105,35 @@ test('pós-radar (fonte): o envio incerto de js/orcamento.js (comportamento real
   assert.ok(!/recarregar\(/.test(re), '"Tentar de novo" não relê por conta própria: o enviar() já relê (sem releitura dupla)');
   assert.match(src, /if \(incerta && entrouComTexto\(incerta\)\) incerta = null;/, 'o render solta a dúvida quando o estado mostra o turno com o texto');
 });
+
+/* ======================================================================================================================================================
+   PR 4 (mapa do caso v3, plano §3 e passo 7): até o PR 5, esta tela só desenha o v2. Um plano sem topologia (o v3) é versão desconhecida: nada é
+   baixado, nada é avisado no console, a faixa some calada e bz:planta-pronta sai UMA vez por versão (o valor não espera os 20 s de PLANTA_MAX_MS).
+   ====================================================================================================================================================== */
+test('mapa v3 (versão que a tela não desenha): nada baixado, nenhum [beyon], bz:planta-pronta uma vez por versão; o v2 segue desenhando', () => {
+  const amb = ambiente();
+  const prontas = [];
+  amb.w.CustomEvent = function (t) { this.type = t; };
+  amb.doc.dispatchEvent = (ev) => { prontas.push(ev.type); return true; };
+  const v3 = { estrutura: 'caminho', nos: [{ id: 'a', papel: 'site', icone: 'pagina', titulo: 'Página', frase: 'Uma frase com tamanho bom' }], setas: [], objetivo: { titulo: 'Fim', frase: 'Uma frase com tamanho bom' }, fecho: 'Um fecho com tamanho suficiente' };
+  const E1 = estado({ planta: { versao: 1, origem: 'modelo', n_mensagens: 3, plano: v3 } });
+  redesenharLista(amb, E1);
+  amb.L.atualizar(E1, amb.deps); amb.L.atualizar(E1, amb.deps);
+  prontos(amb);
+  assert.equal(amb.baixados.length, 0, 'nenhum módulo da planta baixado');
+  assert.equal(amb.faixa.hidden, true);
+  assert.equal(botoes(amb).length, 0);
+  assert.equal(amb.avisos.length, 0, amb.avisos.join('|'));
+  assert.deepEqual(prontas, ['bz:planta-pronta'], 'uma vez para a versão 1, mesmo relendo o estado');
+  amb.L.atualizar(estado({ planta: { versao: 2, origem: 'modelo', n_mensagens: 3, plano: v3 } }), amb.deps);
+  assert.deepEqual(prontas, ['bz:planta-pronta', 'bz:planta-pronta'], 'a versão 2 também libera o valor');
+  /* o v2 continua igual: baixa os módulos e não dispara por aqui (quem dispara é o desenho, ao terminar) */
+  const outro = ambiente();
+  const prontas2 = [];
+  outro.w.CustomEvent = function (t) { this.type = t; };
+  outro.doc.dispatchEvent = (ev) => { prontas2.push(ev.type); return true; };
+  redesenharLista(outro, estado());
+  outro.L.atualizar(estado(), outro.deps);
+  assert.ok(outro.baixados.length > 0, 'o v2 baixa os módulos');
+  assert.deepEqual(prontas2, []);
+});

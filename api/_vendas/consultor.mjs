@@ -335,7 +335,8 @@ function passoDoFluxoNovo(b, { liberado, faltam, aviso }) {
    Vem depois do prefixo da planta e antes do texto de hoje, que continua inteiro no fim */
 export const pedeLeitura = ({ leitura = false, etapa, pedidoStatus }) => !!(leitura && precoAberto(etapa, pedidoStatus));
 export const PREFIXO_LEITURA = 'Se a mensagem da pessoa trouxe informação nova sobre o caso dela, chame ler_caso (uma vez, na mesma volta do atualizar_briefing) e não comente a leitura no texto. Depois: ';
-export const PREFIXO_PLANTA = 'Antes de tudo neste turno, chame desenhar_planta (uma vez) e diga em uma frase que desenhou o site em planta, logo abaixo. Depois: ';
+/* (PR 4, texto aprovado pelo dono) o começo fica (o simulado procura por ele); o fim diz "o mapa do seu caso" */
+export const PREFIXO_PLANTA = 'Antes de tudo neste turno, chame desenhar_planta (uma vez) e diga em uma frase que montou o mapa do seu caso, logo abaixo. Depois: ';
 
 function proximoPassoBase({ etapa, briefing, estimativa, regras = null, metodos, liberado = true }) {
   /* sem a tabela, vale a v2; com ela, a loja só é vendável se a tabela ativa a traz */

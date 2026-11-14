@@ -33,11 +33,13 @@
     if (p.origem !== 'modelo' && p.origem !== 'padrao') return null;
     return p;
   }
+  /* (PR 4) um plano sem a topologia que esta tela desenha (o mapa do caso v3, até o PR 5): não se baixa nada, some calado e o valor não espera */
+  var desconhecida = function (p) { return typeof p.plano.topologia !== 'string'; };
 
   function criar(win) {
     var doc = win.document;
     var st = { carga: 'nao', versaoFalha: 0, pegos: {}, elementos: {}, E: null, deps: {}, versao: 0, json: '', assin: '', mostrada: 0, valido: false, recusas: 0, avisouModulos: false, naTela: false, recolhida: false, ouveForm: false, pendente: false, gestos: false, botao: null, certoVersao: 0, timer: 0,
-      lugar: '', raiz: null, maoNaCaixa: -1e9, ouveCaixa: false, timerCartao: 0 };
+      lugar: '', raiz: null, maoNaCaixa: -1e9, ouveCaixa: false, timerCartao: 0, prontaVersao: 0 };
 
     var $ = function (id) { return doc.getElementById(id); };
     function aviso(e) {
@@ -374,6 +376,12 @@
         var p = leve(E);
         st.E = E;   /* sempre o estado mais novo: se a planta some durante o download, quando os módulos chegam não há o que montar */
         if (!p) { if (st.naTela || st.botao || st.pendente || st.gestos || st.json) sumir(); return; }
+        if (desconhecida(p)) {
+          if (st.naTela || st.botao || st.pendente || st.gestos || st.json) sumir();
+          /* a coreografia do valor (js/orcamento.js) espera bz:planta-pronta: uma vez por versão, para não segurar o valor os 20 s */
+          if (st.prontaVersao !== p.versao && win.CustomEvent && doc.dispatchEvent) { st.prontaVersao = p.versao; doc.dispatchEvent(new win.CustomEvent('bz:planta-pronta')); }
+          return;
+        }
         if (st.carga === 'falhou' && p.versao !== st.versaoFalha) st.carga = 'nao';
         if (st.carga === 'nao') { st.versao = p.versao; carregar(); return; }
         if (st.carga === 'ok') seguir();

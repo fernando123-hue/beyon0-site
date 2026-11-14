@@ -62,7 +62,7 @@ console.log('\n== flag ligada (' + ON + ') ==');
   await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro', { timeout: 15000 });
   ok(['orcamento-planta-forma.js', 'planta-layout.js', 'planta-desenho.js', 'orcamento-planta.css'].every((m) => baixados.filter((b) => b === m).length === 1) && baixados.includes('planta-pecas.js'), 'os módulos da faixa e o CSS foram baixados, uma vez cada (planta-pecas.js também vem com o esboço): ' + baixados.join(','));
   ok(await page.locator('.plv-ver').count() === 1, 'o botão "Ver a planta do seu site" aparece uma vez');
-  ok((await page.evaluate(() => document.querySelector('.plv-ver').closest('li').textContent)).includes('Desenhei o seu site em planta'), 'o botão está dentro da fala do Zero que trouxe a planta');
+  ok((await page.evaluate(() => document.querySelector('.plv-ver').closest('li').textContent)).includes('Montei o mapa do seu caso'), 'o botão está dentro da fala do Zero que trouxe a planta');
   ok(await lateral(page), 'computador com a faixa: sem rolagem lateral');
   ok(await page.evaluate(() => document.querySelectorAll('.plv-lista li').length) >= 9, 'a lista de etapas tem as caixas da planta');
   ok(await page.evaluate(() => [...document.querySelectorAll('.plv-lista li .plv-sr')].every((s) => s.textContent.length > 10)), 'cada etapa leva a frase para o leitor de tela');
@@ -80,7 +80,7 @@ console.log('\n== flag ligada (' + ON + ') ==');
   await page.evaluate(() => window.scrollTo(0, 0));
   await turno(page, 'E o prazo, como fica?');
   ok(await page.locator('.plv-ver').count() === 1 && await page.locator('#o-planta .plv').count() === 1 && await page.locator('#o-planta:not([hidden])').count() === 1, 'depois de um turno novo: um botão, uma faixa');
-  ok((await page.evaluate(() => document.querySelector('.plv-ver').closest('li').textContent)).includes('Desenhei o seu site em planta'), 'o botão segue sob a fala da versão (a lista foi refeita)');
+  ok((await page.evaluate(() => document.querySelector('.plv-ver').closest('li').textContent)).includes('Montei o mapa do seu caso'), 'o botão segue sob a fala da versão (a lista foi refeita)');
   /* Quero ajustar: só foca */
   const antes = await page.locator('#o-log .msg--visitante').count();
   await page.locator('.plv-btn', { hasText: 'Quero ajustar algo' }).click();

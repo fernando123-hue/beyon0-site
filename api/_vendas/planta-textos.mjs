@@ -86,7 +86,7 @@ const CARACTERE_DE_FORA = /[^\p{L}\p{M}\s.,:;!?'’"“”()\-–—]/u;
 
 /* sobre o texto em "busca" (paraBusca: minúscula, sem acento, letras soltas juntas, pontuação vira espaço) e sobre a versão "colada" (abaixo) */
 const RAIZES = {
-  preco: /\b(?:precos?|valor|valores|custos?|custa\w*|custar|barat\w+|gratis|gratuit\w+|descontos?|taxas?|mensalidades?|investiment\w+|parcelas?|parcelad\w+|promocao|promocoes|ofertas?|reais|de graca|por menos|pa(?:ga|gar|gue) menos|abatimentos?|abate\w*|economiz\w+|bolso|cobranc\w+|cobrar|cobrando|sem cobr\w+|pa(?:gue|ga|gar) (?:\w+ ){0,3}(?:so|nada|depois|sem)|(?:so|nada|depois|sem) (?:\w+ ){0,2}pa(?:gue|ga|gar))\b/,
+  preco: /\b(?:precos?|valor|valores|custos?|custa\w*|custar|barat\w+|gratis|gratuit\w+|descontos?|taxas?|mensalidades?|investiment\w+|parcelas?|parcelad\w+|promocao|promocoes|ofertas?|reais|de graca|por menos|pa(?:ga|gam|gamos|gar|gue|guem) menos|abatimentos?|abate\w*|economiz\w+|bolso|cobranc\w+|cobrar|cobrando|sem cobr\w+|pa(?:gue|guem|ga|gam|gamos|gar) (?:\w+ ){0,3}(?:so|nada|depois|sem)|(?:so|nada|depois|sem) (?:\w+ ){0,2}pa(?:gue|guem|ga|gam|gamos|gar))\b/,
   numeral: /\b(?:dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzentos|duzentas|trezentos|trezentas|quatrocentos|quatrocentas|quinhentos|quinhentas|seiscentos|seiscentas|setecentos|setecentas|oitocentos|oitocentas|novecentos|novecentas|mil|milhao|milhoes|bilhao|bilhoes)\b/,
   promessa: new RegExp([
     '\\b(?:enche|encher|enchem|lota|lotar|lotam|lotad\\w+|dobra|dobrar|dobram|dobro|triplo|triplica\\w*|quadruplo|quadruplica\\w*|multiplica\\w*|aumenta\\w*|cresc\\w+|dispara\\w*|lucr\\w+|faturamento|faturar|resultados?(?! d[oae]s? (?:exames?|orcamentos?|pedidos?|consultas?|testes?|formularios?|buscas?)\\b)|dobre|dobrem|venda mais|vendem mais|sem esforcos?|primeiro lugar|primeira pagina|topo d[oa]|milhar|milhares|centenas?|dezenas?|duzia|duzias|metade|nunca mais)\\b',
@@ -121,6 +121,45 @@ const SEM_PRIMEIRA_PESSOA = { ...RAIZES, negar_ia: NEGAR_IA_FORTE,
   ordem: new RegExp(RAIZES.ordem.source.replace('ignor\\w+|desconsider\\w+|', '')) };
 /* à prova de no-op silencioso: se alguém mexer nas raízes e o replace deixar de achar o trecho, o módulo nem carrega (as duas pontas da exceção têm teste) */
 if (SEM_PRIMEIRA_PESSOA.promessa.source === RAIZES.promessa.source || SEM_PRIMEIRA_PESSOA.ordem.source === RAIZES.ordem.source) throw new Error('planta-textos: a exceção da fala da pessoa não foi aplicada (o texto das raízes mudou)');
+/* ---------- o "hoje" do mapa do caso (PR 4, plano §2.5 e §2.6): as palavras da PESSOA sobre como é hoje, com a autoridade de "Hoje:" na tela ----------
+   Três folgas, estreitas, só com a opção campo: 'hoje' (sem ela nada muda), e NUNCA numa frase que fala do site, do sistema ou de "a gente"
+   (o que o site faria, escrito como se fosse a situação de hoje: revisão de segurança do PR 4, M1):
+   - "preço"/"valor" só como o ASSUNTO da pergunta que a pessoa ouve: depois de "perguntam", "pedem", "respondo", "explico" ou "dúvida de/sobre", e
+     antes de conector ("respondo preço e horário na mão", "perguntam o valor no direct", "tiro dúvida de preço por mensagem"); "quanto custa" só depois
+     de perguntar. Qualquer outro preço (barato, desconto, "preço baixo", "o melhor preço", "valor por metro", custo, parcela, reais) continua recusado,
+     e dígito, R$ e % seguem nas outras regras (revisão M2a: tirados "passar", "repetir" e os conectores "por", "um", "sempre", "toda", "todo");
+   - o prazo do cotidiano, numa lista fechada ("horas", "dias", "de madrugada", "todo dia", "cada dia", "toda semana"), só numa frase em 1ª pessoa da
+     rotina de quem atende ("respondo de madrugada"); "na hora", "a qualquer hora", "imediato", "rápido", "minutos", "amanhã", "hoje mesmo", número de
+     dias e o resto do prazo continuam recusados (revisão M1: "O site responde na hora" passava);
+   - negar ser IA pela regra forte da fala da pessoa, mais o que finge gente no atendimento ("gente de verdade", "atendimento humano", "feito por
+     pessoas", "na minha cabeça", "eu mesmo respondo"; revisão M2b); "eu respondo" passa.
+   As máscaras trocam só o trecho folgado por uma palavra neutra ANTES de procurar as raízes; promessa, garantia, marca e as travas rodam igual. */
+/* (re-revisão: "aqui" e "sozinha" saíram: "Aqui na loja eu respondo preço" e "Sou eu sozinha, respondo de madrugada" são honestas; o "vende sozinho"
+   da promessa continua na raiz promessa) */
+const FALA_DO_SITE = /\b(?:site|sistema|aplicativo|plataforma|a gente|zero|beyon|robos?|bots?|automatic\w*)\b/;
+const ROTINA_EM_PRIMEIRA_PESSOA = /\b(?:eu|respondo|atendo|resolvo|mando|confirmo|recebo|vejo|explico|tiro|marco|faco|olho|aviso|ligo|anoto|organizo|separo|corro|fico)\b/;
+/* depois do preço: "e" só se o que vem não é fechar, comprar, pagar, vender ou a conta (re-revisão: "Pedem o preço e fecham" passava); "pelo/pela/por"
+   só com o canal ("pelo telefone"), nunca com unidade ("pelo metro", "pela peça") */
+export const PRECO_COMO_DUVIDA = /\b((?:pergunt\w*|ped(?:e|em|iu|iram)|respondo|explico|duvidas? (?:de|sobre)) (?:o |a |de |sobre )?)(?:precos?|valor(?:es)?)(?= (?:no|na|nos|nas|de novo|(?:por|pelo|pela) (?:mensagem|telefone|ligacao|audio|direct|celular))\b| e (?!(?:\w+ ){0,2}(?:fech\w*|compr\w*|pag\w*|vend\w*|conta)\b)|$)/g;
+const QUANTO_CUSTA_PERGUNTADO = /\b(pergunt\w* (?:o )?)quanto custa\b/g;
+export const PRAZO_DO_COTIDIANO = Object.freeze(['horas', 'dias', 'de madrugada', 'todo dia', 'cada dia', 'toda semana']);
+/* ("em horas", "em dias" é prazo de entrega, nunca rotina: "chega em horas" não é mascarado; re-revisão) */
+const PRAZO_DO_COTIDIANO_RE = new RegExp('(?<!\\bem (?:\\w+ ){0,2})\\b(?:' + PRAZO_DO_COTIDIANO.join('|') + ')\\b', 'g');   /* (2ª re-revisão: "em poucas horas" também) */
+function mascararHoje(s) {
+  if (FALA_DO_SITE.test(s)) return s;
+  const t = s.replace(PRECO_COMO_DUVIDA, '$1assunto').replace(QUANTO_CUSTA_PERGUNTADO, '$1assunto');
+  return ROTINA_EM_PRIMEIRA_PESSOA.test(t) ? t.replace(PRAZO_DO_COTIDIANO_RE, 'quando') : t;
+}
+const NEGAR_IA_DO_HOJE = new RegExp(NEGAR_IA_FORTE.source + '|' + [
+  '\\b(?:gente|alguem|pessoas?|humanos?|humanas?) (?:de verdade|reais|real)\\b', '\\batendimento (?:e |eh )?humano\\b', '\\bfeito por (?:pessoas|gente)\\b',
+  '\\bna minha cabeca\\b', '\\b(?:eu|a gente) mesm[oa] (?:respond\\w*|atend\\w*|escrev\\w*)\\b', '\\bvoz humana\\b',
+  '\\bsomos (?:uma? )?(?:equipe |time )?(?:pessoas? |gente )?(?:humanos?|humanas?|reais|real|de verdade)\\b',
+  '\\bquem (?:responde|atende) (?:e|eh) (?:uma? )?(?:pessoa|gente|humano|humana)\\b', '\\be gente que (?:responde|atende)\\b',
+  '\\b(?:uma? )?pessoa (?:que )?(?:responde|atende)\\b'   /* (2ª re-revisão: "Uma pessoa responde") */
+].join('|'));
+/* o juízo de preço que a máscara deixaria órfão ("pedem o valor e acham caro"): só no hoje ("o cara" é outra coisa, por isso só caro/caros/caras) */
+const RAIZES_DO_HOJE = { ...RAIZES, preco: new RegExp(RAIZES.preco.source + '|\\b(?:caros?|caras|salgad[oa]s?)\\b'), negar_ia: NEGAR_IA_DO_HOJE };
+
 const REGULADO = {
   depoimento: /\b(?:depoiment\w*|testemunh\w*|antes (?:e |\/ )?depois|avaliacoes (?:de|dos|das) (?:pacientes|clientes)|casos? de sucesso|historias? de (?:pacientes|clientes)|fotos? de (?:pacientes|clientes)|relatos?|transformac\w+)\b/,
   resultado_regulado: /\b(?:cura\w*|curar|milagr\w*|tratamento garantido|emagrec\w*)\b/
@@ -256,7 +295,7 @@ function achar(mapa, ...buscas) {
 
 /* texto -> { ok: true, texto } | { ok: false, motivo }. A ordem é a do motivo mais útil para quem corrige.
    travas: false roda só a lista dura (o `estado` revalida a cada leitura; as dez travas rodam ao GRAVAR, no turno do modelo: elas custam centenas de ms a frio) */
-export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = false, travas = true, primeiraPessoa = false, cidade = '' } = {}) {
+export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = false, travas = true, primeiraPessoa = false, cidade = '', campo = '' } = {}) {
   try {
     if (typeof bruto !== 'string') return { ok: false, motivo: 'texto' };
     if (bruto.length > TEXTO_MAX_ENTRADA) return { ok: false, motivo: 'longo' };
@@ -282,14 +321,15 @@ export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = fa
     const permitidas = new Set([...nome, ...cidadeValida(cidade).split(' ').map(p => paraBusca(p))]);   /* (a cidade abre só o nome próprio; o idioma e as listas não a conhecem) */
     if (MARCAS_RE.test(paraBusca(t)) || MARCAS_RE.test(colada(t))) return { ok: false, motivo: 'marca' };   /* (antes do idioma: "you tube" é marca, não inglês) */
     if (idiomaRuim(t, nome, primeiraPessoa ? FRACAO_PORTUGUES_MIN_DA_PESSOA : FRACAO_PORTUGUES_MIN)) return { ok: false, motivo: 'idioma' };
-    const busca = paraBusca(t), cola = colada(t);
-    const lexico = achar(primeiraPessoa ? SEM_PRIMEIRA_PESSOA : RAIZES, busca, cola) || (regulado ? achar(REGULADO, busca, cola) : null);
+    const hoje = campo === 'hoje';
+    const busca = hoje ? mascararHoje(paraBusca(t)) : paraBusca(t), cola = hoje ? mascararHoje(colada(t)) : colada(t);
+    const lexico = achar(hoje ? RAIZES_DO_HOJE : primeiraPessoa ? SEM_PRIMEIRA_PESSOA : RAIZES, busca, cola) || (regulado ? achar(REGULADO, busca, cola) : null);
     if (lexico) return { ok: false, motivo: lexico };
     if (regulado && pedeItemProibido(t)) return { ok: false, motivo: 'depoimento' };
     if (MARCAS_RE.test(busca) || MARCAS_RE.test(cola) || temNomeProprio(t, permitidas)) return { ok: false, motivo: 'marca' };
     if (regulado && textoProibido(t)) return { ok: false, motivo: 'depoimento' };
     /* a trava negarIA é para a voz do Zero (finge vida humana: "na minha cabeça", "eu atendo"); a fala da PESSOA (primeiraPessoa) tem a regra própria NEGAR_IA_FORTE acima, que derruba "sou humano" e "não sou robô" */
-    if (travas) for (const trava of TRAVAS) if (!(primeiraPessoa && trava.nome === 'negarIA') && trava.rodar(t) !== t) return { ok: false, motivo: 'trava_' + trava.nome };
+    if (travas) for (const trava of TRAVAS) if (!((primeiraPessoa || hoje) && trava.nome === 'negarIA') && trava.rodar(t) !== t) return { ok: false, motivo: 'trava_' + trava.nome };
     return { ok: true, texto: t };
   } catch {
     return { ok: false, motivo: 'interno' };   /* falha fechado */

@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { textoDoPlanoPermitido, cidadeValida } from '../../api/_vendas/planta-textos.mjs';
 import { montarPlanta, resolverDesenho, turnoDaPlantaInicial, limparCacheDaPlanta, estatisticasDoCache } from '../../api/_vendas/planta.mjs';
 import { planoPadrao } from '../../api/_vendas/planta-padrao.mjs';
+import { planoDoCaso } from '../../api/_vendas/mapa-padrao.mjs';
 
 const motivo = (t, o) => { const r = textoDoPlanoPermitido(t, o); return r.ok ? 'ok' : r.motivo; };
 const FRASE = c => 'A página leva a ' + c + ' no fim do caminho.';
@@ -33,8 +34,8 @@ test('a cidade só vale como nome próprio: nunca afrouxa o idioma nem outra tra
 
 test('a chave de cache usa a cidade JÁ validada; cidade hostil não cria passe nem entrada própria', () => {
   limparCacheDaPlanta();
-  const p = JSON.parse(JSON.stringify(planoPadrao('saude_agenda')));
-  p.chegada.frase = 'A pessoa chega pela busca ou pelo mapa e vê o escritório em Curitiba.';
+  const p = planoDoCaso('saude_agenda', {});   /* (PR 4: o modelo escreve o mapa v3) */
+  p.nos[0].frase = 'Vê o escritório em Curitiba e marca';
   const ctx = { estimativaNoInicio: true, nMensagens: 2, regulado: false, nomeDoNegocio: '', cidade: 'Curitiba' };
   const d = resolverDesenho({ entrada: p, briefing: { negocio: { cidade: 'Curitiba' } }, turno: turnoDaPlantaInicial(), ctx });
   assert.equal(d.briefing.planta.origem, 'modelo');

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { PREFIXO_PLANTA, ferramentas } from '../../api/_vendas/consultor.mjs';
 import { executarTurno, estadoParaModelo } from '../../api/_vendas/agente.mjs';
-import { planoPadrao } from '../../api/_vendas/planta-padrao.mjs';
+import { planoDoCaso } from '../../api/_vendas/mapa-padrao.mjs';
 import { validarPlano } from '../../api/_vendas/planta-esquema.mjs';
 import { montarPlanta, leituraParaTela, posicaoDaFala, posicaoNaJanela, limparCacheDaPlanta } from '../../api/_vendas/planta.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
@@ -30,9 +30,10 @@ function roteiro(...respostas) {
 const volta = (ia, n) => JSON.parse(ia.recebidos[n].mensagens.at(-1).content[0].content);
 const conversaDe = (extra = {}) => ({ etapa: 'estimativa', briefing: clone(BRIEFING), mensagens: clone(MENSAGENS), estimativa: ESTIMATIVA, ...extra });
 const turno = (ia, extra = {}) => executarTurno({ ia, regras: REGRAS, conversa: conversaDe(extra.conversa), mensagem: 'ok', planta: true });
-const bom = () => { const p = planoPadrao('generico'); p.etapas[0].titulo = 'Página feita para o seu negócio'; return p; };
-const ruimDigito = () => { const p = bom(); p.etapas[0].titulo = 'Passo 1 da página'; return p; };
-const ruimPrazo = () => { const p = bom(); p.etapas[0].titulo = 'Pronto em minutos'; return p; };
+/* (PR 4) o modelo escreve o mapa v3 */
+const bom = () => { const p = planoDoCaso('generico', {}); p.nos[0].titulo = 'Página feita para você'; return p; };
+const ruimDigito = () => { const p = bom(); p.nos[0].titulo = 'Passo 1 da página'; return p; };
+const ruimPrazo = () => { const p = bom(); p.nos[0].titulo = 'Pronto em minutos'; return p; };
 
 /* ---------- C4: as mutações que sobreviveram ---------- */
 test('C4: no turno em que o modelo ESTIMA, o proximo_passo que volta depois do atualizar_briefing não pede a planta (a estimativa de agora não vale)', async () => {
@@ -199,7 +200,7 @@ const FALA_CLINICA = 'Tenho uma clínica odontológica em Niterói e quero um si
 const FALA_LOJA = 'Tenho uma loja de roupas femininas e quero um site institucional para vender mais';
 
 test('regulado repassado no estado: o mesmo plano com "depoimentos de pacientes" vira o padrão numa conversa de saúde e fica numa loja (planta e leitura)', async () => {
-  const frase = 'Quem ficou com dúvida lê depoimentos de pacientes e volta à conversa.';
+  const frase = 'Lê depoimentos de pacientes e conversa';
   const evidencia = 'depoimentos de pacientes';
   const leitura = { eixos: [{ eixo: 'volume', nivel: 'comentou', evidencia }, { eixo: 'repeticao', nivel: 'nao_falou' }, { eixo: 'urgencia', nivel: 'nao_falou' }, { eixo: 'pessoas', nivel: 'nao_falou' }, { eixo: 'informacao', nivel: 'nao_falou' }] };
   const resultado = {};
@@ -207,7 +208,7 @@ test('regulado repassado no estado: o mesmo plano com "depoimentos de pacientes"
     const { c, estado } = await comPlanta(fala);
     const antes = await estado();
     assert.equal(antes.planta.origem, 'modelo', nome);
-    await local.db.query(`update app.conversas set briefing = jsonb_set(briefing, '{planta,plano,etapas,5,frase}', $2::jsonb) || jsonb_build_object('leitura', $3::jsonb) where id = $1`, [c, JSON.stringify(frase), JSON.stringify(leitura)]);
+    await local.db.query(`update app.conversas set briefing = jsonb_set(briefing, '{planta,plano,nos,1,frase}', $2::jsonb) || jsonb_build_object('leitura', $3::jsonb) where id = $1`, [c, JSON.stringify(frase), JSON.stringify(leitura)]);
     const e = await estado();
     resultado[nome] = { origem: e.planta.origem, leitura: !!e.leitura };
   }
@@ -225,8 +226,8 @@ test('C2 pela API: com 40 turnos e a janela de 60 mensagens, a posição que o e
 });
 
 /* ---------- C3: a descrição ---------- */
-test('C3: a descrição da ferramenta diz que o fecho conta como frase e cita os ids reservados', () => {
+test('C3: a descrição da ferramenta diz o tamanho do fecho e cita os ids reservados (mapa v3)', () => {
   const d = ferramentas(REGRAS, { planta: true }).find(f => f.name === 'desenhar_planta').description;
-  assert.match(d, /o fecho conta como frase \(20 a 110 caracteres\)/);
-  for (const id of ['nucleo', 'led', 'chegada', 'constructor', 'prototype', 'proto']) assert.ok(d.includes(id), id);
+  assert.match(d, /fecho de 20 a 80/);
+  for (const id of ['objetivo', 'hoje', 'constructor', 'prototype', 'proto']) assert.ok(d.includes(id), id);
 });

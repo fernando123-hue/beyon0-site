@@ -9,7 +9,7 @@
 import { pareceInjecao } from '../_vendas/seguranca.mjs';
 import { gerarSimulado } from './simulado-geracao.mjs';
 import { atendenteSimulado } from './simulado-atendente.mjs';
-import { planoPadrao } from '../_vendas/planta-padrao.mjs';
+import { planoDoCaso } from '../_vendas/mapa-padrao.mjs';
 
 const SEGMENTOS = [[/odonto|dentist/i, 'odontologia'], [/cl[ií]nica|consult[óo]rio|m[ée]dic/i, 'saúde'], [/advoca|advogad|escrit[óo]rio jur/i, 'advocacia'],
   [/restaurante|lanchonete|pizzaria|caf[ée]/i, 'alimentação'], [/academia|personal|pilates/i, 'fitness'], [/contab/i, 'contabilidade'],
@@ -46,7 +46,8 @@ function extrair(texto, briefing) {
    do prefixo, como um modelo que esquece (o servidor grava o padrão em 2 turnos). planta-boa: um plano válido. planta-ruim: inválido uma vez (um título com
    número), depois válido. planta-ruim2: inválido sempre (cai no padrão). O plano do dublê é o genérico com o primeiro título trocado, para o teste distinguir */
 const GATILHOS_PLANTA = /planta-(boa|ruim2|ruim)/i;
-const plantaDoDuble = ruim => { const p = planoPadrao('generico'); p.etapas[0].titulo = ruim ? 'Passo 1 da página' : 'Página feita para o seu negócio'; return p; };
+/* (PR 4) o dublê escreve o mapa do caso v3: o padrão genérico com o título do 1º nó trocado (o do site) */
+const plantaDoDuble = ruim => { const p = planoDoCaso('generico', {}); p.nos[0].titulo = ruim ? 'Passo 1 da página' : 'Página feita para você'; return p; };
 
 /* o radar (PR 2d): o gatilho "leitura-sim|forjada|ruim|ruim2" em QUALQUER fala do visitante liga a ferramenta ler_caso (nenhum roteiro do E2E o usa). O dublê lê as palavras da própria
    pessoa por padrões fixos e cita o trecho que casou, LITERAL (por isso passa pela âncora do servidor). forjada: cita o que ninguém disse (o nível cai). ruim: manda 4 eixos uma vez e
@@ -94,7 +95,7 @@ function conversa({ mensagens, contexto, ferramentas = [] }) {
     /* (fluxo novo, spec 2026-11-13 §2) o turno do valor: o que o site faz, o desenho e o valor, nessa ordem, numa fala só */
     if (String(contexto).includes(TURNO_DO_VALOR_NO_PASSO) && res.some(r => r.prazo_dias)) return resposta(FALA_DO_VALOR);
     /* a planta: o código respondeu ao desenhar_planta */
-    if (res.some(r => r.na_tela)) return resposta(res.some(r => r.exemplo) ? 'Deixei um desenho de exemplo para o seu tipo de negócio, logo abaixo na planta. Eu refaço conforme você me contar mais.' : 'Desenhei o seu site em planta, logo abaixo.');
+    if (res.some(r => r.na_tela)) return resposta(res.some(r => r.exemplo) ? 'Deixei um mapa de exemplo para o seu tipo de negócio, logo abaixo. Eu refaço conforme você me contar mais.' : 'Montei o mapa do seu caso, logo abaixo.');
     const gatilho = (([...mensagens].reverse().find(m => m.role === 'user' && typeof m.content === 'string' && GATILHOS_PLANTA.test(m.content)) || {}).content || '').match(GATILHOS_PLANTA);
     if (gatilho && res.some(r => r.ok === false && Array.isArray(r.erros))) return resposta('', [{ id: id(), nome: 'desenhar_planta', entrada: plantaDoDuble(gatilho[1].toLowerCase() === 'ruim2') }]);
     const gl = gatilhoDeLeitura(mensagens);
