@@ -34,7 +34,8 @@ const PASSAM = ['Respondo preço e horário na mão', 'me perguntam o valor no d
   'eu respondo cada mensagem na mão', 'respondo de madrugada quando dá', 'tiro dúvida de preço por mensagem', 'pedem o valor pelo telefone e somem',
   'ninguém lembra de quem perguntou', 'Perguntam o tempo todo se tem o produto', 'eu atendo cliente todo dia sem parar para almoçar', 'chamam no direct e tiro dúvida e horário um por um, na mão',
   /* (re-revisão) honestas que a guarda larga barrava: quem trabalha sozinho, "aqui na loja" */
-  'Aqui na loja eu respondo preço e horário na mão', 'Sou eu sozinha, respondo tudo de madrugada', 'Eu respondo sozinha todo dia', 'O cliente pergunta o preço e some', 'Confirmo dias antes'];
+  'Aqui na loja eu respondo preço e horário na mão', 'Sou eu sozinha, respondo tudo de madrugada', 'Eu respondo sozinha todo dia', 'O cliente pergunta o preço e some', 'Confirmo dias antes',
+  'Respondo mensagem toda semana', 'Quem atende é a dona', 'o cara pergunta o preço e some'];
 /* [frase, motivo EXATO] (revisão técnica do PR 4, item 4: um motivo trocado é regressão); as 20 últimas são as que a revisão de segurança achou */
 const RECUSADAS = [
   ['preço baixo para todos', 'preco'], ['o melhor preço da cidade', 'preco'], ['vendo a preço de custo', 'preco'], ['fica barato para quem chega', 'preco'],
@@ -56,7 +57,10 @@ const RECUSADAS = [
   ['Somos uma equipe humana', 'negar_ia'], ['Atendimento é humano', 'negar_ia'], ['Quem responde é uma pessoa', 'negar_ia'], ['Aqui é gente que responde', 'negar_ia'],
   ['Responde por voz humana', 'negar_ia'], ['Respondo o preço e fecho a venda', 'preco'], ['Pedem o preço e fecham a compra', 'preco'], ['Pedem preço e compram', 'preco'],
   ['Respondo o preço e a conta fecha', 'preco'], ['Explico o valor pelo metro', 'preco'], ['Respondo o preço pela peça', 'preco'], ['Respondo o valor pela hora', 'preco'],
-  ['Mando o orçamento e ele chega em horas', 'prazo'], ['Resolvo em horas', 'prazo'], ['Respondo em horas', 'prazo']
+  ['Mando o orçamento e ele chega em horas', 'prazo'], ['Resolvo em horas', 'prazo'], ['Respondo em horas', 'prazo'],
+  /* (2ª re-revisão) */
+  ['Uma pessoa responde', 'negar_ia'], ['é uma pessoa que responde', 'negar_ia'], ['Respondo em poucas horas', 'prazo'], ['Respondo em algumas horas', 'prazo'],
+  ['Pedem o valor e acham caro', 'preco']
 ];
 
 test('as recusas, com o motivo exato: preço como valor ou juízo, promessa, garantia, marca, número, prazo fora da lista ou na fala do site, negar ser IA', () => {

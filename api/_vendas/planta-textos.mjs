@@ -144,7 +144,7 @@ export const PRECO_COMO_DUVIDA = /\b((?:pergunt\w*|ped(?:e|em|iu|iram)|respondo|
 const QUANTO_CUSTA_PERGUNTADO = /\b(pergunt\w* (?:o )?)quanto custa\b/g;
 export const PRAZO_DO_COTIDIANO = Object.freeze(['horas', 'dias', 'de madrugada', 'todo dia', 'cada dia', 'toda semana']);
 /* ("em horas", "em dias" é prazo de entrega, nunca rotina: "chega em horas" não é mascarado; re-revisão) */
-const PRAZO_DO_COTIDIANO_RE = new RegExp('(?<!\\bem )\\b(?:' + PRAZO_DO_COTIDIANO.join('|') + ')\\b', 'g');
+const PRAZO_DO_COTIDIANO_RE = new RegExp('(?<!\\bem (?:\\w+ ){0,2})\\b(?:' + PRAZO_DO_COTIDIANO.join('|') + ')\\b', 'g');   /* (2ª re-revisão: "em poucas horas" também) */
 function mascararHoje(s) {
   if (FALA_DO_SITE.test(s)) return s;
   const t = s.replace(PRECO_COMO_DUVIDA, '$1assunto').replace(QUANTO_CUSTA_PERGUNTADO, '$1assunto');
@@ -154,9 +154,11 @@ const NEGAR_IA_DO_HOJE = new RegExp(NEGAR_IA_FORTE.source + '|' + [
   '\\b(?:gente|alguem|pessoas?|humanos?|humanas?) (?:de verdade|reais|real)\\b', '\\batendimento (?:e |eh )?humano\\b', '\\bfeito por (?:pessoas|gente)\\b',
   '\\bna minha cabeca\\b', '\\b(?:eu|a gente) mesm[oa] (?:respond\\w*|atend\\w*|escrev\\w*)\\b', '\\bvoz humana\\b',
   '\\bsomos (?:uma? )?(?:equipe |time )?(?:pessoas? |gente )?(?:humanos?|humanas?|reais|real|de verdade)\\b',
-  '\\bquem (?:responde|atende) (?:e|eh) (?:uma? )?(?:pessoa|gente|humano|humana)\\b', '\\be gente que (?:responde|atende)\\b'
+  '\\bquem (?:responde|atende) (?:e|eh) (?:uma? )?(?:pessoa|gente|humano|humana)\\b', '\\be gente que (?:responde|atende)\\b',
+  '\\b(?:uma? )?pessoa (?:que )?(?:responde|atende)\\b'   /* (2ª re-revisão: "Uma pessoa responde") */
 ].join('|'));
-const RAIZES_DO_HOJE = { ...RAIZES, negar_ia: NEGAR_IA_DO_HOJE };
+/* o juízo de preço que a máscara deixaria órfão ("pedem o valor e acham caro"): só no hoje ("o cara" é outra coisa, por isso só caro/caros/caras) */
+const RAIZES_DO_HOJE = { ...RAIZES, preco: new RegExp(RAIZES.preco.source + '|\\b(?:caros?|caras|salgad[oa]s?)\\b'), negar_ia: NEGAR_IA_DO_HOJE };
 
 const REGULADO = {
   depoimento: /\b(?:depoiment\w*|testemunh\w*|antes (?:e |\/ )?depois|avaliacoes (?:de|dos|das) (?:pacientes|clientes)|casos? de sucesso|historias? de (?:pacientes|clientes)|fotos? de (?:pacientes|clientes)|relatos?|transformac\w+)\b/,

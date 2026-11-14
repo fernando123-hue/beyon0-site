@@ -83,6 +83,10 @@ test('oQueSeSabe: os rótulos tocados, o texto livre com negação, google como 
   assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'não uso instagram só whatsapp' } }).origens, ['whatsapp'], 'sem vírgula, o "só" fecha a oração');
   /* (re-revisão) o "nem" continua a negação depois da vírgula */
   assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'Não uso Instagram, nem WhatsApp' } }).origens, []);
+  /* (2ª re-revisão) "sem" e "nada de" também negam */
+  assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'Sem Instagram, só WhatsApp' } }).origens, ['whatsapp']);
+  assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'Nada de Google, é tudo indicação' } }).origens, ['indicacao']);
+  assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'Sem Instagram nem WhatsApp' } }).origens, []);
   assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'Não tenho Instagram, nem site, nem Google, só indicação' } }).origens, ['indicacao']);
   assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'não uso instagram, mas o instagram é o principal' } }).origens, ['instagram'], 'outra ocorrência, sem negação, vale');
   /* a regra do google antes do corte de 3: a busca que sai não toma a vaga de uma origem real */
