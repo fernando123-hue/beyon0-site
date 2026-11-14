@@ -54,6 +54,15 @@ export const SABOTAGENS = [
      com a frase genérica da etapa: o teste da frase "ainda não foi confirmado pelo WhatsApp" é o que pega) ---- */
   { nome: 'gerar sem o pedido confirmado pelo WhatsApp (freio do JS)', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/fluxo-api.test.mjs'],
     de: 'if (semConfirmacao) throw semConfirmacao;', para: 'if (false) throw semConfirmacao;' },
+  /* ---- a IA real no servidor local: o teto do gasto, o que já foi pago e o gancho só no local ---- */
+  { nome: 'ia-local: teto ignora o que está em voo', fonte: 'docs/ia-local.mjs', testes: ['docs/testes/ia-local.test.mjs'],
+    de: 'if (gasto + emVoo + reserva > teto) {', para: 'if (gasto + reserva > teto) {' },
+  { nome: 'ia-local: custo de chamada que falhou não entra no livro', fonte: 'docs/ia-local.mjs', testes: ['docs/testes/ia-local.test.mjs'],
+    de: "custo_usd: e?.custo_usd || 0, ms: agora() - t0", para: "custo_usd: 0, ms: agora() - t0" },
+  { nome: 'ia-local: gancho de criarIA vale fora do local', fonte: 'api/_ia/provedor.mjs', testes: ['docs/testes/ia-local.test.mjs'],
+    de: "if (local && typeof local.ia === 'function' && ambienteDe(env) === 'local') return local.ia(env);", para: "if (local && typeof local.ia === 'function') return local.ia(env);" },
+  { nome: 'ia-local: geração vai ao Opus sem pedir', fonte: 'docs/ia-local.mjs', testes: ['docs/testes/ia-local.test.mjs'],
+    de: "      if (pedido.papel === 'geracao' && !geracaoReal) return simulada.mensagem(pedido);\n      const reserva", para: '      const reserva' },
   /* ---- os ajustes sem IA (PR 3a): o teto, a versão final sem o desfeito e o dono fora da etapa ---- */
   /* (a função vendas_registrar_alteracao vive na migration MAIS NOVA que a redefine, a da auditoria; as duas sabotagens
      seguintes e a "origem ia" miram nela: sabotar a do PR 3a não teria efeito) */
