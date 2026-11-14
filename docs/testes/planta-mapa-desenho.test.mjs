@@ -296,3 +296,65 @@ test('o ajuste com movimento reduzido: o quadro novo direto, sem animação', ()
   assert.equal(a.w.document.animacoes.length, antes);
   assert.equal(a.raiz.porClasse('mpc-no').length, ajustado().nos.length + 1);
 });
+
+/* ---------- revisão do 5c ---------- */
+test('ajuste no MEIO da entrada: vai direto ao quadro final do plano novo, a pergunta aparece e o valor é liberado (não fica preso)', () => {
+  const a = ambiente({ reduzido: false });
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true });
+  a.w.avancar(300);
+  assert.deepEqual(a.prontas, []);
+  assert.equal(a.D.atualizar(ajustado()).ok, true);
+  a.w.avancar(100);
+  assert.deepEqual(a.prontas, ['bz:planta-pronta']);
+  assert.ok(!acoesDe(a.raiz).classList.contains('is-espera'));
+  assert.ok(a.raiz.porClasse('mpc-quadro')[0].classList.contains('is-ouro'));
+  assert.equal(a.raiz.porClasse('mpc-no').length, ajustado().nos.length + 1);
+});
+
+test('ajuste durante a espera das fontes: nada acende antes da hora; quando as fontes chegam, a entrada roda UMA vez, já com o plano novo', async () => {
+  const a = ambiente({ reduzido: false });
+  let soltar;
+  a.w.document.fonts = { status: 'loading', ready: new Promise((r) => { soltar = r; }) };
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true });
+  assert.equal(a.D.atualizar(ajustado()).ok, true);
+  const q = a.raiz.porClasse('mpc-quadro')[0];
+  assert.ok(q.classList.contains('is-medindo') && !q.classList.contains('is-aceso'), 'continua esperando escondido');
+  soltar();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(a.raiz.porClasse('mpc-no').length, ajustado().nos.length + 1, 'o plano novo');
+  a.w.avancar(20000);
+  assert.deepEqual(a.prontas, ['bz:planta-pronta']);
+});
+
+test('se a composição do ajuste falha (sem largura), o mapa de antes fica inteiro e a mesma versão tenta de novo depois', () => {
+  const a = ambiente({ reduzido: true });
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true });
+  const nAntes = a.raiz.porClasse('mpc-no').length;
+  const largura = a.raiz.clientWidth;
+  a.raiz.clientWidth = 0;
+  assert.equal(a.D.atualizar(ajustado()).ok, false);
+  assert.equal(a.raiz.porClasse('mpc-no').length, nAntes, 'o desenho de antes');
+  assert.ok(!a.raiz.porClasse('mpc-sr')[0].textContent.includes('Lembrete'), 'a leitura de antes');
+  a.raiz.clientWidth = largura;
+  assert.deepEqual(a.D.atualizar(ajustado()), { ok: true, refeita: false, novos: ['lembrete'] }, 'a mesma versão entra quando volta a ter largura');
+});
+
+test('depois de "Está certo", um ajuste traz a pergunta de volta (o mapa mudou: ninguém olhou o novo)', () => {
+  const a = ambiente({ reduzido: true });
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true });
+  botaoDe(a.raiz, 'Está certo').disparar('click');
+  assert.equal(acoesDe(a.raiz).porTag('button').length, 0);
+  a.D.atualizar(ajustado());
+  assert.ok(botaoDe(a.raiz, 'Está certo') && botaoDe(a.raiz, 'Quero ajustar algo'), 'os toques voltam');
+  assert.equal(a.raiz.porClasse('mpc-fala').length, 0);
+});
+
+test('"Está certo" é anunciado (status) e o foco não se perde: vai para a fala', () => {
+  const a = ambiente({ reduzido: true });
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true });
+  botaoDe(a.raiz, 'Está certo').disparar('click');
+  assert.equal(a.raiz.porClasse('mpc-status')[0].textContent, 'Está certo.');
+  const fala = a.raiz.porClasse('mpc-fala')[0];
+  assert.equal(fala.getAttribute('tabindex'), '-1');
+  assert.equal(a.w.document.ativo, fala, 'o foco vai para a fala');
+});

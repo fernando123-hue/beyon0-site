@@ -228,23 +228,30 @@
     certo.setAttribute('type', 'button'); ajustar.setAttribute('type', 'button');
     certo.addEventListener('click', function () {
       if (botoes.parentNode) botoes.parentNode.removeChild(botoes);
-      el('p', 'mpc-fala', CERTO + '.', a);
+      /* (revisão do 5c) o botão com foco sai: o foco vai para a fala, e o status anuncia */
+      var fala = el('p', 'mpc-fala', CERTO + '.', a);
+      fala.setAttribute('tabindex', '-1');
+      i.status.textContent = CERTO + '.';
+      if (typeof fala.focus === 'function') fala.focus();
     });
     ajustar.addEventListener('click', function () { if (typeof i.opcoes.aoAjustar === 'function') { try { i.opcoes.aoAjustar(); } catch (e) { aviso(e); } } });
     i.acoes = a; i.btnAjustar = ajustar;
     editavel(i);
   }
   function editavel(i) { if (i.btnAjustar) i.btnAjustar.hidden = i.opcoes.editavel !== true; }
-  /* O AJUSTE (spec §7.4; PR 5c): um plano novo com nós em comum não refaz a entrada. Quem ficou desliza do lugar antigo para o novo (só transform);
-     o nó novo (com "Ajustado") e as setas dele crescem pela luz depois do deslize; as outras setas reaparecem no lugar novo. Os textos (Hoje, fecho)
-     e a leitura acompanham o plano. O valor não é liberado de novo (ele já foi, na entrada). Movimento reduzido: o quadro novo, direto. */
-  function ajuste(i, plano, novos) {
-    var antes = Object.create(null), novo = Object.create(null);
-    Object.keys(i.g.caixas).forEach(function (id) { antes[id] = i.g.caixas[id]; });
-    novos.forEach(function (id) { novo[id] = true; });
-    i.plano = plano; i.json = JSON.stringify(plano);
-    try { i.rel.parar(); } catch (e) { aviso(e); }
-    i.rel = Relogio.criar();
+  /* (revisão do 5c) o mapa mudou: a pergunta volta (ninguém olhou o novo) */
+  function refazerAcoes(i) {
+    if (i.acoes && i.acoes.parentNode) i.acoes.parentNode.removeChild(i.acoes);
+    acoes(i, i.lugarAcoes);
+    if (i.pronto) i.acoes.classList.remove('is-espera');
+  }
+  /* o relógio novo nasce pausado se o quadro está fora da tela ou a aba escondida */
+  function novoRelogio(i) {
+    var r = Relogio.criar();
+    if (i.naTela === false || doc.hidden) r.pausar();
+    return r;
+  }
+  function trocarTextos(i, plano) {
     var hoje = linhaDeHoje(plano, null);
     if (i.hojeEl && i.hojeEl.parentNode) i.hojeEl.parentNode.removeChild(i.hojeEl);
     if (hoje) i.wrap.insertBefore(hoje, i.quadro);
@@ -254,7 +261,31 @@
     if (i.leituraEl && i.leituraEl.parentNode) i.leituraEl.parentNode.removeChild(i.leituraEl);
     i.wrap.insertBefore(ol, i.status);
     i.leituraEl = ol;
-    if (!compor(i)) return false;
+  }
+  /* O AJUSTE (spec §7.4; PR 5c): um plano novo com nós em comum não refaz a entrada. Quem ficou desliza do lugar antigo para o novo (só transform);
+     o nó novo (com "Ajustado") e as setas dele crescem pela luz depois do deslize; as outras setas reaparecem no lugar novo. Os textos (Hoje, fecho)
+     e a leitura acompanham o plano. O valor não é liberado de novo (ele já foi, na entrada). Movimento reduzido: o quadro novo, direto. */
+  /* (revisão do 5c) três casos: com as fontes ainda chegando, só troca o plano e os textos (a composição e a entrada esperam as fontes); no meio da
+     entrada, vai direto ao quadro final do plano novo (e libera o valor que esperava); com o mapa pronto, o ajuste animado. A composição vem ANTES
+     de qualquer troca: se ela falha (sem largura), o mapa de antes fica inteiro e a mesma versão pode entrar depois. */
+  function ajuste(i, plano, novos) {
+    var antes = Object.create(null), novo = Object.create(null), velho = { plano: i.plano, json: i.json };
+    if (i.esperaFontes) { i.plano = plano; i.json = JSON.stringify(plano); trocarTextos(i, plano); refazerAcoes(i); return true; }
+    Object.keys(i.g.caixas).forEach(function (id) { antes[id] = i.g.caixas[id]; });
+    novos.forEach(function (id) { novo[id] = true; });
+    i.plano = plano; i.json = JSON.stringify(plano);
+    var deu = false;
+    try { deu = compor(i); } catch (e) { aviso(e); }
+    if (!deu) {
+      i.plano = velho.plano; i.json = velho.json;
+      try { compor(i); } catch (e2) { aviso(e2); }
+      return false;
+    }
+    try { i.rel.parar(); } catch (e3) { aviso(e3); }
+    i.rel = novoRelogio(i);
+    trocarTextos(i, plano);
+    refazerAcoes(i);
+    if (!i.pronto) { final(i); return true; }
     i.quadro.classList.add('is-aceso', 'is-ouro');
     i.status.textContent = 'Ajustei o mapa do seu caso.';
     if (i.opcoes.animar === false || reduzido() || typeof i.quadro.animate !== 'function') return true;
@@ -281,7 +312,7 @@
      corria para, e o valor que a esperava é liberado */
   function recompor(i) {
     try { i.rel.parar(); } catch (e) { aviso(e); }
-    i.rel = Relogio.criar();
+    i.rel = novoRelogio(i);
     if (compor(i)) final(i);
   }
   /* ---------- o ROTEIRO de cada estrutura (puro: do plano e da geometria saem os instantes; desenho do PR 5 §5) ----------
@@ -410,6 +441,7 @@
     var i = { raiz: raizEl, wrap: wrap, quadro: quadro, status: status, plano: v.plano, json: JSON.stringify(v.plano), opcoes: op,
       hojeEl: hojeEl, fechoEl: fechoEl, leituraEl: leituraEl, pele: pele, rel: Relogio.criar(), io: null, aoVisivel: null, naTela: true, pronto: false, aoResize: null, timerResize: 0 };
     inst = i;
+    i.lugarAcoes = lugarDasAcoes;
     acoes(i, lugarDasAcoes);
     var anima = op.animar !== false && !reduzido() && typeof quadro.animate === 'function';
     /* (revisão do 5b) a altura de cada caixa é medida: com a fonte ainda chegando, o quadro espera escondido (o lugar já reservado) e só então
@@ -429,7 +461,8 @@
       win.addEventListener('resize', i.aoResize);
       if (fontes) {
         quadro.classList.add('is-medindo');
-        fontes.then(function () { if (inst !== i) return; try { if (compor(i)) comecar(); } catch (e) { aviso(e); parar(); } });
+        i.esperaFontes = true;
+        fontes.then(function () { if (inst !== i) return; i.esperaFontes = false; try { if (compor(i)) comecar(); } catch (e) { aviso(e); parar(); } });
       } else comecar();
     } catch (e) { aviso(e); parar(); return { ok: false, motivos: ['excecao'] }; }
     return { ok: true, largura: i.larg, altura: i.g.H, animada: anima, etapas: i.g.ordem.length };
