@@ -21,7 +21,7 @@
   /* a pele escolhida pelo dono (A caixa / B trilho); opcoes.pele só serve ao laboratório */
   var PELE = 'trilho', CHANFRO = 8;
   var TITULO = 'O mapa do seu caso';
-  var T = { no: 320, passo: 240, seta: 480, volta: 900, chega: 520, ouro: 420, depoisSeta: 160 };
+  var T = { no: 320, passo: 240, seta: 480, volta: 900, chega: 520, ouro: 420, depoisSeta: 160, pausa: 420, pulso: 520, voo: 700, repouso: 6000, repousos: 8 };
   var tem = function (o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); };
   /* papel -> classe (lista fechada; nada do plano vira classe) */
   var PAPEL = { hoje: 'mpc-no--hoje', trava: 'mpc-no--trava', origem: 'mpc-no--origem', site: 'mpc-no--site', conversa: 'mpc-no--conversa', acao: 'mpc-no--acao', volta: 'mpc-no--volta', ajustado: 'mpc-no--ajustado', objetivo: 'mpc-no--objetivo' };
@@ -209,32 +209,95 @@
     i.status.textContent = 'O mapa do seu caso está pronto.';
     pronta();
   }
-  /* a entrada genérica do laboratório: os nós acendem na ordem da história, a luz corre cada seta, o objetivo vira ouro (o jeito de cada estrutura:
-     tarefa 4) */
-  function entrada(i) {
-    var rel = i.rel, quando = Object.create(null), tAt = 0, som = typeof i.opcoes.som === 'function' ? i.opcoes.som : function () {};
-    i.g.ordem.forEach(function (id) {
-      var chegam = i.setas.filter(function (s) { return s.r.para === id && !s.r.volta && quando[s.r.de] != null; });
-      var em = chegam.length ? Math.max.apply(null, chegam.map(function (s) { return quando[s.r.de]; })) + T.chega : tAt;
-      quando[id] = em; tAt = Math.max(tAt, em + T.passo);
+  /* ---------- o ROTEIRO de cada estrutura (puro: do plano e da geometria saem os instantes; desenho do PR 5 §5) ----------
+     caminho: um nó por vez, na ordem. antes_depois: a faixa "Hoje" (e as origens) inteira, a trava pulsa, e só então a faixa "Com o site" até o
+     objetivo. ramos: os dois filhos do nó que se divide acendem juntos (chegam da mesma luz). ciclo: o objetivo vira ouro e então a luz corre a
+     volta; no repouso, um ponto percorre o laço. mapa: as origens (as raízes) acendem juntas. */
+  function roteiro(plano, g) {
+    var papel = Object.create(null), est = plano.estrutura, quando = Object.create(null), f = g.faixas.f, pulsos = [];
+    plano.nos.forEach(function (n) { papel[n.id] = n.papel; });
+    papel.objetivo = 'objetivo';
+    var diretas = g.setas.filter(function (x) { return !x.volta; });
+    var juntas = est === 'mapa' || est === 'ramos';
+    function acender(ids, inicio) {
+      var tAt = inicio;
+      g.ordem.forEach(function (id) {
+        if (ids.indexOf(id) < 0) return;
+        var chegam = diretas.filter(function (x) { return x.para === id && quando[x.de] != null; });
+        var em = chegam.length ? Math.max.apply(null, chegam.map(function (x) { return quando[x.de]; })) + T.chega : (juntas ? inicio : tAt);
+        em = Math.max(em, inicio);
+        quando[id] = em; tAt = Math.max(tAt, em + T.passo);
+      });
+      return tAt;
+    }
+    if (est === 'antes_depois') {
+      var hoje = g.ordem.filter(function (id) { return f[id] !== 1 && id !== 'objetivo'; }), resto = g.ordem.filter(function (id) { return hoje.indexOf(id) < 0; });
+      var fimHoje = acender(hoje, 0);
+      hoje.forEach(function (id) { if (papel[id] === 'trava') pulsos.push({ id: id, em: quando[id] + T.no }); });
+      acender(resto, fimHoje + (pulsos.length ? T.pulso : 0) + T.pausa);
+    } else acender(g.ordem, 0);
+    var ouro = quando.objetivo + T.ouro, fimTudo = ouro, repouso = null;
+    var setas = g.setas.map(function (x) {
+      var em = x.volta ? ouro + 360 : quando[x.de] + T.depoisSeta, dura = x.volta ? T.volta : T.seta;
+      if (x.volta) repouso = x.i;
+      fimTudo = Math.max(fimTudo, em + dura);
+      return { i: x.i, de: x.de, para: x.para, volta: x.volta, em: em, dura: dura };
     });
+    return { quando: quando, setas: setas, pulsos: pulsos, ouro: ouro, fim: fimTudo, repouso: repouso };
+  }
+
+  /* o voo: as estações que a pessoa viu nascer no esboço saem de onde estavam e pousam no mapa (os pontos são da tela; o centro do chip) */
+  function voo(i) {
+    var pontos = null;
+    try { pontos = typeof i.opcoes.esboco === 'function' ? i.opcoes.esboco() : null; } catch (e) { aviso(e); }
+    if (!pontos) return null;
+    var q = i.quadro.getBoundingClientRect(), voaram = Object.create(null);
+    Object.keys(i.nos).forEach(function (id) {
+      var p = pontos[id === 'objetivo' ? 'led' : id], b = i.g.caixas[id];
+      if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') return;
+      var dx = p.x - (q.left + b.x + 18), dy = p.y - (q.top + b.y + 18);
+      if (!isFinite(dx) || !isFinite(dy)) return;
+      i.rel.anim(i.nos[id], [{ transform: 'translate(' + (b.x + dx) + 'px,' + (b.y + dy) + 'px)' }, { transform: 'translate(' + b.x + 'px,' + b.y + 'px)' }], { duration: T.voo, easing: 'cubic-bezier(.3,.1,.2,1)', fill: 'backwards' });
+      voaram[id] = true;
+    });
+    return voaram;
+  }
+
+  /* a entrada: o voo (se houver esboço à vista), depois o roteiro da estrutura pela luz; no fim, o ouro e o valor liberado */
+  function entrada(i) {
+    var rel = i.rel, som = typeof i.opcoes.som === 'function' ? i.opcoes.som : function () {};
+    var voaram = voo(i), base = voaram ? T.voo : 0, r = roteiro(i.plano, i.g);
     i.quadro.classList.add('is-aceso');
     Object.keys(i.nos).forEach(function (id) {
-      rel.anim(i.nos[id], [{ opacity: 0, transform: i.nos[id].style.transform + ' translateY(5px)' }, { opacity: 1, transform: i.nos[id].style.transform }], { duration: T.no, delay: quando[id], easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' });
-      rel.depois(quando[id], function () { som('passa'); });
+      var em = base + r.quando[id], pos = i.nos[id].style.transform;
+      if (!(voaram && voaram[id])) rel.anim(i.nos[id], [{ opacity: 0, transform: pos + ' translateY(5px)' }, { opacity: 1, transform: pos }], { duration: T.no, delay: em, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' });
+      rel.depois(em, function () { som('passa'); });
     });
-    i.setas.forEach(function (s) {
-      var em = quando[s.r.de] + (s.r.volta ? T.ouro + 360 : T.depoisSeta), dura = s.r.volta ? T.volta : T.seta;
-      rel.anim(s.linha, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: dura, delay: em, easing: 'ease-in-out', fill: 'backwards' });
-      rel.anim(s.rot, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: em + dura * 0.5, fill: 'backwards' });
-      var luz = el('span', 'mpc-luz', null, i.quadro);
-      luz.setAttribute('aria-hidden', 'true');
-      var pts = Layout.amostrar(s.r, 16);
-      rel.anim(luz, pts.map(function (pt, k) { return { transform: 'translate(' + (pt[0] - 3) + 'px,' + (pt[1] - 3) + 'px)', opacity: k === 0 || k === pts.length - 1 ? 0 : 1 }; }), { duration: dura, delay: em, easing: 'ease-in-out', fill: 'both' });
+    r.pulsos.forEach(function (p) {
+      var alvo = i.nos[p.id] && i.nos[p.id].firstChild;
+      if (alvo) rel.anim(alvo, [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: T.pulso, delay: base + p.em, easing: 'ease-in-out' });
     });
-    rel.depois(quando.objetivo + T.ouro, function () { i.quadro.classList.add('is-ouro'); som('ouro'); });
-    var fim = Math.max(quando.objetivo + T.ouro, i.setas.reduce(function (m, s) { return Math.max(m, quando[s.r.de] + (s.r.volta ? T.ouro + 360 + T.volta : T.depoisSeta + T.seta)); }, 0));
-    rel.depois(fim + 200, function () { i.status.textContent = 'O mapa do seu caso está pronto.'; pronta(); });
+    r.setas.forEach(function (x) {
+      var s = i.setas[x.i], em = base + x.em;
+      rel.anim(s.linha, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: x.dura, delay: em, easing: 'ease-in-out', fill: 'backwards' });
+      rel.anim(s.rot, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: em + x.dura * 0.5, fill: 'backwards' });
+      luz(i, s.r, x.dura, em, 1);
+    });
+    rel.depois(base + r.ouro, function () { i.quadro.classList.add('is-ouro'); som('ouro'); });
+    rel.depois(base + r.fim + 200, function () {
+      i.status.textContent = 'O mapa do seu caso está pronto.';
+      pronta();
+      /* o repouso do ciclo: um ponto percorre o laço a cada 6 s, poucas vezes (o limite de vida do repouso da planta) */
+      if (r.repouso !== null) luz(i, i.setas[r.repouso].r, T.repouso, 0, T.repousos, 0.18);
+    });
+  }
+  /* a luz: um ponto em HTML (o compositor anima transform; SVG não), amostrado na própria seta. "fração" < 1: corre só no começo de cada volta */
+  function luz(i, seta, dura, atraso, vezes, fracao) {
+    var ponto = el('span', 'mpc-luz', null, i.quadro), pts = Layout.amostrar(seta, 16), fr = fracao || 1;
+    ponto.setAttribute('aria-hidden', 'true');
+    var kf = pts.map(function (pt, k) { return { offset: (k / (pts.length - 1)) * fr, transform: 'translate(' + (pt[0] - 3) + 'px,' + (pt[1] - 3) + 'px)', opacity: k === 0 || k === pts.length - 1 ? 0 : 1 }; });
+    if (fr < 1) kf.push({ offset: 1, transform: kf[kf.length - 1].transform, opacity: 0 });
+    i.rel.anim(ponto, kf, { duration: dura, delay: atraso, easing: 'linear', fill: 'both', iterations: vezes });
   }
 
   function ligarPausa(i) {
@@ -295,5 +358,5 @@
     while (i.raiz.firstChild) i.raiz.removeChild(i.raiz.firstChild);
   }
 
-  return { montar: montar, atualizar: atualizar, parar: parar };
+  return { montar: montar, atualizar: atualizar, parar: parar, roteiro: roteiro };
 });
