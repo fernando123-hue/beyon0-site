@@ -222,8 +222,12 @@
     }
 
     /* Enviar o formulário troca o bloco acima da faixa (CLS 0,9 se à vista): recolhe no envio; volta quando a posição sai da tela ou num gesto (não durante o envio).
-       DEPENDE DA ORDEM: o handler de js/orcamento-detalhes.js roda antes e marca aria-busy síncrono só se aceita o envio. */
-    function enviando() { var form = $('o-detalhes-form'); return !!form && form.getAttribute('aria-busy') === 'true'; }
+       DEPENDE DA ORDEM: o handler de js/orcamento-detalhes.js roda antes e marca aria-busy síncrono só se aceita o envio. O pedido na conversa
+       (js/orcamento-pedido.js) marca aria-busy no cartão do aceite e avisa com bz:pedido-enviando na caixa da conversa. */
+    function enviando() {
+      var form = $('o-detalhes-form'), log = $('o-log');
+      return (!!form && form.getAttribute('aria-busy') === 'true') || (!!log && !!log.querySelector('.orc-toque--aceite[aria-busy="true"]'));
+    }
     function aoEnviarFormulario() {
       var faixa = $('o-planta');
       if (!st.naTela || st.lugar !== 'faixa' || st.recolhida || !faixa || !enviando()) return;
@@ -231,8 +235,11 @@
       tentar();
     }
     function ouvirFormulario() {
-      var form = $('o-detalhes-form');
-      if (form && !st.ouveForm) { st.ouveForm = true; form.addEventListener('submit', aoEnviarFormulario); }
+      var form = $('o-detalhes-form'), log = $('o-log');
+      if (st.ouveForm) return;
+      st.ouveForm = true;
+      if (form) form.addEventListener('submit', aoEnviarFormulario);
+      if (log) log.addEventListener('bz:pedido-enviando', aoEnviarFormulario);
     }
 
     /* ---- os botões da faixa ---- */

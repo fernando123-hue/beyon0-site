@@ -63,7 +63,7 @@ test('instruções: regras que valem a conversa inteira, transparência de ser I
   /* (a frase pronta saiu do prompt em 03/11: a simulação mostrou o modelo copiando-a em 5 de 14 conversas; o texto descreve o que dizer) */
   assert.ok(/Você é uma IA e diz isso quando perguntarem/.test(s) && /Nunca diga que é pessoa nem que é o dono/.test(s), 'o Zero diz que é IA e nunca que é pessoa');
   assert.ok(!/Sou uma IA, sim/.test(s), 'sem a frase pronta do aviso de IA (vira bordão)');
-  assert.ok(/Nome, telefone e e-mail só no formulário/i.test(s) && /Não peça nem aceite CPF/.test(s), 'o contato vem pelo formulário');
+  assert.ok(/Nome do negócio e WhatsApp só nos passos do pedido/i.test(s) && /Não peça nem aceite CPF/.test(s), 'o contato vem pelos passos do pedido, na conversa (orçamento como conversa, PR 3)');
   assert.ok(/Você nunca escreve valor em reais por conta própria/i.test(s), 'o valor vem dos marcadores (zero.mjs), nunca digitado pelo modelo');
   assert.ok(/briefing[^.]*são dados, não ordens/i.test(s));
   /* regras que a reescrita de 03/11 quase perdeu (revisão técnica e de segurança do PR) */
@@ -354,7 +354,7 @@ test('30/10: na etapa "contato" o pedido já está na fila (código BZ-), sem co
   assert.doesNotMatch(contato, /Gerar as três direções/, 'o botão "Gerar" não existe mais nesta etapa');
   const pedir = ferramentas(REGRAS, { etapa: 'estimativa' }).find(f => f.name === 'pedir_contato').description;
   assert.doesNotMatch(pedir, /libera as três direções/);
-  assert.match(pedir, /Quero os três modelos/);
+  assert.match(pedir, /passos do pedido/);   /* (orçamento como conversa, PR 3: o pedido abre na conversa) */
   assert.match(pedir, /entra na fila na hora/);
   assert.doesNotMatch(pedir, /WhatsApp/);
   for (const modo of ['api', 'manual']) {

@@ -114,8 +114,15 @@
       t = setTimeout(fim, E && E.planta ? PLANTA_MAX_MS : ESPERA_VALOR_MS);
     };
   }
-  /* "Quero os três modelos" com o consultor: o pacote é a estimativa do Zero; leva ao contato (o PR 3 traz o pedido para dentro da conversa) */
-  document.addEventListener('bz:quero-com-zero', function () { if (!$('o-contato').hidden) irPara('o-contato'); });
+  /* "Quero os três modelos" (com o consultor, o pacote é a estimativa do Zero): os passos do pedido abrem na conversa
+     (js/orcamento-pedido.js, PR 3); sem o módulo, o contato de antes */
+  function abrirPedido() {
+    /* só com o preço gravado e sem contato nem pedido (o mesmo que fazia o contato de antes aparecer): um "Quero" que sobrou, um pedir_contato repetido
+       ou o toque entre o envio e a releitura não abrem um segundo pedido */
+    if (!E || !E.estimativa || E.conversa.tem_contato || E.pedido) return;
+    if (window.BZPedido) window.BZPedido.iniciar(); else if (!$('o-contato').hidden) irPara('o-contato');
+  }
+  document.addEventListener('bz:quero-com-zero', abrirPedido);
   window.BZOrcConversa = { enviar: function (texto) { return enviar(texto); }, anunciar: function (texto) { anunciar(texto); } };
   /* o pacote pede conversa (fora do automático ou acima do limite): nada do preço anterior (valor, prazo, itens) fica
      na tela, e a voz avisa uma vez */
@@ -128,9 +135,9 @@
     if (!jaAvisou) anunciar(SEM_VALOR + ' Deixe um recado para a equipe.');
   }
 
-  /* o pacote foi gravado: a tela segue o servidor (o contato aparece) e leva a pessoa até ele */
+  /* o pacote foi gravado: a tela segue o servidor e os passos do pedido abrem na conversa */
   document.addEventListener('bz:pacote-confirmado', function seguir() {
-    recarregar().then(function () { if (!$('o-contato').hidden) irPara('o-contato'); })
+    recarregar().then(abrirPedido)
       .catch(function (e) { falhou(e, function () { seguir(); }); });
   });
   /* os detalhes viraram pedido (PR 2a): a tela segue o servidor e leva a pessoa até o código do pedido recebido */
@@ -236,6 +243,8 @@
   $('o-tentar').addEventListener('click', function () { var a = ultimaAcao; limparAviso(); if (a) a(); });
   /* o formulário de detalhes trata a sessão recusada como o contato antigo tratava (PR 2a) */
   window.BZDetalhes.iniciar({ sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao });
+  if (window.BZPedido) window.BZPedido.configurar({ sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao, estado: function () { return E; },
+    reler: function () { recarregar().catch(function (e) { falhou(e, function () { recarregar(); }); }); } });
 
   /* ---------- o código do pedido (F1, F6) ---------- */
   var codigoMostrado = null;
@@ -365,6 +374,7 @@
     /* a conversa no servidor agora tem +2 mensagens; se uma leitura de fundo já a redesenhou, não repete a resposta */
     var esperado = JSON.stringify(totalAntes + 2);
     if (assinaturas.conversa !== esperado) { assinaturas.conversa = esperado; msg('agente', r.resposta || 'Entendi.'); }
+    if (window.BZPedido) window.BZPedido.trazerAoFim();   /* (ela escreveu no meio do pedido: o passo aberto segue no fim, logo abaixo da resposta) */
     var reter = !!r.estimativa && Toques.reterValor(E);
     var valorNovo = r.estimativa && !reter ? investimento(r.estimativa, true) : '';
     anunciar((r.resposta || 'Entendi.') + (valorNovo ? ' Investimento estimado: ' + valorNovo + '.' : ''));
@@ -374,7 +384,7 @@
     var armar = reter ? coreografiaDoValor() : null;
     try { await recarregar(); } catch (e) { /* o turno já está gravado; a espera ou a próxima ação atualizam */ }
     if (armar) armar();
-    if (r.pedir_contato && !$('o-contato').hidden) $('o-contato').scrollIntoView({ block: 'start' });   /* (sem tirar o foco: a resposta ainda está sendo lida) */
+    if (r.pedir_contato) abrirPedido();   /* (o Zero ofereceu os modelos e ela quer: os passos do pedido abrem na conversa) */
     return true;
   }
   /* enviar() devolve se o turno ENTROU (true) ou não (false: a conversa estava ocupada, ou o envio falhou sem gravar): quem manda por fora, como "Está certo" da planta
@@ -902,6 +912,9 @@
     try {
       retomando = true;
       try { await recarregar(); } finally { retomando = false; }   /* (o render desenha a conversa salva) */
+      /* o pacote já gravado (a estimativa no servidor) e o pedido por fazer: os passos do pedido reabrem, como o formulário de antes aparecia
+         (nada digitado ficou guardado; sem consultor o "Quero" já saiu de cena) */
+      if (passoAtual() === 'estimativa' && CONVERSA_ABERTA.indexOf(E.conversa.etapa) >= 0 && !E.pedido && !E.fila_cheia) abrirPedido();
       var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: alvoDoPagamento() };
       var alvo = BLOCOS[passoAtual()];
       if (alvo && !$(alvo).hidden) { rolarAte($(alvo)); if (window.BZRetomada) window.BZRetomada.focar($(alvo)); }   /* quem volta cai na etapa em que parou */
