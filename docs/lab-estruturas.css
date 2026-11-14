@@ -117,3 +117,6 @@ body { margin: 0; background: var(--bg); color: var(--t2); font-family: var(--sa
 .is-ouro .le-no--objetivo .le-chip__disco { fill: rgb(var(--ouro-2-rgb)); }
 .pele-trilho .is-parado .le-no > .le-chip { transition: none; }
 @media (prefers-reduced-motion: reduce) { .pele-trilho .le-no > .le-chip { transition: none; } }
+
+/* (PR 5b) o laboratório desenha com os módulos reais: o título "O mapa do seu caso" repetido em cada estrutura sai; o nome da estrutura já está no h2 */
+.le-lugar .mpc-titulo { display: none; }

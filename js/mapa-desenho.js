@@ -141,8 +141,6 @@
     return p;
   }
 
-  var inst = null;
-
   /* ---------- montar: tudo numa chamada; o quadro só aparece com a geometria final ---------- */
   function compor(i) {
     var plano = i.plano, pele = i.pele, quadro = i.quadro, larg = quadro.clientWidth || i.raiz.clientWidth || 0;
@@ -189,6 +187,8 @@
       o.setAttribute('cx', ini[0]); o.setAttribute('cy', ini[1]); o.setAttribute('r', 2);
       var rot = rots[r.i];
       if (cinza) rot.classList.add('mpc-rot--cinza');
+      /* no computador, o rótulo no meio de uma curva (ou da volta) fica SOBRE a linha: ganha o fundo da página para tapar o trecho */
+      if (!g.celular && r.rot.lado === 'meio' && !r.rot.topo) rot.classList.add('mpc-rot--sobre');
       rot.style.transform = 'translate(' + r.rot.left + 'px,' + r.rot.top + 'px)';
       return { r: r, g: gg, linha: linha, rot: rot };
     });
@@ -311,6 +311,10 @@
     }
   }
 
+  /* uma instância por quadro: a página usa uma (window.BZMapa); o laboratório cria uma por estrutura (BZMapa.criar()) */
+  function criar() {
+  var inst = null;
+
   function montar(raizEl, plano, opcoes) {
     var v = Forma.validarFormaMapa(plano);
     if (!v || !v.ok) return { ok: false, motivos: (v && v.motivos) || ['forma'] };
@@ -358,5 +362,11 @@
     while (i.raiz.firstChild) i.raiz.removeChild(i.raiz.firstChild);
   }
 
-  return { montar: montar, atualizar: atualizar, parar: parar, roteiro: roteiro };
+  return { montar: montar, atualizar: atualizar, parar: parar };
+  }
+
+  var api = criar();
+  api.criar = criar;
+  api.roteiro = roteiro;
+  return api;
 });

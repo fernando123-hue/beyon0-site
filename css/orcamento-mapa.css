@@ -50,10 +50,11 @@
 .mpc-moldura path { fill: var(--s2); stroke: var(--cor); stroke-width: 1; transition: stroke .5s var(--ease); }
 .mpc-ico--solto { position: relative; z-index: 1; flex: 0 0 auto; width: 22px; height: 22px; fill: none; stroke: var(--t3); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .mpc-ico--solto .mpc-ac { stroke: var(--cor); }
-.mpc-moldura ~ .mpc-ico--solto { margin: 8px 0 0 10px; }
-.mpc-moldura ~ .mpc-no__txt { padding: 8px 10px 8px 0; }
-.mpc-quadro--desk .mpc-moldura ~ .mpc-ico--solto { margin: 10px 0 0 12px; }
-.mpc-quadro--desk .mpc-moldura ~ .mpc-no__txt { padding: 0 12px 12px; }
+/* o respiro vem da pele do quadro (já está lá quando o desenho MEDE; a moldura só entra depois) */
+.mpc-pele-caixa .mpc-ico--solto { margin: 8px 0 0 10px; }
+.mpc-pele-caixa .mpc-no__txt { padding: 8px 10px 8px 0; }
+.mpc-pele-caixa.mpc-quadro--desk .mpc-ico--solto { margin: 10px 0 0 12px; }
+.mpc-pele-caixa.mpc-quadro--desk .mpc-no__txt { padding: 0 12px 12px; }
 
 /* as cores por papel (a paleta V4 não tem mais tons: pares repetem; trava em branco, hoje em cinza, objetivo em ouro) */
 .mpc-no--hoje { --cor: var(--stroke); }
@@ -75,10 +76,10 @@
 .mpc-seta__linha { stroke-dasharray: 1 1; stroke-dashoffset: 0; }
 .mpc-seta--cinza { stroke: var(--stroke); }
 .mpc-seta__origem { fill: var(--bg); }
-/* o rótulo fica ao lado da linha (sem fundo); só na caixa do computador ele fica SOBRE a curva e tapa o trecho com o fundo da página */
+/* o rótulo fica ao lado da linha (sem fundo); no meio de uma curva do computador (mpc-rot--sobre) ele fica SOBRE ela e tapa o trecho com o fundo da página */
 .mpc-rot { box-sizing: border-box; padding: 1px 4px; background: transparent; font: 400 11px/13px var(--mono); letter-spacing: var(--tr-dado); color: var(--ac-2); text-align: center; overflow-wrap: break-word; }
 .mpc-quadro--cel .mpc-rot { text-align: left; }
-.mpc-quadro--desk.mpc-pele-caixa .mpc-rot { background: var(--bg); }
+.mpc-rot--sobre { background: var(--bg); }
 .mpc-rot--cinza { color: var(--t3); }
 .mpc-luz { width: 6px; height: 6px; border-radius: 50%; background: var(--ac-2); opacity: 0; pointer-events: none; }
 
