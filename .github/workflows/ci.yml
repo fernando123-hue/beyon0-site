@@ -5,8 +5,13 @@
 # promove no painel depois de ler estes checks (docs/PROCESSO.md).
 name: CI
 
+# Repositório PRIVADO desde 14/11/2026 (dono): ~2.000 min/mês no plano gratuito. Para caber (Decisões 14/11):
+# - o push só roda na main e nos ramos de promoção parcial (producao-*); ramo de trabalho roda pelo PR, uma vez
+#   só (antes o mesmo commit rodava duas vezes: pelo push e pelo PR);
+# - a mutação (o passo mais longo, ~35 min) roda só na main e à mão; o PR roda a suíte inteira sem ela.
 on:
   push:
+    branches: [main, 'producao-*']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -33,7 +38,9 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run testar
-      - run: npm run testar:mutacao
+      # mutação só na main e à mão (cota do repositório privado); se ficar vermelha na main, o próximo PR corrige
+      - if: github.ref == 'refs/heads/main'
+        run: npm run testar:mutacao
 
   segredos:
     name: Segredos no código (gitleaks)
