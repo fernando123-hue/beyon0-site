@@ -1,7 +1,8 @@
 /* PLANTA VIVA v2 (laboratório): o ESBOÇO que cresce com a conversa. window.BZPlantaEsboco.criar(raiz, opcoes) -> { crescer(esboco), interno, parar }.
    O desenho não é um fluxograma de caixas: é um TRILHO de 1 px que desce do núcleo do Zero, com as estações como peças no trilho (o ícone num
    chip de canto cortado) e o texto ao lado. Cinco lugares e o objetivo, sempre os mesmos: a altura só depende da largura (nada desloca a
-   página). O que o Zero ainda não entendeu fica FANTASMA (traço tracejado e "a entender"). A consagração (js/planta-desenho.js, entrada que parte do esboço; js/orcamento-planta.js) parte
+   página). O que o Zero ainda não entendeu não aparece: o lugar fica vazio no trilho, sem caixa tracejada nem "a entender" (PR 5, spec §7.5),
+   e a estação nasce nele quando a pessoa conta. A consagração (js/planta-desenho.js, entrada que parte do esboço; js/orcamento-planta.js) parte
    daqui.
    MOVIMENTO (a assinatura do site, "a luz passa e imprime"): a SEMENTE acende o núcleo (aro desenhado, rumos girando, disco, duas ondas) e
    solta o primeiro traço; cada ESTAÇÃO nasce pela luz que desce do núcleo (350 ms), o chip e o ícone se desenham traço a traço (300 ms), o
@@ -26,7 +27,6 @@
   var T = { luz: 350, chip: 300, texto: 250, entre: 160, repouso: 6000 };
 
   var r1 = function (n) { return Math.round(n * 10) / 10; };
-  var dois = function (n) { return (n < 10 ? '0' : '') + n; };
   var cy = function (i) { return Y0 + i * P + C / 2; };
   var LEDY = cy(4) + P;
   var ALTURA = LEDY + LR + 14;
@@ -89,10 +89,11 @@
     var trilhoFan = S('path', { d: 'M' + RX + ' ' + (NY + NR * 0.76) + 'V' + (LEDY - LR * 0.63) }, svg, 'lv-trilho-fan');
     var gTrilho = S('g', {}, svg), gNos = S('g', {}, svg), gLuz = S('g', {}, svg);
 
-    /* o trilho aceso, trecho a trecho: do núcleo (ou da estação de cima) até o topo do chip; o último trecho vai ao LED */
+    /* o trilho aceso, trecho a trecho: do núcleo (ou do MEIO da estação de cima) até o meio do chip; o último trecho vai ao LED. De meio a meio:
+       o chip aceso tapa a linha (lv-chip-fundo), e o lugar ainda vazio deixa a linha inteira passar, sem buraco (PR 5: nada de tracejado) */
     var trechos = [], i;
     for (i = 0; i <= 5; i++) {
-      var de = i === 0 ? NY + NR * 0.76 : cy(i - 1) + C / 2, ate = i < 5 ? cy(i) - C / 2 : LEDY - LR * 0.63;
+      var de = i === 0 ? NY + NR * 0.76 : cy(i - 1), ate = i < 5 ? cy(i) : LEDY - LR * 0.63;
       trechos.push(S('path', { d: 'M' + RX + ' ' + r1(de) + 'V' + r1(ate), pathLength: 1 }, gTrilho, 'lv-trilho'));
     }
 
@@ -109,21 +110,20 @@
     liN.style.left = TX + 'px'; liN.style.top = (NY - 10) + 'px'; liN.style.width = (g.W - TX - 8) + 'px';
     H('span', 'lv-verbo', 'Zero', liN); H('span', 'lv-ponta__txt', 'lendo o seu caso', liN);
 
-    /* as estações: o fundo do chip (tapa o trilho), o chip fantasma, o chip aceso (desenhado), o ícone, o texto */
+    /* as estações: o fundo do chip (tapa o trilho), o chip aceso (desenhado), o ícone, o texto; antes de a pessoa contar, nada disso aparece */
     function estacao(k) {
       var e = g.estacoes[k], gg = S('g', { transform: 'translate(' + (RX - C / 2) + ' ' + (e.cy - C / 2) + ')' }, gNos, 'lv-est');
       S('path', { d: chipD(0, 0, C) }, gg, 'lv-chip-fundo');
-      var fan = S('path', { d: chipD(0, 0, C) }, gg, 'lv-chip-fan');
       var chip = S('path', { d: chipD(0, 0, C), pathLength: 1 }, gg, 'lv-chip');
       var ic = S('g', { transform: 'translate(6 6) scale(.6)' }, gg, 'lv-icone');
       var li = H('li', 'lv-txt is-fantasma', null, lista);
+      li.setAttribute('aria-hidden', 'true');   /* o lugar vazio não é lido; acender() o devolve ao leitor de tela */
       li.style.left = e.texto.x + 'px'; li.style.top = e.texto.y + 'px'; li.style.width = e.texto.w + 'px'; li.style.height = e.texto.h + 'px';
-      var fanT = H('span', 'lv-fan', null, li);
-      fanT.setAttribute('aria-label', 'Ainda a entender'); H('span', 'lv-fan__tag', dois(k + 1), fanT); var fanTxt = H('span', 'lv-fan__txt', '', fanT);
       var real = H('span', 'lv-real', null, li), hd = H('span', 'lv-hd', null, real);
-      H('span', 'lv-n', dois(k + 1), hd); var verbo = H('span', 'lv-verbo', '', hd); var tit = H('span', 'lv-tit', '', real);
+      /* sem número de etapa (spec §7.5): com o lugar vazio entre duas estações, o número pularia (01, 02, 04) */
+      var verbo = H('span', 'lv-verbo', '', hd); var tit = H('span', 'lv-tit', '', real);
       var varre = H('span', 'lv-varre', null, li);
-      return { k: k, g: gg, fanT: fanT, fan: fan, chip: chip, ic: ic, li: li, fanTxt: fanTxt, verbo: verbo, tit: tit, varre: varre, est: null, cx: RX, cy: e.cy };
+      return { k: k, g: gg, chip: chip, ic: ic, li: li, verbo: verbo, tit: tit, varre: varre, est: null, cx: RX, cy: e.cy };
     }
     var est = [0, 1, 2, 3, 4].map(estacao);
 
@@ -137,12 +137,12 @@
     var tL = S('path', { d: ticksL }, gL, 'lv-rumos lv-rumos--led');
     var discoL = S('circle', { r: r1(LR * 0.3) }, gL, 'lv-disco');
     var liL = H('li', 'lv-txt lv-txt--led is-fantasma', null, lista);
+    liL.setAttribute('aria-hidden', 'true');
     liL.style.left = g.led.texto.x + 'px'; liL.style.top = g.led.texto.y + 'px'; liL.style.width = g.led.texto.w + 'px'; liL.style.height = g.led.texto.h + 'px';
-    var fanL = H('span', 'lv-fan', null, liL); H('span', 'lv-fan__tag', 'Objetivo', fanL); H('span', 'lv-fan__txt', semViuva(Cresce.FALTA.objetivo), fanL);
     var realL = H('span', 'lv-real', null, liL), hdL = H('span', 'lv-hd', null, realL);
     H('span', 'lv-verbo', 'Objetivo', hdL); var titL = H('span', 'lv-tit', '', realL);
     var varreL = H('span', 'lv-varre', null, liL);
-    var led = { g: gL, fanT: fanL, li: liL, tit: titL, varre: varreL, cy: LEDY, conhecido: false, objetivo: null };
+    var led = { g: gL, li: liL, tit: titL, varre: varreL, cy: LEDY, conhecido: false, objetivo: null };
     lista.insertBefore(liN, lista.firstChild);
 
     var cabeca = S('path', { d: 'M0 0', pathLength: 1 }, gLuz, 'lv-cab');
@@ -154,7 +154,6 @@
       leitura: leitura, leTag: leTag, leTxt: leTxt, status: status, trilhoFan: trilhoFan, trechos: trechos,
       semeado: false, esboco: null, fila: [], ocupado: false, repouso: [], visivel: !window.IntersectionObserver, parado: false, rel: Relogio.criar()
     };
-    est.forEach(function (x, k) { x.fanTxt.textContent = semViuva(Cresce.FALTA[Cresce.LUGARES[k]]); });
     card.classList.add('is-dormente');
 
     /* ---------- o relógio: timers e animações andam juntos e PAUSAM juntos (aba escondida, planta fora da tela): js/planta-relogio.js ---------- */
@@ -175,7 +174,7 @@
       anim(cabeca, [{ strokeDashoffset: f, opacity: 0, offset: 0 }, { strokeDashoffset: f, opacity: 1, offset: 0.02 }, { strokeDashoffset: f - 1, opacity: 1, offset: 0.97 }, { strokeDashoffset: f - 1, opacity: 0, offset: 1 }],
         { duration: T.luz, delay: atraso, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'both' });
     }
-    var trechoY = function (t) { return [t === 0 ? NY + NR * 0.76 : cy(t - 1) + C / 2, t < 5 ? cy(t) - C / 2 : LEDY - LR * 0.63]; };
+    var trechoY = function (t) { return [t === 0 ? NY + NR * 0.76 : cy(t - 1), t < 5 ? cy(t) : LEDY - LR * 0.63]; };
     function acenderTrilhoAte(k, animarTrilho) {
       var animar = animarTrilho !== false && !reduzido(), ate = trechoY(Math.min(k, 5))[1], t;
       for (t = 0; t <= Math.min(k, 5); t++) {
@@ -225,8 +224,7 @@
 
     /* ---------- uma estação: a luz desce, o chip e o ícone se desenham, o texto é impresso ---------- */
     function acender(x) {
-      x.g.classList.add('is-aceso'); x.li.classList.remove('is-fantasma'); x.li.classList.add('is-aceso');
-      x.fanT.setAttribute('aria-hidden', 'true');   /* o leitor de tela não lê o fantasma de uma etapa já entendida */
+      x.g.classList.add('is-aceso'); x.li.classList.remove('is-fantasma'); x.li.classList.add('is-aceso'); x.li.removeAttribute('aria-hidden');
     }
     function pintarEstacao(x, e) {
       x.est = e;
@@ -247,7 +245,7 @@
       } else {
         var k = Cresce.LUGARES.indexOf(item.lugar), e = inst.esboco.estacoes[k];
         alvo = est[k]; pintarEstacao(alvo, e);
-        tag = dois(k + 1) + ' · ' + e.verbo; frase = e.frase;
+        tag = e.verbo; frase = e.frase;
         acenderTrilhoAte(k, animar);
       }
       inst.status.textContent = (refeita ? 'A planta mudou: ' : 'Nova etapa na planta: ') + (alvo.est ? alvo.est.titulo : led.objetivo.titulo) + '.';

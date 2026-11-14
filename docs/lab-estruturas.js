@@ -15,6 +15,10 @@
   var q = new URLSearchParams(location.search);
   var NS = 'http://www.w3.org/2000/svg';
   var parado = q.get('estatico') === '1' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* a PELE (14/11, as duas direções para o dono): 'caixa' = a caixa de canto cortado do desenho final aprovado (planta de 05/11 e 12/11);
+     'trilho' = o trilho de 1 px com as estações em chip de canto cortado, a linguagem do esboço que cresce. A geometria é a mesma nas duas. */
+  var PELE = q.get('pele') === 'trilho' ? 'trilho' : 'caixa', TRILHO = PELE === 'trilho', CHIP = 36, CHANFRO = 8;
+  document.documentElement.classList.add('pele-' + PELE);
   /* as tabelas fechadas só valem pela chave PRÓPRIA (?caso=toString ou papel "constructor" não passam pela herança do Object) */
   var tem = function (o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); };
 
@@ -191,10 +195,27 @@
     tracos.forEach(function (tr) { var p = svg('path', tr.ac ? 'le-ico__ac' : ''); p.setAttribute('d', tr.d); s.appendChild(p); });
     return s;
   }
+  /* o chip da pele trilho: canto cortado com o ícone dentro; o objetivo é o LED (aro, disco e quatro rumos, como o da planta) */
+  function chip(tracos, ehObj) {
+    var s = svg('svg', 'le-chip');
+    s.setAttribute('viewBox', '0 0 40 40'); s.setAttribute('aria-hidden', 'true');
+    if (ehObj) {
+      var aro = svg('circle', 'le-chip__aro'); aro.setAttribute('cx', 20); aro.setAttribute('cy', 20); aro.setAttribute('r', 13); s.appendChild(aro);
+      var disco = svg('circle', 'le-chip__disco'); disco.setAttribute('cx', 20); disco.setAttribute('cy', 20); disco.setAttribute('r', 5); s.appendChild(disco);
+      var rumos = svg('path', 'le-chip__rumos'); rumos.setAttribute('d', 'M20 1V5M39 20H35M20 39V35M1 20H5'); s.appendChild(rumos);
+      return s;
+    }
+    var borda = svg('path', 'le-chip__borda'); borda.setAttribute('d', 'M' + CHANFRO + ' .5H39.5V39.5H.5V' + CHANFRO + 'Z'); s.appendChild(borda);
+    var g = svg('g', 'le-ico'); g.setAttribute('transform', 'translate(9 9) scale(.55)');
+    tracos.forEach(function (tr) { var p = svg('path', tr.ac ? 'le-ico__ac' : ''); p.setAttribute('d', tr.d); g.appendChild(p); });
+    s.appendChild(g);
+    return s;
+  }
   function no(n) {
     var ehObj = n.papel === 'objetivo', caixa = el('div', 'le-no ' + (ehObj ? 'le-no--objetivo' : PAPEIS[n.papel]));
     var org = n.papel === 'origem' ? ORIGENS[tem(ORIGENS, n.origem) ? n.origem : 'outro'] : null;
-    caixa.appendChild(icone(org ? org.tracos : PECAS.desenhar(ehObj ? 'confirmacao' : n.icone) || PECAS.desenhar('pagina')));
+    var tracos = org ? org.tracos : PECAS.desenhar(ehObj ? 'confirmacao' : n.icone) || PECAS.desenhar('pagina');
+    caixa.appendChild(TRILHO ? chip(tracos, ehObj) : icone(tracos));
     var txt = el('div', 'le-no__txt');
     if (org) txt.appendChild(el('span', 'le-no__origem', org.nome));
     if (n.papel === 'ajustado') txt.appendChild(el('span', 'le-no__marca', 'Ajustado'));
@@ -230,6 +251,12 @@
   }
   var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
 
+  /* pele trilho no celular: onde fica o rótulo de uma seta (no vão abaixo da linha de origem, à direita do trilho de chegada). O vão é só dos
+     rótulos: ele vai até o trilho da coluna da direita, ou até a borda se já está nela. y só existe depois que as linhas foram postas */
+  function rotCel(a, b, util, largura, nFaixas) {
+    var mc = CHIP / 2, x = Math.max(a.x, b.x) + mc + 8, trilhoDir = nFaixas > 1 ? (util - M.celGapX) / 2 + M.celGapX + mc : Infinity;
+    return { x: x, y: a.y != null ? a.y + a.h + 4 : 0, topo: true, lado: 'dir', max: (x < trilhoDir ? Math.min(trilhoDir, largura) : largura) - x - 8 };
+  }
   /* mede e posiciona: devolve { altura, caixas: {id: {x,y,w,h}}, setas: [...] } */
   function compor(est, p, caso, quadro, largura, celular) {
     var lay = camadas(p), fx = faixas(est, p, lay), nos = {}, cx = {}, nCam = lay.porCamada.length, dados = {};
@@ -245,11 +272,22 @@
         nos[id].style.width = w + 'px';
         cx[id] = { x: f < 0 ? 0 : f * (col + M.celGapX), w: w };
       });
+      /* pele trilho: o vão abaixo de cada linha é dos rótulos que saem dela; ele cresce com o rótulo mais alto (medido na largura que ele vai ter) */
+      var vao = [], medida = el('span', 'le-rot');
+      if (TRILHO) {
+        quadro.appendChild(medida);
+        lay.diretas.forEach(function (s) {
+          var c = lay.camada[s.de], r = rotCel(cx[s.de], cx[s.para], util, largura, fx.n);
+          medida.textContent = s.rotulo; medida.style.maxWidth = Math.max(48, r.max) + 'px';
+          vao[c] = Math.max(vao[c] || M.celGapY, medida.offsetHeight + 15);
+        });
+        quadro.removeChild(medida);
+      }
       lay.porCamada.forEach(function (ids, i) {
         var h = 0;
         ids.forEach(function (id) { h = Math.max(h, nos[id].offsetHeight); });
         ids.forEach(function (id) { cx[id].y = y; cx[id].h = h; nos[id].style.height = h + 'px'; });
-        alt[i] = h; y += h + (i < nCam - 1 ? M.celGapY : 0);
+        alt[i] = h; y += h + (i < nCam - 1 ? (vao[i] || M.celGapY) : 0);
       });
       var altura = y;
     } else {
@@ -273,6 +311,13 @@
       altura = altFaixas + (volta ? 64 : 0);
     }
     Object.keys(nos).forEach(function (id) { var b = cx[id]; nos[id].style.transform = 'translate(' + b.x + 'px,' + b.y + 'px)'; });
+    /* pele caixa: o contorno de canto cortado (o da planta), desenhado no tamanho final da caixa, atrás do texto */
+    if (!TRILHO) Object.keys(nos).forEach(function (id) {
+      var b = cx[id], m = svg('svg', 'le-moldura'), p = svg('path');
+      m.setAttribute('width', b.w); m.setAttribute('height', b.h); m.setAttribute('aria-hidden', 'true');
+      p.setAttribute('d', 'M' + CHANFRO + ' .5H' + (b.w - .5) + 'V' + (b.h - .5) + 'H.5V' + CHANFRO + 'Z');
+      m.appendChild(p); nos[id].insertBefore(m, nos[id].firstChild);
+    });
 
     /* as setas */
     var setas = p.setas.map(function (s) {
@@ -285,6 +330,19 @@
         var yv = altura - 24, xa = a.x + a.w / 2, xb = b.x + b.w / 2;
         r.linha = [[xa, a.y + a.h], [xa, yv], [xb, yv], [xb, b.y + b.h]];
         r.ponta = 'cima'; r.rot = { x: (xa + xb) / 2, y: yv, lado: 'meio', max: Math.abs(xa - xb) - 40 };
+      } else if (TRILHO && celular) {
+        /* pele trilho: a linha sai do pé do chip e desce até o topo do próximo chip, pela coluna dos chips (o texto fica ao lado) */
+        /* no vão entre as linhas, o rótulo fica em cima e a linha que troca de coluna cruza embaixo dele (nunca uma sobre a outra) */
+        var mc = CHIP / 2, ta = a.x + mc, tb = b.x + mc, yc0 = a.y + CHIP, yc1 = b.y, yCruza = b.y - 6;
+        r.linha = ta === tb ? [[ta, yc0], [tb, yc1]] : [[ta, yc0], [ta, yCruza], [tb, yCruza], [tb, yc1]];
+        r.ponta = 'baixo'; r.rot = rotCel(a, b, util, largura, fx.n);
+      } else if (TRILHO) {
+        /* pele trilho no computador: a linha liga o meio do chip ao meio do próximo chip; o rótulo fica no vão entre as colunas */
+        var ya3 = a.y + CHIP / 2, yb3 = b.y + CHIP / 2, xa3 = a.x + CHIP, xb3 = b.x, xm3 = (a.x + a.w + xb3) / 2;
+        r.curva = ya3 === yb3 ? [[xa3, ya3], [xa3, ya3], [xb3, yb3], [xb3, yb3]] : [[xa3, ya3], [xm3, ya3], [xm3, yb3], [xb3, yb3]];
+        /* trilho reto: o rótulo fica logo abaixo dele (nunca acima do quadro); na curva, no meio dela */
+        var meio3 = ya3 === yb3 ? [xm3, ya3 + 5] : ponto(r.curva, 0.5);
+        r.ponta = 'dir'; r.rot = { x: xm3, y: meio3[1], lado: 'meio', topo: ya3 === yb3, max: Math.min(M.rotMax, xb3 - (a.x + a.w) - 16) };
       } else if (celular) {
         /* o trilho corre perto da borda esquerda da caixa mais estreita; o rótulo, à direita dele */
         var xr = Math.max(a.x, b.x) + 14, y0 = a.y + a.h, y1 = b.y;
@@ -308,11 +366,22 @@
     return o;
   }
 
+  /* polilinha de trechos retos com os cantos arredondados (o raio encolhe no trecho curto), como a rota da planta */
+  function cantosRedondos(pts, raio) {
+    var d = 'M' + pts[0][0] + ' ' + pts[0][1], i;
+    for (i = 1; i < pts.length - 1; i++) {
+      var a = pts[i - 1], b = pts[i], c = pts[i + 1];
+      var la = Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]), lc = Math.abs(c[0] - b[0]) + Math.abs(c[1] - b[1]), rr = Math.min(raio, la / 2, lc / 2);
+      var ua = [(b[0] - a[0]) / (la || 1), (b[1] - a[1]) / (la || 1)], uc = [(c[0] - b[0]) / (lc || 1), (c[1] - b[1]) / (lc || 1)];
+      d += 'L' + (b[0] - ua[0] * rr) + ' ' + (b[1] - ua[1] * rr) + 'Q' + b[0] + ' ' + b[1] + ' ' + (b[0] + uc[0] * rr) + ' ' + (b[1] + uc[1] * rr);
+    }
+    return d + 'L' + pts[pts.length - 1][0] + ' ' + pts[pts.length - 1][1];
+  }
   function desenharSetas(quadro, svgEl, comp) {
     comp.setas.forEach(function (r, i) {
       var d, fim, ini;
       if (r.curva) { var c = r.curva; d = 'M' + c[0] + 'C' + c[1] + ' ' + c[2] + ' ' + c[3]; fim = c[3]; }
-      else { d = 'M' + r.linha.map(function (pt) { return pt.join(' '); }).join('L'); fim = r.linha[r.linha.length - 1]; }
+      else { d = cantosRedondos(r.linha, 6); fim = r.linha[r.linha.length - 1]; }
       ini = r.curva ? r.curva[0] : r.linha[0];
       var g = svg('g', 'le-seta' + (r.cinza ? ' le-seta--cinza' : '') + (r.volta ? ' le-seta--volta' : ''));
       var p = svg('path', 'le-seta__linha'); p.setAttribute('d', d); g.appendChild(p);
@@ -329,7 +398,7 @@
       rot.style.maxWidth = Math.max(48, r.rot.max) + 'px';
       quadro.appendChild(rot);
       var w = rot.offsetWidth, hh = rot.offsetHeight;
-      var x = r.rot.lado === 'meio' ? r.rot.x - w / 2 : r.rot.x, y = r.rot.y - hh / 2;
+      var x = r.rot.lado === 'meio' ? r.rot.x - w / 2 : r.rot.x, y = r.rot.topo ? r.rot.y : r.rot.y - hh / 2;
       rot.style.transform = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px)';
       r.el = rot;
       r.i = i;

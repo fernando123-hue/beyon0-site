@@ -4,29 +4,21 @@
    lugares nunca mudam (a altura do esboço só depende da largura); o que muda é o que já foi entendido. Os textos são de LISTAS FECHADAS:
    o texto da pessoa nunca aparece no desenho (nada a limpar, nada a inventar), só escolhe qual frase vale. Sem número, preço, prazo nem
    resultado (regra de 04/11): a planta mostra o mecanismo.
-   Para o PR do crescimento: este arquivo é a derivação; o servidor a roda a cada turno e manda o esboço junto do painel. */
+   Para o PR do crescimento: este arquivo é a derivação; o servidor a roda a cada turno e manda o esboço junto do painel.
+   (PR 5) As origens da chegada vêm do módulo comum com o servidor (js/mapa-saber.js: códigos, negação por oração, nome por tabela), com os
+   toques de js/orcamento-rotulos.js: o esboço e o mapa padrão dizem as mesmas origens. Sem o módulo, a chegada fica provisória (falha fechada).
+   O que ainda não foi entendido não tem texto: o lugar fica vazio no trilho (sem "a entender"), e só aparece quando a pessoa conta. */
 (function (raiz, fabrica) {
   'use strict';
-  var api = fabrica();
-  if (typeof module === 'object' && module && module.exports) module.exports = api;
+  var node = typeof module === 'object' && module && module.exports;
+  /* na tela os dois vêm antes (URLs constantes, na ordem); no Node, pelo require */
+  var api = node ? fabrica(require('./mapa-saber.js'), require('./orcamento-rotulos.js')) : fabrica(raiz && raiz.BZMapaSaber, raiz && raiz.BZOrcRotulos);
+  if (node) module.exports = api;
   if (raiz) raiz.BZPlantaCresce = api;
-})(typeof window !== 'undefined' ? window : null, function () {
+})(typeof window !== 'undefined' ? window : null, function (Saber, Rotulos) {
   'use strict';
 
-  /* as origens que o código reconhece no "como chegam" (texto livre). As chaves são as de BZPlantaForma.ORIGENS, na ordem do desenho */
-  var ORIGENS = [
-    ['busca', /google|busca|pesquis|procura/i, 'busca'],
-    ['mapa', /mapa|maps|endere/i, 'mapa'],   /* ("perto de casa" é busca, não mapa: a pessoa não falou de mapa) */
-    ['indicacao', /indica|boca a boca|amig|conhecid|paciente.{0,12}traz|cliente.{0,12}traz/i, 'indicação'],
-    ['rede', /instagram|insta\b|direct|rede social|redes sociais|facebook|tiktok/i, 'rede social'],
-    ['anuncio', /an[uú]ncio|patrocin|tr[aá]fego pago/i, 'anúncio']
-  ];
-  var ROT_CHEGADA = { busca: 'Busca', mapa: 'Mapa', indicacao: 'Indicação', rede: 'Rede social', anuncio: 'Anúncio' };
-  var FRASE_CHEGADA = { busca: 'pela busca', mapa: 'pelo mapa', indicacao: 'por indicação', rede: 'pela rede social', anuncio: 'por um anúncio' };
-
   var LUGARES = ['chegada', 'pagina', 'conversa', 'acao', 'volta'];
-  /* o que o Zero ainda vai entender: o rótulo do fantasma */
-  var FALTA = { chegada: 'de onde o seu cliente vem', pagina: 'o que você faz', conversa: 'o que trava hoje', acao: 'como a pessoa fecha', volta: 'como ela fala com você', objetivo: 'onde você quer chegar' };
 
   var lista = function (v) { return Array.isArray(v) ? v.filter(function (x) { return typeof x === 'string'; }) : []; };
   var texto = function (v) { return typeof v === 'string' ? v.trim() : ''; };
@@ -37,10 +29,10 @@
     return partes.slice(0, -1).join(', ') + ' ' + e + ' ' + partes[partes.length - 1];
   }
 
+  /* as origens por código (até 3), do módulo comum; sem ele, nenhuma */
   function origensDe(comoChegam) {
-    var t = texto(comoChegam), o = [];
-    ORIGENS.forEach(function (x) { if (x[1].test(t)) o.push(x[0]); });
-    return o.slice(0, 4);
+    if (!Saber || typeof Saber.origensDoCaso !== 'function') return [];
+    return Saber.origensDoCaso(comoChegam, Rotulos && Rotulos.SUGESTOES);
   }
 
   /* a venda acontece no site (loja) ou a pessoa marca (agenda)? Cada um olha objetivos e funcionalidades */
@@ -55,8 +47,8 @@
   function chegada(b) {
     var o = origensDe((b.situacao_atual || {}).como_chegam);
     if (!o.length) return { lugar: 'chegada', tipo: 'chegada', n: 1, conhecido: true, provisorio: true, verbo: 'Chega', titulo: 'De onde o seu cliente vem', frase: 'É por aqui que a pessoa entra no seu site.' };
-    var rot = o.map(function (k, i) { var r = ROT_CHEGADA[k]; return i ? r.toLowerCase() : r; });
-    return { lugar: 'chegada', tipo: 'chegada', n: o.length, origens: o, conhecido: true, verbo: 'Chega', titulo: juntar(rot, 'e'), frase: 'A pessoa chega ' + juntar(o.map(function (k) { return FRASE_CHEGADA[k]; }), 'ou') + '.' };
+    var titulo = juntar(o.map(function (k) { return Saber.CURTO[k]; }), 'e');
+    return { lugar: 'chegada', tipo: 'chegada', n: o.length, origens: o, conhecido: true, verbo: 'Chega', titulo: titulo.charAt(0).toUpperCase() + titulo.slice(1), frase: 'A pessoa chega ' + juntar(o.map(function (k) { return Saber.PELO[k]; }), 'ou') + '.' };
   }
 
   /* o que a pessoa vende é produto? (o segmento diz antes de o objetivo "vender" aparecer) */
@@ -90,18 +82,18 @@
     orcamento: { titulo: 'Pedido na sua mão', frase: 'Você abre o pedido e já sabe o que responder.' }
   };
   function objetivo(b, m) {
-    if (!m || !lista(b.objetivos).length) return { lugar: 'objetivo', conhecido: false, falta: FALTA.objetivo };
+    if (!m || !lista(b.objetivos).length) return { lugar: 'objetivo', conhecido: false };
     return { lugar: 'objetivo', conhecido: true, titulo: OBJETIVOS[m].titulo, frase: OBJETIVOS[m].frase };
   }
 
-  /* o esboço inteiro: { estacoes: [5 lugares], objetivo }. Cada estação conhecida tem tipo, verbo, titulo, frase; a fantasma, só falta */
+  /* o esboço inteiro: { estacoes: [5 lugares], objetivo }. Cada estação conhecida tem tipo, verbo, titulo, frase; a não entendida, só o lugar */
   function derivar(briefing) {
     var b = briefing && typeof briefing === 'object' && !Array.isArray(briefing) ? briefing : {};
     var m = modo(b);
     var feitas = { chegada: chegada(b), pagina: pagina(b, m), conversa: conversa(b), acao: acao(b, m), volta: volta(b) };
     var estacoes = LUGARES.map(function (lugar) {
       var e = feitas[lugar];
-      if (!e) return { lugar: lugar, conhecido: false, falta: FALTA[lugar] };
+      if (!e) return { lugar: lugar, conhecido: false };
       e.lugar = lugar; e.conhecido = true;
       return e;
     });
@@ -147,5 +139,5 @@
     return mapa;
   }
 
-  return Object.freeze({ LUGARES: LUGARES, FALTA: FALTA, derivar: derivar, diferenca: diferenca, origensDe: origensDe, casar: casar });
+  return Object.freeze({ LUGARES: LUGARES, derivar: derivar, diferenca: diferenca, origensDe: origensDe, casar: casar });
 });

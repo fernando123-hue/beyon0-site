@@ -1,7 +1,7 @@
 /* O ESBOÇO NA PÁGINA DE ORÇAMENTO (planta viva v2, PR do crescimento): js/orcamento-planta-esboco.js (BZOrcEsboco) num DOM de mentira com os
    módulos REAIS do esboço (peças, crescimento, relógio, esboço) e um som de espia. O que se prova:
    - flag desligada (sem planta_editavel) ou sem fala do Zero: nada é baixado, nada é criado, nenhum ouvinte (a tela é a de hoje);
-   - a 1ª resposta do Zero baixa o CSS e os 5 módulos UMA vez, pela lista constante, e põe o cartão como ÚLTIMO item da conversa (data-fica);
+   - a 1ª resposta do Zero baixa o CSS e os 6 módulos UMA vez, pela lista constante, e põe o cartão como ÚLTIMO item da conversa (data-fica);
    - conversa retomada: o esboço nasce pronto, sem semente nem som; ao vivo, a semente toca;
    - cada turno cresce o esboço pelo briefing; a flag que some tira tudo; girar/redimensionar refaz na largura nova, sem som;
    - falha de download: nada aparece, um aviso [beyon], e não tenta de novo a cada render;
@@ -23,7 +23,7 @@ const Ligacao = require('../../js/orcamento-planta-esboco.js');
 const lerFonte = (rel) => fs.readFileSync(new URL('../../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 /* (nós do DOM de mentira comparados por assert.ok(a === b): numa falha o assert.equal tentaria imprimir a árvore inteira, que tem ciclos, e pararia o teste) */
 
-const MODULOS = ['js/planta-pecas.js', 'js/planta-cresce.js', 'js/planta-relogio.js', 'js/planta-som.js', 'js/planta-esboco.js'];
+const MODULOS = ['js/planta-pecas.js', 'js/mapa-saber.js', 'js/planta-cresce.js', 'js/planta-relogio.js', 'js/planta-som.js', 'js/planta-esboco.js'];
 const CSS = 'css/planta-esboco.css';
 
 function ambiente({ reduzido = false, falhar = null, largura = 390 } = {}) {
@@ -50,6 +50,7 @@ function ambiente({ reduzido = false, falhar = null, largura = 390 } = {}) {
   w.console = { warn: (...a) => avisos.push(a.join(' ')) };
   const fonte = {
     'js/planta-pecas.js': () => { w.BZPlantaPecas = Pecas; },
+    'js/mapa-saber.js': () => { w.BZMapaSaber = require('../../js/mapa-saber.js'); },
     'js/planta-cresce.js': () => { w.BZPlantaCresce = Cresce; },
     'js/planta-relogio.js': () => { w.BZPlantaRelogio = Relogio.para(w); },
     'js/planta-som.js': () => { w.BZPlantaSom = { tocar: (n) => sons.push(n), mostrarBotoes: () => { mostrou++; }, preparar: () => { preparou++; } }; },
@@ -101,7 +102,7 @@ test('a 1ª resposta do Zero ao vivo: baixa o CSS e os 5 módulos UMA vez, na or
   amb.L.atualizar(estado(BRIEF_1, 1));       /* outro render enquanto baixa: não baixa de novo */
   prontos(amb);
   assert.deepEqual(amb.baixados, [CSS, ...MODULOS]);
-  assert.deepEqual(amb.doc.head.porTag('script').map((s) => s.async), [false, false, false, false, false]);
+  assert.deepEqual(amb.doc.head.porTag('script').map((s) => s.async), MODULOS.map(() => false));
   const li = cartao(amb);
   assert.ok(li, 'o cartão existe');
   assert.ok(amb.log.lastElementChild === li, 'é o último item');
