@@ -1,0 +1,89 @@
+/* O MAPA DO CASO (js/mapa-desenho.js; PR 5b). Baixado sob demanda por js/orcamento-planta.js quando o plano é v3 (com a flag ligada). Só tokens do
+   site; sem desfoque, sombra, filtro nem gradiente: traço de 1 px e cor chapada. O quadro tem altura gravada pelo JS antes de aparecer, e tudo dentro
+   dele é absoluto, posto por transform. O movimento é do JS (Web Animations: transform, opacity e o traço uma vez); aqui só estados (is-aceso,
+   is-ouro) e a troca de cor do ouro. Movimento reduzido: o quadro final já vem montado pelo JS, sem transição. */
+
+/* a faixa do computador (a mesma regra do v2, que este CSS não carrega) */
+.plv-faixa { margin-top: var(--sp-1); padding-top: var(--sp-1); border-top: 1px solid var(--line); scroll-margin-top: calc(var(--nav-h) + 1rem); }
+.plv-faixa[hidden] { display: none; }
+
+.mpc { position: relative; color: var(--t2); }
+.mpc-titulo { font: 300 clamp(1.4rem, 1.1rem + 1.2vw, 2rem)/1.2 var(--sans); color: var(--t1); letter-spacing: -.01em; margin: 0 0 8px; }
+.plv-faixa .mpc-titulo { margin-bottom: 20px; }
+.mpc-titulo:focus { outline: none; }
+.mpc-titulo:focus-visible { outline: 2px solid var(--ac); outline-offset: 4px; }
+/* no cartão da conversa (celular), o título é o rótulo do cartão, como o do esboço */
+.lv-item .mpc-titulo { max-width: none; text-wrap: nowrap; margin: 0 0 10px; font: 500 var(--fs-rotulo)/16px var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.mpc-hoje { margin: 0 0 14px; font-size: var(--fs-s); line-height: 1.5; color: var(--t2); text-wrap: pretty; }
+.mpc-hoje__rot { color: var(--t1); font-weight: 500; }
+.mpc-hoje__origens { color: var(--t3); }
+.mpc-fecho { margin: 14px 0 0; font-size: var(--fs-s); line-height: 1.5; color: var(--t2); text-wrap: pretty; }
+.mpc-sr, .mpc-status { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* o quadro: medido escondido (is-medindo), depois mostrado com a altura final */
+.mpc-quadro { position: relative; contain: layout paint; }
+.mpc-quadro.is-medindo { visibility: hidden; }
+.mpc-svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.mpc-no, .mpc-rot, .mpc-cab, .mpc-luz { position: absolute; left: 0; top: 0; }
+
+/* o nó; a cor do papel vem por classe de tabela (js/mapa-desenho.js PAPEL) */
+.mpc-no { --cor: var(--ac-3); box-sizing: border-box; display: flex; gap: 12px; align-items: flex-start; color: var(--t1); }
+.mpc-no__txt { display: flex; flex-direction: column; min-width: 0; position: relative; z-index: 1; }
+.mpc-no__origem, .mpc-no__marca { font-size: 12px; line-height: 15px; color: var(--cor); }
+.mpc-no__titulo { font-size: 14px; line-height: 18px; color: var(--t1); overflow-wrap: anywhere; }
+.mpc-no__frase { display: none; font-size: 13px; line-height: 18px; color: var(--t3); margin-top: 4px; }
+.mpc-quadro--desk .mpc-no { flex-direction: column; gap: 10px; }
+.mpc-quadro--desk .mpc-no__titulo { font-size: 15px; line-height: 20px; }
+.mpc-quadro--desk .mpc-no__frase { display: block; }
+.mpc-quadro--cel .mpc-no__txt { padding-top: 8px; }
+
+/* pele TRILHO: o chip de canto cortado com o ícone; o objetivo é o LED */
+.mpc-chip { flex: 0 0 auto; width: 36px; height: 36px; overflow: hidden; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.mpc-chip__borda { fill: var(--s2); stroke: var(--cor); stroke-width: 1.1; transition: stroke .5s var(--ease); }
+.mpc-chip .mpc-ico { stroke: var(--t3); stroke-width: 2.6; transition: stroke .5s var(--ease); }
+.mpc-chip .mpc-ac { stroke: var(--cor); }
+.mpc-chip__aro, .mpc-chip__rumos { stroke: var(--cor); stroke-width: 1.1; transition: stroke .5s var(--ease); }
+.mpc-chip__disco { fill: var(--cor); stroke: none; transition: fill .5s var(--ease); }
+
+/* pele CAIXA: a moldura de canto cortado atrás do texto, com o ícone solto */
+.mpc-moldura { position: absolute; left: 0; top: 0; overflow: visible; z-index: 0; }
+.mpc-moldura path { fill: var(--s2); stroke: var(--cor); stroke-width: 1; transition: stroke .5s var(--ease); }
+.mpc-ico--solto { position: relative; z-index: 1; flex: 0 0 auto; width: 22px; height: 22px; fill: none; stroke: var(--t3); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.mpc-ico--solto .mpc-ac { stroke: var(--cor); }
+.mpc-moldura ~ .mpc-ico--solto { margin: 8px 0 0 10px; }
+.mpc-moldura ~ .mpc-no__txt { padding: 8px 10px 8px 0; }
+.mpc-quadro--desk .mpc-moldura ~ .mpc-ico--solto { margin: 10px 0 0 12px; }
+.mpc-quadro--desk .mpc-moldura ~ .mpc-no__txt { padding: 0 12px 12px; }
+
+/* as cores por papel (a paleta V4 não tem mais tons: pares repetem; trava em branco, hoje em cinza, objetivo em ouro) */
+.mpc-no--hoje { --cor: var(--stroke); }
+.mpc-no--hoje .mpc-no__titulo { color: var(--t2); }
+.mpc-no--trava { --cor: var(--t1); }
+.mpc-no--trava .mpc-ico { stroke: var(--t1); }
+.mpc-no--origem, .mpc-no--volta { --cor: var(--ac-3); }
+.mpc-no--site, .mpc-no--acao, .mpc-no--objetivo { --cor: var(--ac); }
+.mpc-no--conversa, .mpc-no--ajustado { --cor: var(--ac-2); }
+.is-ouro .mpc-no--objetivo { --cor: rgb(var(--ouro-rgb)); }
+.is-ouro .mpc-no--objetivo .mpc-no__titulo { color: rgb(var(--ouro-2-rgb)); transition: color .5s var(--ease); }
+.is-ouro .mpc-no--objetivo .mpc-chip__disco { fill: rgb(var(--ouro-2-rgb)); }
+
+/* os títulos das faixas do antes/depois */
+.mpc-cab { font-size: 12px; line-height: 16px; color: var(--t3); }
+
+/* as setas: linha de 1 px (traçada uma vez pelo JS: pathLength 1), ponta aberta, rótulo em mono minúsculo (o único mono do mapa) */
+.mpc-seta { fill: none; stroke: var(--ac-3); stroke-width: 1; }
+.mpc-seta__linha { stroke-dasharray: 1 1; stroke-dashoffset: 0; }
+.mpc-seta--cinza { stroke: var(--stroke); }
+.mpc-seta__origem { fill: var(--bg); }
+/* o rótulo fica ao lado da linha (sem fundo); só na caixa do computador ele fica SOBRE a curva e tapa o trecho com o fundo da página */
+.mpc-rot { box-sizing: border-box; padding: 1px 4px; background: transparent; font: 400 11px/13px var(--mono); letter-spacing: var(--tr-dado); color: var(--ac-2); text-align: center; overflow-wrap: break-word; }
+.mpc-quadro--cel .mpc-rot { text-align: left; }
+.mpc-quadro--desk.mpc-pele-caixa .mpc-rot { background: var(--bg); }
+.mpc-rot--cinza { color: var(--t3); }
+.mpc-luz { width: 6px; height: 6px; border-radius: 50%; background: var(--ac-2); opacity: 0; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mpc-chip__borda, .mpc-chip .mpc-ico, .mpc-chip__aro, .mpc-chip__rumos, .mpc-chip__disco, .mpc-moldura path, .is-ouro .mpc-no--objetivo .mpc-no__titulo { transition: none; }
+  .mpc-luz { display: none; }
+}
+html.menos-movimento .mpc-luz { display: none; }
