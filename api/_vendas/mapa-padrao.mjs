@@ -130,7 +130,8 @@ const ORIGEM_POR_PALAVRA = [
   ['indicacao', /\b(?:indica\w*|boca a boca)\b/],
   ['passa_na_frente', /\bpass\w* na frente\b|\bfachada\b/]
 ];
-const NEGACAO = /\b(?:nao|nunca)(?: \w+){0,3}$/;
+/* ("nem" continua a negação da oração de antes: "Não uso Instagram, nem WhatsApp"; re-revisão) */
+const NEGACAO = /\b(?:nao|nunca|nem)(?: \w+){0,3}$/;
 const temChave = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
 const textoDe = v => (typeof v === 'string' ? v.slice(0, TEXTO_MAX) : '');
 

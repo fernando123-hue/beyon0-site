@@ -98,6 +98,10 @@ test('a versão compacta do v3: ids mantidos, até 900 caracteres no pior caso, 
   assert.deepEqual(cs.origens, ['instagram']);
   assert.equal(cs.nos.length, 6, 'só os 6 nós válidos');
   assert.ok(cs.nos.every((n) => /^[a-z0-9_]{1,12}$/.test(n[0]) && n[1] === 'site'), 'nenhum id ou papel fora das listas');
+  /* (re-revisão) a seta para um nó que saiu também sai: o modelo nunca vê um id que não está na lista */
+  const orfa = plantaParaModelo({ versao: 2, origem: 'modelo', plano: { ...pior, nos: pior.nos.slice(0, 2), setas: [...pior.setas, { de: 'ok', papel: 'y', para: 'objetivo', rotulo: 'r' }] } });
+  const ids = new Set(['objetivo', ...orfa.nos.map((n) => n[0])]);
+  assert.ok(orfa.setas.length > 0 && orfa.setas.every((s) => ids.has(s[0]) && ids.has(s[1])), JSON.stringify(orfa.setas));
   /* acima do limite (o corte de verdade: o pior caso válido nem chega lá): saem os rótulos, depois setas do fim; os 6 nós ficam */
   const enorme = { ...pior, setas: Array.from({ length: 30 }, (_, i) => ({ de: 'abcdefghijk' + (i % 6), para: 'objetivo', rotulo: 'r'.repeat(23) + (i % 10) })) };
   const ce = plantaParaModelo({ versao: 6, origem: 'modelo', plano: enorme });

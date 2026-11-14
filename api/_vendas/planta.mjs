@@ -40,7 +40,7 @@ export function semChavesDaPlanta(briefing) {
 }
 
 /* a versão compacta do mapa v3 (no bloco BRIEFING, como dado): os nós [id, papel, título] e as setas [de, para, rótulo], nunca as frases. Cabe em
-   COMPACTO_MAX: corta primeiro o rótulo das setas, depois as setas; os nós nunca (o ajuste precisa dos ids) */
+   COMPACTO_MAX: corta primeiro o rótulo das setas, depois as setas; os nós só no fim, se ainda passar (o ajuste precisa dos ids) */
 /* (revisão de segurança do PR 4, B1) o plano vem do briefing CRU (sem a revalidação da leitura): só entram o que as listas da forma reconhecem
    (id no formato, papel, estrutura e origem da lista), e o teto vale no fim, nem que custe nós */
 const idValido = id => typeof id === 'string' && (id === 'objetivo' || (M.ID_NO.test(id) && !M.IDS_RESERVADOS.includes(id)));
@@ -57,7 +57,9 @@ function mapaParaModelo(planta, plano) {
   if (JSON.stringify(c).length > COMPACTO_MAX) c = montar(setas.map(s => [s[0], s[1]]));
   while (JSON.stringify(c).length > COMPACTO_MAX && c.setas.length) c = montar(c.setas.slice(0, -1));
   while (JSON.stringify(c).length > COMPACTO_MAX && nos.length) { nos = nos.slice(0, -1); c = montar(c.setas); }
-  return c;
+  /* as setas só entre o que ficou (nó filtrado ou cortado não deixa seta para um id que o modelo não vê) */
+  const ficaram = new Set(['objetivo', ...nos.map(n => n[0])]);
+  return montar(c.setas.filter(s => ficaram.has(s[0]) && ficaram.has(s[1])));
 }
 /* a versão compacta para o modelo ajustar mantendo os ids: do v3, o mapa acima; do v2, id, tipo e título de cada caixa (nunca as frases) */
 export function plantaParaModelo(planta) {

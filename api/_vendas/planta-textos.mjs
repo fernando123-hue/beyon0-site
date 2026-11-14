@@ -134,18 +134,28 @@ if (SEM_PRIMEIRA_PESSOA.promessa.source === RAIZES.promessa.source || SEM_PRIMEI
    - negar ser IA pela regra forte da fala da pessoa, mais o que finge gente no atendimento ("gente de verdade", "atendimento humano", "feito por
      pessoas", "na minha cabeça", "eu mesmo respondo"; revisão M2b); "eu respondo" passa.
    As máscaras trocam só o trecho folgado por uma palavra neutra ANTES de procurar as raízes; promessa, garantia, marca e as travas rodam igual. */
-const FALA_DO_SITE = /\b(?:site|sistema|aplicativo|plataforma|aqui|a gente|zero|beyon|robos?|bots?|automatic\w*|sozinh\w*)\b/;
+/* (re-revisão: "aqui" e "sozinha" saíram: "Aqui na loja eu respondo preço" e "Sou eu sozinha, respondo de madrugada" são honestas; o "vende sozinho"
+   da promessa continua na raiz promessa) */
+const FALA_DO_SITE = /\b(?:site|sistema|aplicativo|plataforma|a gente|zero|beyon|robos?|bots?|automatic\w*)\b/;
 const ROTINA_EM_PRIMEIRA_PESSOA = /\b(?:eu|respondo|atendo|resolvo|mando|confirmo|recebo|vejo|explico|tiro|marco|faco|olho|aviso|ligo|anoto|organizo|separo|corro|fico)\b/;
-export const PRECO_COMO_DUVIDA = /\b((?:pergunt\w*|ped(?:e|em|iu|iram)|respondo|explico|duvidas? (?:de|sobre)) (?:o |a |de |sobre )?)(?:precos?|valor(?:es)?)(?= (?:e|no|na|nos|nas|pelo|pela|de novo|por (?:mensagem|telefone|ligacao|audio|direct))\b|$)/g;
+/* depois do preço: "e" só se o que vem não é fechar, comprar, pagar, vender ou a conta (re-revisão: "Pedem o preço e fecham" passava); "pelo/pela/por"
+   só com o canal ("pelo telefone"), nunca com unidade ("pelo metro", "pela peça") */
+export const PRECO_COMO_DUVIDA = /\b((?:pergunt\w*|ped(?:e|em|iu|iram)|respondo|explico|duvidas? (?:de|sobre)) (?:o |a |de |sobre )?)(?:precos?|valor(?:es)?)(?= (?:no|na|nos|nas|de novo|(?:por|pelo|pela) (?:mensagem|telefone|ligacao|audio|direct|celular))\b| e (?!(?:\w+ ){0,2}(?:fech\w*|compr\w*|pag\w*|vend\w*|conta)\b)|$)/g;
 const QUANTO_CUSTA_PERGUNTADO = /\b(pergunt\w* (?:o )?)quanto custa\b/g;
 export const PRAZO_DO_COTIDIANO = Object.freeze(['horas', 'dias', 'de madrugada', 'todo dia', 'cada dia', 'toda semana']);
-const PRAZO_DO_COTIDIANO_RE = new RegExp('\\b(?:' + PRAZO_DO_COTIDIANO.join('|') + ')\\b', 'g');
+/* ("em horas", "em dias" é prazo de entrega, nunca rotina: "chega em horas" não é mascarado; re-revisão) */
+const PRAZO_DO_COTIDIANO_RE = new RegExp('(?<!\\bem )\\b(?:' + PRAZO_DO_COTIDIANO.join('|') + ')\\b', 'g');
 function mascararHoje(s) {
   if (FALA_DO_SITE.test(s)) return s;
   const t = s.replace(PRECO_COMO_DUVIDA, '$1assunto').replace(QUANTO_CUSTA_PERGUNTADO, '$1assunto');
   return ROTINA_EM_PRIMEIRA_PESSOA.test(t) ? t.replace(PRAZO_DO_COTIDIANO_RE, 'quando') : t;
 }
-const NEGAR_IA_DO_HOJE = new RegExp(NEGAR_IA_FORTE.source + '|\\b(?:gente|alguem|pessoas?|humanos?|humanas?) (?:de verdade|reais?)\\b|\\batendimento humano\\b|\\bfeito por (?:pessoas|gente)\\b|\\bna minha cabeca\\b|\\b(?:eu|a gente) mesm[oa] (?:respond\\w*|atend\\w*|escrev\\w*)\\b');
+const NEGAR_IA_DO_HOJE = new RegExp(NEGAR_IA_FORTE.source + '|' + [
+  '\\b(?:gente|alguem|pessoas?|humanos?|humanas?) (?:de verdade|reais|real)\\b', '\\batendimento (?:e |eh )?humano\\b', '\\bfeito por (?:pessoas|gente)\\b',
+  '\\bna minha cabeca\\b', '\\b(?:eu|a gente) mesm[oa] (?:respond\\w*|atend\\w*|escrev\\w*)\\b', '\\bvoz humana\\b',
+  '\\bsomos (?:uma? )?(?:equipe |time )?(?:pessoas? |gente )?(?:humanos?|humanas?|reais|real|de verdade)\\b',
+  '\\bquem (?:responde|atende) (?:e|eh) (?:uma? )?(?:pessoa|gente|humano|humana)\\b', '\\be gente que (?:responde|atende)\\b'
+].join('|'));
 const RAIZES_DO_HOJE = { ...RAIZES, negar_ia: NEGAR_IA_DO_HOJE };
 
 const REGULADO = {

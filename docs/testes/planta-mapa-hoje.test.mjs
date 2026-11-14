@@ -32,7 +32,9 @@ test('os "hoje" do laboratório passam', () => {
 
 const PASSAM = ['Respondo preço e horário na mão', 'me perguntam o valor no direct toda hora', 'explico o preço de novo para cada um', 'perguntam quanto custa no direct',
   'eu respondo cada mensagem na mão', 'respondo de madrugada quando dá', 'tiro dúvida de preço por mensagem', 'pedem o valor pelo telefone e somem',
-  'ninguém lembra de quem perguntou', 'Perguntam o tempo todo se tem o produto', 'eu atendo cliente todo dia sem parar para almoçar', 'chamam no direct e tiro dúvida e horário um por um, na mão'];
+  'ninguém lembra de quem perguntou', 'Perguntam o tempo todo se tem o produto', 'eu atendo cliente todo dia sem parar para almoçar', 'chamam no direct e tiro dúvida e horário um por um, na mão',
+  /* (re-revisão) honestas que a guarda larga barrava: quem trabalha sozinho, "aqui na loja" */
+  'Aqui na loja eu respondo preço e horário na mão', 'Sou eu sozinha, respondo tudo de madrugada', 'Eu respondo sozinha todo dia', 'O cliente pergunta o preço e some', 'Confirmo dias antes'];
 /* [frase, motivo EXATO] (revisão técnica do PR 4, item 4: um motivo trocado é regressão); as 20 últimas são as que a revisão de segurança achou */
 const RECUSADAS = [
   ['preço baixo para todos', 'preco'], ['o melhor preço da cidade', 'preco'], ['vendo a preço de custo', 'preco'], ['fica barato para quem chega', 'preco'],
@@ -48,7 +50,13 @@ const RECUSADAS = [
   ['Explica o preço e a conta fecha sozinha', 'preco'], ['Repetimos o valor de novo e fechamos', 'preco'], ['Gente de verdade responde cada dúvida', 'negar_ia'],
   ['Alguém de verdade atende aqui', 'negar_ia'], ['O atendimento é feito por pessoas', 'negar_ia'], ['Atendimento humano o dia todo', 'negar_ia'],
   ['Na minha cabeça tudo se resolve', 'negar_ia'], ['Eu mesmo respondo cada um', 'negar_ia'],
-  ['eu atendo e o site responde de madrugada', 'prazo'], ['no site perguntam o valor e compram', 'preco']   /* (a fala do site nunca ganha folga, nem com 1ª pessoa junto) */
+  ['eu atendo e o site responde de madrugada', 'prazo'], ['no site perguntam o valor e compram', 'preco'],   /* (a fala do site nunca ganha folga, nem com 1ª pessoa junto) */
+  /* (re-revisão das correções) */
+  ['Tem gente real respondendo', 'negar_ia'], ['Pessoa real respondendo', 'negar_ia'], ['Quem responde é gente real', 'negar_ia'], ['Nós somos humanos', 'negar_ia'],
+  ['Somos uma equipe humana', 'negar_ia'], ['Atendimento é humano', 'negar_ia'], ['Quem responde é uma pessoa', 'negar_ia'], ['Aqui é gente que responde', 'negar_ia'],
+  ['Responde por voz humana', 'negar_ia'], ['Respondo o preço e fecho a venda', 'preco'], ['Pedem o preço e fecham a compra', 'preco'], ['Pedem preço e compram', 'preco'],
+  ['Respondo o preço e a conta fecha', 'preco'], ['Explico o valor pelo metro', 'preco'], ['Respondo o preço pela peça', 'preco'], ['Respondo o valor pela hora', 'preco'],
+  ['Mando o orçamento e ele chega em horas', 'prazo'], ['Resolvo em horas', 'prazo'], ['Respondo em horas', 'prazo']
 ];
 
 test('as recusas, com o motivo exato: preço como valor ou juízo, promessa, garantia, marca, número, prazo fora da lista ou na fala do site, negar ser IA', () => {
