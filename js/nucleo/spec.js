@@ -133,14 +133,17 @@ export const SPEC = {
      lado (dono, 2026-10-04). */
   trava: { fica: 0.3, passa: 0.06, volta: 0.045, pisca: 0.6 },
 
-  /* o tracejado: 60 traços entre as câmaras e o trilho, PARADO (crítica de arte: no máximo 3 velocidades e duas referências
+  /* o tracejado: 60 traços entre as câmaras e o trilho. Era PARADO até 13/11 (crítica de arte: no máximo 3 velocidades e duas referências
      fixas, a régua e ele; senão o conjunto lia como máquina de lavar) */
-  tracejado: { raio: 0.755, n: 60, z: 0.05, alfa: 0.28, cor: 'ac' },
+  /* Dono, 13/11: "quero que a parte parada fique se movimentando para o lado contrário da que já se movimenta".
+     Tracejado e régua passam a girar ao contrário do portal: `vel` em rad/s (o portal vai a +0,025), `arrasto` =
+     fração do impulso (giroExtra) com o sinal trocado */
+  tracejado: { raio: 0.755, n: 60, z: 0.05, alfa: 0.28, cor: 'ac', vel: -0.05, arrasto: -0.6 },
 
-  /* a régua: 120 marcas como mostrador de relógio, PARADA (o estator: a
+  /* a régua: 120 marcas como mostrador de relógio; era PARADA até 13/11 (o estator: a
      referência fixa contra a qual os sentidos opostos se leem); uma longa a cada `longa`
      (8 longas, mais fortes), as curtas discretas. `marca`: largura (piso) */
-  regua: { raio: 1.13, n: 120, longa: 15, cor: 'ac', alfa: 0.2, alfaLonga: 0.45, marca: 0.004 },
+  regua: { raio: 1.13, n: 120, longa: 15, cor: 'ac', alfa: 0.2, alfaLonga: 0.45, marca: 0.004, vel: -0.03, arrasto: -0.4 },
 
   /* a onda: um anel de 1 px que sai do núcleo (raio de/ate) em `dura` s, NO
      PULSO (a expiração do fôlego, junto com a batida); nunca uma mancha. O
