@@ -610,9 +610,9 @@ export const SABOTAGENS = [
     de: "const idValido = id => typeof id === 'string' && (id === 'objetivo' || (M.ID_NO.test(id) && !M.IDS_RESERVADOS.includes(id)));", para: "const idValido = id => typeof id === 'string';" },
   /* (a re-revisão das correções do PR 4) */
   { nome: "mapa: o \"nem\" depois da vírgula deixa de negar (\"Não uso Instagram, nem WhatsApp\" vira WhatsApp)", fonte: "api/_vendas/mapa-padrao.mjs", testes: ['docs/testes/planta-mapa-padrao.test.mjs'],
-    de: "const NEGACAO = /\\b(?:nao|nunca|nem)(?: \\w+){0,3}$/;", para: "const NEGACAO = /\\b(?:nao|nunca)(?: \\w+){0,3}$/;" },
+    de: "const NEGACAO = /\\b(?:nao|nunca|nem|sem|nada de)(?: \\w+){0,3}$/;", para: "const NEGACAO = /\\b(?:nao|nunca)(?: \\w+){0,3}$/;" },
   { nome: "mapa: \"em horas\" mascarado como rotina (\"chega em horas\" passa no hoje)", fonte: "api/_vendas/planta-textos.mjs", testes: ['docs/testes/planta-mapa-hoje.test.mjs'],
-    de: "new RegExp('(?<!\\\\bem )\\\\b(?:'", para: "new RegExp('\\\\b(?:'" },
+    de: "new RegExp('(?<!\\\\bem (?:\\\\w+ ){0,2})\\\\b(?:'", para: "new RegExp('\\\\b(?:'" },
   { nome: "mapa: a versão compacta deixa seta para um nó que saiu", fonte: "api/_vendas/planta.mjs", testes: ['docs/testes/planta-mapa-ferramenta.test.mjs'],
     de: "  return montar(c.setas.filter(s => ficaram.has(s[0]) && ficaram.has(s[1])));", para: "  return montar(c.setas);" },
   { nome: "mapa: a negação do oQueSeSabe atravessa \"só\" e \"mas\"", fonte: "api/_vendas/mapa-padrao.mjs", testes: ['docs/testes/planta-mapa-padrao.test.mjs'],
