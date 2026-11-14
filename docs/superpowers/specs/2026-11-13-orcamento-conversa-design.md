@@ -648,3 +648,26 @@ Todos são nível 3, exceto onde dito. Cada um traz teste visto vermelho, revis�
   - o `observarNaSombra` passa a receber o plano.
 - PRs 4 e 5: o dono é avisado para não promover entre os dois.
 - O teste mede a taxa de "hoje" recusados pela trava de prazo.
+
+## Anexo C: o que o PR 4 fechou (o mapa do caso v3, lado do servidor)
+
+Plano: `docs/superpowers/plans/2026-11-13-pr4-composicao-servidor.md`. As decisões do §2 do plano foram adotadas como recomendadas:
+
+1. O objetivo é o campo `objetivo`, nunca um nó; as setas o chamam pelo id reservado. São 2 a 6 nós mais o objetivo. O objetivo só aparece como `de` no `ciclo`, uma vez.
+2. No máximo 5 camadas e 2 nós por camada. No máximo 2 nós de origem (opção A): o código de cada um está em `hoje.origens` (até 3), e nenhuma seta chega a um nó de origem.
+3. As regras de desenho são as do laboratório, por estrutura e no geral.
+4. O de-para das origens: o toque "google" é `google_busca`; as origens v2 ambíguas viram `outro`; o nome `google` em `js/orcamento-rotulos.js` não muda.
+5. "Preço" no "hoje", opção (b): só como o assunto da pergunta (`PRECO_COMO_DUVIDA`). **Pede o sim do dono antes do merge.**
+6. O prazo do cotidiano entra numa lista fechada; "eu respondo" passa pela regra forte de negar ser IA.
+7. O `hoje` é opcional na forma e obrigatório no esquema da ferramenta. O padrão sem nada conhecido vai sem ele, e o `hoje` vazio é recusado.
+8. O papel `ajustado` exige um v3 gravado antes.
+
+Desvios do plano, com o motivo:
+
+- **O padrão v3 está em `api/_vendas/mapa-padrao.mjs`** (`planoDoCaso`, `oQueSeSabe`). O `planta-padrao.mjs` segue com o v2 (`planoPadrao`) e com `nichoDaPlanta`. Assim os testes do v2 não mudam de nome e o arquivo novo fica pequeno.
+- **No modo `hoje`, a trava `negarIA` do Zero não roda.** Vale a `NEGAR_IA_FORTE`, como já acontece na fala da pessoa (`primeiraPessoa`). Sem isso "eu respondo cada mensagem" cairia, e "sou humano" e "não sou robô" continuam recusados. As outras nove travas rodam.
+- **A trava de custo do `zero.test.mjs` passou de +15% para +17%.** Medido em 14/11: uma conversa de 30 turnos com 6 desenhos custa US$ 1,24, contra US$ 1,07 hoje (+16,1%, 62% do teto de US$ 2). Quase tudo vem dos 6 turnos de desenho: com 4 seria +11,9%. Os 65% do teto continuam.
+- **Achado no caminho:** "pagam menos" e "pagamos menos" escapavam da raiz de preço em qualquer texto. Agora caem.
+- **Texto:** na regra de saúde e advocacia, "antes e depois" virou "foto de antes e depois", para não se confundir com a estrutura `antes_depois`.
+
+O registro `planta` segue `v: 1`, que é o formato do registro e não do plano. A versão do plano vem da chave: `estrutura` é v3, `topologia` é v2.
