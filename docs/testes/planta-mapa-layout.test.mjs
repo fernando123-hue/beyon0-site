@@ -1,6 +1,6 @@
 /* A GEOMETRIA DO MAPA DO CASO (js/mapa-layout.js; PR 5b, tarefa 2). Sem navegador: as medidas do texto vêm de um ESTIMADOR (caracteres por linha), e
    a conferência é a do laboratório (docs/lab-estruturas-fotos.mjs), que no navegador mede de verdade. Para os planos padrão de todos os nichos (com e
-   sem trava, 1 e 2 origens), os 15 planos do laboratório e o caso "limites", nas duas peles, em 320, 390, 768 e 1280:
+   sem trava, 1 e 2 origens), os 15 planos do laboratório e o caso "limites", na pele trilho (a do dono), em 320, 390, 768 e 1280:
    caixas sem interseção; rótulo não cobre caixa nem rótulo; tudo dentro do quadro; celular com no máximo 440 px e o objetivo dentro; o ciclo com
    exatamente uma volta; a ordem da história termina no objetivo (no ciclo, a volta vem depois dele). Sabotar o vão do celular (M.celGapY) tem de ficar vermelho. */
 import test from 'node:test';
@@ -34,7 +34,7 @@ test('os planos do teste passam na forma do mapa (senão o teste mediria plano q
 
 /* o estimador de texto (Sora 14-15 px, mono 11 px): linhas = caracteres x largura média / largura útil */
 const linhas = (txt, larg, porLetra) => Math.max(1, Math.ceil(String(txt || '').length * porLetra / Math.max(20, larg)));
-function medir(plano, pedidos, pele) {
+function medir(plano, pedidos) {
   const nos = Object.create(null);
   for (const n of plano.nos) nos[n.id] = n;
   nos.objetivo = { id: 'objetivo', papel: 'objetivo', titulo: plano.objetivo.titulo, frase: plano.objetivo.frase };
@@ -43,11 +43,11 @@ function medir(plano, pedidos, pele) {
     if (p.chave.startsWith('no:')) {
       const n = nos[p.id], extra = (n.papel === 'origem' ? 15 : 0) + (n.papel === 'ajustado' ? 15 : 0);
       if (p.celular) {
-        const util = p.largura - (pele === 'trilho' ? 48 : 52);
-        m[p.chave] = pele === 'trilho' ? Math.max(36, 8 + extra + linhas(n.titulo, util, 8) * 18) : 16 + extra + linhas(n.titulo, util, 8) * 18;
+        const util = p.largura - 48;
+        m[p.chave] = Math.max(36, 8 + extra + linhas(n.titulo, util, 8) * 18);
       } else {
-        const util = p.largura - (pele === 'trilho' ? 0 : 24);
-        m[p.chave] = (pele === 'trilho' ? 36 + 10 : 12 + 22 + 6) + extra + linhas(n.titulo, util, 8.5) * 20 + 4 + linhas(n.frase, util, 7.5) * 18 + (pele === 'trilho' ? 0 : 12);
+        const util = p.largura;
+        m[p.chave] = 36 + 10 + extra + linhas(n.titulo, util, 8.5) * 20 + 4 + linhas(n.frase, util, 7.5) * 18;
       }
     } else {
       const largura = Math.min(String(p.texto).length * 6.8 + 8, p.larguraMax);
@@ -58,9 +58,9 @@ function medir(plano, pedidos, pele) {
 }
 const sob = (a, b) => a.x < b.x + b.w - 0.5 && b.x < a.x + a.w - 0.5 && a.y < b.y + b.h - 0.5 && b.y < a.y + a.h - 0.5;
 
-function conferir(nome, plano, larg, pele) {
-  const med = medir(plano, L.pedidos(plano, larg, pele), pele);
-  const g = L.compor(plano, larg, med, pele);
+function conferir(nome, plano, larg) {
+  const med = medir(plano, L.pedidos(plano, larg));
+  const g = L.compor(plano, larg, med);
   const erros = [];
   const caixas = Object.entries(g.caixas);
   const rots = g.setas.map((s) => ({ x: s.rot.left, y: s.rot.top, w: s.rot.w, h: s.rot.h, i: s.i }));
@@ -82,20 +82,18 @@ function conferir(nome, plano, larg, pele) {
   if (plano.estrutura === 'ciclo' ? voltas !== 1 : voltas !== 0) erros.push(voltas + ' voltas');
   /* a história termina no objetivo; no ciclo, o que vem depois dele (a volta) também é contado, e ele fica na ordem */
   if (plano.estrutura === 'ciclo' ? !g.ordem.includes('objetivo') : g.ordem[g.ordem.length - 1] !== 'objetivo') erros.push('a ordem não termina no objetivo');
-  return erros.map((e) => nome + ' ' + pele + ' ' + larg + ': ' + e);
+  return erros.map((e) => nome + ' ' + larg + ': ' + e);
 }
 
-for (const pele of ['caixa', 'trilho']) {
-  test('pele ' + pele + ': nada se sobrepõe, nada sai do quadro, celular em 440 px com o objetivo dentro, em 320/390/768/1280', () => {
-    const erros = [];
-    for (const [nome, p] of planos) for (const larg of [320, 390, 768, 1280]) erros.push(...conferir(nome, p, larg, pele));
-    assert.deepEqual(erros, []);
-  });
-}
+test('nada se sobrepõe, nada sai do quadro, celular em 440 px com o objetivo dentro, em 320/390/768/1280', () => {
+  const erros = [];
+  for (const [nome, p] of planos) for (const larg of [320, 390, 768, 1280]) erros.push(...conferir(nome, p, larg));
+  assert.deepEqual(erros, []);
+});
 
 test('pedidos: a largura dos nós e dos rótulos não depende da altura do texto (o desenho mede em lote, uma vez)', () => {
   const p = planos[0][1];
-  const a = L.pedidos(p, 390, 'trilho'), b = L.pedidos(p, 390, 'trilho');
+  const a = L.pedidos(p, 390), b = L.pedidos(p, 390);
   assert.deepEqual(a, b);
   assert.ok(a.some((x) => x.chave === 'no:objetivo'));
   assert.equal(a.filter((x) => x.chave.startsWith('rot:')).length, p.setas.length);
@@ -103,15 +101,15 @@ test('pedidos: a largura dos nós e dos rótulos não depende da altura do texto
   /* os nós vêm na ordem das camadas (o DOM segue a história; um id só de dígitos não passa na frente) */
   const pc = planos.find(([, x]) => x.estrutura === 'caminho')[1], ult = pc.nos[pc.nos.length - 1].id;
   const q = { ...pc, nos: pc.nos.map((n) => (n.id === ult ? { ...n, id: '9' } : n)), setas: pc.setas.map((s) => ({ ...s, de: s.de === ult ? '9' : s.de, para: s.para === ult ? '9' : s.para })) };
-  const nosQ = L.pedidos(q, 390, 'trilho').filter((x) => x.chave.startsWith('no:')).map((x) => x.id);
+  const nosQ = L.pedidos(q, 390).filter((x) => x.chave.startsWith('no:')).map((x) => x.id);
   assert.equal(nosQ[nosQ.length - 1], 'objetivo');
   assert.notEqual(nosQ[0], '9');
 });
 
 test('celular abaixo de 640 px, ou com coluna estreita demais no computador; computador na largura larga', () => {
   const p = planoDoCaso('saude_agenda', {});
-  assert.equal(L.compor(p, 390, medir(p, L.pedidos(p, 390, 'caixa'), 'caixa'), 'caixa').celular, true);
-  assert.equal(L.compor(p, 1280, medir(p, L.pedidos(p, 1280, 'caixa'), 'caixa'), 'caixa').celular, false);
+  assert.equal(L.compor(p, 390, medir(p, L.pedidos(p, 390))).celular, true);
+  assert.equal(L.compor(p, 1280, medir(p, L.pedidos(p, 1280))).celular, false);
 });
 
 test('amostrar: a luz anda pela curva e pela polilinha, do começo ao fim', () => {

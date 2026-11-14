@@ -1,13 +1,13 @@
 /* O MAPA DO CASO: a GEOMETRIA (PR 5b, tarefa 2; plano docs/superpowers/plans/2026-11-14-pr5b-mapa-desenho.md). Plano v3 já validado + as medidas do
    texto -> caixas, setas, rótulos e cabeçalhos em px. PURO (sem DOM nem relógio), ES5: window.BZMapaLayout na tela, CommonJS no Node.
-   É o "compor" do laboratório (docs/lab-estruturas.js, conferido em 4 casos x 320/390/768/1280 nas duas peles), sem medir nada:
-     1. pedidos(plano, larg, pele): o que o desenho tem de medir, com a largura que cada coisa vai ter (nós: a largura da caixa; rótulos: a largura
+   É o "compor" do laboratório (docs/lab-estruturas.js, conferido em 4 casos x 320/390/768/1280), sem medir nada:
+     1. pedidos(plano, larg): o que o desenho tem de medir, com a largura que cada coisa vai ter (nós: a largura da caixa; rótulos: a largura
         máxima). As larguras só dependem do plano e da largura do quadro, nunca da altura do texto;
      2. o desenho mede tudo em lote, fora da página, depois das fontes (uma leitura só);
-     3. compor(plano, larg, medidas, pele): as alturas viram a geometria final.
+     3. compor(plano, larg, medidas): as alturas viram a geometria final.
    Cada nó cai numa CAMADA (o passo da história, pelo caminho mais longo) e numa FAIXA (a pista lateral): BZMapaForma.camadas/faixas, as mesmas do
    validador. No celular as camadas são linhas e as faixas colunas; no computador, o contrário. A volta do ciclo corre por fora.
-   PELE (escolha do dono): 'caixa' = a caixa de canto cortado; 'trilho' = o chip com o texto ao lado e a linha que passa pelos chips.
+   A pele é o TRILHO (escolha do dono, 14/11): o chip com o texto ao lado e a linha que passa pelos chips.
    Ids do plano só viram chave de objeto sem protótipo. */
 (function (raiz, fabrica) {
   'use strict';
@@ -20,7 +20,6 @@
 
   var M = Object.freeze({ gapX: 104, gapXJusto: 80, gapY: 36, celGapX: 14, celGapY: 30, celCab: 22, margemVolta: 104, noMax: 224, rotMax: 96, chip: 36, margemDesk: 40, colMin: 120, larguraCel: 640, folgaRot: 15 });
   var vaoDe = function (nCam) { return nCam >= 5 ? M.gapXJusto : M.gapX; };
-  var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
   var mapa = function () { return Object.create(null); };
 
   function ponto(c, t) {
@@ -63,35 +62,33 @@
   }
   var ehVolta = function (b, s) { return b.lay.volta.indexOf(s) >= 0; };
   /* a largura máxima do rótulo de cada seta (só depende de x): o vão do celular é dos rótulos, até o trilho da coluna da direita ou a borda */
-  function rotMax(b, s, pele) {
+  function rotMax(b, s) {
     var a = { x: b.xs[s.de], w: b.ws[s.de] }, d = { x: b.xs[s.para], w: b.ws[s.para] };
     if (ehVolta(b, s)) return b.celular ? b.larg - (b.larg - M.margemVolta + 26) - 8 : Math.abs((a.x + a.w / 2) - (d.x + d.w / 2)) - 40;
-    if (b.celular && pele === 'trilho') {
+    if (b.celular) {
       var mc = M.chip / 2, x = Math.max(a.x, d.x) + mc + 8, trilhoDir = b.fx.n > 1 ? (b.util - M.celGapX) / 2 + M.celGapX + mc : Infinity;
       return (x < trilhoDir ? Math.min(trilhoDir, b.larg) : b.larg) - x - 8;
     }
-    if (b.celular) return Math.min(d.w, a.w) - 26;
     return Math.min(M.rotMax, d.x - (a.x + a.w) - 16);
   }
 
   /* ---------- pedidos: o que o desenho mede (as chaves: "no:<id>", "rot:<índice da seta>", "cab:<0|1>") ---------- */
-  function pedidos(plano, larg, pele) {
+  function pedidos(plano, larg) {
     var b = base(plano, larg), out = [];
     /* na ordem da história (camada a camada): o DOM segue a ordem, e um id só de dígitos não passa na frente (revisão do 5b) */
     b.lay.porCamada.forEach(function (lista) { lista.forEach(function (id) { out.push({ chave: 'no:' + id, id: id, largura: b.ws[id], celular: b.celular }); }); });
-    plano.setas.forEach(function (s, i) { out.push({ chave: 'rot:' + i, texto: s.rotulo, larguraMax: Math.max(48, rotMax(b, s, pele)) }); });
+    plano.setas.forEach(function (s, i) { out.push({ chave: 'rot:' + i, texto: s.rotulo, larguraMax: Math.max(48, rotMax(b, s)) }); });
     return out;
   }
 
   /* ---------- 3. a geometria final ---------- */
-  function compor(plano, larg, medidas, pele) {
+  function compor(plano, larg, medidas) {
     var b = base(plano, larg), lay = b.lay, fx = b.fx, cx = mapa(), ids = Object.keys(lay.camada), altura;
     var alt = function (id) { var h = medidas['no:' + id]; return typeof h === 'number' && h > 0 ? h : M.chip; };
-    var trilho = pele === 'trilho';
     if (b.celular) {
-      /* pele trilho: o vão abaixo de cada linha é dos rótulos que saem dela, e cresce com o mais alto */
+      /* o vão abaixo de cada linha é dos rótulos que saem dela, e cresce com o mais alto */
       var vao = [], y = b.cab;
-      if (trilho) plano.setas.forEach(function (s, i) {
+      plano.setas.forEach(function (s, i) {
         if (ehVolta(b, s)) return;
         var r = medidas['rot:' + i], c = lay.camada[s.de];
         vao[c] = Math.max(vao[c] || M.celGapY, (r && r.h ? r.h : 0) + M.folgaRot);
@@ -125,25 +122,15 @@
         var yv = altura - 24, xa = a.x + a.w / 2, xb = d.x + d.w / 2;
         r.linha = [[xa, a.y + a.h], [xa, yv], [xb, yv], [xb, d.y + d.h]];
         r.ponta = 'cima'; r.rot = { x: (xa + xb) / 2, y: yv, lado: 'meio' };
-      } else if (trilho && b.celular) {
+      } else if (b.celular) {
         var mc = M.chip / 2, ta = a.x + mc, tb = d.x + mc, yCruza = d.y - 6;
         r.linha = ta === tb ? [[ta, a.y + M.chip], [tb, d.y]] : [[ta, a.y + M.chip], [ta, yCruza], [tb, yCruza], [tb, d.y]];
         r.ponta = 'baixo'; r.rot = { x: Math.max(a.x, d.x) + mc + 8, y: a.y + a.h + 4, lado: 'dir', topo: true };
-      } else if (trilho) {
+      } else {
         var ya3 = a.y + M.chip / 2, yb3 = d.y + M.chip / 2, xa3 = a.x + M.chip, xb3 = d.x, xm3 = (a.x + a.w + xb3) / 2;
         r.curva = ya3 === yb3 ? [[xa3, ya3], [xa3, ya3], [xb3, yb3], [xb3, yb3]] : [[xa3, ya3], [xm3, ya3], [xm3, yb3], [xb3, yb3]];
         var meio3 = ya3 === yb3 ? [xm3, ya3 + 5] : ponto(r.curva, 0.5);
         r.ponta = 'dir'; r.rot = { x: xm3, y: meio3[1], lado: 'meio', topo: ya3 === yb3 };
-      } else if (b.celular) {
-        var xr = Math.max(a.x, d.x) + 14, y0 = a.y + a.h, y1 = d.y;
-        if (a.w === d.w && a.x !== d.x) { var x0c = a.x + 14, x1c = d.x + 14; r.curva = [[x0c, y0], [x0c, (y0 + y1) / 2], [x1c, (y0 + y1) / 2], [x1c, y1]]; xr = (x0c + x1c) / 2; }
-        else r.curva = [[xr, y0], [xr, (y0 + y1) / 2], [xr, (y0 + y1) / 2], [xr, y1]];
-        r.ponta = 'baixo'; r.rot = { x: xr + 8, y: (y0 + y1) / 2, lado: 'dir' };
-      } else {
-        var xa2 = a.x + a.w, xb2 = d.x, ya2 = clamp(d.y + d.h / 2, a.y + 14, a.y + a.h - 14), yb2 = clamp(a.y + a.h / 2, d.y + 14, d.y + d.h - 14), mx = (xa2 + xb2) / 2;
-        r.curva = [[xa2, ya2], [mx, ya2], [mx, yb2], [xb2, yb2]];
-        var meio = ponto(r.curva, 0.5);
-        r.ponta = 'dir'; r.rot = { x: meio[0], y: meio[1], lado: 'meio' };
       }
       /* o retângulo do rótulo, com a medida dele: o desenho o põe por transform exatamente aqui */
       var m = medidas['rot:' + i] || { w: 0, h: 0 };
