@@ -40,8 +40,11 @@ delete process.env.SUPABASE_URL;    /* (teste local nunca grava no banco de prod
 delete process.env.SUPABASE_CHAVE_SECRETA;
 delete process.env.SUPABASE_CHAVE_PUBLICA;
 /* agente de vendas local: banco PGlite com as migrations, visitantes de desenvolvimento, gateway simulado.
-   IA simulada por padrão (de graça); BZ_IA_REAL=1 + ANTHROPIC_API_KEY usa a de verdade (custa). */
+   IA simulada por padrão (de graça); BZ_IA_REAL=1 + ANTHROPIC_API_KEY usa a de verdade (custa), com o teto e o livro do
+   gasto de docs/ia-local.mjs (BZ_IA_TETO_USD, padrão US$ 3, somado entre servidores); BZ_IA_REPRODUZIR=<fita> repete uma
+   rodada gravada (BZ_IA_GRAVAR) sem gastar. A JEV_SOMBRA chama o SDK direto, fora do teto: nunca no local */
 if (process.env.BZ_IA_REAL !== '1') delete process.env.ANTHROPIC_API_KEY;
+delete process.env.JEV_SOMBRA;
 /* BZ_SEM_CONSULTOR=1: a tela se comporta como sem consultor (sessao-config diz consultor: false; api/vendas.mjs só
    aceita isso com BZ_LOCAL); a IA simulada continua gerando os modelos. É o modo do E2E do orçamento sem IA */
 if (process.env.BZ_SEM_CONSULTOR === '1') console.log('[servidor] BZ_SEM_CONSULTOR=1: a página do orçamento abre sem o consultor');
@@ -51,6 +54,14 @@ try {
   const { montarLocal } = await import('./banco-local.mjs');
   await montarLocal({ base: 'http://127.0.0.1:' + PORTA });
 } catch (e) { console.warn('[servidor] agente de vendas local indisponível (rode npm install):', e.message); }
+/* a IA local: falha aqui (BZ_IA_REAL=1 sem chave, livro ilegível, fita ilegível) derruba o servidor, nunca cai na simulada calada */
+{
+  const { montarIALocal } = await import('./ia-local.mjs');
+  const ia = await montarIALocal(process.env);
+  /* sem o banco local não há gancho: a chave sai do ambiente, para nenhuma chamada real escapar do teto */
+  if (globalThis.__BZ_LOCAL) { globalThis.__BZ_LOCAL.ia = () => ia; console.log('[servidor] ' + ia.descricao); }
+  else { delete process.env.ANTHROPIC_API_KEY; console.warn('[servidor] sem o banco local, sem a IA real'); }
+}
 const HOSTS = new Set(['127.0.0.1:' + PORTA, 'localhost:' + PORTA]);
 /* (B5) /api/* passa pela MESMA porta do Worker, cloudflare/rotas.mjs → rotear: nome só da tabela, método da tabela,
    corpo limitado por rota, erro genérico e cabeçalhos da API. O ambiente aqui é o local (BZ_LOCAL=1, sem Cloudflare):
