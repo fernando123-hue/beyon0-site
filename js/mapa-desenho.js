@@ -235,6 +235,48 @@
     editavel(i);
   }
   function editavel(i) { if (i.btnAjustar) i.btnAjustar.hidden = i.opcoes.editavel !== true; }
+  /* O AJUSTE (spec §7.4; PR 5c): um plano novo com nós em comum não refaz a entrada. Quem ficou desliza do lugar antigo para o novo (só transform);
+     o nó novo (com "Ajustado") e as setas dele crescem pela luz depois do deslize; as outras setas reaparecem no lugar novo. Os textos (Hoje, fecho)
+     e a leitura acompanham o plano. O valor não é liberado de novo (ele já foi, na entrada). Movimento reduzido: o quadro novo, direto. */
+  function ajuste(i, plano, novos) {
+    var antes = Object.create(null), novo = Object.create(null);
+    Object.keys(i.g.caixas).forEach(function (id) { antes[id] = i.g.caixas[id]; });
+    novos.forEach(function (id) { novo[id] = true; });
+    i.plano = plano; i.json = JSON.stringify(plano);
+    try { i.rel.parar(); } catch (e) { aviso(e); }
+    i.rel = Relogio.criar();
+    var hoje = linhaDeHoje(plano, null);
+    if (i.hojeEl && i.hojeEl.parentNode) i.hojeEl.parentNode.removeChild(i.hojeEl);
+    if (hoje) i.wrap.insertBefore(hoje, i.quadro);
+    i.hojeEl = hoje;
+    i.fechoEl.textContent = plano.fecho || '';
+    var ol = leitura(plano, null);
+    if (i.leituraEl && i.leituraEl.parentNode) i.leituraEl.parentNode.removeChild(i.leituraEl);
+    i.wrap.insertBefore(ol, i.status);
+    i.leituraEl = ol;
+    if (!compor(i)) return false;
+    i.quadro.classList.add('is-aceso', 'is-ouro');
+    i.status.textContent = 'Ajustei o mapa do seu caso.';
+    if (i.opcoes.animar === false || reduzido() || typeof i.quadro.animate !== 'function') return true;
+    var rel = i.rel, cresce = T.voo + T.chega, som = typeof i.opcoes.som === 'function' ? i.opcoes.som : function () {};
+    Object.keys(i.nos).forEach(function (id) {
+      var b = i.g.caixas[id], pos = 'translate(' + b.x + 'px,' + b.y + 'px)', a = antes[id];
+      if (novo[id] || !a) rel.anim(i.nos[id], [{ opacity: 0, transform: pos + ' translateY(5px)' }, { opacity: 1, transform: pos }], { duration: T.no, delay: cresce, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' });
+      else if (a.x !== b.x || a.y !== b.y) rel.anim(i.nos[id], [{ transform: 'translate(' + a.x + 'px,' + a.y + 'px)' }, { transform: pos }], { duration: T.voo, easing: 'cubic-bezier(.3,.1,.2,1)', fill: 'backwards' });
+    });
+    i.setas.forEach(function (x) {
+      if (novo[x.r.de] || novo[x.r.para]) {
+        rel.anim(x.linha, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: T.seta, delay: T.voo, easing: 'ease-in-out', fill: 'backwards' });
+        rel.anim(x.rot, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: T.voo + T.seta * 0.5, fill: 'backwards' });
+        luz(i, x.r, T.seta, T.voo, 1);
+      } else {
+        rel.anim(x.g, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: T.voo, fill: 'backwards' });
+        rel.anim(x.rot, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: T.voo, fill: 'backwards' });
+      }
+    });
+    rel.depois(cresce, function () { som('passa'); });
+    return true;
+  }
   /* (revisão do 5b) girar a tela ou mudar a largura: refaz na largura nova, já pronto, sem entrada nem som (como o esboço); a entrada que ainda
      corria para, e o valor que a esperava é liberado */
   function recompor(i) {
@@ -356,17 +398,17 @@
     var op = opcoes || {}, wrap = el('div', 'mpc');
     while (raizEl.firstChild) raizEl.removeChild(raizEl.firstChild);
     el('h2', 'mpc-titulo', TITULO, wrap);
-    linhaDeHoje(v.plano, wrap);
+    var hojeEl = linhaDeHoje(v.plano, wrap);
     var pele = op.pele === 'caixa' || op.pele === 'trilho' ? op.pele : PELE;
     var quadro = el('div', 'mpc-quadro mpc-pele-' + pele, null, wrap);
-    if (v.plano.fecho) el('p', 'mpc-fecho', v.plano.fecho, wrap);
+    var fechoEl = el('p', 'mpc-fecho', v.plano.fecho || '', wrap);
     var lugarDasAcoes = el('div', 'mpc-lugar-acoes', null, wrap);
-    leitura(v.plano, wrap);
+    var leituraEl = leitura(v.plano, wrap);
     var status = el('p', 'mpc-status', '', wrap);
     status.setAttribute('role', 'status');
     raizEl.appendChild(wrap);
     var i = { raiz: raizEl, wrap: wrap, quadro: quadro, status: status, plano: v.plano, json: JSON.stringify(v.plano), opcoes: op,
-      pele: pele, rel: Relogio.criar(), io: null, aoVisivel: null, naTela: true, pronto: false, aoResize: null, timerResize: 0 };
+      hojeEl: hojeEl, fechoEl: fechoEl, leituraEl: leituraEl, pele: pele, rel: Relogio.criar(), io: null, aoVisivel: null, naTela: true, pronto: false, aoResize: null, timerResize: 0 };
     inst = i;
     acoes(i, lugarDasAcoes);
     var anima = op.animar !== false && !reduzido() && typeof quadro.animate === 'function';
@@ -402,6 +444,14 @@
     if (opcoes) for (k in opcoes) if (Object.prototype.hasOwnProperty.call(opcoes, k)) op[k] = opcoes[k];
     editavel(inst);
     if (JSON.stringify(v.plano) === inst.json) return { ok: true, refeita: false };
+    /* com nós em comum é o AJUSTE (o resto fica); sem nenhum, outro mapa: a entrada de novo */
+    var antigos = Object.create(null), novos = [], comuns = 0;
+    inst.plano.nos.forEach(function (n) { antigos[n.id] = true; });
+    v.plano.nos.forEach(function (n) { if (antigos[n.id]) comuns++; else novos.push(n.id); });
+    if (comuns) {
+      try { if (!ajuste(inst, v.plano, novos)) return { ok: false, motivos: ['sem_largura'] }; } catch (e) { aviso(e); return { ok: false, motivos: ['excecao'] }; }
+      return { ok: true, refeita: false, novos: novos };
+    }
     var r = montar(inst.raiz, v.plano, op);
     return r.ok ? { ok: true, refeita: true } : r;
   }

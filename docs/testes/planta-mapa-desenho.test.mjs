@@ -21,6 +21,7 @@ const Saber = require('../../js/mapa-saber.js');
 const janela = {};
 vm.runInNewContext(fs.readFileSync(new URL('../lab-estruturas-casos.js', import.meta.url), 'utf8'), { window: janela });
 const CASO = janela.LAB_ESTRUTURAS_CASOS.clinica;
+const CASOS_OUTRO = JSON.parse(JSON.stringify(janela.LAB_ESTRUTURAS_CASOS.embalagens));
 const planoDe = (est) => JSON.parse(JSON.stringify({ estrutura: est, hoje: CASO.hoje, nos: CASO.estruturas[est].nos, setas: CASO.estruturas[est].setas, objetivo: CASO.objetivo, fecho: CASO.fecho }));
 const ESTRUTURAS = ['caminho', 'antes_depois', 'ramos', 'ciclo', 'mapa'];
 
@@ -123,7 +124,10 @@ test('atualizar: o mesmo plano não refaz; outro refaz; um inválido recusa e o 
   const a = ambiente();
   a.D.montar(a.raiz, planoDe('caminho'));
   assert.deepEqual(a.D.atualizar(planoDe('caminho')), { ok: true, refeita: false });
-  assert.deepEqual(a.D.atualizar(planoDe('ramos')), { ok: true, refeita: true });
+  /* (5c) com nós em comum é o ajuste; sem nenhum (outro caso), a entrada de novo */
+  assert.equal(a.D.atualizar(planoDe('ramos')).refeita, false);
+  const outro = { estrutura: 'caminho', hoje: CASOS_OUTRO.hoje, nos: CASOS_OUTRO.estruturas.caminho.nos, setas: CASOS_OUTRO.estruturas.caminho.setas, objetivo: CASOS_OUTRO.objetivo, fecho: CASOS_OUTRO.fecho };
+  assert.deepEqual(a.D.atualizar(outro), { ok: true, refeita: true });
   const ruim = planoDe('ramos'); ruim.nos[0].papel = 'constructor';
   assert.equal(a.D.atualizar(ruim).ok, false);
   assert.ok(a.raiz.porClasse('mpc-no').length > 0, 'o desenho de antes continua');
@@ -248,4 +252,47 @@ test('"Quero ajustar algo" chama aoAjustar (a cola foca a caixa com a dica); sem
   const b = ambiente({ reduzido: true });
   b.D.montar(b.raiz, planoDe('caminho'), { editavel: false });
   assert.equal(botaoDe(b.raiz, 'Quero ajustar algo').hidden, true);
+});
+
+/* ---------- 5c: o ajuste (spec §7.4: "o nó novo cresce ligado por uma seta rotulada, sem refazer o resto") ---------- */
+function ajustado() {
+  const p = planoDe('caminho');
+  p.nos.push({ id: 'lembrete', papel: 'ajustado', icone: 'lembrete', titulo: 'Lembrete na véspera', frase: 'A pessoa recebe um aviso antes do horário' });
+  p.setas = p.setas.filter((s) => !(s.de === 'horario' && s.para === 'objetivo'));
+  p.setas.push({ de: 'horario', para: 'lembrete', rotulo: 'avisa antes' }, { de: 'lembrete', para: 'objetivo', rotulo: 'confirma' });
+  return p;
+}
+test('o ajuste: com nós em comum, os que ficam deslizam do lugar antigo para o novo e só o nó novo cresce (com "Ajustado"); a entrada não se repete', () => {
+  const a = ambiente({ reduzido: false });
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true });
+  a.w.avancar(20000);
+  const p2 = ajustado();
+  assert.ok(Forma.validarFormaMapa(p2).ok, JSON.stringify(Forma.validarFormaMapa(p2).motivos));
+  const antes = a.w.document.animacoes.length;
+  const r = a.D.atualizar(p2, { fala: 'quero um lembrete' });
+  assert.deepEqual(r, { ok: true, refeita: false, novos: ['lembrete'] });
+  const novas = a.w.document.animacoes.slice(antes);
+  const nos = Object.fromEntries(a.raiz.porClasse('mpc-no').map((n) => [n.textContent, n]));
+  const lembrete = Object.values(nos).find((n) => n.textContent.includes('Lembrete na véspera'));
+  assert.ok(lembrete.textContent.includes('Ajustado'), 'o nó novo leva a marca');
+  /* quem ficou desliza (transform de outro lugar para o lugar novo); o nó novo aparece por opacidade */
+  const alvoDe = (an) => an.alvo || an.el || an.elemento;
+  const deslizes = novas.filter((an) => an.keyframes.length === 2 && an.keyframes[0].transform && an.keyframes[0].transform !== an.keyframes[1].transform && !('opacity' in an.keyframes[0]));
+  assert.ok(deslizes.length >= 1, 'há deslize de quem ficou');
+  assert.ok(novas.some((an) => an.keyframes[0].opacity === 0 && String(an.keyframes[1].transform || '').length >= 0), 'o nó novo aparece');
+  void alvoDe; void nos;
+  a.w.avancar(20000);
+  assert.deepEqual(a.prontas, ['bz:planta-pronta'], 'o ajuste não libera o valor de novo');
+  const ol = a.raiz.porClasse('mpc-sr')[0];
+  assert.equal(ol.porTag('li').length, p2.nos.length + 1 + p2.setas.length, 'a leitura acompanha o plano novo');
+  assert.ok(a.raiz.porClasse('mpc-quadro')[0].classList.contains('is-ouro'), 'o ouro fica');
+});
+
+test('o ajuste com movimento reduzido: o quadro novo direto, sem animação', () => {
+  const a = ambiente({ reduzido: true });
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true });
+  const antes = a.w.document.animacoes.length;
+  assert.deepEqual(a.D.atualizar(ajustado()), { ok: true, refeita: false, novos: ['lembrete'] });
+  assert.equal(a.w.document.animacoes.length, antes);
+  assert.equal(a.raiz.porClasse('mpc-no').length, ajustado().nos.length + 1);
 });
