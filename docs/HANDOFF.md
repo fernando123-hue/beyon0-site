@@ -1,59 +1,44 @@
 # Beyon Zero — transferência de contexto
 
-> **ESTADO DA SESSÃO "ORÇAMENTO COMO CONVERSA" (14/11, madrugada; worktree `03 Projetos/site-zero-mapa`, branch `zero-mapa-servidor`, head `fcb412a`, ENVIADO, PR ainda NÃO aberto).**
+> **ESTADO DA SESSÃO "ORÇAMENTO COMO CONVERSA" (14/11, manhã; worktree `03 Projetos/site-zero-mapa`, branch `zero-mapa-desenho`).**
 > <!-- passagem-auto: 1-cf05db7a-0aec-488c-92c5-4f1b5ccd43e9 -->
-> **ATUALIZAÇÃO 14/11 (chegou durante a passagem):**
-> - **O dono respondeu os 3 pontos do PR 4**, pela sessão principal, registrado em `01 Empresa/Decisões.md`:
->   - (1) "preço" na linha Hoje: "Pode aceitar", na opção b;
->   - (2) a DESCRICAO v3 e o PREFIXO_PLANTA exatamente como enviados, inclusive "foto de antes e depois": "Pode trocar";
->   - (3) não promover entre o PR 4 e o PR 5: "Combinado".
->   - Citar essas respostas na evidência do PR. **Se o texto do prompt mudar, ele volta para a sessão principal antes do merge.**
-> - **Custo aceito:** fica com 6 versões. No corpo do PR, na parte do risco: US$ 1,07 → 1,24 (+16%); com 4 versões seria +12%.
-> - **A migração aceite_versao JÁ ESTÁ no banco de teste:** o dono deu Run e a sessão principal conferiu colunas e função, com execute só para service_role. O "column already exists" foi de uma 2ª execução. Falta: rodar a minha conferência de leitura e testar o pedido no staging. Produção, só antes da promoção.
-> - **Fechar a minha aba do Supabase no Chrome** (o dono quer uma aba por site): o `tabs_close` não respondeu. Tentar de novo.
-> - **As duas revisões do PR 4 chegaram**, e os relatórios completos estão na pasta de notas, `pr4-revisao-seguranca.md` e `pr4-revisao-tecnica.md`. Nenhum crítico ou alto. A corrigir ANTES do merge:
->   - **seg M1:** a máscara de prazo do "hoje" deixa passar "O site responde na hora", "a qualquer hora" e "todo dia". Aplicar só em 1ª pessoa de rotina, ou tirar "na hora" e "a qualquer hora".
->   - **seg M2a:** a folga do preço com "por", "um", "sempre", "pass*" e "repet*" deixa passar "valor por metro" e "passamos o valor sempre igual". Estreitar. Isso é mais restrito que o aprovado; avisar a principal.
->   - **seg M2b:** a `NEGAR_IA_FORTE` deixa passar "gente de verdade", "atendimento humano", "feito por pessoas" e "na minha cabeça". Ampliar.
->   - **téc 1:** a negação do `oQueSeSabe` atravessa a vírgula ("Não tenho site, só WhatsApp" perde o WhatsApp). Ver a negação no texto original, respeitando a pontuação.
->   - Recomendados: seg B1 (compacto só com ids e papéis válidos, mais teto final), téc 2 (Google antes do corte de 3), téc 3 (o `.map` morto no `PRAZO_DO_COTIDIANO_RE`) e téc 4 (testes com `||`).
->   - Depois: re-revisão do commit de correção, publicar as três revisões como comentário no PR e preencher o corpo.
-
-> **Feito nesta sessão:**
-> - **PR 3 (#151) mesclado** (main `084bedae`): o pedido dentro da conversa e o aceite versionado. Em seguida, **#153 mesclado** (main `a7bce34`): o verificador mede o recado a partir da conversa.
-> - **Migração `20261113120000_aceite_versao.sql`:** o dono aprovou ("sim, pode aplicar") pela sessão principal.
->   - Banco de TESTE (`iydhpn…`, beyon-zero-staging): o SQL está carregado no SQL Editor do Chrome do dono, com SHA-256 conferido igual ao do arquivo da main (`5a89f96c…06364b34`). **O clique em "Run" foi barrado pela proteção automática**; a sessão principal pediu ao dono que clique. Quando ela avisar, rodar a consulta de leitura de conferência (colunas `contato_aceite_versao`/`contato_aceite_hash` e `to_regprocedure('app.vendas_registrar_detalhes_com_aceite(jsonb)')`) e mandar o resultado a ela.
->   - Produção: só antes da promoção que levar o PR 3 (a promoção é do dono).
->   - O histórico do CLI no teste para em `20261030130000`: as migrations de 10 e 11/11 também entraram pelo SQL Editor, sem registro.
-> - **PR 4 (o mapa do caso v3, servidor):** implementado e enviado, passos 2 a 10 do plano `docs/superpowers/plans/2026-11-13-pr4-composicao-servidor.md`, um commit por passo, cada um com teste visto vermelho. O Anexo C da spec traz as decisões e os desvios.
->   - Mutação: `BZ_MUTACAO_FILTRO=mapa:` 15 de 15; planta 10 de 10.
->   - Os testes da planta passam (744), menos o teto de bytes do desenho, que só falha com CRLF local (com LF dá 21.167 de 21.200).
+> **Feito:**
+> - PR 1 a 4 mesclados. **PR 4 (#154, o mapa do caso v3 no servidor) = main `eee008a`.** O dono respondeu os 3 pontos (Decisões.md, 14/11) e aceitou o custo de 6 versões. Não promover entre o PR 4 e o PR 5 ("Combinado").
+> - A migração `aceite_versao` está no banco de TESTE. Na produção, aplicar só antes da promoção que levar o PR 3; o sim do dono já foi dado.
+> - **PR 5, com calma, em 3 fatias** (desenho: `docs/superpowers/specs/2026-11-14-mapa-desenho-design.md`; a §9 traz o que a revisão independente mudou):
+>   - **5a (este branch, PR a abrir):**
+>     - `js/mapa-saber.js`: as origens num módulo comum ao servidor e à tela, com a negação antes e depois da palavra.
+>     - O esboço sem fantasma, sem tracejado e sem número; o trilho corre inteiro pelo lugar vazio.
+>     - `docs/fotos-esboco.mjs`.
+>     - Mutação: `mapa:` 24 de 24; depois entrou mais uma sabotagem, a do "depois".
+>   - **5b (depois):** layout e desenho v3, a cola com troca v2→v3, o movimento por estrutura, E2E básico. **Depende da escolha do dono, A (caixas) ou B (trilho)**: fotos e LEIA.md em `00 Entrada/orcamento-conversa/lab-estruturas-1411/`, pedido feito à sessão principal. O laboratório desenha as duas (`?pele=caixa|trilho`).
+>   - **5c:** "Ficou certo?" dentro do cartão ("Está certo" local, sem IA), o ajuste com nó novo e deslize, E2E completo.
+> - Depois do PR 5: o interruptor local da IA real (PR), o teste com a IA real (as 5 conversas e o teste C, ≤ US$ 3, com vídeos) e a promoção, que é do dono.
 >
-> **PRÓXIMO PASSO EXATO (PR 4):**
-> 1. Rodar `npm run testar` inteiro no worktree. Ele foi interrompido para esta passagem; o único vermelho esperado é o teto de bytes do desenho (CRLF).
-> 2. As revisões técnica e de segurança foram disparadas em agentes. Se o resultado não chegar, disparar de novo com o diff `origin/main...zero-mapa-servidor`. Corrigir os achados, pedir uma re-revisão do commit de correção e publicar tudo como comentário no PR.
-> 3. "Visto rodando": servidor local com `BZ_PLANTA` ligada (padrão do `docs/servidor.mjs`) e conversa com o gatilho `planta-boa`. Conferir que o v3 grava, a tela some calada sem `[beyon]` e o valor sai sem os 20 s. Fotos a 390 e 320 px. Depois, o E2E do orçamento nos dois modos, cada um num servidor NOVO (o freio de sessões trava a 3ª rodada no mesmo servidor).
-> 4. Abrir o PR com o corpo de `scratchpad/pr-mapa.md` (na pasta temporária desta sessão; se tiver sumido, refazer a partir do Anexo C), preenchendo os links e números.
-> 5. **NÃO mesclar sem o sim do dono** nos 3 pontos, já pedidos à sessão principal com o texto exato:
->    - (1) a folga do "preço" no "hoje";
->    - (2) a DESCRICAO v3 e o PREFIXO_PLANTA "montou o mapa do seu caso";
->    - (3) não promover entre o PR 4 e o PR 5.
->    Também foi avisado o custo medido: +16,1% numa conversa longa com 6 desenhos (US$ 1,24 contra 1,07; 62% do teto). Com 4 versões seria +11,9%.
-> 6. Depois do merge, avisar a sessão principal com o SHA e começar o PR 5 (o desenho do mapa na tela). Os PRs 4 e 5 ficaram com esta sessão porque a sessão na nuvem caiu.
+> **PRÓXIMO PASSO EXATO:**
+> 1. Abrir o PR 5a com as evidências do `docs/PROCESSO.md`:
+>    - a suíte;
+>    - o E2E do orçamento nos dois modos, cada um em servidor novo (`scratchpad/e2e-dois.sh` da sessão; o modelo está no CI);
+>    - as fotos do esboço (`00 Entrada/orcamento-conversa/esboco-1411/`);
+>    - as duas revisões: código e segurança, por agentes diferentes;
+>    - o vermelho visto: o `mapa-saber` não existia; a negação "depois" falhou antes da correção.
+> 2. Mesclar com tudo verde e mandar o SHA à sessão principal.
+> 3. Esperar a escolha da pele para começar o 5b. Enquanto isso, o plano do 5b pela skill writing-plans.
 >
 > **Pendências:**
-> - O `docs/e2e-planta.mjs` já falha na main desde o PR 2: "o botão Ver a planta aparece uma vez". Vai para o PR 5.
-> - Os medidores `docs/medir-orcamento-leve.mjs` e `docs/medir-planta.mjs` estão velhos (usam `#o-perguntas`): PR de limpeza.
-> - Achados baixos do PR 3 deixados para o pente fino (parte E): "Pular" ao corrigir apaga o valor; o nome entra na triagem por IA; teste com leitor de tela real.
+> - `docs/e2e-planta.mjs` está velho: desde o PR 4 a IA simulada gera v3, e a tela ainda não o desenha. Refazer no 5b/5c, com um plano v2 forjado para a regressão do voo v2.
+> - O E2E do orçamento sem consultor teve uma falha intermitente no CI (envio final depois da recarga; anotada no #154). Olhar no pente fino.
+> - Os medidores `docs/medir-orcamento-leve.mjs` e `docs/medir-planta.mjs` estão velhos: PR de limpeza.
+> - Pente fino (parte E): "Pular" apaga o valor; o nome entra na triagem por IA; teste com leitor de tela real. A negação "depois" ("Pelo Instagram não") já foi feita no 5a.
 >
 > **Armadilhas:**
-> - O guarda bloqueia heredoc que contém "push": escrever o script com Write.
-> - Sabotagem com `para: ""` em arquivo "fonte" é recusada pela partida do `mutacao.mjs`.
+> - O guarda bloqueia heredoc com "push" ou "merge", até no código (`lista.push`): escrever o script com Write.
+> - Sabotagem com `para: ""` é recusada; antes do mutante, os arquivos "fonte" precisam estar commitados.
 > - `gh pr merge` exige `-R fernando123-hue/beyon0-site`.
-> - O "Run" do SQL Editor é barrado pela proteção automática: não contornar.
-> - O PC está lento: um `wc` levou 2 min; a suíte leva uns 10 min.
+> - O teto de bytes do desenho só falha com CRLF local (com LF dá 21.167 de 21.200).
+> - Para o E2E: um servidor novo por modo. Para fotos: matar o servidor da 8899 no fim (`netstat -ano | grep :8899`, `taskkill`).
 >
-> **Skills para a próxima:** processo-qualidade (o PROCESSO.md do projeto manda), voz-humana para os textos do mapa no PR 5, revisao-ui no PR 5.
+> **Skills para a próxima:** processo-qualidade (o PROCESSO.md do projeto manda), writing-plans (5b), voz-humana para os textos do mapa, revisao-ui no 5b.
 
 > **ESTADO DA SESSÃO "PLANTA VIVA v2" (2026-11-12, worktree `03 Projetos/site-planta-espetaculo`, branch `planta-espetaculo`).**
 > <!-- passagem-auto: 1-811cdf27-da18-484d-b51f-6ae6a93d4a32 -->
