@@ -76,7 +76,7 @@ test('real: o teto barra ANTES de chamar (gasto + reserva do papel), com erro "l
   assert.deepEqual(real.chamadas, [], 'a chamada não saiu');
 });
 
-test('real: chamadas em voo contam no teto (duas ao mesmo tempo não passam juntas)', async () => {
+test('real: chamadas em voo contam no teto (duas ao mesmo tempo não passam juntas)', { timeout: 5000 }, async () => {
   const livro = abrirLivro(path.join(pasta(), 'l.json'));
   livro.anotar({ papel: 'conversa', modelo: 'm', custo_usd: 3 - reservaUsd('conversa') * 1.5, ms: 1 });
   let soltar;
@@ -84,9 +84,14 @@ test('real: chamadas em voo contam no teto (duas ao mesmo tempo não passam junt
   const real = { chamadas: [], async mensagem(p) { this.chamadas.push(p.papel); await presa; return { texto: 'x', custo_usd: 0.01, parada: 'fim', chamadas: [] }; } };
   const ia = criarIALocal({ real, simulada: simuladaFalsa(), livro, teto: 3 });
   const primeira = ia.mensagem(pedido('conversa'));
-  await assert.rejects(ia.mensagem(pedido('conversa')), e => e.motivo === 'limite');
+  /* a segunda deve recusar na hora; se passar do teto, fica presa junto com a primeira: o prazo curto vira falha, não trava */
+  const segunda = ia.mensagem(pedido('conversa')).then(() => 'passou', e => e);
+  const prazo = new Promise(r => setTimeout(() => r('presa'), 500));
+  const r = await Promise.race([segunda, prazo]);
   soltar();
   await primeira;
+  await segunda;
+  assert.equal(r?.motivo, 'limite', 'a segunda chamada devia ser recusada pelo teto, veio: ' + (r?.motivo || r));
   assert.equal(real.chamadas.length, 1);
 });
 
