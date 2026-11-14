@@ -1233,3 +1233,17 @@ test('v2 baixando (e falhando) quando chega um v3: o v3 monta e fica; o planta-p
   assert.equal(amb.faixa.hidden, false, 'a falha do v2 (que já não é o da vez) não esconde o v3');
   assert.equal(amb.espiao.montar.length, 0, 'o v2 nunca montou');
 });
+
+test('(5c) "Quero ajustar algo" no mapa do caso: foca a caixa com a dica "Diga o que mudar no mapa."; no v2 a dica segue a da planta', () => {
+  const amb = ambiente();
+  const E = estadoV3();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  amb.espiaoMapa.montar[0].op.aoAjustar();
+  assert.equal(amb.texto.placeholder, 'Diga o que mudar no mapa.');
+  const v2 = ambiente();
+  redesenharLista(v2, estado());
+  v2.L.atualizar(estado(), v2.deps); prontos(v2);
+  v2.espiao.montar[0].op.aoAjustar();
+  assert.equal(v2.texto.placeholder, 'Diga o que mudar na planta.');
+});

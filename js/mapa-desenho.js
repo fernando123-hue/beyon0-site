@@ -21,6 +21,7 @@
   /* a pele escolhida pelo dono (A caixa / B trilho); opcoes.pele só serve ao laboratório */
   var PELE = 'trilho', CHANFRO = 8;
   var TITULO = 'O mapa do seu caso';
+  var PERGUNTA = 'Montei o mapa do seu caso. Ficou certo?', CERTO = 'Está certo', AJUSTAR = 'Quero ajustar algo';
   var T = { no: 320, passo: 240, seta: 480, volta: 900, chega: 520, ouro: 420, depoisSeta: 160, pausa: 420, pulso: 520, voo: 700, repouso: 6000, repousos: 8 };
   var tem = function (o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); };
   /* papel -> classe (lista fechada; nada do plano vira classe) */
@@ -207,6 +208,7 @@
   function pronta(i) {
     if (i.pronto) return;
     i.pronto = true;
+    if (i.acoes) i.acoes.classList.remove('is-espera');
     i.status.textContent = 'O mapa do seu caso está pronto.';
     if (win.CustomEvent && doc.dispatchEvent) doc.dispatchEvent(new win.CustomEvent('bz:planta-pronta'));
   }
@@ -214,6 +216,25 @@
     i.quadro.classList.add('is-aceso', 'is-ouro');
     pronta(i);
   }
+  /* "Ficou certo?" (spec §7.4; PR 5c): a pergunta e os dois toques moram DENTRO do mapa (a conversa é refeita a cada estado e levaria uma fala
+     solta). O lugar existe desde a montagem, invisível (is-espera), e aparece quando o mapa fica pronto. "Está certo" é só uma fala na tela: não
+     chama a cola, não gasta IA e nada é gravado (ao recarregar, a pergunta volta). "Quero ajustar algo" chama opcoes.aoAjustar (a cola foca a caixa
+     com a dica) e só existe com a planta editável. */
+  function acoes(i, pai) {
+    var a = el('div', 'mpc-acoes is-espera', null, pai);
+    el('p', 'mpc-pergunta', PERGUNTA, a);
+    var botoes = el('div', 'mpc-botoes', null, a);
+    var certo = el('button', 'btn btn--sm', CERTO, botoes), ajustar = el('button', 'btn btn--sm btn--ghost', AJUSTAR, botoes);
+    certo.setAttribute('type', 'button'); ajustar.setAttribute('type', 'button');
+    certo.addEventListener('click', function () {
+      if (botoes.parentNode) botoes.parentNode.removeChild(botoes);
+      el('p', 'mpc-fala', CERTO + '.', a);
+    });
+    ajustar.addEventListener('click', function () { if (typeof i.opcoes.aoAjustar === 'function') { try { i.opcoes.aoAjustar(); } catch (e) { aviso(e); } } });
+    i.acoes = a; i.btnAjustar = ajustar;
+    editavel(i);
+  }
+  function editavel(i) { if (i.btnAjustar) i.btnAjustar.hidden = i.opcoes.editavel !== true; }
   /* (revisão do 5b) girar a tela ou mudar a largura: refaz na largura nova, já pronto, sem entrada nem som (como o esboço); a entrada que ainda
      corria para, e o valor que a esperava é liberado */
   function recompor(i) {
@@ -339,6 +360,7 @@
     var pele = op.pele === 'caixa' || op.pele === 'trilho' ? op.pele : PELE;
     var quadro = el('div', 'mpc-quadro mpc-pele-' + pele, null, wrap);
     if (v.plano.fecho) el('p', 'mpc-fecho', v.plano.fecho, wrap);
+    var lugarDasAcoes = el('div', 'mpc-lugar-acoes', null, wrap);
     leitura(v.plano, wrap);
     var status = el('p', 'mpc-status', '', wrap);
     status.setAttribute('role', 'status');
@@ -346,6 +368,7 @@
     var i = { raiz: raizEl, wrap: wrap, quadro: quadro, status: status, plano: v.plano, json: JSON.stringify(v.plano), opcoes: op,
       pele: pele, rel: Relogio.criar(), io: null, aoVisivel: null, naTela: true, pronto: false, aoResize: null, timerResize: 0 };
     inst = i;
+    acoes(i, lugarDasAcoes);
     var anima = op.animar !== false && !reduzido() && typeof quadro.animate === 'function';
     /* (revisão do 5b) a altura de cada caixa é medida: com a fonte ainda chegando, o quadro espera escondido (o lugar já reservado) e só então
        se mede, mostra e entra; uma exceção no meio não deixa nada vivo */
@@ -377,6 +400,7 @@
     if (!v || !v.ok) return { ok: false, motivos: (v && v.motivos) || ['forma'] };
     var op = inst.opcoes, k;
     if (opcoes) for (k in opcoes) if (Object.prototype.hasOwnProperty.call(opcoes, k)) op[k] = opcoes[k];
+    editavel(inst);
     if (JSON.stringify(v.plano) === inst.json) return { ok: true, refeita: false };
     var r = montar(inst.raiz, v.plano, op);
     return r.ok ? { ok: true, refeita: true } : r;

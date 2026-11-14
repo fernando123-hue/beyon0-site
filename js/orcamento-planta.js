@@ -19,7 +19,7 @@
   });
   var versaoDoPlano = function (plano) { return typeof plano.estrutura === 'string' ? 'v3' : typeof plano.topologia === 'string' ? 'v2' : ''; };
   var TEXTO_CERTO = 'A planta está certa.';
-  var DICA_AJUSTE = 'Diga o que mudar na planta.';
+  var DICA_AJUSTE = 'Diga o que mudar na planta.', DICA_AJUSTE_MAPA = 'Diga o que mudar no mapa.';
   var ROTULO_BOTAO = 'Ver a planta do seu site';
   var ESPERA_ROLAGEM = 150, FALA_MAX = 120, NOME_MAX = 40;
   /* a planta viva v2 (decisões do dono de 12/11): abaixo de 960 px a planta consagra NO CARTÃO da conversa (js/orcamento-planta-esboco.js) e a faixa
@@ -285,7 +285,7 @@
       if (!editavel()) return;
       var t = $('o-texto'), form = $('o-form');
       if (!t) return;
-      t.placeholder = DICA_AJUSTE;
+      t.placeholder = st.v === 'v3' ? DICA_AJUSTE_MAPA : DICA_AJUSTE;
       /* a faixa fica longe da conversa: rola como "Perguntar ao consultor" e foca sem rolar de novo */
       if (form && typeof form.scrollIntoView === 'function') form.scrollIntoView({ block: 'center' });
       t.focus({ preventScroll: true });

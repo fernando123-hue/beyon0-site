@@ -208,3 +208,44 @@ test('exceção no meio da montagem: nada fica vivo (ouvintes, observador), a ra
   assert.ok(a.avisos.some((x) => /boom/.test(x)));
   a.w.BZMapaLayout = original;
 });
+
+/* ---------- 5c: "Ficou certo?" dentro do cartão (spec §7.4; desenho do PR 5 §4 e §9) ---------- */
+const acoesDe = (raiz) => raiz.porClasse('mpc-acoes')[0];
+const botaoDe = (raiz, texto) => raiz.porTag('button').find((b) => b.textContent === texto);
+test('"Ficou certo?": o lugar existe desde a montagem (sem pular a página), mas a pergunta só aparece quando o mapa fica pronto', () => {
+  const a = ambiente({ reduzido: false });
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true });
+  const acoes = acoesDe(a.raiz);
+  assert.ok(acoes, 'o lugar das ações é criado na montagem');
+  assert.ok(acoes.classList.contains('is-espera'), 'invisível (o espaço já reservado) até o mapa ficar pronto');
+  a.w.avancar(20000);
+  assert.ok(!acoes.classList.contains('is-espera'));
+  assert.ok(acoes.textContent.includes('Montei o mapa do seu caso. Ficou certo?'));
+  assert.ok(botaoDe(a.raiz, 'Está certo') && botaoDe(a.raiz, 'Quero ajustar algo'));
+  for (const b of acoes.porTag('button')) assert.equal(b.getAttribute('type'), 'button');
+});
+
+test('"Está certo" é só uma fala na tela: não chama aoCerto (não gasta IA, nada é gravado), e os botões saem', () => {
+  const a = ambiente({ reduzido: true });
+  let certo = 0;
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true, aoCerto: () => { certo++; return true; } });
+  botaoDe(a.raiz, 'Está certo').disparar('click');
+  assert.equal(certo, 0, 'nenhum envio');
+  assert.ok(a.raiz.porClasse('mpc-fala')[0].textContent.includes('Está certo.'));
+  assert.equal(acoesDe(a.raiz).porTag('button').length, 0, 'os botões saem');
+});
+
+test('"Quero ajustar algo" chama aoAjustar (a cola foca a caixa com a dica); sem a planta editável o botão não existe e aparece quando volta a ser', () => {
+  const a = ambiente({ reduzido: true });
+  let ajuste = 0;
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true, aoAjustar: () => { ajuste++; } });
+  botaoDe(a.raiz, 'Quero ajustar algo').disparar('click');
+  assert.equal(ajuste, 1);
+  a.D.atualizar(planoDe('caminho'), { editavel: false });
+  assert.equal(botaoDe(a.raiz, 'Quero ajustar algo').hidden, true, 'com o pedido confirmado, o ajuste some');
+  a.D.atualizar(planoDe('caminho'), { editavel: true });
+  assert.equal(botaoDe(a.raiz, 'Quero ajustar algo').hidden, false);
+  const b = ambiente({ reduzido: true });
+  b.D.montar(b.raiz, planoDe('caminho'), { editavel: false });
+  assert.equal(botaoDe(b.raiz, 'Quero ajustar algo').hidden, true);
+});
