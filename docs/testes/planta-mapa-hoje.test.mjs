@@ -47,7 +47,8 @@ const RECUSADAS = [
   ['Resposta pronta todo dia', 'prazo'], ['Respondo o valor por metro', 'preco'], ['Explico o preço por hora de serviço', 'preco'], ['Passamos o valor sempre igual para todos', 'preco'],
   ['Explica o preço e a conta fecha sozinha', 'preco'], ['Repetimos o valor de novo e fechamos', 'preco'], ['Gente de verdade responde cada dúvida', 'negar_ia'],
   ['Alguém de verdade atende aqui', 'negar_ia'], ['O atendimento é feito por pessoas', 'negar_ia'], ['Atendimento humano o dia todo', 'negar_ia'],
-  ['Na minha cabeça tudo se resolve', 'negar_ia'], ['Eu mesmo respondo cada um', 'negar_ia']
+  ['Na minha cabeça tudo se resolve', 'negar_ia'], ['Eu mesmo respondo cada um', 'negar_ia'],
+  ['eu atendo e o site responde de madrugada', 'prazo'], ['no site perguntam o valor e compram', 'preco']   /* (a fala do site nunca ganha folga, nem com 1ª pessoa junto) */
 ];
 
 test('as recusas, com o motivo exato: preço como valor ou juízo, promessa, garantia, marca, número, prazo fora da lista ou na fala do site, negar ser IA', () => {
