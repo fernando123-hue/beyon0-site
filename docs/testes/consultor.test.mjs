@@ -322,7 +322,7 @@ test('vendedor: o prompt traz a persona, as objeções e o que nunca dizer', () 
   assert.ok(s.includes('o atendente de IA é um chat dentro do site do cliente') && s.includes('ainda não está pronto: sem prazo, valor, preço nem teste grátis'), 'o atendente existe e não promete');
   assert.doesNotMatch(s, /teste grátis de 10 dias|atendente de IA no WhatsApp/, 'sem teste grátis nem WhatsApp no atendente');
   assert.match(s, /sem prazo, valor, preço nem teste grátis/);
-  assert.match(s, /Todo o resto você não confirma: de quem fica o código \(só que os arquivos são entregues se o cliente pedir\), contrato, CNPJ, garantia, qualquer preço do atendente de IA/, 'o que o Zero não confirma (31/10)');
+  assert.match(s, /Todo o resto você não confirma: contrato, CNPJ, garantia, qualquer preço do atendente de IA/, 'o que o Zero não confirma (31/10; o código é do cliente desde 14/11)');
 });
 
 test('vendedor: a dor vem antes do formato, a recomendação vem com o preço, e quem quer fechar fecha', () => {

@@ -571,7 +571,7 @@ test('tela: a página de orçamento mostra o Zero como IA (etiqueta e primeira f
 
 test('prompt: fatos decididos pelo dono em 01/11 (domínio, hospedagem, nota) e a negociação sem desconto', () => {
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
-  for (const trecho of ['fica no nome do cliente', 'hospedado de graça na Cloudflare', 'Nota fiscal: ainda não há', 'negocie sem baixar o valor', 'o resto entra depois, item a item, pela tabela'])
+  for (const trecho of ['fica no nome do cliente', 'hospedado de graça no plano gratuito da Cloudflare, numa conta no nome do cliente', 'Nota fiscal: ainda não há', 'negocie sem baixar o valor', 'o resto entra depois, item a item, pela tabela'])
     assert.ok(s.includes(trecho), 'falta no prompt: ' + trecho);
   assert.doesNotMatch(s, /mensalidade, hospedagem e de quem é/, 'mensalidade e hospedagem saíram da lista do que não se confirma');
   assert.doesNotMatch(s, /R\$ ?(800|1\.900)/, 'a oferta de lançamento não entra no texto do Zero');
@@ -1244,6 +1244,19 @@ test('público: o prompt do Zero e as respostas fixas não dizem "operação peq
   const textos = [montarPromptEfetivo(), montarAbertura(), fixos.IDENTIDADE_FIXO, fixos.IDENTIDADE_SEM_RECADO, fixos.EXPERIENCIA_FIXO, fixos.EQUIPE_FIXO];
   for (const t of textos) assert.doesNotMatch(t, PEQUENO);
   assert.match(fixos.EQUIPE_FIXO, /tocada pelo dono/, 'segue verdadeiro: quem toca é o dono');
+});
+
+/* ---------- 9. hospedagem e código (dono, 14/11/2026): conta Cloudflare no nome do cliente; código do cliente ---------- */
+test('hospedagem e código: o Zero diz conta no nome do cliente e código do cliente; páginas sem "conta da Beyon"', async () => {
+  const { montarPromptEfetivo } = await import('../zero/gerar.mjs');
+  const p = montarPromptEfetivo();
+  assert.match(p, /numa conta no nome do cliente/);
+  assert.match(p, /O código também é do cliente/);
+  assert.doesNotMatch(p, /não confirma: de quem fica o código/);
+  for (const pag of ['../../condicoes.html', '../../sites.html', '../../index.html']) {
+    const html = fs.readFileSync(new URL(pag, import.meta.url), 'utf8');
+    assert.doesNotMatch(html, /na conta da Beyon|valor por mês escrito na proposta/, pag);
+  }
 });
 
 import './planta-todos.test.mjs';
