@@ -103,6 +103,7 @@ test('proximoPasso: com planta, estimativa, sem plano gravado e preço aberto, c
   assert.ok(PREFIXO_PLANTA.startsWith('Antes de tudo neste turno, chame desenhar_planta (uma vez)'));
   assert.ok(PREFIXO_PLANTA.endsWith('Depois: '));
   assert.match(PREFIXO_PLANTA, /em uma frase/);
+  assert.match(PREFIXO_PLANTA, /montou o mapa do seu caso/, '(PR 4) o texto aprovado do mapa');
   for (const etapa of ['descoberta', 'contato']) assert.equal(proximoPasso({ ...BASE, etapa, planta: true }), PREFIXO_PLANTA + proximoPasso({ ...BASE, etapa }), etapa);
 });
 

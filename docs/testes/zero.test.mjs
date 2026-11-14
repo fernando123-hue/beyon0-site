@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import { executarTurno } from '../../api/_vendas/agente.mjs';
 import { montarSistema, ferramentas, IDENTIDADE } from '../../api/_vendas/consultor.mjs';
 import { PAPEIS, TETOS, custoUsd, RESERVA_USD } from '../../api/_ia/config.mjs';
+import { MAX_VERSOES } from '../../api/_vendas/planta.mjs';
 import {
   RECADO_FIXO, ETIQUETA, ABERTURA_PADRAO, ABERTURAS, semPromessaDeRecado, nichoRegulado, pedeItemProibido,
   garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna, pedeValor, garantirValor, cortarEmFrase, semPromessaDeDesconto
@@ -520,7 +521,7 @@ test('tetos: uma conversa longa de verdade, no Sonnet médio, cabe no teto da co
   assert.ok(RESERVA_USD.conversa <= 0.1);
 });
 
-test('tetos: o turno da planta (4 voltas, 1.300 tokens de saída no plano) custa pouco e uma conversa com 4 versões da planta ainda cabe no teto', () => {
+test('tetos: o turno da planta (4 voltas, 1.300 tokens de saída no plano) custa pouco e uma conversa com 6 versões do mapa ainda cabe no teto', () => {
   const sistema = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
   const planta = ferramentas(REGRAS, { planta: true }).find(f => f.name === 'desenhar_planta');
   /* o prefixo de cache leva o sistema E as ferramentas (a descrição da planta tem três exemplos completos) */
@@ -535,11 +536,15 @@ test('tetos: o turno da planta (4 voltas, 1.300 tokens de saída no plano) custa
   assert.ok(turnoDaPlanta < 2 * RESERVA_USD.conversa, 'o turno da planta (US$ ' + turnoDaPlanta.toFixed(3) + ') passou de duas reservas de conversa');
   assert.ok(turnoDaPlanta < TETOS.conversa_usd * 0.05, 'um turno da planta ocupa mais que 5% do teto da conversa');
   const normal = c => 2 * custoUsd('claude-sonnet-5-5', { cache_leitura: c, entrada: 3500, saida: 900 });
-  /* uma conversa de 30 turnos com a flag ligada: todo turno de preço aberto lê as ferramentas da planta do cache, e 4 deles são turnos de desenho (26 + 4).
-     Medido em 05/11: US$ 1,07 hoje contra US$ 1,20 com a planta (+12%, sob os 65% do teto de US$ 2); o teste prende o +15% */
-  const hoje = 30 * normal(Math.ceil(sistema.length / 3)), comPlanta = 26 * normal(cache) + 4 * turnoDaPlanta;
-  assert.ok(comPlanta < hoje * 1.15, 'a planta encarece a conversa longa em mais de 15%: ' + (comPlanta / hoje).toFixed(3));
-  assert.ok(comPlanta < TETOS.conversa_usd * 0.65, 'a conversa longa com 4 desenhos passa de 65% do teto (' + comPlanta.toFixed(2) + ')');
+  /* uma conversa de 30 turnos com a flag ligada: todo turno de preço aberto lê as ferramentas do mapa do cache, e 6 deles são turnos de desenho (24 + 6,
+     o teto de versões do PR 4). Medido em 14/11: US$ 1,07 hoje contra US$ 1,24 com o mapa (+16,1%, 62% do teto de US$ 2). Quase tudo vem de 6 turnos de
+     desenho em vez de 4 (sem nenhum exemplo na descrição seria +14,5%; com 4 desenhos, +11,9%): o PR 4 sobe a trava de +15% para +17% e mantém os 65% do teto */
+  const hoje = 30 * normal(Math.ceil(sistema.length / 3)), comPlanta = 24 * normal(cache) + MAX_VERSOES * turnoDaPlanta;
+  assert.equal(MAX_VERSOES, 6);
+  assert.ok(comPlanta < hoje * 1.17, 'o mapa encarece a conversa longa em mais de 17%: ' + (comPlanta / hoje).toFixed(3));
+  assert.ok(comPlanta < TETOS.conversa_usd * 0.65, 'a conversa longa com 6 desenhos passa de 65% do teto (' + comPlanta.toFixed(2) + ')');
+  /* (PR 4) as 6 reservas de um turno de desenho cabem no teto da conversa, mesmo no pior caso */
+  assert.ok(MAX_VERSOES * RESERVA_USD.conversa_planta <= TETOS.conversa_usd, MAX_VERSOES + ' x ' + RESERVA_USD.conversa_planta + ' passa do teto de ' + TETOS.conversa_usd);
   assert.equal(montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] }), sistema, 'nada entrou no prompt de sistema');
 });
 
