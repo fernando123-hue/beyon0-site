@@ -12,7 +12,8 @@ const gz = (buf) => zlib.gzipSync(buf, { level: 9 }).length;
 const MODULOS = ['js/planta-pecas.js', 'js/planta-layout.js', 'js/planta-desenho.js'];
 
 test('JS do desenho: no máximo 21.200 bytes com gzip -9 (soma dos três arquivos; 20.000 na spec, +500 na rodada de correção do 2d: avisos de falha do Está certo; +700 na planta viva v2: a entrada que parte do esboço (voo, luz e ouro) no lugar do emaranhado, que saiu, medido em 12/11: 20.324 -> 21.080)', () => {
-  const por = MODULOS.map((m) => [m, gz(ler(m))]);
+  /* (14/11) medido com LF, o que o deploy serve: com CRLF (cópia no Windows) dava 21.2xx e falhava só na máquina do dono */
+  const por = MODULOS.map((m) => [m, gzLF(m)]);
   const soma = por.reduce((s, [, n]) => s + n, 0);
   assert.ok(soma <= 21200, 'gzip -9 soma ' + soma + ' bytes (' + por.map(([m, n]) => m + ' ' + n).join(', ') + ')');
 });
