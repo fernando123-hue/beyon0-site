@@ -598,14 +598,14 @@ export const SABOTAGENS = [
   { nome: "mapa: a máscara do \"hoje\" cobre qualquer preço", fonte: "api/_vendas/planta-textos.mjs", testes: ['docs/testes/planta-mapa-hoje.test.mjs'],
     de: "const t = s.replace(PRECO_COMO_DUVIDA, '$1assunto')", para: "const t = s.replace(/\\bprecos?\\b/g, 'assunto')" },
   { nome: "mapa: o \"hoje\" pula a raiz de promessa", fonte: "api/_vendas/planta-textos.mjs", testes: ['docs/testes/planta-mapa-hoje.test.mjs'],
-    de: "const RAIZES_DO_HOJE = { ...RAIZES, negar_ia: NEGAR_IA_DO_HOJE };", para: "const RAIZES_DO_HOJE = { ...RAIZES, negar_ia: NEGAR_IA_DO_HOJE, promessa: /(?!)/ };" },
+    de: "negar_ia: NEGAR_IA_DO_HOJE };", para: "negar_ia: NEGAR_IA_DO_HOJE, promessa: /(?!)/ };" },
   /* (as correções da revisão de segurança do PR 4: M1, M2b e B1) */
   { nome: "mapa: as folgas do \"hoje\" valem também na fala do site (\"O site responde de madrugada\")", fonte: "api/_vendas/planta-textos.mjs", testes: ['docs/testes/planta-mapa-hoje.test.mjs'],
     de: "  if (FALA_DO_SITE.test(s)) return s;\n", para: "  /* sem a fala do site */\n" },
   { nome: "mapa: o prazo do cotidiano mascarado fora da 1ª pessoa de quem atende", fonte: "api/_vendas/planta-textos.mjs", testes: ['docs/testes/planta-mapa-hoje.test.mjs'],
     de: "return ROTINA_EM_PRIMEIRA_PESSOA.test(t) ? t.replace(PRAZO_DO_COTIDIANO_RE, 'quando') : t;", para: "return t.replace(PRAZO_DO_COTIDIANO_RE, 'quando');" },
   { nome: "mapa: negar ser IA no \"hoje\" volta à regra forte (\"gente de verdade\" passa)", fonte: "api/_vendas/planta-textos.mjs", testes: ['docs/testes/planta-mapa-hoje.test.mjs'],
-    de: "const RAIZES_DO_HOJE = { ...RAIZES, negar_ia: NEGAR_IA_DO_HOJE };", para: "const RAIZES_DO_HOJE = { ...RAIZES, negar_ia: NEGAR_IA_FORTE };" },
+    de: "negar_ia: NEGAR_IA_DO_HOJE };", para: "negar_ia: NEGAR_IA_FORTE };" },
   { nome: "mapa: a versão compacta aceita id fora das listas (o plano do briefing vem cru)", fonte: "api/_vendas/planta.mjs", testes: ['docs/testes/planta-mapa-ferramenta.test.mjs'],
     de: "const idValido = id => typeof id === 'string' && (id === 'objetivo' || (M.ID_NO.test(id) && !M.IDS_RESERVADOS.includes(id)));", para: "const idValido = id => typeof id === 'string';" },
   /* (a re-revisão das correções do PR 4) */
