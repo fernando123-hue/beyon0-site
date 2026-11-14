@@ -171,6 +171,18 @@ html.js .spec.is-in .spec__item:nth-child(6) h3::before { transition-delay: .3s;
    crescia no foco saiu com a direção C, 2026-10-20) */
 .is-foco .passo__n { color: var(--ac-3); }
 
+/* ---- A CORRENTE (js/energia-texto.js, dono 13/11: as palavras ciano "energizadas") ----
+   Cada letra da palavra ciano do h1 tem uma cópia clara por cima que só muda de opacidade, em degraus secos: a luz
+   corre pela palavra letra a letra (--corrente-i, a ordem da letra, fixada uma vez no JS) e deixa um rastro de três degraus. Nada de desfoque. */
+.tem-corrente .corrente__l { position: relative; }
+.tem-corrente .corrente__l::after {
+  content: attr(data-l); content: attr(data-l) / ""; position: absolute; left: 0; top: 0; line-height: normal; color: var(--t1); opacity: 0; pointer-events: none;
+  animation: corrente 2.6s steps(1, end) calc(var(--corrente-i, 0) * 35ms) infinite backwards;
+}
+/* (o leitor de tela não lê a cópia: texto alternativo vazio acima; nas camadas do glitch do giro, js/giro.js, ela some) */
+.giro__camada .corrente__l::after { display: none; }
+@keyframes corrente { 0% { opacity: 0; } 1% { opacity: 1; } 4% { opacity: .55; } 7% { opacity: .25; } 10%, 100% { opacity: 0; } }
+
 /* ---- MOVIMENTO REDUZIDO: nada escondido, nada em loop ---- */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -187,6 +199,7 @@ html.js .spec.is-in .spec__item:nth-child(6) h3::before { transition-delay: .3s;
   .feixe__linha, .hero__status .dot, .painel::after, .celula::before, .console::after, .console__led { animation: none; }
   .feixe { display: none; }
   .btn::after { display: none; }
+  .corrente__l::after { display: none; }
 }
 html.menos-movimento { scroll-behavior: auto; }
 html.menos-movimento .hero__cota-rot { opacity: 1; }
@@ -200,6 +213,7 @@ html.menos-movimento .hero__title em, html.menos-movimento h2 em { color: var(--
 html.menos-movimento .hero__rail-aresta { animation: none; }
 html.menos-movimento .feixe__linha, html.menos-movimento .hero__status .dot, html.menos-movimento .painel::after, html.menos-movimento .celula::before, html.menos-movimento .console::after, html.menos-movimento .console__led { animation: none; }
 html.menos-movimento .feixe { display: none; }
+html.menos-movimento .corrente__l::after { display: none; }
 html.menos-movimento .btn::after { display: none; }
 
 /* ---- máscaras do SplitText com folga (rodada 5): o padding aumenta a caixa

@@ -298,6 +298,8 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
      (um material só para tudo deixava a régua inteira com o mesmo peso) */
   const matRegua = aditivo(G.cor, G.alfa);
   const matReguaLonga = aditivo(G.cor, G.alfaLonga);
+  const regua = new THREE.Group();
+  raiz.add(regua);
   {
     const geoMarca = guarda(new THREE.BoxGeometry(G.marca, 0.02, G.marca));
     const nLongas = Math.ceil(G.n / G.longa);
@@ -314,7 +316,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
       m.updateMatrix();
       if (longa) longas.setMatrixAt(il++, m.matrix); else curtas.setMatrixAt(ic++, m.matrix);
     }
-    raiz.add(curtas, longas);   /* parada: o estator (spec.regua) */
+    regua.add(curtas, longas);   /* gira ao contrário do portal (spec.regua) */
     descartar.push(curtas, longas);
   }
 
@@ -484,7 +486,10 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
       por4(pa.campo.uCampo.value, (c.x * cg - c.y * sg) / esc, (c.x * sg + c.y * cg) / esc, c.f * k, CA.raio / esc);
       por4(pa.campo.uOnda.value, (tq.x * cg - tq.y * sg) / esc, (tq.x * sg + tq.y * cg) / esc, frente / esc, forcaOnda * k);
     }
-    /* o tracejado fica parado (spec.tracejado): não gira */
+    /* régua e tracejado giram ao contrário do portal (dono, 13/11), cada um no
+       seu passo; no impulso (rolagem, cliques) também vão para o lado oposto */
+    regua.rotation.z = t * G.vel + G.arrasto * extra;
+    tracejado.rotation.z = t * TR.vel + TR.arrasto * extra;
     tracejado.scale.setScalar(1 + respira(t, RS.tracejado));
     matTracejado.opacity = TR.alfa * suave(m);
 

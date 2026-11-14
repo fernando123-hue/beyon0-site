@@ -15,9 +15,8 @@
       palavra a cada ~4 s enquanto está na tela, pela descarga. As listas
       estão no HTML (o dono edita lá). Uma alternativa que mudaria a altura
       do título nesta largura de tela fica de fora (nada pula na página).
-   2. O SURTO: a palavra de destaque do título do hero leva uma descarga
-      rápida de vez em quando (12 a 20 s), sem trocar. (O "Zero" da marca
-      escrita também levava; desde 2026-10-12 a marca é a logo, um desenho.)
+   2. O SURTO (até 13/11: uma descarga no destaque do h1 a cada 12 a 20 s)
+      virou A CORRENTE (seção 4): a luz corre pela palavra o tempo todo.
    3. B.energizar(el|textNode, {para, ms}): a ignição do botão quando o mini
       AI Core encaixa (js/mini-docas.js).
    Movimento reduzido: nada disso; o texto fica o original.
@@ -29,7 +28,6 @@
   var html = document.documentElement;
   var FAISCAS = '/\\|+*:·=';
   var VIVA = { troca: 4000, descarga: 720, primeira: 2200 };
-  var SURTO = { min: 12000, max: 20000, descarga: 460 };
   function reduzido() { return !!B.reduced || html.classList.contains('menos-movimento'); }
   function faisca() { return FAISCAS.charAt((Math.random() * FAISCAS.length) | 0); }
 
@@ -141,18 +139,46 @@
     window.addEventListener('resize', function () { cabem = null; });
   }
 
-  /* ---------- 2. O SURTO ---------- */
-  /* alvo: o elemento, ou uma função que diz qual é na hora (o h1 da home gira entre frases, js/giro.js) */
-  function surto(caixa, alvo) {
-    var visivel = false;
-    new IntersectionObserver(function (es) { visivel = es[0].isIntersecting; }).observe(caixa);
-    (function agendar() {
-      setTimeout(function () {
-        var el = typeof alvo === 'function' ? alvo() : alvo;
-        if (el && visivel && !reduzido() && !document.hidden && !el.querySelector('.energizando')) B.energizar(el, { ms: SURTO.descarga });
-        agendar();
-      }, SURTO.min + Math.random() * (SURTO.max - SURTO.min));
-    })();
+  /* ---------- 4. A CORRENTE (dono, 13/11: "as palavras em ciano devem passar [...] a sensação de estarem
+     energizadas") ---------- */
+  /* A palavra ciano do h1 fica sempre carregada: uma luz nítida corre por ela, letra por letra, a cada 2,6 s.
+     Cada letra ganha uma cópia branca por cima (::after, css/motion.css) que só muda de OPACIDADE, em degraus secos
+     (compositor; nada de desfoque nem de cor por quadro). Substitui o surto no h1: a descarga reescreve o texto e
+     apagaria as letras. O SplitText e o giro recriam ou clonam o título: um MutationObserver reaplica onde faltar. */
+  function letras(em) {
+    if (em.querySelector('.energizando')) return;   /* (no meio de uma descarga: ela reescreve o texto) */
+    var folhas = [].filter.call(em.querySelectorAll('*'), function (e) { return !e.children.length && e.textContent.trim(); });
+    if (!folhas.length && !em.children.length && em.textContent.trim()) folhas = [em];
+    var n = 0;
+    folhas.forEach(function (f) {
+      var texto = f.textContent;
+      f.textContent = '';
+      for (var i = 0; i < texto.length; i++) {
+        var s = document.createElement('span');
+        s.className = 'corrente__l';
+        s.textContent = texto.charAt(i);
+        s.setAttribute('data-l', texto.charAt(i));
+        if (texto.charAt(i).trim()) s.style.setProperty('--corrente-i', n++);   /* fixo: o atraso da letra (css/motion.css) */
+        f.appendChild(s);
+      }
+    });
+  }
+  function corrente(titulo) {
+    var aplicar = function () {
+      [].forEach.call(titulo.querySelectorAll('em'), function (em) {
+        if (em.textContent.trim() && !em.querySelector('.corrente__l')) letras(em);
+      });
+    };
+    aplicar();
+    titulo.classList.add('tem-corrente');
+    var pendente = 0;
+    /* as camadas do glitch do giro são cópias (js/giro.js): entrar ou mexer nelas não conta */
+    var camada = function (n) { return n.nodeType === 1 && (n.classList.contains('giro__camada') || !!n.closest('.giro__camada')); };
+    var soCamadas = function (m) { return camada(m.target) || (m.addedNodes.length > 0 && [].every.call(m.addedNodes, camada)); };
+    new MutationObserver(function (ms) {
+      if (pendente || ms.every(soCamadas)) return;
+      pendente = requestAnimationFrame(function () { pendente = 0; if (!reduzido()) aplicar(); });
+    }).observe(titulo, { childList: true, subtree: true });
   }
 
   /* começa depois do load e com o navegador folgado: nada disso disputa o boot do hero */
@@ -162,11 +188,7 @@
     for (var i = 0; i < titulos.length; i++) if (titulos[i].querySelector('em[data-palavras]')) palavraViva(titulos[i]);
     var heroTitulo = document.querySelector('.hero__title');
     var destaque = heroTitulo && heroTitulo.querySelector('em');
-    /* no giro, só a frase à mostra e nunca no meio de uma troca (as camadas do glitch são cópias) */
-    if (destaque && heroTitulo.querySelector('.giro__frase')) surto(heroTitulo, function () {
-      return heroTitulo.querySelector('.giro__camada') ? null : heroTitulo.querySelector('.giro__frase.is-ativa em');
-    });
-    else if (destaque) surto(destaque, destaque);
+    if (destaque) corrente(heroTitulo);
     /* (a marca escrita tinha um surto no "Zero"; a logo é desenho: a luz dela passa por css/motion.css) */
   }
   var ocioso = window.requestIdleCallback || function (f) { return setTimeout(f, 600); };
