@@ -1233,7 +1233,7 @@ test('rodada 3 [I2]: dado inventado em anedota ("um dentista que atendemos tripl
 /* trava "negar ser IA": os testes ficam em travas-identidade.test.mjs (este arquivo está na lista do script testar) */
 import './travas-identidade.test.mjs';
 /* a planta viva: o agregador roda todo planta-*.test.mjs sem mexer no package.json (nível 3) */
-import './planta-todos.test.mjs';
+
 
 /* ---------- 8. público (dono, 14/11/2026): a marca fala com empresas de qualquer porte; o Zero não diz que a Beyon é
    pequena (nem que é grande) ---------- */
@@ -1245,3 +1245,5 @@ test('público: o prompt do Zero e as respostas fixas não dizem "operação peq
   for (const t of textos) assert.doesNotMatch(t, PEQUENO);
   assert.match(fixos.EQUIPE_FIXO, /tocada pelo dono/, 'segue verdadeiro: quem toca é o dono');
 });
+
+import './planta-todos.test.mjs';
