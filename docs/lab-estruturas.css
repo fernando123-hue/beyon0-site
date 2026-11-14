@@ -90,3 +90,30 @@ body { margin: 0; background: var(--bg); color: var(--t2); font-family: var(--sa
   .lab-casos { max-width: 520px; }
   .le-h2 { font-size: 24px; }
 }
+
+/* ---------- as duas peles (14/11, para o dono escolher; a geometria é a mesma) ---------- */
+/* CAIXA: o contorno de canto cortado da planta (05/11 e 12/11), com o fundo s2 quando acesa; o texto fica por cima do contorno */
+.pele-caixa .le-no { border: 0; border-radius: 0; background: transparent; }
+.le-moldura { position: absolute; left: 0; top: 0; overflow: visible; z-index: 0; }
+.le-moldura path { fill: var(--s2); stroke: var(--cor); stroke-width: 1; transition: stroke .5s var(--ease); }
+.pele-caixa .le-no > .le-moldura { transform: none; }
+.pele-caixa .le-no > :not(.le-moldura) { position: relative; z-index: 1; }
+.pele-caixa .le-no--hoje .le-moldura path { fill: var(--bg); }
+
+/* TRILHO: sem caixa; a estação é o chip (canto cortado com o ícone) e o texto ao lado (celular) ou embaixo (computador) */
+.pele-trilho .le-no { border: 0; border-radius: 0; background: transparent; padding: 0; gap: 12px; }
+.pele-trilho .le-quadro--desk .le-no { padding: 0; gap: 10px; }
+.le-chip { flex: 0 0 auto; width: 36px; height: 36px; overflow: hidden; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.le-chip__borda { fill: var(--s2); stroke: var(--cor); stroke-width: 1.1; transition: stroke .5s var(--ease); }
+.le-chip .le-ico { stroke: var(--t3); stroke-width: 2.6; transition: stroke .5s var(--ease); }
+.le-chip .le-ico__ac { stroke: var(--cor); }
+.le-chip__aro, .le-chip__rumos { stroke: var(--cor); stroke-width: 1.1; transition: stroke .5s var(--ease); }
+.le-chip__disco { fill: var(--cor); stroke: none; transition: fill .5s var(--ease); }
+.pele-trilho .le-no > .le-chip { transition: transform .42s var(--ease); transition-delay: inherit; }
+.pele-trilho .le-no__txt { padding-top: 1px; }
+.pele-trilho .le-quadro--cel .le-no__txt { padding-top: 8px; }
+.pele-trilho .le-no--trava .le-chip .le-ico { stroke: var(--t1); }
+.is-ouro .le-no--objetivo .le-chip__aro, .is-ouro .le-no--objetivo .le-chip__rumos { stroke: rgb(var(--ouro-rgb)); }
+.is-ouro .le-no--objetivo .le-chip__disco { fill: rgb(var(--ouro-2-rgb)); }
+.pele-trilho .is-parado .le-no > .le-chip { transition: none; }
+@media (prefers-reduced-motion: reduce) { .pele-trilho .le-no > .le-chip { transition: none; } }

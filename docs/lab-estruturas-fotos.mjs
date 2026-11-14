@@ -25,6 +25,7 @@ for (const [id, caso] of Object.entries(janela.LAB_ESTRUTURAS_CASOS)) {
   }
 }
 console.log(recusados.length ? 'textos recusados pelo validador do servidor:\n  ✗ ' + recusados.join('\n  ✗ ') : 'textos dos casos: todos passam no validador do servidor ✓');
+const PELE = process.env.PELE === 'trilho' ? 'trilho' : 'caixa';
 const BASE = process.env.BASE || 'http://127.0.0.1:8899', pasta = process.argv[2] || '.';
 const larguras = (process.env.LARGURAS || '390,320,768,1280').split(',').map(Number), casos = (process.env.CASOS || 'clinica,embalagens,loja,limites').split(',');
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
@@ -35,7 +36,7 @@ for (const w of larguras) {
     const pg = await ctx.newPage(), erros = [];
     pg.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') erros.push(m.text()); });
     pg.on('pageerror', e => erros.push(String(e)));
-    await pg.goto(`${BASE}/docs/lab-estruturas.html?caso=${caso}&captura=1&estatico=1`, { timeout: 90000 });
+    await pg.goto(`${BASE}/docs/lab-estruturas.html?caso=${caso}&captura=1&estatico=1&pele=${PELE}`, { timeout: 90000 });
     await pg.waitForFunction(() => window.LAB_ESTRUTURAS && window.LAB_ESTRUTURAS.pronto, null, { timeout: 30000 });
     const info = await pg.evaluate(celular => {
       const sob = (a, b2) => a.left < b2.right - 0.5 && b2.left < a.right - 0.5 && a.top < b2.bottom - 0.5 && b2.top < a.bottom - 0.5;
@@ -62,7 +63,7 @@ for (const w of larguras) {
     }, w <= 430);
     if (info.lateral > 0) info.problemas.push(`rola de lado ${info.lateral} px`);
     info.problemas.push(...erros.map(e => 'console: ' + e));
-    await pg.screenshot({ path: `${pasta}/${caso}-${w}.png`, fullPage: true });
+    await pg.screenshot({ path: `${pasta}/${PELE}-${caso}-${w}.png`, fullPage: true });
     console.log(`${caso} ${w}: alturas ${info.alturas.join('/')}` + (info.problemas.length ? '\n  ✗ ' + info.problemas.join('\n  ✗ ') : ' ✓'));
     falhas += info.problemas.length;
     await pg.close();
