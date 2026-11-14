@@ -1247,3 +1247,22 @@ test('(5c) "Quero ajustar algo" no mapa do caso: foca a caixa com a dica "Diga o
   v2.espiao.montar[0].op.aoAjustar();
   assert.equal(v2.texto.placeholder, 'Diga o que mudar na planta.');
 });
+
+/* (5c) a conversa nova tem itens que não são falas (os toques, o cartão do esboço no fim): o botão ainda acha a fala do Zero certa */
+test('o botão "Ver a planta" acha a fala do Zero mesmo com toques e o cartão do esboço no meio da lista', () => {
+  const amb = ambiente();
+  const E = estado();
+  redesenharLista(amb, E);
+  /* um toque depois da abertura e outro entre as falas, e o cartão do esboço no fim (como a conversa nova monta) */
+  const toque = () => { const li = amb.doc.createElement('li'); li.className = 'orc-toque'; return li; };
+  amb.log.insertBefore(toque(), amb.log.filhos[1]);
+  amb.log.insertBefore(toque(), amb.log.filhos[4]);
+  const cartao = amb.doc.createElement('li'); cartao.className = 'lv-item'; amb.log.appendChild(cartao);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  const b = botoes(amb);
+  assert.equal(b.length, 1, 'o botão aparece');
+  const li = b[0].pai;
+  assert.ok(li.classList.contains('msg--agente'), 'dentro de uma fala do Zero');
+  /* a fala de índice n_mensagens (3) do estado é a 2ª do Zero: "fala 3" */
+  assert.ok(li.textContent.startsWith('fala 3'), li.textContent);
+});
