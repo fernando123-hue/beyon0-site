@@ -1233,4 +1233,17 @@ test('rodada 3 [I2]: dado inventado em anedota ("um dentista que atendemos tripl
 /* trava "negar ser IA": os testes ficam em travas-identidade.test.mjs (este arquivo está na lista do script testar) */
 import './travas-identidade.test.mjs';
 /* a planta viva: o agregador roda todo planta-*.test.mjs sem mexer no package.json (nível 3) */
+
+
+/* ---------- 8. público (dono, 14/11/2026): a marca fala com empresas de qualquer porte; o Zero não diz que a Beyon é
+   pequena (nem que é grande) ---------- */
+test('público: o prompt do Zero e as respostas fixas não dizem "operação pequena" nem "pequenos negócios"', async () => {
+  const { montarPromptEfetivo, montarAbertura } = await import('../zero/gerar.mjs');
+  const fixos = await import('../../api/_vendas/travas-identidade.mjs');
+  const PEQUENO = /opera[çc][ãa]o pequena|pequen[oa]s? neg[óo]cios?|pequena empresa|empresa pequena|pequeno porte|microempres|\bPMEs?\b/i;
+  const textos = [montarPromptEfetivo(), montarAbertura(), fixos.IDENTIDADE_FIXO, fixos.IDENTIDADE_SEM_RECADO, fixos.EXPERIENCIA_FIXO, fixos.EQUIPE_FIXO];
+  for (const t of textos) assert.doesNotMatch(t, PEQUENO);
+  assert.match(fixos.EQUIPE_FIXO, /tocada pelo dono/, 'segue verdadeiro: quem toca é o dono');
+});
+
 import './planta-todos.test.mjs';
