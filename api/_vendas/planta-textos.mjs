@@ -86,7 +86,7 @@ const CARACTERE_DE_FORA = /[^\p{L}\p{M}\s.,:;!?'’"“”()\-–—]/u;
 
 /* sobre o texto em "busca" (paraBusca: minúscula, sem acento, letras soltas juntas, pontuação vira espaço) e sobre a versão "colada" (abaixo) */
 const RAIZES = {
-  preco: /\b(?:precos?|valor|valores|custos?|custa\w*|custar|barat\w+|gratis|gratuit\w+|descontos?|taxas?|mensalidades?|investiment\w+|parcelas?|parcelad\w+|promocao|promocoes|ofertas?|reais|de graca|por menos|pa(?:ga|gar|gue) menos|abatimentos?|abate\w*|economiz\w+|bolso|cobranc\w+|cobrar|cobrando|sem cobr\w+|pa(?:gue|ga|gar) (?:\w+ ){0,3}(?:so|nada|depois|sem)|(?:so|nada|depois|sem) (?:\w+ ){0,2}pa(?:gue|ga|gar))\b/,
+  preco: /\b(?:precos?|valor|valores|custos?|custa\w*|custar|barat\w+|gratis|gratuit\w+|descontos?|taxas?|mensalidades?|investiment\w+|parcelas?|parcelad\w+|promocao|promocoes|ofertas?|reais|de graca|por menos|pa(?:ga|gam|gamos|gar|gue|guem) menos|abatimentos?|abate\w*|economiz\w+|bolso|cobranc\w+|cobrar|cobrando|sem cobr\w+|pa(?:gue|guem|ga|gam|gamos|gar) (?:\w+ ){0,3}(?:so|nada|depois|sem)|(?:so|nada|depois|sem) (?:\w+ ){0,2}pa(?:gue|guem|ga|gam|gamos|gar))\b/,
   numeral: /\b(?:dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzentos|duzentas|trezentos|trezentas|quatrocentos|quatrocentas|quinhentos|quinhentas|seiscentos|seiscentas|setecentos|setecentas|oitocentos|oitocentas|novecentos|novecentas|mil|milhao|milhoes|bilhao|bilhoes)\b/,
   promessa: new RegExp([
     '\\b(?:enche|encher|enchem|lota|lotar|lotam|lotad\\w+|dobra|dobrar|dobram|dobro|triplo|triplica\\w*|quadruplo|quadruplica\\w*|multiplica\\w*|aumenta\\w*|cresc\\w+|dispara\\w*|lucr\\w+|faturamento|faturar|resultados?(?! d[oae]s? (?:exames?|orcamentos?|pedidos?|consultas?|testes?|formularios?|buscas?)\\b)|dobre|dobrem|venda mais|vendem mais|sem esforcos?|primeiro lugar|primeira pagina|topo d[oa]|milhar|milhares|centenas?|dezenas?|duzia|duzias|metade|nunca mais)\\b',
@@ -121,6 +121,22 @@ const SEM_PRIMEIRA_PESSOA = { ...RAIZES, negar_ia: NEGAR_IA_FORTE,
   ordem: new RegExp(RAIZES.ordem.source.replace('ignor\\w+|desconsider\\w+|', '')) };
 /* à prova de no-op silencioso: se alguém mexer nas raízes e o replace deixar de achar o trecho, o módulo nem carrega (as duas pontas da exceção têm teste) */
 if (SEM_PRIMEIRA_PESSOA.promessa.source === RAIZES.promessa.source || SEM_PRIMEIRA_PESSOA.ordem.source === RAIZES.ordem.source) throw new Error('planta-textos: a exceção da fala da pessoa não foi aplicada (o texto das raízes mudou)');
+/* ---------- o "hoje" do mapa do caso (PR 4, plano §2.5 e §2.6): as palavras da PESSOA sobre como é hoje, com a autoridade de "Hoje:" na tela ----------
+   Três folgas, estreitas, só com a opção campo: 'hoje' (sem ela nada muda):
+   - "preço"/"valor" só como o ASSUNTO da pergunta, logo depois de perguntar, responder, explicar, passar, repetir ou "dúvida de/sobre", e antes de
+     conector ("respondo preço e horário na mão", "perguntam o valor no direct"); "quanto custa" só depois de perguntar. Qualquer outro preço (barato,
+     desconto, "preço baixo", "o melhor preço", custo, parcela, reais) continua recusado, e dígito, R$ e % seguem nas outras regras;
+   - o prazo do cotidiano, numa lista fechada ("na hora", "horas", "dias", "de madrugada", "a qualquer hora", "todo dia", "cada dia", "toda semana");
+     "imediato", "rápido", "minutos", "amanhã", "hoje mesmo", número de dias e o resto do prazo continuam recusados;
+   - negar ser IA vale pela regra forte da fala da pessoa ("eu respondo" passa; "sou humano" e "não sou robô" não).
+   As máscaras trocam só o trecho folgado por uma palavra neutra ANTES de procurar as raízes; promessa, garantia, marca e as dez travas rodam igual. */
+export const PRECO_COMO_DUVIDA = /\b((?:pergunt\w*|respond\w*|explic\w*|pass\w*|repet\w*|duvidas? (?:de|sobre)) (?:o |a |de |sobre )?)(?:precos?|valor(?:es)?)(?= (?:e|no|na|nos|nas|pelo|pela|por|um|toda|todo|sempre|de novo)\b|$)/g;
+const QUANTO_CUSTA_PERGUNTADO = /\b(pergunt\w* (?:o )?)quanto custa\b/g;
+export const PRAZO_DO_COTIDIANO = Object.freeze(['na hora', 'horas', 'dias', 'de madrugada', 'a qualquer hora', 'todo dia', 'cada dia', 'toda semana']);
+const PRAZO_DO_COTIDIANO_RE = new RegExp('\\b(?:' + PRAZO_DO_COTIDIANO.map(p => p.replace(/ /g, ' ')).join('|') + ')\\b', 'g');
+const mascararHoje = s => s.replace(PRECO_COMO_DUVIDA, '$1assunto').replace(QUANTO_CUSTA_PERGUNTADO, '$1assunto').replace(PRAZO_DO_COTIDIANO_RE, 'quando');
+const RAIZES_DO_HOJE = { ...RAIZES, negar_ia: NEGAR_IA_FORTE };
+
 const REGULADO = {
   depoimento: /\b(?:depoiment\w*|testemunh\w*|antes (?:e |\/ )?depois|avaliacoes (?:de|dos|das) (?:pacientes|clientes)|casos? de sucesso|historias? de (?:pacientes|clientes)|fotos? de (?:pacientes|clientes)|relatos?|transformac\w+)\b/,
   resultado_regulado: /\b(?:cura\w*|curar|milagr\w*|tratamento garantido|emagrec\w*)\b/
@@ -256,7 +272,7 @@ function achar(mapa, ...buscas) {
 
 /* texto -> { ok: true, texto } | { ok: false, motivo }. A ordem é a do motivo mais útil para quem corrige.
    travas: false roda só a lista dura (o `estado` revalida a cada leitura; as dez travas rodam ao GRAVAR, no turno do modelo: elas custam centenas de ms a frio) */
-export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = false, travas = true, primeiraPessoa = false, cidade = '' } = {}) {
+export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = false, travas = true, primeiraPessoa = false, cidade = '', campo = '' } = {}) {
   try {
     if (typeof bruto !== 'string') return { ok: false, motivo: 'texto' };
     if (bruto.length > TEXTO_MAX_ENTRADA) return { ok: false, motivo: 'longo' };
@@ -282,14 +298,15 @@ export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = fa
     const permitidas = new Set([...nome, ...cidadeValida(cidade).split(' ').map(p => paraBusca(p))]);   /* (a cidade abre só o nome próprio; o idioma e as listas não a conhecem) */
     if (MARCAS_RE.test(paraBusca(t)) || MARCAS_RE.test(colada(t))) return { ok: false, motivo: 'marca' };   /* (antes do idioma: "you tube" é marca, não inglês) */
     if (idiomaRuim(t, nome, primeiraPessoa ? FRACAO_PORTUGUES_MIN_DA_PESSOA : FRACAO_PORTUGUES_MIN)) return { ok: false, motivo: 'idioma' };
-    const busca = paraBusca(t), cola = colada(t);
-    const lexico = achar(primeiraPessoa ? SEM_PRIMEIRA_PESSOA : RAIZES, busca, cola) || (regulado ? achar(REGULADO, busca, cola) : null);
+    const hoje = campo === 'hoje';
+    const busca = hoje ? mascararHoje(paraBusca(t)) : paraBusca(t), cola = hoje ? mascararHoje(colada(t)) : colada(t);
+    const lexico = achar(hoje ? RAIZES_DO_HOJE : primeiraPessoa ? SEM_PRIMEIRA_PESSOA : RAIZES, busca, cola) || (regulado ? achar(REGULADO, busca, cola) : null);
     if (lexico) return { ok: false, motivo: lexico };
     if (regulado && pedeItemProibido(t)) return { ok: false, motivo: 'depoimento' };
     if (MARCAS_RE.test(busca) || MARCAS_RE.test(cola) || temNomeProprio(t, permitidas)) return { ok: false, motivo: 'marca' };
     if (regulado && textoProibido(t)) return { ok: false, motivo: 'depoimento' };
     /* a trava negarIA é para a voz do Zero (finge vida humana: "na minha cabeça", "eu atendo"); a fala da PESSOA (primeiraPessoa) tem a regra própria NEGAR_IA_FORTE acima, que derruba "sou humano" e "não sou robô" */
-    if (travas) for (const trava of TRAVAS) if (!(primeiraPessoa && trava.nome === 'negarIA') && trava.rodar(t) !== t) return { ok: false, motivo: 'trava_' + trava.nome };
+    if (travas) for (const trava of TRAVAS) if (!((primeiraPessoa || hoje) && trava.nome === 'negarIA') && trava.rodar(t) !== t) return { ok: false, motivo: 'trava_' + trava.nome };
     return { ok: true, texto: t };
   } catch {
     return { ok: false, motivo: 'interno' };   /* falha fechado */
