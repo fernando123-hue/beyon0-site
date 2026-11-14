@@ -95,7 +95,7 @@ function conversa({ mensagens, contexto, ferramentas = [] }) {
     /* (fluxo novo, spec 2026-11-13 §2) o turno do valor: o que o site faz, o desenho e o valor, nessa ordem, numa fala só */
     if (String(contexto).includes(TURNO_DO_VALOR_NO_PASSO) && res.some(r => r.prazo_dias)) return resposta(FALA_DO_VALOR);
     /* a planta: o código respondeu ao desenhar_planta */
-    if (res.some(r => r.na_tela)) return resposta(res.some(r => r.exemplo) ? 'Deixei um desenho de exemplo para o seu tipo de negócio, logo abaixo na planta. Eu refaço conforme você me contar mais.' : 'Desenhei o seu site em planta, logo abaixo.');
+    if (res.some(r => r.na_tela)) return resposta(res.some(r => r.exemplo) ? 'Deixei um mapa de exemplo para o seu tipo de negócio, logo abaixo. Eu refaço conforme você me contar mais.' : 'Montei o mapa do seu caso, logo abaixo.');
     const gatilho = (([...mensagens].reverse().find(m => m.role === 'user' && typeof m.content === 'string' && GATILHOS_PLANTA.test(m.content)) || {}).content || '').match(GATILHOS_PLANTA);
     if (gatilho && res.some(r => r.ok === false && Array.isArray(r.erros))) return resposta('', [{ id: id(), nome: 'desenhar_planta', entrada: plantaDoDuble(gatilho[1].toLowerCase() === 'ruim2') }]);
     const gl = gatilhoDeLeitura(mensagens);
