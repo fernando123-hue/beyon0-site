@@ -62,7 +62,7 @@ function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false, falha
     'js/planta-desenho.js': () => { w.BZPlanta = desenho === 'real' ? Desenho.criar(w) : espia.atual.api; },
     /* (PR 5b) o conjunto do mapa do caso v3: a forma real, o resto de mentira (o desenho v3 é um espião próprio) */
     'js/orcamento-mapa-forma.js': () => { if (!semModulos) w.BZMapaForma = FormaMapa; }, 'js/planta-relogio.js': () => { w.BZPlantaRelogio = {}; },
-    'js/mapa-layout.js': () => { w.BZMapaLayout = {}; }, 'js/mapa-desenho.js': () => { w.BZMapa = espia.mapa.api; } };
+    'js/mapa-saber.js': () => { w.BZMapaSaber = {}; }, 'js/mapa-layout.js': () => { w.BZMapaLayout = {}; }, 'js/mapa-desenho.js': () => { w.BZMapa = espia.mapa.api; } };
   const anexar = doc.head.appendChild.bind(doc.head);
   doc.head.appendChild = (s) => {
     anexar(s);
@@ -492,7 +492,7 @@ test('fonte: nada de innerHTML, eval, estilo inline, rAF, escrita de HTML; src s
   assert.deepEqual(Ligacao.CONJUNTOS.v2.modulos, MODULOS);
   assert.equal(Ligacao.CONJUNTOS.v2.css, CSS);
   assert.match(semComentarios, /v2: \{ modulos: \['js\/orcamento-planta-forma\.js', 'js\/planta-pecas\.js', 'js\/planta-layout\.js', 'js\/planta-desenho\.js'\], css: 'css\/orcamento-planta\.css'/);
-  assert.match(semComentarios, /v3: \{ modulos: \['js\/planta-pecas\.js', 'js\/planta-relogio\.js', 'js\/orcamento-mapa-forma\.js', 'js\/mapa-layout\.js', 'js\/mapa-desenho\.js'\], css: 'css\/orcamento-mapa\.css'/);
+  assert.match(semComentarios, /v3: \{ modulos: \['js\/planta-pecas\.js', 'js\/planta-relogio\.js', 'js\/mapa-saber\.js', 'js\/orcamento-mapa-forma\.js', 'js\/mapa-layout\.js', 'js\/mapa-desenho\.js'\], css: 'css\/orcamento-mapa\.css'/);
   assert.doesNotMatch(semComentarios, /CONJUNTOS\[[^\]]+\]\s*=|\.modulos\s*=|\.css\s*=/, 'nada reatribui os conjuntos');
 });
 
@@ -1122,7 +1122,7 @@ test('pós-radar (fonte): o envio incerto de js/orcamento.js (comportamento real
    baixado, nada é avisado no console, a faixa some calada e bz:planta-pronta sai UMA vez por versão (o valor não espera os 20 s de PLANTA_MAX_MS).
    ====================================================================================================================================================== */
 /* ---------- PR 5b: a cola escolhe o conjunto de módulos pela versão do plano (v2: topologia; v3: estrutura) ---------- */
-const MODULOS_V3 = ['js/planta-pecas.js', 'js/planta-relogio.js', 'js/orcamento-mapa-forma.js', 'js/mapa-layout.js', 'js/mapa-desenho.js'];
+const MODULOS_V3 = ['js/planta-pecas.js', 'js/planta-relogio.js', 'js/mapa-saber.js', 'js/orcamento-mapa-forma.js', 'js/mapa-layout.js', 'js/mapa-desenho.js'];
 const CSS_V3 = 'css/orcamento-mapa.css';
 const PLANO_V3 = planoDoCaso('saude_agenda', { origens: ['instagram'] });
 const estadoV3 = (versao = 1, plano = PLANO_V3) => estado({ planta: { versao, origem: 'modelo', n_mensagens: 3, plano } });

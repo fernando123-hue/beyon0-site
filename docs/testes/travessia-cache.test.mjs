@@ -167,11 +167,12 @@ const SEM_V = [
   'js/nucleo/boot.js → /js/nucleo/{cena,gesto,spec,pecas,coroa,shaders}.js (import() e modulepreload) e /vendor/three/three-nucleo.min.js',
   'js/nucleo/{cena,gesto,pecas}.js → ./spec.js ./pecas.js ./coroa.js ./shaders.js ../../vendor/three/three-nucleo.min.js (import estático)',
   'js/orcamento-api.js → /js/recado.js',
-  'js/orcamento-planta.js → js/orcamento-planta-forma.js js/planta-pecas.js js/planta-layout.js js/planta-desenho.js css/orcamento-planta.css (v2) e js/planta-relogio.js js/orcamento-mapa-forma.js js/mapa-layout.js js/mapa-desenho.js css/orcamento-mapa.css (v3, PR 5b)',
+  'js/orcamento-planta.js → js/orcamento-planta-forma.js js/planta-pecas.js js/planta-layout.js js/planta-desenho.js css/orcamento-planta.css (v2) e js/planta-relogio.js js/mapa-saber.js js/orcamento-mapa-forma.js js/mapa-layout.js js/mapa-desenho.js css/orcamento-mapa.css (v3, PR 5b)',
   'js/recado.js → /js/orcamento-turnstile.js /css/recado.css',
   'js/painel-atendente.js → /js/atendente-balao.js (só o texto que o dono cola no site do cliente)',
   'js/planta-desenho.js → ./orcamento-planta-forma.js ./planta-layout.js ./planta-pecas.js (só o require do Node nos testes)',
   'js/planta-cresce.js → ./mapa-saber.js ./orcamento-rotulos.js (só o require do Node nos testes)',
+  'js/mapa-layout.js → ./orcamento-mapa-forma.js (só o require do Node nos testes)',
   'js/orcamento-planta-esboco.js → js/planta-pecas.js js/mapa-saber.js js/planta-cresce.js js/planta-relogio.js js/planta-som.js js/planta-esboco.js css/planta-esboco.css (revalidam sempre)'
 ];
 test('os JS/CSS pedidos por JS sem ?v são exatamente os conhecidos (SEM_V)', () => {
@@ -191,8 +192,8 @@ test('os JS/CSS pedidos por JS sem ?v são exatamente os conhecidos (SEM_V)', ()
     'js/planta-desenho.js ./planta-pecas.js', 'js/recado.js /js/orcamento-turnstile.js', 'js/recado.js css/recado.css','js/recado.js /css/recado.css',
     'js/orcamento-planta-esboco.js js/planta-pecas.js', 'js/orcamento-planta-esboco.js js/planta-cresce.js', 'js/orcamento-planta-esboco.js js/planta-relogio.js',
     'js/orcamento-planta-esboco.js js/planta-som.js', 'js/orcamento-planta-esboco.js js/planta-esboco.js', 'js/orcamento-planta-esboco.js css/planta-esboco.css',
-    'js/orcamento-planta-esboco.js js/mapa-saber.js', 'js/orcamento-planta.js js/planta-relogio.js', 'js/orcamento-planta.js js/orcamento-mapa-forma.js',
-    'js/orcamento-planta.js js/mapa-layout.js', 'js/orcamento-planta.js js/mapa-desenho.js', 'js/orcamento-planta.js css/orcamento-mapa.css', 'js/planta-cresce.js ./mapa-saber.js', 'js/planta-cresce.js ./orcamento-rotulos.js']);
+    'js/orcamento-planta-esboco.js js/mapa-saber.js', 'js/orcamento-planta.js js/planta-relogio.js', 'js/orcamento-planta.js js/mapa-saber.js', 'js/orcamento-planta.js js/orcamento-mapa-forma.js',
+    'js/orcamento-planta.js js/mapa-layout.js', 'js/mapa-layout.js ./orcamento-mapa-forma.js', 'js/orcamento-planta.js js/mapa-desenho.js', 'js/orcamento-planta.js css/orcamento-mapa.css', 'js/planta-cresce.js ./mapa-saber.js', 'js/planta-cresce.js ./orcamento-rotulos.js']);
   assert.deepEqual([...new Set(achados)].filter(x => !conhecidos.has(x)), [], 'carregamento novo sem ?v: avalie o risco e some em SEM_V:\n' + SEM_V.join('\n'));
 });
 test('nenhum JS procura <link>/<script> pelo FIM do endereço ([href$=] / [src$=]): com ?v o fim é o hash', () => {

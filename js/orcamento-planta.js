@@ -12,10 +12,10 @@
 
   /* (PR 5b) dois conjuntos, escolhidos pela VERSÃO do plano: o v2 (topologia) desenha como hoje; o v3 (o mapa do caso, estrutura) tem os seus
      módulos, a sua forma e o seu desenho, com o MESMO contrato (montar/atualizar/parar). URLs constantes. Os módulos comuns aos dois vêm PRIMEIRO no v3:
-     a nova tentativa baixa do 1º que falta em diante, e assim o planta-pecas que o v2 já trouxe não desce de novo */
+     a nova tentativa baixa do 1º que falta em diante, e assim o planta-pecas que o v2 já trouxe não desce de novo. O mapa-saber dá o nome das origens */
   var CONJUNTOS = {
     v2: { modulos: ['js/orcamento-planta-forma.js', 'js/planta-pecas.js', 'js/planta-layout.js', 'js/planta-desenho.js'], css: 'css/orcamento-planta.css', forma: 'BZPlantaForma', validar: 'validarFormaPlano', desenho: 'BZPlanta' },
-    v3: { modulos: ['js/planta-pecas.js', 'js/planta-relogio.js', 'js/orcamento-mapa-forma.js', 'js/mapa-layout.js', 'js/mapa-desenho.js'], css: 'css/orcamento-mapa.css', forma: 'BZMapaForma', validar: 'validarFormaMapa', desenho: 'BZMapa' }
+    v3: { modulos: ['js/planta-pecas.js', 'js/planta-relogio.js', 'js/mapa-saber.js', 'js/orcamento-mapa-forma.js', 'js/mapa-layout.js', 'js/mapa-desenho.js'], css: 'css/orcamento-mapa.css', forma: 'BZMapaForma', validar: 'validarFormaMapa', desenho: 'BZMapa' }
   };
   var versaoDoPlano = function (plano) { return typeof plano.estrutura === 'string' ? 'v3' : typeof plano.topologia === 'string' ? 'v2' : ''; };
   var TEXTO_CERTO = 'A planta está certa.';
