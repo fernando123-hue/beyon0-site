@@ -170,7 +170,8 @@ const SEM_V = [
   'js/recado.js → /js/orcamento-turnstile.js /css/recado.css',
   'js/painel-atendente.js → /js/atendente-balao.js (só o texto que o dono cola no site do cliente)',
   'js/planta-desenho.js → ./orcamento-planta-forma.js ./planta-layout.js ./planta-pecas.js (só o require do Node nos testes)',
-  'js/orcamento-planta-esboco.js → js/planta-pecas.js js/planta-cresce.js js/planta-relogio.js js/planta-som.js js/planta-esboco.js css/planta-esboco.css (revalidam sempre)'
+  'js/planta-cresce.js → ./mapa-saber.js ./orcamento-rotulos.js (só o require do Node nos testes)',
+  'js/orcamento-planta-esboco.js → js/planta-pecas.js js/mapa-saber.js js/planta-cresce.js js/planta-relogio.js js/planta-som.js js/planta-esboco.js css/planta-esboco.css (revalidam sempre)'
 ];
 test('os JS/CSS pedidos por JS sem ?v são exatamente os conhecidos (SEM_V)', () => {
   const achados = [];
@@ -188,7 +189,8 @@ test('os JS/CSS pedidos por JS sem ?v são exatamente os conhecidos (SEM_V)', ()
     'js/painel-atendente.js /js/atendente-balao.js', 'js/planta-desenho.js ./orcamento-planta-forma.js', 'js/planta-desenho.js ./planta-layout.js',
     'js/planta-desenho.js ./planta-pecas.js', 'js/recado.js /js/orcamento-turnstile.js', 'js/recado.js css/recado.css','js/recado.js /css/recado.css',
     'js/orcamento-planta-esboco.js js/planta-pecas.js', 'js/orcamento-planta-esboco.js js/planta-cresce.js', 'js/orcamento-planta-esboco.js js/planta-relogio.js',
-    'js/orcamento-planta-esboco.js js/planta-som.js', 'js/orcamento-planta-esboco.js js/planta-esboco.js', 'js/orcamento-planta-esboco.js css/planta-esboco.css']);
+    'js/orcamento-planta-esboco.js js/planta-som.js', 'js/orcamento-planta-esboco.js js/planta-esboco.js', 'js/orcamento-planta-esboco.js css/planta-esboco.css',
+    'js/orcamento-planta-esboco.js js/mapa-saber.js', 'js/planta-cresce.js ./mapa-saber.js', 'js/planta-cresce.js ./orcamento-rotulos.js']);
   assert.deepEqual([...new Set(achados)].filter(x => !conhecidos.has(x)), [], 'carregamento novo sem ?v: avalie o risco e some em SEM_V:\n' + SEM_V.join('\n'));
 });
 test('nenhum JS procura <link>/<script> pelo FIM do endereço ([href$=] / [src$=]): com ?v o fim é o hash', () => {
