@@ -50,7 +50,7 @@
     var celular = larg < M.larguraCel || (larg - M.margemDesk - (nCam - 1) * vaoDe(nCam)) / nCam < M.colMin;
     var b = { lay: lay, fx: fx, est: est, nCam: nCam, volta: volta, cab: cab, celular: celular, larg: larg, xs: xs, ws: ws };
     if (celular) {
-      b.util = larg - (volta ? M.margemVolta : 0);
+      b.util = Math.max(M.colMin, larg - (volta ? M.margemVolta : 0));   /* (revisão do 5b) quadro estreitíssimo: nunca largura negativa */
       b.col = fx.n > 1 ? (b.util - M.celGapX) / 2 : b.util;
       ids.forEach(function (id) { var f = fx.f[id]; ws[id] = f < 0 ? b.util : b.col; xs[id] = f < 0 ? 0 : f * (b.col + M.celGapX); });
     } else {
@@ -77,7 +77,8 @@
   /* ---------- pedidos: o que o desenho mede (as chaves: "no:<id>", "rot:<índice da seta>", "cab:<0|1>") ---------- */
   function pedidos(plano, larg, pele) {
     var b = base(plano, larg), out = [];
-    Object.keys(b.lay.camada).forEach(function (id) { out.push({ chave: 'no:' + id, id: id, largura: b.ws[id], celular: b.celular }); });
+    /* na ordem da história (camada a camada): o DOM segue a ordem, e um id só de dígitos não passa na frente (revisão do 5b) */
+    b.lay.porCamada.forEach(function (lista) { lista.forEach(function (id) { out.push({ chave: 'no:' + id, id: id, largura: b.ws[id], celular: b.celular }); }); });
     plano.setas.forEach(function (s, i) { out.push({ chave: 'rot:' + i, texto: s.rotulo, larguraMax: Math.max(48, rotMax(b, s, pele)) }); });
     return out;
   }

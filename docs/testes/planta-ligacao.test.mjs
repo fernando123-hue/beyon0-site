@@ -486,7 +486,7 @@ test('fonte: nada de innerHTML, eval, estilo inline, rAF, escrita de HTML; src s
   assert.match(semComentarios, /anexar\(lista\[i\]\[0\], lista\[i\]\[1\], fim\)/);
   assert.match(semComentarios, /lista\.push\(\[C\.css, 'link'\]\)/);
   assert.match(semComentarios, /lista\.push\(\[M\[i\], 'script'\]\)/);
-  assert.match(semComentarios, /var C = CONJUNTOS\[v\], M = C\.modulos;/);
+  assert.match(semComentarios, /var C = CONJUNTOS\[v\], M = C.modulos[,;]/);
   assert.equal((semComentarios.match(/lista\.push\(/g) || []).length, 2, 'só essas duas entradas');
   /* os conjuntos são literais constantes, e nada mais os altera */
   assert.deepEqual(Ligacao.CONJUNTOS.v2.modulos, MODULOS);
@@ -1215,4 +1215,21 @@ test('falha ao baixar o v3: nada aparece, um [beyon]; o v2 baixado antes segue v
   amb.L.atualizar(E3, amb.deps); prontos(amb);
   assert.equal(amb.baixados.length, antes, 'o v2 não baixa de novo');
   assert.equal(amb.faixa.hidden, false, 'o v2 volta a aparecer');
+});
+
+/* (revisão do 5b) a falha de um conjunto que já não é o da vez não esconde o outro; o módulo comum que ainda está a caminho não é baixado de novo */
+test('v2 baixando (e falhando) quando chega um v3: o v3 monta e fica; o planta-pecas a caminho é esperado, não recriado', () => {
+  const amb = ambiente({ falhaDeCarga: true });
+  const E1 = estado();
+  redesenharLista(amb, E1);
+  amb.L.atualizar(E1, amb.deps);           /* o v2 começa a baixar (o planta-layout vai falhar) */
+  const E2 = estadoV3(2);
+  redesenharLista(amb, E2);
+  amb.L.atualizar(E2, amb.deps);           /* o v3 chega antes de o v2 terminar */
+  prontos(amb);
+  assert.equal(amb.baixados.filter((u) => u === 'js/planta-pecas.js').length, 1, 'o planta-pecas a caminho não desce de novo: ' + amb.baixados.join(','));
+  assert.equal(scripts(amb).filter((x) => x.src === 'js/planta-pecas.js').length, 1);
+  assert.equal(amb.espiaoMapa.montar.length, 1, 'o v3 montou');
+  assert.equal(amb.faixa.hidden, false, 'a falha do v2 (que já não é o da vez) não esconde o v3');
+  assert.equal(amb.espiao.montar.length, 0, 'o v2 nunca montou');
 });

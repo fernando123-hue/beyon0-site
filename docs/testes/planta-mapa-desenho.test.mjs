@@ -147,3 +147,64 @@ test('fonte: nada de innerHTML, eval, estilo inline, rAF; classe só de literal 
     ['data-id', /data-id|dataset/], ['setAttribute id', /setAttribute\s*\(\s*['"]id['"]/]]) assert.doesNotMatch(semComentarios, re, nome);
   for (const m of semComentarios.matchAll(/setAttribute\('class', ([^)]+)\)/g)) assert.match(m[1], /^cls$/, 'classe só pelo argumento de sv(), que recebe literal');
 });
+
+/* ---------- revisão do 5b ---------- */
+const svgLargura = (raiz) => Number(svgDe(raiz, 'mpc-svg')[0].getAttribute('width'));
+test('girar a tela (outra largura): o mapa se refaz na largura nova, já pronto, sem entrada nem som; parar tira o ouvinte', () => {
+  const a = ambiente({ reduzido: false });
+  const sons = [];
+  a.D.montar(a.raiz, planoDe('mapa'), { som: (s) => sons.push(s) });
+  a.w.avancar(20000);
+  const antesSons = sons.length;
+  assert.equal(svgLargura(a.raiz), 390);
+  a.raiz.clientWidth = 700;
+  (a.w.ouvintes.resize || []).forEach((f) => f({ type: 'resize' }));
+  a.w.avancar(400);
+  assert.equal(svgLargura(a.raiz), 700, 'refeito na largura nova');
+  const q = a.raiz.porClasse('mpc-quadro')[0];
+  assert.ok(q.classList.contains('is-ouro'));
+  assert.equal(sons.length, antesSons, 'sem som ao refazer');
+  assert.deepEqual(a.prontas, ['bz:planta-pronta'], 'o valor não é liberado de novo');
+  a.D.parar();
+  assert.equal((a.w.ouvintes.resize || []).length, 0);
+});
+
+test('girar no meio da entrada: o mapa vai direto ao quadro final e libera o valor (que esperava a entrada)', () => {
+  const a = ambiente({ reduzido: false });
+  a.D.montar(a.raiz, planoDe('caminho'));
+  a.w.avancar(200);
+  assert.deepEqual(a.prontas, []);
+  a.raiz.clientWidth = 320;
+  (a.w.ouvintes.resize || []).forEach((f) => f({ type: 'resize' }));
+  a.w.avancar(400);
+  assert.deepEqual(a.prontas, ['bz:planta-pronta']);
+  a.w.avancar(20000);
+  assert.deepEqual(a.prontas, ['bz:planta-pronta'], 'a entrada antiga não libera de novo');
+});
+
+test('fontes ainda carregando: o quadro espera escondido e só então se mede, mostra e entra', async () => {
+  const a = ambiente({ reduzido: false });
+  let soltar;
+  a.w.document.fonts = { status: 'loading', ready: new Promise((r) => { soltar = r; }) };
+  a.D.montar(a.raiz, planoDe('caminho'));
+  const q = a.raiz.porClasse('mpc-quadro')[0];
+  assert.ok(q.classList.contains('is-medindo'), 'escondido enquanto a fonte não chega');
+  assert.equal(a.w.document.animacoes.length, 0);
+  soltar();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.ok(!q.classList.contains('is-medindo'));
+  assert.ok(a.w.document.animacoes.length > 0, 'a entrada começa depois das fontes');
+});
+
+test('exceção no meio da montagem: nada fica vivo (ouvintes, observador), a raiz fica vazia e montar recusa', () => {
+  const a = ambiente({ reduzido: false });
+  const original = a.w.BZMapaLayout;
+  const D = Desenho.para(Object.assign(a.w, { BZMapaLayout: { ...original, compor: () => { throw new Error('boom'); } } }));
+  const r = D.montar(a.raiz, planoDe('caminho'));
+  assert.equal(r.ok, false);
+  assert.equal(a.raiz.filhos.length, 0);
+  assert.equal((a.w.ouvintes.resize || []).length, 0);
+  assert.equal((a.w.document.ouvintes.visibilitychange || []).length, 0);
+  assert.ok(a.avisos.some((x) => /boom/.test(x)));
+  a.w.BZMapaLayout = original;
+});

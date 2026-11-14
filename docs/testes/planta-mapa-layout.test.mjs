@@ -100,6 +100,12 @@ test('pedidos: a largura dos nós e dos rótulos não depende da altura do texto
   assert.ok(a.some((x) => x.chave === 'no:objetivo'));
   assert.equal(a.filter((x) => x.chave.startsWith('rot:')).length, p.setas.length);
   for (const x of a) if (x.chave.startsWith('rot:')) assert.ok(x.larguraMax >= 48);
+  /* os nós vêm na ordem das camadas (o DOM segue a história; um id só de dígitos não passa na frente) */
+  const pc = planos.find(([, x]) => x.estrutura === 'caminho')[1], ult = pc.nos[pc.nos.length - 1].id;
+  const q = { ...pc, nos: pc.nos.map((n) => (n.id === ult ? { ...n, id: '9' } : n)), setas: pc.setas.map((s) => ({ ...s, de: s.de === ult ? '9' : s.de, para: s.para === ult ? '9' : s.para })) };
+  const nosQ = L.pedidos(q, 390, 'trilho').filter((x) => x.chave.startsWith('no:')).map((x) => x.id);
+  assert.equal(nosQ[nosQ.length - 1], 'objetivo');
+  assert.notEqual(nosQ[0], '9');
 });
 
 test('celular abaixo de 640 px, ou com coluna estreita demais no computador; computador na largura larga', () => {

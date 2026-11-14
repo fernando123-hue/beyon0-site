@@ -13,10 +13,10 @@
   /* (PR 5b) dois conjuntos, escolhidos pela VERSÃO do plano: o v2 (topologia) desenha como hoje; o v3 (o mapa do caso, estrutura) tem os seus
      módulos, a sua forma e o seu desenho, com o MESMO contrato (montar/atualizar/parar). URLs constantes. Os módulos comuns aos dois vêm PRIMEIRO no v3:
      a nova tentativa baixa do 1º que falta em diante, e assim o planta-pecas que o v2 já trouxe não desce de novo. O mapa-saber dá o nome das origens */
-  var CONJUNTOS = {
+  var CONJUNTOS = Object.freeze({
     v2: { modulos: ['js/orcamento-planta-forma.js', 'js/planta-pecas.js', 'js/planta-layout.js', 'js/planta-desenho.js'], css: 'css/orcamento-planta.css', forma: 'BZPlantaForma', validar: 'validarFormaPlano', desenho: 'BZPlanta' },
     v3: { modulos: ['js/planta-pecas.js', 'js/planta-relogio.js', 'js/mapa-saber.js', 'js/orcamento-mapa-forma.js', 'js/mapa-layout.js', 'js/mapa-desenho.js'], css: 'css/orcamento-mapa.css', forma: 'BZMapaForma', validar: 'validarFormaMapa', desenho: 'BZMapa' }
-  };
+  });
   var versaoDoPlano = function (plano) { return typeof plano.estrutura === 'string' ? 'v3' : typeof plano.topologia === 'string' ? 'v2' : ''; };
   var TEXTO_CERTO = 'A planta está certa.';
   var DICA_AJUSTE = 'Diga o que mudar na planta.';
@@ -44,7 +44,7 @@
 
   function criar(win) {
     var doc = win.document;
-    var st = { cargas: {}, falhas: {}, v: '', conj: '', pegos: {}, elementos: {}, E: null, deps: {}, versao: 0, json: '', assin: '', mostrada: 0, valido: false, recusas: 0, avisouModulos: false, naTela: false, recolhida: false, ouveForm: false, pendente: false, gestos: false, botao: null, certoVersao: 0, timer: 0,
+    var st = { cargas: {}, falhas: {}, v: '', conj: '', pegos: {}, voando: {}, elementos: {}, E: null, deps: {}, versao: 0, json: '', assin: '', mostrada: 0, valido: false, recusas: 0, avisouModulos: false, naTela: false, recolhida: false, ouveForm: false, pendente: false, gestos: false, botao: null, certoVersao: 0, timer: 0,
       lugar: '', raiz: null, maoNaCaixa: -1e9, ouveCaixa: false, timerCartao: 0, prontaVersao: 0 };
 
     var $ = function (id) { return doc.getElementById(id); };
@@ -295,6 +295,9 @@
     /* O desenho lê os outros três ao carregar: a ordem é a da lista. Depois de uma falha só baixa o que falta (do módulo que falhou em diante e o CSS se não chegou), tirando
        o elemento velho do <head>; a nova tentativa só começa quando todo o lote anterior se resolveu. */
     function anexar(url, tipo, aoFim) {   /* o CSS é o url do conjunto (cada conjunto tem o seu) */
+      /* (revisão do 5b) o módulo comum aos dois conjuntos que ainda está a caminho é ESPERADO, não recriado: recriar rodava o arquivo duas vezes e o
+         erro do elemento velho apagava o novo */
+      if (st.voando[url]) { st.voando[url].push(aoFim); return; }
       var velho = st.elementos[url];
       if (velho && velho.parentNode) velho.parentNode.removeChild(velho);
       var e = doc.createElement(tipo);
@@ -305,17 +308,19 @@
         e['async'] = false;
         e.src = url;
       }
-      e.addEventListener('load', function () { st.pegos[url] = true; aoFim(true); });
+      var avisar = function (deuCerto) { var fs = st.voando[url] || []; delete st.voando[url]; fs.forEach(function (fn) { fn(deuCerto); }); };
+      e.addEventListener('load', function () { st.pegos[url] = true; avisar(true); });
       e.addEventListener('error', function () {
         if (e.parentNode) e.parentNode.removeChild(e);
         delete st.elementos[url];
-        aoFim(false);
+        avisar(false);
       });
+      st.voando[url] = [aoFim];
       st.elementos[url] = e;
       doc.head.appendChild(e);
     }
     function carregar(v) {
-      var C = CONJUNTOS[v], M = C.modulos;
+      var C = CONJUNTOS[v], M = C.modulos, versaoDaCarga = st.versao;
       st.cargas[v] = 'indo';
       var primeira = -1, i, falta = 0, falhou = false;
       for (i = 0; i < M.length && primeira < 0; i++) if (!st.pegos[M[i]]) primeira = i;
@@ -329,9 +334,10 @@
         if (!deuCerto) falhou = true;
         if (--falta > 0) return;
         if (falhou) {
-          st.cargas[v] = 'falhou'; st.falhas[v] = st.versao;
+          st.cargas[v] = 'falhou'; st.falhas[v] = versaoDaCarga;
           aviso('não consegui baixar os módulos ou o CSS');
-          recolher();
+          /* (revisão do 5b) a falha de um conjunto que já não é o da vez não esconde o outro, que pode estar na tela */
+          if (st.v === v) recolher();
         } else { st.cargas[v] = 'ok'; if (st.v === v) seguir(); }
       }
       for (i = 0; i < lista.length; i++) anexar(lista[i][0], lista[i][1], fim);

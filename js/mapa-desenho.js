@@ -203,11 +203,23 @@
     return true;
   }
 
-  function pronta() { if (win.CustomEvent && doc.dispatchEvent) doc.dispatchEvent(new win.CustomEvent('bz:planta-pronta')); }
+  /* o valor espera o mapa (js/orcamento.js): uma vez por montagem */
+  function pronta(i) {
+    if (i.pronto) return;
+    i.pronto = true;
+    i.status.textContent = 'O mapa do seu caso está pronto.';
+    if (win.CustomEvent && doc.dispatchEvent) doc.dispatchEvent(new win.CustomEvent('bz:planta-pronta'));
+  }
   function final(i) {
     i.quadro.classList.add('is-aceso', 'is-ouro');
-    i.status.textContent = 'O mapa do seu caso está pronto.';
-    pronta();
+    pronta(i);
+  }
+  /* (revisão do 5b) girar a tela ou mudar a largura: refaz na largura nova, já pronto, sem entrada nem som (como o esboço); a entrada que ainda
+     corria para, e o valor que a esperava é liberado */
+  function recompor(i) {
+    try { i.rel.parar(); } catch (e) { aviso(e); }
+    i.rel = Relogio.criar();
+    if (compor(i)) final(i);
   }
   /* ---------- o ROTEIRO de cada estrutura (puro: do plano e da geometria saem os instantes; desenho do PR 5 §5) ----------
      caminho: um nó por vez, na ordem. antes_depois: a faixa "Hoje" (e as origens) inteira, a trava pulsa, e só então a faixa "Com o site" até o
@@ -253,9 +265,10 @@
     if (!pontos) return null;
     var q = i.quadro.getBoundingClientRect(), voaram = Object.create(null);
     Object.keys(i.nos).forEach(function (id) {
-      var p = pontos[id === 'objetivo' ? 'led' : id], b = i.g.caixas[id];
+      if (id === 'led' || id === 'nucleo') return;   /* (os nomes dos pontos do núcleo e do LED do esboço não são de nó) */
+      var p = pontos[id === 'objetivo' ? 'led' : id], b = i.g.caixas[id], meio = Layout.M.chip / 2;
       if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') return;
-      var dx = p.x - (q.left + b.x + 18), dy = p.y - (q.top + b.y + 18);
+      var dx = p.x - (q.left + b.x + meio), dy = p.y - (q.top + b.y + meio);
       if (!isFinite(dx) || !isFinite(dy)) return;
       i.rel.anim(i.nos[id], [{ transform: 'translate(' + (b.x + dx) + 'px,' + (b.y + dy) + 'px)' }, { transform: 'translate(' + b.x + 'px,' + b.y + 'px)' }], { duration: T.voo, easing: 'cubic-bezier(.3,.1,.2,1)', fill: 'backwards' });
       voaram[id] = true;
@@ -285,8 +298,7 @@
     });
     rel.depois(base + r.ouro, function () { i.quadro.classList.add('is-ouro'); som('ouro'); });
     rel.depois(base + r.fim + 200, function () {
-      i.status.textContent = 'O mapa do seu caso está pronto.';
-      pronta();
+      pronta(i);
       /* o repouso do ciclo: um ponto percorre o laço a cada 6 s, poucas vezes (o limite de vida do repouso da planta) */
       if (r.repouso !== null) luz(i, i.setas[r.repouso].r, T.repouso, 0, T.repousos, 0.18);
     });
@@ -332,11 +344,29 @@
     status.setAttribute('role', 'status');
     raizEl.appendChild(wrap);
     var i = { raiz: raizEl, wrap: wrap, quadro: quadro, status: status, plano: v.plano, json: JSON.stringify(v.plano), opcoes: op,
-      pele: pele, rel: Relogio.criar(), io: null, aoVisivel: null, naTela: true };
+      pele: pele, rel: Relogio.criar(), io: null, aoVisivel: null, naTela: true, pronto: false, aoResize: null, timerResize: 0 };
     inst = i;
-    if (!compor(i)) { parar(); return { ok: false, motivos: ['sem_largura'] }; }
     var anima = op.animar !== false && !reduzido() && typeof quadro.animate === 'function';
-    if (anima) { ligarPausa(i); entrada(i); } else final(i);
+    /* (revisão do 5b) a altura de cada caixa é medida: com a fonte ainda chegando, o quadro espera escondido (o lugar já reservado) e só então
+       se mede, mostra e entra; uma exceção no meio não deixa nada vivo */
+    var fontes = doc.fonts && doc.fonts.status === 'loading' && doc.fonts.ready && typeof doc.fonts.ready.then === 'function' ? doc.fonts.ready : null;
+    function comecar() { if (anima) { ligarPausa(i); entrada(i); } else final(i); }
+    try {
+      if (!compor(i)) { parar(); return { ok: false, motivos: ['sem_largura'] }; }
+      i.aoResize = function () {
+        if (i.timerResize) win.clearTimeout(i.timerResize);
+        i.timerResize = win.setTimeout(function () {
+          i.timerResize = 0;
+          var larg = i.quadro.clientWidth || i.raiz.clientWidth || 0;
+          if (inst === i && larg > 0 && Math.abs(larg - i.larg) > 6) { try { recompor(i); } catch (e) { aviso(e); } }
+        }, 200);
+      };
+      win.addEventListener('resize', i.aoResize);
+      if (fontes) {
+        quadro.classList.add('is-medindo');
+        fontes.then(function () { if (inst !== i) return; try { if (compor(i)) comecar(); } catch (e) { aviso(e); parar(); } });
+      } else comecar();
+    } catch (e) { aviso(e); parar(); return { ok: false, motivos: ['excecao'] }; }
     return { ok: true, largura: i.larg, altura: i.g.H, animada: anima, etapas: i.g.ordem.length };
   }
 
@@ -359,6 +389,8 @@
     try { i.rel.parar(); } catch (e) { aviso(e); }
     if (i.io) i.io.disconnect();
     if (i.aoVisivel) doc.removeEventListener('visibilitychange', i.aoVisivel);
+    if (i.aoResize) win.removeEventListener('resize', i.aoResize);
+    if (i.timerResize) win.clearTimeout(i.timerResize);
     while (i.raiz.firstChild) i.raiz.removeChild(i.raiz.firstChild);
   }
 
