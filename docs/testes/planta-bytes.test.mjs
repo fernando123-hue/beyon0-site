@@ -33,9 +33,10 @@ test('JS da faixa que a pessoa baixa quando a planta chega (forma + 3 módulos):
    também. O teto mede o que vai ao ar: o arquivo COMPACTADO pelo deploy (cloudflare/montar-publico.mjs, sem comentários; 10/11), porque os comentários
    do repositório são a memória do projeto e não chegam à pessoa. Medido em 12/11: a da faixa 4.265 bytes (era 3.589 antes da v2), a do esboço 2.551. */
 const publicado = (rel) => zlib.gzipSync(Buffer.from(compactar(rel, ler(rel).toString('utf8'))), { level: 9 }).length;
-test('a ligação da faixa (js/orcamento-planta.js), publicada: no máximo 4.600 bytes com gzip -9', () => {
+/* (PR 5b, 14/11) +100: os dois conjuntos (v2 e o mapa do caso v3) e a troca no meio da conversa; medido 4.683 (era 4.265 em 12/11). Spec §7.5: a medida vai ao PR */
+test('a ligação da faixa (js/orcamento-planta.js), publicada: no máximo 4.700 bytes com gzip -9', () => {
   const n = publicado('js/orcamento-planta.js');
-  assert.ok(n <= 4600, 'gzip -9 ' + n);
+  assert.ok(n <= 4700, 'gzip -9 ' + n);
 });
 test('a ligação do esboço (js/orcamento-planta-esboco.js), publicada: no máximo 3.000 bytes com gzip -9', () => {
   const n = publicado('js/orcamento-planta-esboco.js');
