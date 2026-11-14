@@ -98,6 +98,8 @@ test('origens: só no papel origem, da lista, e sempre uma das que estão no "ho
   assert.ok(motivos(hojeRuim).includes('origem'));
   const vazio = base(); vazio.hoje = { origens: [] }; vazio.nos[0] = { id: 'perfil', papel: 'site', icone: 'pagina', titulo: 'Vê o perfil e se interessa', frase: 'Chega pelo link do perfil, curiosa' };
   assert.deepEqual(motivos(vazio), ['hoje_vazio']);
+  const sem = base(); delete sem.hoje; sem.nos[0] = vazio.nos[0];
+  assert.equal(F.validarFormaMapa(sem).ok, true, 'sem o hoje (o padrão sem nada conhecido): vale');
 });
 
 test('as regras por estrutura: ramos sem divisão, antes_depois sem trava, mapa pequeno, caminho que se divide', () => {

@@ -55,6 +55,7 @@
   var CHAVES_DE_PROTOTIPO = ['__proto__', 'constructor', 'prototype'];
 
   var CHAVES_RAIZ = ['estrutura', 'hoje', 'nos', 'setas', 'objetivo', 'fecho'];
+  var OBRIGATORIAS_RAIZ = ['estrutura', 'nos', 'setas', 'objetivo', 'fecho'];
   var CHAVES_HOJE = ['origens', 'texto', 'trava'];
   var CHAVES_NO = ['id', 'papel', 'icone', 'origem', 'titulo', 'frase'];
   var OBRIGATORIAS_NO = ['id', 'papel', 'icone', 'titulo', 'frase'];
@@ -318,7 +319,8 @@
     if (!ehObjeto(p)) return falha('nao_objeto');
     /* as duas versões juntas: não se sabe qual valeria */
     if (tem(p, 'topologia')) c.add('topologia', 'versao');
-    conferirChaves(p, CHAVES_RAIZ.concat(tem(p, 'topologia') ? ['topologia'] : []), CHAVES_RAIZ, '', c);
+    /* o 'hoje' é opcional na FORMA (o padrão sem nada conhecido vai sem ele) e obrigatório no esquema da ferramenta (plano do PR 4, §2.7) */
+    conferirChaves(p, CHAVES_RAIZ.concat(tem(p, 'topologia') ? ['topologia'] : []), OBRIGATORIAS_RAIZ, '', c);
     if (tem(p, 'estrutura') && !naLista(ESTRUTURAS, p.estrutura)) c.add('estrutura', 'estrutura');
     var origensHoje = tem(p, 'hoje') ? conferirHoje(p.hoje, c) : [];
     if (tem(p, 'objetivo')) {
