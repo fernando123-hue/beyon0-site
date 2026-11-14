@@ -29,12 +29,9 @@ test('os 15 planos do laboratório e o caso "limites" passam na forma, nas 5 est
   }
 });
 
-test('as listas: ícones iguais aos desenhos de hoje; as origens da sugestão e do v2 caem na lista do mapa', () => {
+test('as listas: ícones iguais aos desenhos de hoje; as origens do v2 caem na lista do mapa (as da sugestão: planta-mapa-saber)', () => {
   assert.deepEqual([...F.ICONES].sort(), [...PECAS.TIPOS].sort());
-  for (const v of Object.values(F.ORIGEM_DA_SUGESTAO)) assert.ok(F.ORIGENS_MAPA.includes(v), v);
   for (const v of Object.values(F.ORIGEM_DO_V2)) assert.ok(F.ORIGENS_MAPA.includes(v), v);
-  assert.equal(F.ORIGEM_DA_SUGESTAO.google, 'google_busca', '"Me acham no Google" é a busca');
-  assert.equal(Object.prototype.hasOwnProperty.call(F.ORIGEM_DA_SUGESTAO, 'constructor'), false);
 });
 
 test('o grafo: 6 camadas, 3 na mesma camada, volta fora do ciclo, pulo por cima de caixa', () => {

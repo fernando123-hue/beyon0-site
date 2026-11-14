@@ -12,6 +12,7 @@
    ========================================================================== */
 import R from '../../js/orcamento-rotulos.js';
 import M from '../../js/orcamento-mapa-forma.js';
+import S from '../../js/mapa-saber.js';
 
 const congelar = o => { if (o && typeof o === 'object') { Object.values(o).forEach(congelar); Object.freeze(o); } return o; };
 const no = (id, papel, icone, titulo, frase) => ({ id, papel, icone, titulo, frase });
@@ -121,17 +122,8 @@ const TRAVA_V3 = congelar({
 
 /* ---------- o que se sabe do caso: origens (até 3) e a trava, pelo briefing ---------- */
 const TEXTO_MAX = 2000;
-/* palavras-chave do texto livre (minúsculas, sem acento); "nao/nunca" até 3 palavras antes, na mesma oração, anula */
-const ORIGEM_POR_PALAVRA = [
-  ['instagram', /\b(?:instagram|insta|direct|reels?)\b/],
-  ['whatsapp', /\b(?:whatsapp|whats|zap|zapzap|wpp)\b/],
-  ['google_mapa', /\b(?:mapas?|maps|endereco)\b/],
-  ['google_busca', /\b(?:google|busca|buscando|pesquisa\w*)\b/],
-  ['indicacao', /\b(?:indica\w*|boca a boca)\b/],
-  ['passa_na_frente', /\bpass\w* na frente\b|\bfachada\b/]
-];
-/* ("nem" continua a negação da oração de antes: "Não uso Instagram, nem WhatsApp"; re-revisão) */
-const NEGACAO = /\b(?:nao|nunca|nem|sem|nada de)(?: \w+){0,3}$/;   /* (2ª re-revisão: "Sem Instagram, só WhatsApp", "Nada de Google") */
+/* as origens (rótulos tocados e texto livre com a negação da oração) vêm do módulo comum com a tela (js/mapa-saber.js, PR 5): o esboço que a
+   pessoa viu crescer e o mapa padrão dão as mesmas origens para o mesmo "como chegam" */
 const temChave = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
 const textoDe = v => (typeof v === 'string' ? v.slice(0, TEXTO_MAX) : '');
 
@@ -139,27 +131,8 @@ export function oQueSeSabe(briefing) {
   const saber = { origens: [], trava: null, travaRotulo: '' };
   try {
     const s = briefing && typeof briefing === 'object' && briefing.situacao_atual && typeof briefing.situacao_atual === 'object' ? briefing.situacao_atual : {};
-    const chegam = textoDe(s.como_chegam), perde = textoDe(s.o_que_se_perde);
-    const tocadas = [], doTexto = [];
-    /* 1) os rótulos tocados, como trecho exato */
-    for (const [codigo, sug] of Object.entries(R.SUGESTOES)) {
-      if (sug.campo === 'como_chegam' && chegam.includes(sug.rotulo) && temChave(M.ORIGEM_DA_SUGESTAO, codigo)) tocadas.push(M.ORIGEM_DA_SUGESTAO[codigo]);
-    }
-    /* 2) o texto livre: a palavra-chave vale se ALGUMA ocorrência não estiver negada dentro da MESMA oração ("não tenho site, só WhatsApp" é
-       WhatsApp: a vírgula, o ponto, "mas" e "só" fecham a oração da negação; revisão técnica do PR 4). A pontuação fica (sem acento, minúsculas) */
-    const texto = chegam.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    for (const [cod, re] of ORIGEM_POR_PALAVRA) {
-      const todas = new RegExp(re.source, 'g');
-      let m;
-      while ((m = todas.exec(texto))) {
-        const oracao = texto.slice(0, m.index).split(/[,;.!?\n]|\b(?:mas|so|porem)\b/).pop().trim();
-        if (!NEGACAO.test(oracao)) { doTexto.push(cod); break; }
-      }
-    }
-    /* o google do texto, com mapa e sem falar de busca, é só o mapa; ANTES do corte de 3 (senão a busca tomava a vaga de uma origem real) */
-    const soMapa = doTexto.includes('google_mapa') && /\bgoogle\b/.test(texto) && !/\bbusca\w*|pesquisa\w*/.test(texto);
-    const todas = [...tocadas, ...doTexto.filter(o => !(soMapa && o === 'google_busca' && !tocadas.includes(o)))];
-    saber.origens = todas.filter((o, i) => todas.indexOf(o) === i).slice(0, M.LIMITES_MAPA.hoje_origens_max);
+    const perde = textoDe(s.o_que_se_perde);
+    saber.origens = S.origensDoCaso(s.como_chegam, R.SUGESTOES);
     /* 3) a trava: só o rótulo exato de uma sugestão (texto livre não é lido: não se inventa dor) */
     for (const [codigo, sug] of Object.entries(R.SUGESTOES)) {
       if (sug.campo === 'o_que_se_perde' && perde.includes(sug.rotulo) && temChave(TRAVA_V3, codigo)) { saber.trava = codigo; saber.travaRotulo = sug.rotulo; break; }

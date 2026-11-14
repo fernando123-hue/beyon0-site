@@ -37,8 +37,7 @@
   ]);
   /* as origens por CÓDIGO (§7.3): o nome e o desenho são postos pela tela; código desconhecido, na tela, vira "outro" */
   var ORIGENS_MAPA = congelar(['instagram', 'whatsapp', 'google_busca', 'google_mapa', 'indicacao', 'passa_na_frente', 'facebook', 'tiktok', 'site_atual', 'outro']);
-  /* os toques de "como chegam" (js/orcamento-rotulos.js) para o código do mapa: "google" é a busca (o mapa só quando ela escreveu mapa) */
-  var ORIGEM_DA_SUGESTAO = tabela({ instagram: 'instagram', whatsapp: 'whatsapp', indicacao: 'indicacao', google: 'google_busca', passa_na_frente: 'passa_na_frente' });
+  /* (o de-para dos toques de "como chegam" para estes códigos mora em js/mapa-saber.js, comum ao servidor e à tela; PR 5) */
   /* as origens do v2 (o esboço do PR 5 ainda as usa): as ambíguas viram "outro" (não se inventa canal) */
   var ORIGEM_DO_V2 = tabela({ busca: 'google_busca', mapa: 'google_mapa', indicacao: 'indicacao', rede: 'outro', anuncio: 'outro', direto: 'outro', email: 'outro' });
 
@@ -344,7 +343,7 @@
   }
 
   return Object.freeze({
-    ESTRUTURAS: ESTRUTURAS, PAPEIS: PAPEIS, ICONES: ICONES, ORIGENS_MAPA: ORIGENS_MAPA, ORIGEM_DA_SUGESTAO: ORIGEM_DA_SUGESTAO, ORIGEM_DO_V2: ORIGEM_DO_V2,
+    ESTRUTURAS: ESTRUTURAS, PAPEIS: PAPEIS, ICONES: ICONES, ORIGENS_MAPA: ORIGENS_MAPA, ORIGEM_DO_V2: ORIGEM_DO_V2,
     LIMITES_MAPA: LIMITES_MAPA, ID_NO: ID_NO, IDS_RESERVADOS: IDS_RESERVADOS,
     camadas: camadas, faixas: faixas, validarFormaMapa: validarFormaMapa
   });
