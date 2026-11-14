@@ -150,7 +150,7 @@ test('privacidade: cobre o primeiro contato, a busca na web com a Anthropic, o P
     'legítimo interesse (artigo 7º, inciso IX', 'responda “não”', '90 dias depois do último envio', 'Pix direto', 'Depoimento e portfólio', 'com a sua autorização por escrito',
     'a Beyon Zero manda o nome, o tipo, a cidade, o estado (UF) e o celular do negócio à Anthropic', 'conta de assinatura da Beyon Zero no Claude',
     'buscador usado pela Anthropic', 'anthropic.com/legal/privacy', 'A Anthropic guarda os dados conforme a política de privacidade dela',
-    'o Registro.br exige o seu CPF ou CNPJ', 'a hospedagem do site dos clientes da oferta de lançamento, na conta da Beyon Zero',
+    'o Registro.br exige o seu CPF ou CNPJ', 'a hospedagem do site dos clientes da oferta de lançamento, numa conta no nome do próprio cliente',
     'obrigação legal (artigo 7º, inciso II', 'a ponderação do artigo 10', 'dados mínimos', 'envio um a um', 'oposição imediata',
     'A avaliação fica registrada por escrito pela Beyon Zero (este texto e as decisões internas) e é enviada a pedido',
     'De todo contato apagado, fica por 12 meses um código embaralhado do contato usado no envio', 'a data da publicação mais recente',

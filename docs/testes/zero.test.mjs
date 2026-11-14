@@ -1253,7 +1253,7 @@ test('hospedagem e código: o Zero diz conta no nome do cliente e código do cli
   assert.match(p, /numa conta no nome do cliente/);
   assert.match(p, /O código também é do cliente/);
   assert.doesNotMatch(p, /não confirma: de quem fica o código/);
-  for (const pag of ['../../condicoes.html', '../../sites.html', '../../index.html']) {
+  for (const pag of ['../../condicoes.html', '../../sites.html', '../../index.html', '../../privacidade.html']) {
     const html = fs.readFileSync(new URL(pag, import.meta.url), 'utf8');
     assert.doesNotMatch(html, /na conta da Beyon|valor por mês escrito na proposta/, pag);
   }
