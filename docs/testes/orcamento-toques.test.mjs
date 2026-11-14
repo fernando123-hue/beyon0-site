@@ -4,90 +4,9 @@
    pelo E2E (docs/e2e-orcamento.mjs, com e sem consultor). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import vm from 'node:vm';
+import { montarConversa, tique, puro } from './_dom-falso.mjs';
 
-const ler = rel => fs.readFileSync(new URL('../../' + rel, import.meta.url), 'utf8');
-const ROTULOS = ler('js/orcamento-rotulos.js'), TOQUES = ler('js/orcamento-toques.js');
-const tique = () => new Promise(r => setTimeout(r, 0));
-const puro = v => JSON.parse(JSON.stringify(v));   /* (o que vem do vm tem outro protótipo) */
-
-/* ---------- um DOM de mentira, só o que o módulo usa ---------- */
-function casa(no, simples) {
-  const m = simples.trim().match(/^([a-z]+)?((?:\.[\w-]+|\[[\w-]+\]|:not\(\[[\w-]+\]\))*)$/);
-  if (!m) throw new Error('seletor não suportado: ' + simples);
-  if (m[1] && no.tagName !== m[1]) return false;
-  for (const p of m[2].match(/\.[\w-]+|\[[\w-]+\]|:not\(\[[\w-]+\]\)/g) || []) {
-    if (p[0] === '.' && !no.classList.contains(p.slice(1))) return false;
-    if (p[0] === '[' && !no.hasAttribute(p.slice(1, -1))) return false;
-    if (p[0] === ':' && no.hasAttribute(p.slice(6, -2))) return false;
-  }
-  return true;
-}
-function criarDoc() {
-  const porId = {};
-  const doc = {
-    activeElement: null, ouvintes: {},
-    getElementById: id => porId[id] || null,
-    createElement: tag => elemento(tag, doc, porId),
-    addEventListener(t, f) { (doc.ouvintes[t] = doc.ouvintes[t] || []).push(f); },
-    removeEventListener(t, f) { doc.ouvintes[t] = (doc.ouvintes[t] || []).filter(x => x !== f); },
-    dispatchEvent(ev) { (doc.ouvintes[ev.type] || []).slice().forEach(f => f(ev)); return true; },
-    registrar(e) { if (e.id) porId[e.id] = e; }
-  };
-  return doc;
-}
-function elemento(tag, doc, porId) {
-  const attrs = {}, classes = new Set(), ouvintes = {};
-  const e = {
-    tagName: tag, children: [], parentNode: null, disabled: false, hidden: false, value: '', type: '', scrollTop: 0, scrollHeight: 0,
-    _texto: '', _id: '',
-    get id() { return e._id; }, set id(v) { e._id = v; porId[v] = e; },
-    get textContent() { return e._texto + e.children.map(c => c.textContent).join(''); }, set textContent(v) { e._texto = String(v); e.children = []; },
-    get className() { return [...classes].join(' '); }, set className(v) { classes.clear(); String(v).split(/\s+/).filter(Boolean).forEach(c => classes.add(c)); },
-    classList: { add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c) },
-    setAttribute(k, v) { attrs[k] = String(v); if (k === 'id') e.id = v; }, getAttribute: k => (k in attrs ? attrs[k] : null), hasAttribute: k => k in attrs, removeAttribute(k) { delete attrs[k]; },
-    get lastElementChild() { return e.children[e.children.length - 1] || null; },
-    appendChild(c) { return e.insertBefore(c, null); },
-    insertBefore(c, ref) { if (c.parentNode) c.remove(); const i = ref ? e.children.indexOf(ref) : -1; if (i >= 0) e.children.splice(i, 0, c); else e.children.push(c); c.parentNode = e; return c; },
-    remove() { if (e.parentNode) { e.parentNode.children = e.parentNode.children.filter(x => x !== e); e.parentNode = null; } },
-    contains(o) { return o === e || e.children.some(c => c.contains(o)); },
-    todos() { return e.children.flatMap(c => [c, ...c.todos()]); },
-    querySelectorAll(sel) { const partes = sel.split(','); return e.todos().filter(n => partes.some(p => casa(n, p))); },
-    querySelector(sel) { return e.querySelectorAll(sel)[0] || null; },
-    addEventListener(t, f) { (ouvintes[t] = ouvintes[t] || []).push(f); },
-    clicar(detail = 1) { if (e.disabled) return; (ouvintes.click || []).forEach(f => f({ type: 'click', detail, preventDefault() {} })); },
-    tecla(key) { (ouvintes.keydown || []).forEach(f => f({ key, preventDefault() {} })); },
-    focus() { doc.activeElement = e; }
-  };
-  return e;
-}
-
-/* ---------- a página: a caixa, a lista com a abertura fixa, a caixa de texto ---------- */
-function montar({ consultor = true, ponteiroFino = false, enviar = async () => true } = {}) {
-  const doc = criarDoc();
-  const caixa = doc.createElement('div'); caixa.id = 'o-log-caixa';
-  const log = doc.createElement('ol'); log.id = 'o-log';
-  const abertura = doc.createElement('li'); abertura.className = 'msg msg--agente'; log.appendChild(abertura);
-  const form = doc.createElement('form'); form.id = 'o-form';
-  const texto = doc.createElement('textarea'); texto.id = 'o-texto';
-  const anuncios = [], definidos = [], enviados = [], eventos = [];
-  const win = {
-    matchMedia: () => ({ matches: ponteiroFino }),
-    BZPerguntas: { definir: r => { definidos.push(JSON.parse(JSON.stringify(r))); } },
-    BZOrcConversa: { anunciar: t => anuncios.push(t), enviar: t => { enviados.push(t); return enviar(t); } }
-  };
-  doc.addEventListener('bz:valor-liberado', () => eventos.push('bz:valor-liberado'));
-  const ctx = { window: win, document: doc, setTimeout, clearTimeout, Promise, JSON, String, Object, CustomEvent: function (t, o) { this.type = t; this.detail = o && o.detail; } };
-  win.window = win;
-  vm.runInNewContext(ROTULOS + '\n' + TOQUES, ctx);
-  const T = win.BZToques;
-  const abertos = () => log.querySelectorAll('.orc-toque:not([data-feito])');
-  const botao = txt => { const b = abertos().flatMap(li => li.querySelectorAll('button')).find(x => x.textContent === txt); if (!b) throw new Error('sem botão "' + txt + '"'); return b; };
-  const falas = () => log.children.filter(li => li.classList.contains('msg--agente')).map(li => li.textContent);
-  const bolhas = () => log.children.filter(li => li.classList.contains('msg--visitante')).map(li => li.textContent);
-  return { doc, log, texto, form, T, win, anuncios, definidos, enviados, eventos, abertos, botao, falas, bolhas, tocar: (t, d) => botao(t).clicar(d) };
-}
+const montar = o => montarConversa(o);
 const ate = async (p, ...toques) => { for (const t of toques) { p.tocar(t); await tique(); } };
 const ATE_DOR = ['Saúde', 'Agendamentos', 'Pronto', 'Só o Instagram', 'Tenho'];
 

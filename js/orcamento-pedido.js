@@ -1,0 +1,339 @@
+/* ==========================================================================
+   O PEDIDO DENTRO DA CONVERSA (spec docs/superpowers/specs/2026-11-13-orcamento-conversa-design.md §5; PR 3).
+   Depois de "Quero os três modelos" (ou do pedir_contato do Zero): o nome do negócio, o que vende e o WhatsApp, um passo opcional
+   (como quer ser chamado, um site que admira, para quem vende, o que diferencia, as redes com a autorização própria) e o CARTÃO DE
+   ACEITE: o resumo do que ela passou (com "Corrigir" em cada item), o texto da versão vigente (js/orcamento-rotulos.js, ACEITE) e o
+   botão "Concordo e quero os modelos". Envia UMA vez pelo mesmo API.detalhes de antes, com a versão do aceite; o servidor confere tudo
+   de novo. Nada daqui vai ao modelo nem às mensagens da conversa, e nada fica guardado no aparelho: recarregar recomeça o pedido.
+   Usa o kit da conversa de js/orcamento-toques.js (falas anunciadas, grupos rotulados, foco que não se perde). Texto por textContent. ES5.
+   ========================================================================== */
+(function () {
+  'use strict';
+  var R = window.BZOrcRotulos, T = window.BZToques, API = window.BZOrcamento, doc = document;
+  var $ = function (id) { return doc.getElementById(id); };
+  if (!R || !T || !T.kit || !API || !$('o-log')) return;
+  var K = T.kit;
+
+  var REDES = [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['tiktok', 'TikTok'], ['youtube', 'YouTube'], ['linkedin', 'LinkedIn']];
+  var OPCIONAIS = [
+    { chave: 'nome', toque: 'Como quer ser chamado', pergunta: 'Como você quer que a gente te chame?', max: 60, mostra: 'Como quer ser chamado' },
+    { chave: 'admira', toque: 'Um site que eu admiro', pergunta: 'Qual site você admira? Pode ser o endereço ou só o nome.', max: 60, mostra: 'Site que admira' },
+    { chave: 'publico', toque: 'Para quem eu vendo', pergunta: 'Para quem você vende?', max: 200, mostra: 'Para quem vende' },
+    { chave: 'diferencial', toque: 'O que me diferencia', pergunta: 'O que diferencia o seu negócio?', max: 160, mostra: 'O que diferencia' },
+    { chave: 'redes', toque: 'As redes do negócio', mostra: 'Redes do negócio' }
+  ];
+  var MENSAGEM_DO_CAMPO = [[/whatsapp|telefone/i, 'telefone'], [/autoriza|redes?|instagram|facebook|tiktok|youtube|linkedin/i, 'redes'], [/diferencia/i, 'diferencial'],
+    [/para quem/i, 'publico'], [/chamado/i, 'nome'], [/admira/i, 'admira'], [/vende/i, 'vende'], [/neg[óo]cio/i, 'negocio']];
+  var FALHA = 'Não consegui guardar agora. Tente de novo ou deixe um recado para a equipe.';
+
+  var p = null;   /* o pedido em andamento, só em memória: { d: os dados, corrigindo, enviando } */
+  var enviado = false;   /* o pedido desta página já entrou: nada de outro até a página mudar (a releitura do estado mostra o pedido recebido) */
+  var ganchos = { sessaoTerminou: function () { return false; }, avisarSessao: function () {}, estado: function () { return null; }, reler: function () {} };
+  var NOVA_ABA = ' (abre em outra aba)';
+  /* o erro de um passo: o nó do alerta aparece primeiro e o texto entra no tique seguinte (alguns leitores de tela não anunciam um alerta que já nasce
+     com o texto; e o mesmo erro repetido também é lido) */
+  var ERRO_MS = 50;
+  function mostrarErro(erro, texto) {
+    erro.textContent = '\u00a0';
+    setTimeout(function () { if (erro.textContent === '\u00a0') erro.textContent = texto; }, ERRO_MS);   /* (corrigido antes do tique: o erro velho não volta) */
+  }
+
+  function limpo(v, max) { return String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max); }
+  var digitos = function (v) { return String(v || '').replace(/\D/g, ''); };
+
+  /* um campo dentro da conversa: a pergunta (fala do Zero), a caixa, as sugestões (se houver), "Seguir" e, nos opcionais, "Pular" */
+  function campo(cfg) {
+    var pergunta = K.fala(cfg.pergunta, true);
+    var li = K.el('li', 'orc-toque orc-toque--campo'), linha = K.el('div', 'orc-toque__linha'), caixa = K.el('input', 'orc-toque__campo');
+    var erro = K.el('p', 'orc-toque__erro-campo'), seguir = K.el('button', 'btn btn--primary btn--sm', 'Seguir');
+    caixa.type = cfg.tipo || 'text';
+    caixa.maxLength = cfg.max;
+    caixa.value = cfg.valor || '';
+    caixa.setAttribute('aria-labelledby', K.ultimaFala());
+    if (cfg.autocomplete) caixa.setAttribute('autocomplete', cfg.autocomplete); else caixa.autocomplete = 'off';
+    if (cfg.inputmode) caixa.setAttribute('inputmode', cfg.inputmode);
+    if (!cfg.opcional) caixa.setAttribute('aria-required', 'true');
+    erro.id = 'o-pedido-erro-' + cfg.chave;
+    erro.setAttribute('role', 'alert');
+    seguir.type = 'button';
+    function ir(ev) {
+      if (li.hasAttribute('data-feito')) return;
+      K.teclado(!ev || ev.detail === 0);
+      var v = cfg.tipo === 'tel' ? String(caixa.value || '').trim().slice(0, cfg.max) : limpo(caixa.value, cfg.max);
+      var ruim = cfg.validar ? cfg.validar(v) : null;
+      if (ruim) { mostrarErro(erro, ruim); caixa.setAttribute('aria-invalid', 'true'); caixa.setAttribute('aria-describedby', erro.id); K.focar(caixa); return; }
+      K.fechar(li, null);
+      K.bolha(v || 'Pular');
+      cfg.depois(v);
+    }
+    seguir.addEventListener('click', ir);
+    caixa.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); ir(null); } });
+    caixa.addEventListener('input', function () { if (caixa.getAttribute('aria-invalid')) { caixa.removeAttribute('aria-invalid'); erro.textContent = ''; } });
+    linha.appendChild(caixa); linha.appendChild(seguir);
+    li.appendChild(linha);
+    if (cfg.sugestoes && cfg.sugestoes.length) li.appendChild(sugestoes(cfg.sugestoes, caixa, cfg.max));
+    if (cfg.opcional) {
+      var pular = K.el('button', 'orc-toque__naosei', 'Pular');
+      pular.type = 'button';
+      pular.addEventListener('click', function (ev) { if (li.hasAttribute('data-feito')) return; K.teclado(!!ev && ev.detail === 0); K.fechar(li, null); K.bolha('Pular'); cfg.depois(''); });
+      li.appendChild(pular);
+    }
+    li.appendChild(erro);
+    K.inserir(li);
+    abrir(pergunta, li);
+    K.focar(caixa);
+    return li;
+  }
+  /* as sugestões do que vende: tocar soma (ou tira) o rótulo na caixa, como no formulário de antes */
+  function sugestoes(lista, caixa, max) {
+    var grupo = K.el('div', 'orc-toque__ops');
+    grupo.setAttribute('role', 'group');
+    grupo.setAttribute('aria-label', 'Sugestões do que você vende');
+    var botoes = [];
+    var partesDe = function () { return caixa.value.trim() ? caixa.value.split(/,\s*/) : []; };
+    /* marcado = está escrito na caixa (vale ao corrigir, com o texto de antes, e quando ela escreve à mão) */
+    function marcar() { var partes = partesDe(); botoes.forEach(function (b) { b.setAttribute('aria-pressed', String(partes.indexOf(b.textContent) >= 0)); }); }
+    lista.forEach(function (s) {
+      var b = K.el('button', 'orc-op orc-op--toque', s);
+      b.type = 'button';
+      b.addEventListener('click', function () {
+        var partes = partesDe(), i = partes.indexOf(s);
+        if (i >= 0) partes.splice(i, 1); else partes.push(s);
+        var novo = partes.join(', ');
+        if (novo.length > max) { K.anunciar('Não cabe mais: até ' + max + ' caracteres.'); return; }
+        caixa.value = novo;
+        marcar();
+      });
+      botoes.push(b);
+      grupo.appendChild(b);
+    });
+    caixa.addEventListener('input', marcar);
+    marcar();
+    return grupo;
+  }
+
+  /* o passo aberto agora (a pergunta e o grupo): o que volta ao fim da conversa quando o Zero fala no meio do pedido */
+  function abrir(pergunta, li) { li.setAttribute('data-pedido', ''); p.aberto = { pergunta: pergunta, li: li }; }
+  function passoAberto() { return p && p.aberto && !p.aberto.li.hasAttribute('data-feito') && p.aberto.li.parentNode ? p.aberto : null; }
+  function aoFim(a) {
+    var log = $('o-log'), u = log.lastElementChild, fim = u && u.hasAttribute('data-fica') ? u : null;
+    var tinhaFoco = doc.activeElement && a.li.contains(doc.activeElement) ? doc.activeElement : null;
+    if (a.pergunta && a.pergunta.parentNode) log.insertBefore(a.pergunta, fim);
+    log.insertBefore(a.li, fim);
+    if (tinhaFoco) K.focar(tinhaFoco);   /* (mover o nó tira o foco dele) */
+  }
+
+  /* ---------- os passos (8a a 8e) ---------- */
+  function seguirOu(proximo) { return function () { if (p.corrigindo) { p.corrigindo = false; cartao(); } else proximo(); }; }
+  function passoNegocio() {
+    campo({ chave: 'negocio', pergunta: 'Para fazer os três modelos: qual é o nome do negócio?', max: 60, autocomplete: 'organization', valor: p.d.negocio,
+      validar: function (v) { return v.length < 2 ? 'Informe o nome do negócio.' : null; },
+      depois: function (v) { p.d.negocio = v; seguirOu(passoVende)(); } });
+  }
+  /* o ramo das sugestões: o tocado nesta visita; senão o que o servidor guardou no caso (o pacote gravado, uma visita de antes); senão "outro" */
+  function ramoDoCaso() {
+    var r = (T.respostas() || {}).ramo;
+    if (r && R.VENDE_POR_RAMO[r]) return r;
+    var E = ganchos.estado(), b = E && E.conversa && E.conversa.briefing, seg = b && b.negocio && typeof b.negocio.segmento === 'string' ? b.negocio.segmento.toLowerCase() : '';
+    for (var k in R.RAMOS) if (R.RAMOS[k].toLowerCase() === seg && R.VENDE_POR_RAMO[k]) return k;
+    return 'outro';
+  }
+  function passoVende() {
+    var ramo = ramoDoCaso();
+    campo({ chave: 'vende', pergunta: 'E o que vocês vendem ou fazem, em poucas palavras?', max: 200, valor: p.d.vende,
+      sugestoes: R.VENDE_POR_RAMO[ramo],
+      validar: function (v) { return v.length < 3 ? 'Conte o que você vende (pode tocar numa sugestão).' : null; },
+      depois: function (v) { p.d.vende = v; seguirOu(passoTelefone)(); } });
+  }
+  function passoTelefone() {
+    campo({ chave: 'telefone', tipo: 'tel', inputmode: 'tel', autocomplete: 'tel', max: 25, valor: p.d.telefone,
+      pergunta: 'Qual WhatsApp eu passo para a equipe te avisar quando os modelos ficarem prontos?',
+      validar: function (v) { return digitos(v).length < 10 ? 'Informe o seu WhatsApp com DDD: é o contato do seu pedido.' : null; },
+      depois: function (v) { p.d.telefone = v; seguirOu(passoOpcionais)(); } });
+  }
+  /* 8d: o que mais ela quiser contar, em toques; cada toque abre a pergunta daquele campo e volta aqui; "Não, pode seguir" leva ao aceite */
+  function passoOpcionais(depoisDeUm) {
+    var pergunta = K.fala(depoisDeUm ? 'Mais alguma coisa?' : 'Quer me contar mais alguma coisa? Ajuda a acertar os modelos.');
+    var itens = OPCIONAIS.filter(function (o) { return !preenchido(o.chave); }).map(function (o) { return { valor: o.chave, rotulo: o.toque }; });
+    itens.push({ valor: 'seguir', rotulo: 'Não, pode seguir' });
+    var grupo = K.opcoes('Mais alguma coisa', itens, function (v) {
+      if (v === 'seguir') { K.bolha('Não, pode seguir'); cartao(); return; }
+      var o = OPCIONAIS.filter(function (x) { return x.chave === v; })[0];
+      K.bolha(o.toque);
+      if (v === 'redes') passoRedes(); else passoOpcional(o);
+    }, { falaId: K.ultimaFala() });
+    abrir(pergunta, grupo);
+  }
+  function preenchido(chave) { return chave === 'redes' ? Object.keys(p.d.redes).length > 0 : !!p.d[chave]; }
+  function passoOpcional(o) {
+    campo({ chave: o.chave, pergunta: o.pergunta, max: o.max, valor: p.d[o.chave], opcional: true,
+      depois: function (v) { p.d[o.chave] = v; if (p.corrigindo) { p.corrigindo = false; cartao(); } else passoOpcionais(true); } });
+  }
+  /* as redes: os endereços (ou o @) e a autorização PRÓPRIA, um toque claro que nunca vem marcado; o servidor também a exige */
+  function passoRedes() {
+    var pergunta = K.fala('Quais são as redes do negócio? Preencha só as que quiser.', true);
+    var li = K.el('li', 'orc-toque orc-toque--redes'), caixas = {}, erro = K.el('p', 'orc-toque__erro-campo');
+    li.setAttribute('role', 'group');
+    li.setAttribute('aria-labelledby', K.ultimaFala());
+    erro.id = 'o-pedido-erro-redes';
+    erro.setAttribute('role', 'alert');
+    REDES.forEach(function (r) {
+      var rotulo = K.el('label', 'orc-toque__rede'), nome = K.el('span', 'orc-toque__titulo', r[1]), c = K.el('input', 'orc-toque__campo');
+      c.type = 'text'; c.maxLength = 120; c.autocomplete = 'off'; c.value = p.d.redes[r[0]] || '';
+      rotulo.appendChild(nome); rotulo.appendChild(c);
+      caixas[r[0]] = c;
+      li.appendChild(rotulo);
+    });
+    var autoriza = K.el('button', 'orc-op orc-op--toque', 'Autorizo a Beyon Zero a olhar essas redes para preparar os modelos');
+    autoriza.type = 'button';
+    autoriza.setAttribute('aria-pressed', String(!!p.d.autoriza_redes));
+    autoriza.addEventListener('click', function () {
+      autoriza.setAttribute('aria-pressed', String(autoriza.getAttribute('aria-pressed') !== 'true'));
+      erro.textContent = ''; autoriza.removeAttribute('aria-describedby');
+    });
+    var seguir = K.el('button', 'btn btn--primary btn--sm', 'Seguir');
+    seguir.type = 'button';
+    seguir.addEventListener('click', function (ev) {
+      if (li.hasAttribute('data-feito')) return;
+      K.teclado(!!ev && ev.detail === 0);
+      var redes = {};
+      REDES.forEach(function (r) { var v = String(caixas[r[0]].value || '').trim().slice(0, 120); if (v) redes[r[0]] = v; });
+      var aut = autoriza.getAttribute('aria-pressed') === 'true';
+      if (Object.keys(redes).length && !aut) {
+        mostrarErro(erro, 'Para olharmos as suas redes, toque na autorização (ou deixe em branco).');
+        autoriza.setAttribute('aria-describedby', erro.id);
+        K.focar(autoriza);
+        return;
+      }
+      K.fechar(li, null);
+      p.d.redes = redes; p.d.autoriza_redes = aut && Object.keys(redes).length > 0;
+      K.bolha(Object.keys(redes).length ? REDES.filter(function (r) { return redes[r[0]]; }).map(function (r) { return r[1]; }).join(' · ') : 'Pular');
+      if (p.corrigindo) { p.corrigindo = false; cartao(); } else passoOpcionais(true);
+    });
+    li.appendChild(autoriza); li.appendChild(seguir); li.appendChild(erro);
+    K.inserir(li);
+    abrir(pergunta, li);
+    K.focar(caixas.instagram);
+  }
+
+  /* ---------- 8e: o cartão de aceite ---------- */
+  function cartao() {
+    var pergunta = K.fala('Pronto. Confira o que você me passou:', true);
+    var li = K.el('li', 'orc-toque orc-toque--aceite'), lista = K.el('ul', 'orc-aceite__resumo');
+    /* o foco vai ao cartão (rotulado pela fala), não ao botão: o leitor de tela percorre o resumo e o aceite antes do "Concordo" */
+    li.setAttribute('role', 'group');
+    li.setAttribute('aria-labelledby', K.ultimaFala());
+    li.setAttribute('tabindex', '-1');
+    var itens = [['negocio', 'Nome do negócio', p.d.negocio], ['vende', 'O que vende', p.d.vende], ['telefone', 'WhatsApp', p.d.telefone]];
+    OPCIONAIS.forEach(function (o) {
+      if (!preenchido(o.chave)) return;
+      itens.push([o.chave, o.mostra, o.chave === 'redes' ? REDES.filter(function (r) { return p.d.redes[r[0]]; }).map(function (r) { return r[1]; }).join(', ') : p.d[o.chave]]);
+    });
+    itens.forEach(function (it) {
+      var item = K.el('li', 'orc-aceite__item'), texto = K.el('span', '', it[1] + ': ' + it[2]), corrigir = K.el('button', 'orc-toque__naosei', 'Corrigir');
+      corrigir.type = 'button';
+      corrigir.setAttribute('aria-label', 'Corrigir ' + it[1].toLowerCase());
+      corrigir.addEventListener('click', function () { if (li.hasAttribute('data-feito') || p.enviando) return; K.fechar(li, null); p.corrigindo = true; corrigirCampo(it[0]); });
+      item.appendChild(texto); item.appendChild(corrigir);
+      lista.appendChild(item);
+    });
+    var aceite = K.el('p', 'orc-aceite__texto', R.ACEITE.texto), link = K.el('a', 'orc-aceite__link', 'Como tratamos os dados');
+    link.href = '/privacidade#orcamento'; link.target = '_blank'; link.rel = 'noopener';   /* (outra aba: o pedido só existe nesta página) */
+    link.appendChild(K.el('span', 'sr-only', NOVA_ABA));
+    var concordo = K.el('button', 'btn btn--primary orc-aceite__concordo', 'Concordo e quero os modelos');
+    concordo.type = 'button';
+    concordo.setAttribute('aria-describedby', 'o-pedido-aceite-texto');
+    aceite.id = 'o-pedido-aceite-texto';
+    concordo.addEventListener('click', function (ev) { if (li.hasAttribute('data-feito')) return; K.teclado(!!ev && ev.detail === 0); enviar(li, concordo); });
+    li.appendChild(lista); li.appendChild(aceite); li.appendChild(link); li.appendChild(concordo);
+    K.inserir(li);
+    abrir(pergunta, li);
+    K.focar(li);
+  }
+  function corrigirCampo(chave) {
+    if (chave === 'negocio') passoNegocio();
+    else if (chave === 'vende') passoVende();
+    else if (chave === 'telefone') passoTelefone();
+    else if (chave === 'redes') passoRedes();
+    else passoOpcional(OPCIONAIS.filter(function (o) { return o.chave === chave; })[0]);
+  }
+
+  /* ---------- o envio: uma vez, com a versão do aceite; o erro vira fala do Zero no passo certo ---------- */
+  function enviar(li, botao) {
+    if (p.enviando) return;
+    p.enviando = true;
+    botao.setAttribute('aria-disabled', 'true');
+    botao.textContent = 'Enviando…';
+    /* (a faixa da planta, se estiver à vista, se recolhe: o bloco acima dela vai trocar, js/orcamento-planta.js) */
+    li.setAttribute('aria-busy', 'true');
+    K.anunciar('Enviando o seu pedido…');
+    $('o-log').dispatchEvent(new CustomEvent('bz:pedido-enviando'));
+    var d = p.d;
+    return API.detalhes({ negocio: d.negocio, vende: d.vende, telefone: d.telefone, nome: d.nome || '', publico: d.publico || '', diferencial: d.diferencial || '',
+      admira: d.admira || '', redes: d.redes, autoriza_redes: !!d.autoriza_redes, aceite: true, aceite_versao: R.ACEITE.versao }).then(function (r) {
+      li.removeAttribute('aria-busy');
+      K.fechar(li, null);
+      K.bolha('Concordo e quero os modelos');
+      p = null;
+      enviado = true;
+      doc.dispatchEvent(new CustomEvent('bz:detalhes-enviados', { detail: { codigo: r && r.codigo } }));
+    }, function (e) {
+      li.removeAttribute('aria-busy');
+      p.enviando = false;
+      botao.removeAttribute('aria-disabled');
+      botao.textContent = 'Concordo e quero os modelos';
+      if (ganchos.sessaoTerminou(e)) { ganchos.avisarSessao(); return; }
+      var m = (e && e.message) || FALHA;
+      if (e && e.dados && e.dados.fila_cheia) { K.fechar(li, null); K.fala(m); p = null; filaCheia(); return; }
+      /* a versão do aceite mudou (aba velha, página em cache): recarregar mostra o texto novo */
+      if (e && e.status === 409 && /Recarregue/.test(m)) { K.fala(m); return; }
+      /* outro 409 (o pedido já entrou por outra aba, ou a resposta se perdeu): o cartão sai e a página relê o estado, que mostra o que valeu */
+      if (e && e.status === 409) { K.fechar(li, null); K.fala(m); p = null; ganchos.reler(); return; }
+      var chave = e && e.status === 400 ? campoDaMensagem(m) : null;
+      if (!chave) { K.fala(m); return; }
+      /* o erro do servidor fica na conversa (fala) e PRESO ao campo reaberto (alerta, aria-invalid): o leitor de tela ouve o alerta mesmo com o foco
+         mudando, e a fala não é anunciada por cima dele */
+      K.fala(m, true);
+      K.fechar(li, null); p.corrigindo = true; corrigirCampo(chave);
+      erroNoPasso(m);
+    });
+  }
+  /* a fila encheu no envio: o aviso com o recado (dentro do bloco do contato, como quando a fila já vem cheia do servidor) e o foco nele */
+  function filaCheia() {
+    var aviso = $('o-fila-cheia'), bloco = $('o-contato');
+    if (!aviso) return;
+    aviso.hidden = false;
+    if (bloco) bloco.hidden = false;
+    if (typeof aviso.scrollIntoView === 'function') aviso.scrollIntoView({ block: 'center' });   /* (o aviso fica abaixo da conversa: o foco não pode cair fora da tela) */
+    K.focar(aviso);
+  }
+  function erroNoPasso(m) {
+    var a = passoAberto(), erro = a && a.li.querySelector('.orc-toque__erro-campo'), alvo = a && a.li.querySelector('input');
+    if (!erro) return;
+    mostrarErro(erro, m);
+    if (alvo) { alvo.setAttribute('aria-invalid', 'true'); alvo.setAttribute('aria-describedby', erro.id); }
+  }
+  function campoDaMensagem(m) {
+    for (var i = 0; i < MENSAGEM_DO_CAMPO.length; i++) if (MENSAGEM_DO_CAMPO[i][0].test(m)) return MENSAGEM_DO_CAMPO[i][1];
+    return null;
+  }
+
+  window.BZPedido = {
+    /* "Quero os três modelos" ou o pedir_contato do Zero: os passos começam (uma vez por vez; um segundo toque leva ao que está aberto) */
+    iniciar: function () {
+      var a = passoAberto();
+      if (a) { aoFim(a); K.focar(a.li.querySelector('input, button')); return; }
+      if (enviado || (p && p.enviando)) return;
+      p = { d: { negocio: '', vende: '', telefone: '', redes: {}, autoriza_redes: false }, corrigindo: false, enviando: false };
+      passoNegocio();
+    },
+    ativo: function () { return !!p; },
+    /* o Zero falou no meio do pedido (ela escreveu na caixa): o passo aberto volta ao fim da conversa, logo abaixo da fala */
+    trazerAoFim: function () { var a = passoAberto(); if (a) aoFim(a); },
+    configurar: function (g) {
+      if (!g || typeof g.sessaoTerminou !== 'function' || typeof g.avisarSessao !== 'function') return;
+      ganchos = { sessaoTerminou: g.sessaoTerminou, avisarSessao: g.avisarSessao, estado: typeof g.estado === 'function' ? g.estado : ganchos.estado,
+        reler: typeof g.reler === 'function' ? g.reler : ganchos.reler };
+    }
+  };
+})();

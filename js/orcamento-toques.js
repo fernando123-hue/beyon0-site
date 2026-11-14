@@ -40,13 +40,14 @@
   /* (o que nasce DEPOIS de a conversa ir ao servidor é tardio: a página o recoloca depois das falas do servidor, js/orcamento.js conversa()) */
   function inserir(li) { li.setAttribute('data-toque', ''); if (s.entregue) li.setAttribute('data-toque-tardio', ''); $('o-log').insertBefore(li, ficaNoFim()); rolar(); return li; }
   function anunciar(texto) { var c = window.BZOrcConversa; if (c && typeof c.anunciar === 'function') c.anunciar(texto); }
-  function fala(texto) {
+  /* semVoz: o foco vai direto a um campo rotulado por esta fala (o leitor a lê pelo foco; anunciar de novo a repetiria) */
+  function fala(texto, semVoz) {
     var li = el('li', 'msg msg--agente'), p = el('p', '', texto);
     p.id = 'o-toque-fala-' + (++nFala);
     ultimaFala = p.id;
     li.appendChild(p);
     inserir(li);
-    anunciar('Zero: ' + texto);
+    if (!semVoz) anunciar('Zero: ' + texto);
     return li;
   }
   function bolha(texto) { var li = el('li', 'msg msg--visitante'); li.appendChild(el('p', '', texto)); return inserir(li); }
@@ -117,7 +118,8 @@
     [].forEach.call(li.querySelectorAll('button, input'), function (b) { b.disabled = true; });
     if (escolhido) escolhido.classList.add('is-escolhida');
   }
-  function fecharAbertos() { [].forEach.call($('o-log').querySelectorAll('[data-toque].orc-toque:not([data-feito])'), function (li) { fechar(li, null); }); }
+  /* (os passos do pedido, data-pedido, são do js/orcamento-pedido.js: seguem abertos quando a conversa vai ao servidor ou o consultor cai) */
+  function fecharAbertos() { [].forEach.call($('o-log').querySelectorAll('[data-toque].orc-toque:not([data-feito]):not([data-pedido])'), function (li) { fechar(li, null); }); }
   var itensDe = function (mapa, chaves) { return (chaves || Object.keys(mapa)).map(function (k) { return { valor: k, rotulo: mapa[k] }; }); };
 
   /* ---------- a conta silenciosa: o radar se preenche a cada toque ---------- */
@@ -384,6 +386,10 @@
       if (s.entregue) { s.iniciado = true; resumoSemConsultor(); return; }
       if (s.passo === 'dor') opcoesDor(s.situacao);
     },
-    situacao: function () { return s.situacao.slice(); }
+    situacao: function () { return s.situacao.slice(); },
+    respostas: function () { return copiar(s.respostas); },
+    /* o kit da conversa para os outros passos dentro da caixa (o pedido, js/orcamento-pedido.js): as mesmas falas, bolhas, grupos, foco e anúncios */
+    kit: { el: el, fala: fala, bolha: bolha, inserir: inserir, opcoes: opcoes, fechar: fechar, anunciar: anunciar, focar: focar, focarSaida: focarSaida,
+      ultimaFala: function () { return ultimaFala; }, teclado: function (sim) { if (typeof sim === 'boolean') porTeclado = sim; return porTeclado; } }
   };
 })();

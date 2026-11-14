@@ -14,6 +14,7 @@ import { chaveDoIp, chaveDoIp48 } from './ip.mjs';
 import { ipDe } from '../_freio.mjs';
 import { ehUuid } from '../_valida-app.mjs';
 import { avisarDono } from '../_aviso.mjs';
+import { aceiteVigente, ACEITE_MUDOU, VERSAO_ACEITE, hashDoAceite } from './aceite.mjs';
 
 const FORA_DA_ETAPA = 'Os detalhes vêm depois do preço e só uma vez. Se precisar mudar algo, deixe um recado para a equipe.';
 /* (a mesma frase para "pedido aberto" e "limite do dia": não diz a ninguém qual dos dois um número tem) */
@@ -54,8 +55,14 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limite
     async detalhes({ request, corpo }) {
       const vid = await visitante(request);
       if (!ehUuid(corpo?.conversa_id)) throw new Recusa(400, 'Conversa inválida.');
+      /* (orçamento como conversa, spec §5) a versão do texto do aceite que a tela mostrou: só a vigente vale (aba velha, página em cache: recarrega).
+         Uma versão velha é recusada antes da validação, que chama a triagem por IA (não gasta modelo); sem versão nenhuma, a validação diz o que
+         falta (o aceite) e só depois vem a recusa da versão */
+      const versao = corpo?.aceite_versao;
+      if (versao !== undefined && !aceiteVigente(versao)) throw new Recusa(409, ACEITE_MUDOU);
       const v = await validarDetalhes(corpo);
       if (v.erros) throw new Recusa(400, v.erros[0]);
+      if (!aceiteVigente(versao)) throw new Recusa(409, ACEITE_MUDOU);
       const d = v.dados;
       const telefoneHash = chaveDoTelefone(d.telefone, segredoFreio, env || {});
       /* (na Vercel sem FREIO_SEGREDO nem SUPABASE_CHAVE_SECRETA: sem freio por telefone, nada é gravado) */
@@ -67,8 +74,9 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limite
       if (!chaveIp && !local) indisponivel('detalhes sem a chave do IP');
       let r;
       try {
-        r = await banco('vendas_registrar_detalhes', {
+        r = await banco('vendas_registrar_detalhes_com_aceite', {
           conversa_id: corpo.conversa_id, visitante_id: vid, nome: d.nome, telefone: d.telefone, aceite: true,
+          aceite_versao: VERSAO_ACEITE, aceite_hash: await hashDoAceite(),
           briefing: d.briefing, redes: d.redes, suspeito: d.suspeito, telefone_hash: telefoneHash,
           chave_ip: chaveIp, chave_ip48: chaveDoIp48(ip, segredoFreio, agora, 'pedido48'), max_por_ip48: limites.por_ip48_dia,
           max_por_ip: limites.por_ip_dia, max_por_hora: limites.pedidos_por_hora, max_por_telefone_dia: limites.por_telefone_dia, max_tentativas: limites.tentativas_por_conversa,

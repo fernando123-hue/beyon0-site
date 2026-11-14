@@ -60,7 +60,7 @@ export function criarCenario(local) {
     const c = await n.iniciar();
     const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
     assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 200);
-    assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Fisioterapia', telefone: telefoneDeTeste(), nome: 'Ana Souza', aceite: true })).status, 200);
+    assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Fisioterapia', telefone: telefoneDeTeste(), nome: 'Ana Souza', aceite: true, aceite_versao: 'a1' })).status, 200);
     const dirs = (await estado(n, c)).direcoes;
     for (const d of dirs) assert.equal((await painelPost({ entregar_direcao: d.id, conteudo: modelo(d.numero) })).status, 200, 'entrega do modelo ' + d.numero);
     assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs.find(d => d.numero === 1).id })).status, 200);

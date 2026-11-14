@@ -216,6 +216,65 @@ test('alarme de custo: a 80% do teto do dia o dono é avisado, em segundo plano;
   assert.deepEqual(chamadas, ['custo_dia'], 'a 84% do teto de US$ 25: um aviso');
 });
 
+/* ---------- o pedido na conversa (spec §5, PR 3): a versão do aceite e o telefone que nunca vaza ---------- */
+const DETALHES = { negocio: 'Clínica Sorriso Teste', vende: 'Consultas e limpeza', nome: 'Rita' };
+const telefoneNovo = () => '(21) 9' + String(1000 + Math.floor(Math.random() * 9000)) + '-' + String(1000 + Math.floor(Math.random() * 9000));
+async function comEstimativa(n) {
+  const c = await n.iniciar();
+  const t = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Pelo Instagram; Respondo preço e horário na mão', respostas: { ...TOQUES, situacao: ['instagram', 'responde_na_mao'], responde: 'dor' } });
+  assert.ok(t.corpo.estimativa, 'o turno do valor estimou');
+  return c;
+}
+
+test('aceite: sem a versão, ou com uma versão que não é a vigente, 409 e nada gravado; com a vigente, a versão e o hash do texto ficam na conversa', async () => {
+  const { createHash } = await import('node:crypto');
+  const { createRequire } = await import('node:module');
+  const R = createRequire(import.meta.url)('../../js/orcamento-rotulos.js');
+  const n = navegador(), c = await comEstimativa(n);
+  const sem = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES, telefone: telefoneNovo(), aceite: true });
+  assert.equal(sem.status, 409);
+  assert.match(sem.corpo.erro, /Recarregue/);
+  const velha = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES, telefone: telefoneNovo(), aceite: true, aceite_versao: 'a0' });
+  assert.equal(velha.status, 409);
+  assert.equal((await local.db.query('select count(*)::int n from app.pedidos where conversa_id = $1', [c])).rows[0].n, 0, 'nada gravado');
+  const ok = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES, telefone: telefoneNovo(), aceite: true, aceite_versao: R.ACEITE.versao });
+  assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
+  const linha = (await local.db.query('select contato_aceite_em, contato_aceite_versao, contato_aceite_hash from app.conversas where id = $1', [c])).rows[0];
+  assert.ok(linha.contato_aceite_em);
+  assert.equal(linha.contato_aceite_versao, R.ACEITE.versao);
+  assert.equal(linha.contato_aceite_hash, createHash('sha256').update(R.ACEITE.texto, 'utf8').digest('hex'), 'o hash do texto que a tela mostrou, calculado no servidor');
+});
+
+test('banco: a versão e o hash do aceite só entram bem formados', async () => {
+  const c = (await local.db.query('select id from app.conversas limit 1')).rows[0].id;
+  await assert.rejects(local.db.query(`update app.conversas set contato_aceite_versao = 'x1' where id = $1`, [c]));
+  await assert.rejects(local.db.query(`update app.conversas set contato_aceite_hash = 'abc' where id = $1`, [c]));
+});
+
+test('o telefone do pedido nunca vai ao modelo, ao estado, aos eventos nem ao log', async () => {
+  const n = navegador(), c = await comEstimativa(n);
+  const tel = telefoneNovo(), digitos = tel.replace(/\D/g, '');
+  const logs = [], ol = console.log, oe = console.error;
+  console.log = (...a) => { logs.push(a.join(' ')); }; console.error = (...a) => { logs.push(a.join(' ')); };
+  let r;
+  try { r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES, telefone: tel, aceite: true, aceite_versao: 'a1' }); } finally { console.log = ol; console.error = oe; }
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  const contemTel = s => String(s).replace(/\D/g, '').includes(digitos);
+  assert.ok(!logs.some(contemTel), 'nenhum log com o telefone');
+  const e = await estadoDe(n, c);
+  assert.ok(!contemTel(JSON.stringify(e)), 'o estado devolve só tem_contato');
+  const ev = await local.db.query('select dados from app.eventos_funil where conversa_id = $1', [c]);
+  assert.ok(!ev.rows.some(x => contemTel(JSON.stringify(x.dados))), 'nenhum evento com o telefone');
+  const antes = contextos.length;
+  /* (depois do pedido a conversa fica em gerando, fechada; na etapa de contato ela segue aberta e o modelo lê o briefing com os detalhes) */
+  await local.db.query("update app.conversas set etapa = 'contato' where id = $1", [c]);
+  const depois = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Quando ficam prontos?' });
+  assert.equal(depois.status, 200, 'etapa ' + (await estadoDe(n, c)).conversa.etapa + ' ' + JSON.stringify(depois.corpo));
+  assert.ok(contextos.length > antes, 'o modelo foi chamado depois do pedido');
+  assert.ok(contextos.slice(antes).every(x => !contemTel(x)), 'o modelo nunca recebe o telefone');
+  assert.ok(contextos.slice(antes).every(x => !x.includes('Rita')), 'nem o "como quer ser chamado"');
+});
+
 test('sem consultor: o confirmar-pacote grava a situação tocada pelos rótulos da lista', async () => {
   const n = navegador(), c = await n.iniciar();
   const RESP = { ramo: 'saude', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };

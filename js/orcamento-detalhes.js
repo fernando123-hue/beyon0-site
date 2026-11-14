@@ -125,9 +125,11 @@
   function atualizar(E) {
     var pedido = E && E.pedido;
     var formulario = !!E && !E.conversa.tem_contato && !!E.estimativa && !pedido;
-    $('o-contato').hidden = !formulario;
+    /* (orçamento como conversa, PR 3) os detalhes vão pelos passos do pedido na conversa (js/orcamento-pedido.js): daqui só fica o aviso de fila cheia */
+    var conversa = !!window.BZPedido;
+    $('o-contato').hidden = !formulario || (conversa && !E.fila_cheia);
     $('o-fila-cheia').hidden = !(formulario && E.fila_cheia);
-    $('o-detalhes-form').hidden = formulario && !!E.fila_cheia;
+    $('o-detalhes-form').hidden = conversa || (formulario && !!E.fila_cheia);
     if (formulario) sugestoes((E.conversa.briefing && E.conversa.briefing.negocio && E.conversa.briefing.negocio.segmento) || '');
     /* o pedido recebido: o código à vista até as direções ficarem prontas */
     var recebido = !!pedido && pedido.status === 'confirmado' && CODIGO.test(pedido.codigo) && (E.conversa.etapa === 'contato' || E.conversa.etapa === 'gerando');

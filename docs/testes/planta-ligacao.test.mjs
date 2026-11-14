@@ -837,6 +837,27 @@ test('envio do formulário com a faixa à vista logo abaixo do botão: ela se re
   assert.equal(amb.espiao.montar.length, 1);
 });
 
+/* (orçamento como conversa, PR 3) o pedido na conversa marca aria-busy no cartão do aceite e avisa com bz:pedido-enviando: a faixa se recolhe igual */
+test('o pedido na conversa: o cartão do aceite em envio e o aviso bz:pedido-enviando recolhem a faixa; o aviso sem cartão em envio não', () => {
+  const amb = comFormulario({ baixo: true });
+  let emEnvio = false;
+  const log = amb.doc.createElement('ol');   /* (a caixa da conversa sempre existe na página) */
+  log.querySelector = (sel) => (sel === '.orc-toque--aceite[aria-busy="true"]' && emEnvio ? {} : null);
+  amb.ids['o-log'] = log;
+  amb.contato.hidden = false; amb.contato.base = 2500;
+  const E = estado(); redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  amb.contato.base = 700; amb.mesa.base = 500;
+  log.disparar('bz:pedido-enviando');
+  assert.equal(amb.faixa.hidden, false, 'sem cartão em envio, nada a recolher');
+  emEnvio = true;
+  log.disparar('bz:pedido-enviando');
+  assert.equal(amb.faixa.hidden, true, 'recolhida no envio do pedido');
+  assert.equal(amb.espiao.parar, 0, 'não desmonta');
+  amb.doc.disparar('click');
+  assert.equal(amb.faixa.hidden, true, 'durante o envio, um gesto não a traz de volta');
+});
+
 test('recolhida: volta, sem montar de novo, quando o bloco de cima fica abaixo da tela (a posição dela fora da área visível)', () => {
   const amb = comFormulario({ baixo: true });
   amb.contato.hidden = false; amb.contato.base = 2500;
