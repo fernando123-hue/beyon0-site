@@ -47,7 +47,7 @@ test('o grafo: 6 camadas, 3 na mesma camada, volta fora do ciclo, pulo por cima 
   const largo = copia(plano(CASOS.clinica, 'mapa'));
   largo.nos.push({ id: 'extra', papel: 'origem', origem: 'instagram', icone: 'chegada', titulo: 'Outra origem', frase: 'Mais uma chegando pela mesma camada' });
   largo.setas.push({ de: 'extra', para: 'pagina', rotulo: 'chega por' });
-  assert.ok(motivos(largo).includes('origens_nos') || motivos(largo).includes('camada_cheia'));
+  assert.deepEqual(motivos(largo), ['nos_qtd', 'origens_nos'], '7 nós e 3 de origem');
   const tres = copia(plano(CASOS.clinica, 'mapa'));
   tres.nos[2] = { id: 'direct', papel: 'site', icone: 'pagina', titulo: 'Pergunta no direct', frase: 'Dúvida e horário saem um por um, na mão' };
   tres.nos.splice(1, 1); tres.setas = tres.setas.filter((s) => s.de !== 'indica');
@@ -64,7 +64,7 @@ test('o grafo: 6 camadas, 3 na mesma camada, volta fora do ciclo, pulo por cima 
 
   const pulo = base();
   pulo.setas.push({ de: 'perfil', para: 'horario', rotulo: 'pula' });
-  assert.ok(motivos(pulo).includes('pulo') || motivos(pulo).includes('caminho_divide'), String(motivos(pulo)));
+  assert.deepEqual(motivos(pulo), ['pulo', 'caminho_divide'], 'no caminho, a seta que pula é também divisão: as duas regras valem');
   const puloRamos = copia(plano(CASOS.clinica, 'ramos'));
   puloRamos.setas.push({ de: 'perfil', para: 'objetivo', rotulo: 'pula' });
   assert.ok(motivos(puloRamos).includes('pulo'), 'pulo por cima da página e dos ramos: ' + motivos(puloRamos));
@@ -72,7 +72,7 @@ test('o grafo: 6 camadas, 3 na mesma camada, volta fora do ciclo, pulo por cima 
 
 test('ids e referências: __proto__, objetivo, repetido, para inexistente, seta para si, repetida, o objetivo que sai fora do ciclo', () => {
   const proto = base(); proto.nos[1].id = '__proto__';
-  assert.ok(motivos(proto).includes('id_no') || motivos(proto).includes('id_reservado'));
+  assert.deepEqual(motivos(proto), ['id_reservado', 'seta_ref'], 'o id reservado não entra, e a seta que o chamava fica sem destino');
   const obj = base(); obj.nos[1].id = 'objetivo';
   assert.ok(motivos(obj).includes('id_reservado'));
   const rep = base(); rep.nos[2].id = 'pagina';
@@ -125,8 +125,10 @@ test('textos e contagens: tamanhos, caractere proibido, nós de 2 a 6, setas de 
   assert.ok(motivos(um).includes('nos_qtd'));
   const v = base(); v.topologia = 'laco';
   assert.ok(motivos(v).includes('versao'));
-  const extra = base(); extra.nos[0].cor = 'red';
-  assert.ok(motivos(extra).includes('chave_extra'));
+  const extra = base(); extra.nos[0].cor = 'red'; extra.nos[1].IgnoreAllRulesNow = 1;
+  assert.deepEqual(motivos(extra), ['chave_extra']);
+  /* (revisão de segurança do PR 4, B2) o nome da chave desconhecida é texto do modelo: não volta no caminho do erro */
+  assert.deepEqual(F.validarFormaMapa(extra).erros.map((e) => e.caminho), ['nos[0].?', 'nos[1].?']);
   const grande = base(); grande.fecho = 'a'.repeat(7000);
   assert.deepEqual(motivos(grande), ['grande']);
 });

@@ -77,6 +77,13 @@ test('oQueSeSabe: os rótulos tocados, o texto livre com negação, google como 
   assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'me acham pelo google maps e por indicação' } }).origens, ['google_mapa', 'indicacao']);
   assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'não uso instagram, vem tudo do boca a boca' } }).origens, ['indicacao'], 'a negação anula');
   assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'chamam no zap e passam na frente' } }).origens, ['whatsapp', 'passa_na_frente']);
+  /* (revisão técnica do PR 4) a negação fica na oração dela: a vírgula, o ponto, "mas" e "só" a fecham */
+  assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'Não tenho site, só WhatsApp e Instagram' } }).origens, ['instagram', 'whatsapp']);
+  assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'nao uso instagram, so whatsapp' } }).origens, ['whatsapp']);
+  assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'não uso instagram só whatsapp' } }).origens, ['whatsapp'], 'sem vírgula, o "só" fecha a oração');
+  assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'não uso instagram, mas o instagram é o principal' } }).origens, ['instagram'], 'outra ocorrência, sem negação, vale');
+  /* a regra do google antes do corte de 3: a busca que sai não toma a vaga de uma origem real */
+  assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: 'whatsapp, google maps, indicação' } }).origens, ['whatsapp', 'google_mapa', 'indicacao']);
   assert.equal(oQueSeSabe({ situacao_atual: { o_que_se_perde: 'cliente marca e não aparece' } }).trava, null, 'texto livre da trava não é lido');
   assert.ok(oQueSeSabe({ situacao_atual: { como_chegam: 'instagram, whatsapp, google, indicação, fachada' } }).origens.length <= 3);
   for (const b of [null, 1, 'x', {}, { situacao_atual: null }, { situacao_atual: { como_chegam: 5 } }]) assert.deepEqual(oQueSeSabe(b), { origens: [], trava: null, travaRotulo: '' });

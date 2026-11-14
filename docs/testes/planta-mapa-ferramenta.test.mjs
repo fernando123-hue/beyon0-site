@@ -89,7 +89,15 @@ test('a versão compacta do v3: ids mantidos, até 900 caracteres no pior caso, 
   const cp = plantaParaModelo({ versao: 6, origem: 'modelo', plano: pior });
   assert.ok(JSON.stringify(cp).length <= 900, String(JSON.stringify(cp).length));
   assert.equal(cp.nos.length, 6, 'os nós nunca são cortados');
-  assert.ok(cp.setas.every((s) => s.length === 2) || cp.setas.length === 9, 'primeiro saem os rótulos');
+  assert.ok(cp.setas.length === 9 && cp.setas.every((s) => s.length === 2), 'no pior caso válido só os rótulos saem (as 9 setas ficam)');
+  /* (revisão de segurança do PR 4, B1) o plano do briefing vem cru: id e papel fora das listas não entram, e o teto vale no fim */
+  const sujo = { ...pior, estrutura: '<b>', hoje: { origens: ['instagram', 'x'.repeat(500)] }, nos: [{ id: 'x'.repeat(500), papel: 'site', titulo: 't' }, { id: 'ok', papel: 'y'.repeat(500), titulo: 't' }, ...pior.nos] };   /* (os sujos primeiro: o corte do fim não os esconde) */
+  const cs = plantaParaModelo({ versao: 6, origem: 'modelo', plano: sujo });
+  assert.ok(JSON.stringify(cs).length <= 900, String(JSON.stringify(cs).length));
+  assert.equal(cs.estrutura, null);
+  assert.deepEqual(cs.origens, ['instagram']);
+  assert.equal(cs.nos.length, 6, 'só os 6 nós válidos');
+  assert.ok(cs.nos.every((n) => /^[a-z0-9_]{1,12}$/.test(n[0]) && n[1] === 'site'), 'nenhum id ou papel fora das listas');
   /* acima do limite (o corte de verdade: o pior caso válido nem chega lá): saem os rótulos, depois setas do fim; os 6 nós ficam */
   const enorme = { ...pior, setas: Array.from({ length: 30 }, (_, i) => ({ de: 'abcdefghijk' + (i % 6), para: 'objetivo', rotulo: 'r'.repeat(23) + (i % 10) })) };
   const ce = plantaParaModelo({ versao: 6, origem: 'modelo', plano: enorme });

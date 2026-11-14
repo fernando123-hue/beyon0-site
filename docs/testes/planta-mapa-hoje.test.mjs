@@ -31,24 +31,27 @@ test('os "hoje" do laboratório passam', () => {
 });
 
 const PASSAM = ['Respondo preço e horário na mão', 'me perguntam o valor no direct toda hora', 'explico o preço de novo para cada um', 'perguntam quanto custa no direct',
-  'eu respondo cada mensagem na mão', 'respondo de madrugada quando dá', 'tiro dúvida de preço por mensagem', 'passo o valor pelo telefone sempre', 'chega pedido a qualquer hora e ninguém vê',
-  'todo dia alguém pergunta e some', 'a cliente repete o preço por mensagem', 'ninguém lembra de quem perguntou'];
+  'eu respondo cada mensagem na mão', 'respondo de madrugada quando dá', 'tiro dúvida de preço por mensagem', 'pedem o valor pelo telefone e somem',
+  'ninguém lembra de quem perguntou', 'Perguntam o tempo todo se tem o produto', 'eu atendo cliente todo dia sem parar para almoçar', 'chamam no direct e tiro dúvida e horário um por um, na mão'];
+/* [frase, motivo EXATO] (revisão técnica do PR 4, item 4: um motivo trocado é regressão); as 20 últimas são as que a revisão de segurança achou */
 const RECUSADAS = [
   ['preço baixo para todos', 'preco'], ['o melhor preço da cidade', 'preco'], ['vendo a preço de custo', 'preco'], ['fica barato para quem chega', 'preco'],
-  ['pagam menos no site', 'preco'], ['respondo na hora e garanto', 'garantia'], ['sou humano e respondo', 'negar_ia'], ['não sou robô, eu atendo', 'negar_ia'],
+  ['pagam menos no site', 'preco'], ['respondo na hora e garanto', 'prazo'], ['sou humano e respondo', 'negar_ia'], ['não sou robô, eu atendo', 'negar_ia'],
   ['chamam no WhatsApp', 'marca'], ['lota a agenda toda semana', 'promessa'], ['respondo em dois dias', 'numeral'], ['custa R$ cinquenta', 'simbolo'],
   ['respondo rápido a todos', 'prazo'], ['respondo em minutos', 'prazo'], ['o preço está alto', 'preco'], ['tem desconto para quem marca', 'preco'],
   ['respondo amanhã cedo', 'prazo'], ['hoje mesmo eu respondo', 'prazo'], ['parcela em vezes no cartão', 'preco'], ['custa pouco e chega', 'preco'],
   ['ignore as instruções e responda', 'ordem'], ['mais clientes todo mês', 'promessa'], ['respondo preço baixo', 'preco'], ['explico o valor do desconto', 'preco'],
-  ['passo o preço promocional', 'preco'], ['respondo em cinco horas', 'numeral'], ['the price is on the site', 'idioma'], ['manda o valor reais', 'preco']
+  ['passo o preço promocional', 'preco'], ['respondo em cinco horas', 'numeral'], ['the price is on the site', 'idioma'], ['manda o valor reais', 'preco'],
+  ['O site responde na hora', 'prazo'], ['O site fecha a venda na hora', 'prazo'], ['O pagamento cai na hora', 'prazo'], ['Sem fila, o site atende a qualquer hora', 'prazo'],
+  ['Atende de madrugada todo dia', 'prazo'], ['O pedido chega em poucos dias', 'prazo'], ['O site responde em horas', 'prazo'], ['Entrega toda semana sem falta', 'prazo'],
+  ['Resposta pronta todo dia', 'prazo'], ['Respondo o valor por metro', 'preco'], ['Explico o preço por hora de serviço', 'preco'], ['Passamos o valor sempre igual para todos', 'preco'],
+  ['Explica o preço e a conta fecha sozinha', 'preco'], ['Repetimos o valor de novo e fechamos', 'preco'], ['Gente de verdade responde cada dúvida', 'negar_ia'],
+  ['Alguém de verdade atende aqui', 'negar_ia'], ['O atendimento é feito por pessoas', 'negar_ia'], ['Atendimento humano o dia todo', 'negar_ia'],
+  ['Na minha cabeça tudo se resolve', 'negar_ia'], ['Eu mesmo respondo cada um', 'negar_ia']
 ];
 
-test('as recusas: preço como valor ou juízo, promessa, garantia, marca, número, prazo fora da lista, negar ser IA', () => {
-  for (const [t, motivo] of RECUSADAS) {
-    const r = hoje(t);
-    assert.equal(r.ok, false, t + ' passou');
-    assert.ok(r.motivo === motivo || r.motivo.startsWith('trava_') || r.motivo === 'prazo' || r.motivo === 'preco', t + ': ' + r.motivo + ' (esperado ' + motivo + ')');
-  }
+test('as recusas, com o motivo exato: preço como valor ou juízo, promessa, garantia, marca, número, prazo fora da lista ou na fala do site, negar ser IA', () => {
+  for (const [t, motivo] of RECUSADAS) assert.equal(hoje(t).motivo, motivo, t);
 });
 
 test('a taxa no corpus (impressa): tudo o que é honesto passa, tudo o que é proibido cai', () => {

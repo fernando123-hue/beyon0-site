@@ -41,15 +41,22 @@ export function semChavesDaPlanta(briefing) {
 
 /* a versão compacta do mapa v3 (no bloco BRIEFING, como dado): os nós [id, papel, título] e as setas [de, para, rótulo], nunca as frases. Cabe em
    COMPACTO_MAX: corta primeiro o rótulo das setas, depois as setas; os nós nunca (o ajuste precisa dos ids) */
+/* (revisão de segurança do PR 4, B1) o plano vem do briefing CRU (sem a revalidação da leitura): só entram o que as listas da forma reconhecem
+   (id no formato, papel, estrutura e origem da lista), e o teto vale no fim, nem que custe nós */
+const idValido = id => typeof id === 'string' && (id === 'objetivo' || (M.ID_NO.test(id) && !M.IDS_RESERVADOS.includes(id)));
 function mapaParaModelo(planta, plano) {
-  const nos = (Array.isArray(plano.nos) ? plano.nos : []).filter(n => n && typeof n.id === 'string').map(n => [n.id, n.papel, String(n.titulo || '').slice(0, M.LIMITES_MAPA.titulo_max)]);
-  const setas = (Array.isArray(plano.setas) ? plano.setas : []).filter(s => s && typeof s.de === 'string').map(s => [s.de, s.para, String(s.rotulo || '').slice(0, M.LIMITES_MAPA.rotulo_max)]);
-  const origens = plano.hoje && Array.isArray(plano.hoje.origens) ? plano.hoje.origens.slice(0, M.LIMITES_MAPA.hoje_origens_max) : [];
+  let nos = (Array.isArray(plano.nos) ? plano.nos : []).filter(n => n && idValido(n.id) && n.id !== 'objetivo' && M.PAPEIS.includes(n.papel))
+    .map(n => [n.id, n.papel, String(n.titulo || '').slice(0, M.LIMITES_MAPA.titulo_max)]);
+  const setas = (Array.isArray(plano.setas) ? plano.setas : []).filter(s => s && idValido(s.de) && idValido(s.para))
+    .map(s => [s.de, s.para, String(s.rotulo || '').slice(0, M.LIMITES_MAPA.rotulo_max)]);
+  const origens = plano.hoje && Array.isArray(plano.hoje.origens) ? plano.hoje.origens.filter(o => M.ORIGENS_MAPA.includes(o)).slice(0, M.LIMITES_MAPA.hoje_origens_max) : [];
   const objetivo = plano.objetivo && typeof plano.objetivo.titulo === 'string' ? plano.objetivo.titulo.slice(0, M.LIMITES_MAPA.titulo_max) : '';
-  const montar = ss => ({ versao: planta.versao, origem: planta.origem, estrutura: plano.estrutura, origens, nos, setas: ss, objetivo });
+  const estrutura = M.ESTRUTURAS.includes(plano.estrutura) ? plano.estrutura : null;
+  const montar = ss => ({ versao: planta.versao, origem: planta.origem, estrutura, origens, nos, setas: ss, objetivo });
   let c = montar(setas);
   if (JSON.stringify(c).length > COMPACTO_MAX) c = montar(setas.map(s => [s[0], s[1]]));
   while (JSON.stringify(c).length > COMPACTO_MAX && c.setas.length) c = montar(c.setas.slice(0, -1));
+  while (JSON.stringify(c).length > COMPACTO_MAX && nos.length) { nos = nos.slice(0, -1); c = montar(c.setas); }
   return c;
 }
 /* a versão compacta para o modelo ajustar mantendo os ids: do v3, o mapa acima; do v2, id, tipo e título de cada caixa (nunca as frases) */

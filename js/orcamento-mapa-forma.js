@@ -82,8 +82,6 @@
     if (typeof v.normalize === 'function') { try { return CARACTERE_PROIBIDO.test(v.normalize('NFKC')); } catch (e) { return true; } }
     return false;
   };
-  var NOME_DE_CHAVE = /^[A-Za-z][A-Za-z0-9_$-]{0,23}$/;
-  var SEQUENCIA_DE_DIGITOS = /[0-9]{4}/;
 
   /* as tabelas só valem pela chave PRÓPRIA (um id "constructor" não passa pela herança do Object) */
   var tem = function (o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); };
@@ -120,15 +118,12 @@
     if (c) return { ok: false, motivos: c.codigos.slice(), erros: c.erros.slice() };
     return { ok: false, motivos: [codigo], erros: [{ caminho: '', codigo: codigo }] };
   }
-  function caminhoDaChave(caminho, chave, fixa) {
-    var nome = fixa || (NOME_DE_CHAVE.test(chave) && !SEQUENCIA_DE_DIGITOS.test(chave)) ? chave : '?';
-    return caminho ? caminho + '.' + nome : nome;
-  }
   function conferirChaves(obj, permitidas, obrigatorias, caminho, c) {
     var chaves = Object.keys(obj), i;
     for (i = 0; i < chaves.length; i++) {
-      if (CHAVES_DE_PROTOTIPO.indexOf(chaves[i]) >= 0) c.add(caminhoDaChave(caminho, chaves[i], true), 'chave_proibida');
-      else if (permitidas.indexOf(chaves[i]) < 0) c.add(caminhoDaChave(caminho, chaves[i]), 'chave_extra');
+      if (CHAVES_DE_PROTOTIPO.indexOf(chaves[i]) >= 0) c.add(caminho ? caminho + '.' + chaves[i] : chaves[i], 'chave_proibida');   /* (os nomes de protótipo são uma lista fixa nossa) */
+      /* (revisão de segurança do PR 4, B2) o nome de uma chave desconhecida é texto do modelo: nunca volta a ele, nem no caminho do erro */
+      else if (permitidas.indexOf(chaves[i]) < 0) c.add(caminho ? caminho + '.?' : '?', 'chave_extra');
     }
     for (i = 0; i < obrigatorias.length; i++) if (!tem(obj, obrigatorias[i])) c.add(caminho ? caminho + '.' + obrigatorias[i] : obrigatorias[i], 'chave_faltando');
   }

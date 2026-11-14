@@ -122,20 +122,31 @@ const SEM_PRIMEIRA_PESSOA = { ...RAIZES, negar_ia: NEGAR_IA_FORTE,
 /* à prova de no-op silencioso: se alguém mexer nas raízes e o replace deixar de achar o trecho, o módulo nem carrega (as duas pontas da exceção têm teste) */
 if (SEM_PRIMEIRA_PESSOA.promessa.source === RAIZES.promessa.source || SEM_PRIMEIRA_PESSOA.ordem.source === RAIZES.ordem.source) throw new Error('planta-textos: a exceção da fala da pessoa não foi aplicada (o texto das raízes mudou)');
 /* ---------- o "hoje" do mapa do caso (PR 4, plano §2.5 e §2.6): as palavras da PESSOA sobre como é hoje, com a autoridade de "Hoje:" na tela ----------
-   Três folgas, estreitas, só com a opção campo: 'hoje' (sem ela nada muda):
-   - "preço"/"valor" só como o ASSUNTO da pergunta, logo depois de perguntar, responder, explicar, passar, repetir ou "dúvida de/sobre", e antes de
-     conector ("respondo preço e horário na mão", "perguntam o valor no direct"); "quanto custa" só depois de perguntar. Qualquer outro preço (barato,
-     desconto, "preço baixo", "o melhor preço", custo, parcela, reais) continua recusado, e dígito, R$ e % seguem nas outras regras;
-   - o prazo do cotidiano, numa lista fechada ("na hora", "horas", "dias", "de madrugada", "a qualquer hora", "todo dia", "cada dia", "toda semana");
-     "imediato", "rápido", "minutos", "amanhã", "hoje mesmo", número de dias e o resto do prazo continuam recusados;
-   - negar ser IA vale pela regra forte da fala da pessoa ("eu respondo" passa; "sou humano" e "não sou robô" não).
-   As máscaras trocam só o trecho folgado por uma palavra neutra ANTES de procurar as raízes; promessa, garantia, marca e as dez travas rodam igual. */
-export const PRECO_COMO_DUVIDA = /\b((?:pergunt\w*|respond\w*|explic\w*|pass\w*|repet\w*|duvidas? (?:de|sobre)) (?:o |a |de |sobre )?)(?:precos?|valor(?:es)?)(?= (?:e|no|na|nos|nas|pelo|pela|por|um|toda|todo|sempre|de novo)\b|$)/g;
+   Três folgas, estreitas, só com a opção campo: 'hoje' (sem ela nada muda), e NUNCA numa frase que fala do site, do sistema ou de "a gente"
+   (o que o site faria, escrito como se fosse a situação de hoje: revisão de segurança do PR 4, M1):
+   - "preço"/"valor" só como o ASSUNTO da pergunta que a pessoa ouve: depois de "perguntam", "pedem", "respondo", "explico" ou "dúvida de/sobre", e
+     antes de conector ("respondo preço e horário na mão", "perguntam o valor no direct", "tiro dúvida de preço por mensagem"); "quanto custa" só depois
+     de perguntar. Qualquer outro preço (barato, desconto, "preço baixo", "o melhor preço", "valor por metro", custo, parcela, reais) continua recusado,
+     e dígito, R$ e % seguem nas outras regras (revisão M2a: tirados "passar", "repetir" e os conectores "por", "um", "sempre", "toda", "todo");
+   - o prazo do cotidiano, numa lista fechada ("horas", "dias", "de madrugada", "todo dia", "cada dia", "toda semana"), só numa frase em 1ª pessoa da
+     rotina de quem atende ("respondo de madrugada"); "na hora", "a qualquer hora", "imediato", "rápido", "minutos", "amanhã", "hoje mesmo", número de
+     dias e o resto do prazo continuam recusados (revisão M1: "O site responde na hora" passava);
+   - negar ser IA pela regra forte da fala da pessoa, mais o que finge gente no atendimento ("gente de verdade", "atendimento humano", "feito por
+     pessoas", "na minha cabeça", "eu mesmo respondo"; revisão M2b); "eu respondo" passa.
+   As máscaras trocam só o trecho folgado por uma palavra neutra ANTES de procurar as raízes; promessa, garantia, marca e as travas rodam igual. */
+const FALA_DO_SITE = /\b(?:site|sistema|aplicativo|plataforma|aqui|a gente|zero|beyon|robos?|bots?|automatic\w*|sozinh\w*)\b/;
+const ROTINA_EM_PRIMEIRA_PESSOA = /\b(?:eu|respondo|atendo|resolvo|mando|confirmo|recebo|vejo|explico|tiro|marco|faco|olho|aviso|ligo|anoto|organizo|separo|corro|fico)\b/;
+export const PRECO_COMO_DUVIDA = /\b((?:pergunt\w*|ped(?:e|em|iu|iram)|respondo|explico|duvidas? (?:de|sobre)) (?:o |a |de |sobre )?)(?:precos?|valor(?:es)?)(?= (?:e|no|na|nos|nas|pelo|pela|de novo|por (?:mensagem|telefone|ligacao|audio|direct))\b|$)/g;
 const QUANTO_CUSTA_PERGUNTADO = /\b(pergunt\w* (?:o )?)quanto custa\b/g;
-export const PRAZO_DO_COTIDIANO = Object.freeze(['na hora', 'horas', 'dias', 'de madrugada', 'a qualquer hora', 'todo dia', 'cada dia', 'toda semana']);
-const PRAZO_DO_COTIDIANO_RE = new RegExp('\\b(?:' + PRAZO_DO_COTIDIANO.map(p => p.replace(/ /g, ' ')).join('|') + ')\\b', 'g');
-const mascararHoje = s => s.replace(PRECO_COMO_DUVIDA, '$1assunto').replace(QUANTO_CUSTA_PERGUNTADO, '$1assunto').replace(PRAZO_DO_COTIDIANO_RE, 'quando');
-const RAIZES_DO_HOJE = { ...RAIZES, negar_ia: NEGAR_IA_FORTE };
+export const PRAZO_DO_COTIDIANO = Object.freeze(['horas', 'dias', 'de madrugada', 'todo dia', 'cada dia', 'toda semana']);
+const PRAZO_DO_COTIDIANO_RE = new RegExp('\\b(?:' + PRAZO_DO_COTIDIANO.join('|') + ')\\b', 'g');
+function mascararHoje(s) {
+  if (FALA_DO_SITE.test(s)) return s;
+  const t = s.replace(PRECO_COMO_DUVIDA, '$1assunto').replace(QUANTO_CUSTA_PERGUNTADO, '$1assunto');
+  return ROTINA_EM_PRIMEIRA_PESSOA.test(t) ? t.replace(PRAZO_DO_COTIDIANO_RE, 'quando') : t;
+}
+const NEGAR_IA_DO_HOJE = new RegExp(NEGAR_IA_FORTE.source + '|\\b(?:gente|alguem|pessoas?|humanos?|humanas?) (?:de verdade|reais?)\\b|\\batendimento humano\\b|\\bfeito por (?:pessoas|gente)\\b|\\bna minha cabeca\\b|\\b(?:eu|a gente) mesm[oa] (?:respond\\w*|atend\\w*|escrev\\w*)\\b');
+const RAIZES_DO_HOJE = { ...RAIZES, negar_ia: NEGAR_IA_DO_HOJE };
 
 const REGULADO = {
   depoimento: /\b(?:depoiment\w*|testemunh\w*|antes (?:e |\/ )?depois|avaliacoes (?:de|dos|das) (?:pacientes|clientes)|casos? de sucesso|historias? de (?:pacientes|clientes)|fotos? de (?:pacientes|clientes)|relatos?|transformac\w+)\b/,

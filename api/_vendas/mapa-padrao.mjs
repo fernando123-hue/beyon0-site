@@ -12,7 +12,6 @@
    ========================================================================== */
 import R from '../../js/orcamento-rotulos.js';
 import M from '../../js/orcamento-mapa-forma.js';
-import { paraBusca } from './zero.mjs';
 
 const congelar = o => { if (o && typeof o === 'object') { Object.values(o).forEach(congelar); Object.freeze(o); } return o; };
 const no = (id, papel, icone, titulo, frase) => ({ id, papel, icone, titulo, frase });
@@ -122,7 +121,7 @@ const TRAVA_V3 = congelar({
 
 /* ---------- o que se sabe do caso: origens (até 3) e a trava, pelo briefing ---------- */
 const TEXTO_MAX = 2000;
-/* palavras-chave do texto livre (já em paraBusca); "nao/nunca" até 3 palavras antes anula */
+/* palavras-chave do texto livre (minúsculas, sem acento); "nao/nunca" até 3 palavras antes, na mesma oração, anula */
 const ORIGEM_POR_PALAVRA = [
   ['instagram', /\b(?:instagram|insta|direct|reels?)\b/],
   ['whatsapp', /\b(?:whatsapp|whats|zap|zapzap|wpp)\b/],
@@ -140,18 +139,26 @@ export function oQueSeSabe(briefing) {
   try {
     const s = briefing && typeof briefing === 'object' && briefing.situacao_atual && typeof briefing.situacao_atual === 'object' ? briefing.situacao_atual : {};
     const chegam = textoDe(s.como_chegam), perde = textoDe(s.o_que_se_perde);
-    const add = cod => { if (cod && !saber.origens.includes(cod) && saber.origens.length < M.LIMITES_MAPA.hoje_origens_max) saber.origens.push(cod); };
+    const tocadas = [], doTexto = [];
     /* 1) os rótulos tocados, como trecho exato */
     for (const [codigo, sug] of Object.entries(R.SUGESTOES)) {
-      if (sug.campo === 'como_chegam' && chegam.includes(sug.rotulo) && temChave(M.ORIGEM_DA_SUGESTAO, codigo)) add(M.ORIGEM_DA_SUGESTAO[codigo]);
+      if (sug.campo === 'como_chegam' && chegam.includes(sug.rotulo) && temChave(M.ORIGEM_DA_SUGESTAO, codigo)) tocadas.push(M.ORIGEM_DA_SUGESTAO[codigo]);
     }
-    /* 2) o texto livre: palavra-chave sem negação logo antes (o google sem "mapa" é a busca; com "mapa", o mapa) */
-    const busca = paraBusca(chegam);
+    /* 2) o texto livre: a palavra-chave vale se ALGUMA ocorrência não estiver negada dentro da MESMA oração ("não tenho site, só WhatsApp" é
+       WhatsApp: a vírgula, o ponto, "mas" e "só" fecham a oração da negação; revisão técnica do PR 4). A pontuação fica (sem acento, minúsculas) */
+    const texto = chegam.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     for (const [cod, re] of ORIGEM_POR_PALAVRA) {
-      const m = re.exec(busca);
-      if (m && !NEGACAO.test(busca.slice(0, m.index).trim())) add(cod);
+      const todas = new RegExp(re.source, 'g');
+      let m;
+      while ((m = todas.exec(texto))) {
+        const oracao = texto.slice(0, m.index).split(/[,;.!?\n]|\b(?:mas|so|porem)\b/).pop().trim();
+        if (!NEGACAO.test(oracao)) { doTexto.push(cod); break; }
+      }
     }
-    if (saber.origens.includes('google_mapa') && /\bgoogle\b/.test(busca) && !/\bbusca\w*|pesquisa\w*/.test(busca)) saber.origens = saber.origens.filter(o => o !== 'google_busca');
+    /* o google do texto, com mapa e sem falar de busca, é só o mapa; ANTES do corte de 3 (senão a busca tomava a vaga de uma origem real) */
+    const soMapa = doTexto.includes('google_mapa') && /\bgoogle\b/.test(texto) && !/\bbusca\w*|pesquisa\w*/.test(texto);
+    const todas = [...tocadas, ...doTexto.filter(o => !(soMapa && o === 'google_busca' && !tocadas.includes(o)))];
+    saber.origens = todas.filter((o, i) => todas.indexOf(o) === i).slice(0, M.LIMITES_MAPA.hoje_origens_max);
     /* 3) a trava: só o rótulo exato de uma sugestão (texto livre não é lido: não se inventa dor) */
     for (const [codigo, sug] of Object.entries(R.SUGESTOES)) {
       if (sug.campo === 'o_que_se_perde' && perde.includes(sug.rotulo) && temChave(TRAVA_V3, codigo)) { saber.trava = codigo; saber.travaRotulo = sug.rotulo; break; }
