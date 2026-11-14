@@ -9,8 +9,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const JS = fileURLToPath(new URL('../../js/', import.meta.url));
-/* os planta-*.js, a ligação com a página (orcamento-planta.js, PR 2c) e o radar do escopo (orcamento-escopo*.js: roda em toda visita ao orçamento) */
-const arquivos = fs.readdirSync(JS).filter((n) => /^planta-.+\.js$/.test(n) || n === 'orcamento-planta.js' || n === 'orcamento-planta-esboco.js' || /^orcamento-escopo(-[a-z]+)?\.js$/.test(n)).sort();
+/* os planta-*.js, a forma do mapa do caso (orcamento-mapa-forma.js, PR 4), a ligação com a página (orcamento-planta.js, PR 2c) e o radar do escopo (orcamento-escopo*.js: roda em toda visita ao orçamento) */
+const arquivos = fs.readdirSync(JS).filter((n) => /^planta-.+\.js$/.test(n) || n === 'orcamento-planta.js' || n === 'orcamento-planta-esboco.js' || n === 'orcamento-mapa-forma.js' || /^orcamento-escopo(-[a-z]+)?\.js$/.test(n)).sort();
 
 /* tira comentários e o conteúdo de strings e de expressões regulares (um passe só, sem regex gigante) */
 export function limpar(src) {
