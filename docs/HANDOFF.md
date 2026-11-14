@@ -2,6 +2,23 @@
 
 > **ESTADO DA SESSÃO "ORÇAMENTO COMO CONVERSA" (14/11, madrugada; worktree `03 Projetos/site-zero-mapa`, branch `zero-mapa-servidor`, head `fcb412a`, ENVIADO, PR ainda NÃO aberto).**
 > <!-- passagem-auto: 1-cf05db7a-0aec-488c-92c5-4f1b5ccd43e9 -->
+> **ATUALIZAÇÃO 14/11 (chegou durante a passagem):**
+> - **O dono respondeu os 3 pontos do PR 4**, pela sessão principal, registrado em `01 Empresa/Decisões.md`:
+>   - (1) "preço" na linha Hoje: "Pode aceitar", na opção b;
+>   - (2) a DESCRICAO v3 e o PREFIXO_PLANTA exatamente como enviados, inclusive "foto de antes e depois": "Pode trocar";
+>   - (3) não promover entre o PR 4 e o PR 5: "Combinado".
+>   - Citar essas respostas na evidência do PR. **Se o texto do prompt mudar, ele volta para a sessão principal antes do merge.**
+> - **Custo aceito:** fica com 6 versões. No corpo do PR, na parte do risco: US$ 1,07 → 1,24 (+16%); com 4 versões seria +12%.
+> - **A migração aceite_versao JÁ ESTÁ no banco de teste:** o dono deu Run e a sessão principal conferiu colunas e função, com execute só para service_role. O "column already exists" foi de uma 2ª execução. Falta: rodar a minha conferência de leitura e testar o pedido no staging. Produção, só antes da promoção.
+> - **Fechar a minha aba do Supabase no Chrome** (o dono quer uma aba por site): o `tabs_close` não respondeu. Tentar de novo.
+> - **As duas revisões do PR 4 chegaram**, e os relatórios completos estão na pasta de notas, `pr4-revisao-seguranca.md` e `pr4-revisao-tecnica.md`. Nenhum crítico ou alto. A corrigir ANTES do merge:
+>   - **seg M1:** a máscara de prazo do "hoje" deixa passar "O site responde na hora", "a qualquer hora" e "todo dia". Aplicar só em 1ª pessoa de rotina, ou tirar "na hora" e "a qualquer hora".
+>   - **seg M2a:** a folga do preço com "por", "um", "sempre", "pass*" e "repet*" deixa passar "valor por metro" e "passamos o valor sempre igual". Estreitar. Isso é mais restrito que o aprovado; avisar a principal.
+>   - **seg M2b:** a `NEGAR_IA_FORTE` deixa passar "gente de verdade", "atendimento humano", "feito por pessoas" e "na minha cabeça". Ampliar.
+>   - **téc 1:** a negação do `oQueSeSabe` atravessa a vírgula ("Não tenho site, só WhatsApp" perde o WhatsApp). Ver a negação no texto original, respeitando a pontuação.
+>   - Recomendados: seg B1 (compacto só com ids e papéis válidos, mais teto final), téc 2 (Google antes do corte de 3), téc 3 (o `.map` morto no `PRAZO_DO_COTIDIANO_RE`) e téc 4 (testes com `||`).
+>   - Depois: re-revisão do commit de correção, publicar as três revisões como comentário no PR e preencher o corpo.
+
 > **Feito nesta sessão:**
 > - **PR 3 (#151) mesclado** (main `084bedae`): o pedido dentro da conversa e o aceite versionado. Em seguida, **#153 mesclado** (main `a7bce34`): o verificador mede o recado a partir da conversa.
 > - **Migração `20261113120000_aceite_versao.sql`:** o dono aprovou ("sim, pode aplicar") pela sessão principal.
