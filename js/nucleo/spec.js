@@ -133,7 +133,7 @@ export const SPEC = {
      lado (dono, 2026-10-04). */
   trava: { fica: 0.3, passa: 0.06, volta: 0.045, pisca: 0.6 },
 
-  /* o tracejado: 60 traços entre as câmaras e o trilho. Era PARADO até 13/11 (crítica de arte: no máximo 3 velocidades e duas referências
+  /* o tracejado: 60 traços entre as câmaras e o trilho. Era PARADO até 13/11 (crítica de arte, vencida pelo pedido do dono: no máximo 3 velocidades e duas referências
      fixas, a régua e ele; senão o conjunto lia como máquina de lavar) */
   /* Dono, 13/11: "quero que a parte parada fique se movimentando para o lado contrário da que já se movimenta".
      Tracejado e régua passam a girar ao contrário do portal: `vel` em rad/s (o portal vai a +0,025), `arrasto` =

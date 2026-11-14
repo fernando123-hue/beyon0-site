@@ -146,6 +146,7 @@
      (compositor; nada de desfoque nem de cor por quadro). Substitui o surto no h1: a descarga reescreve o texto e
      apagaria as letras. O SplitText e o giro recriam ou clonam o título: um MutationObserver reaplica onde faltar. */
   function letras(em) {
+    if (em.querySelector('.energizando')) return;   /* (no meio de uma descarga: ela reescreve o texto) */
     var folhas = [].filter.call(em.querySelectorAll('*'), function (e) { return !e.children.length && e.textContent.trim(); });
     if (!folhas.length && !em.children.length && em.textContent.trim()) folhas = [em];
     var n = 0;
@@ -171,8 +172,11 @@
     aplicar();
     titulo.classList.add('tem-corrente');
     var pendente = 0;
-    new MutationObserver(function () {
-      if (pendente) return;
+    /* as camadas do glitch do giro são cópias (js/giro.js): entrar ou mexer nelas não conta */
+    var camada = function (n) { return n.nodeType === 1 && (n.classList.contains('giro__camada') || !!n.closest('.giro__camada')); };
+    var soCamadas = function (m) { return camada(m.target) || (m.addedNodes.length > 0 && [].every.call(m.addedNodes, camada)); };
+    new MutationObserver(function (ms) {
+      if (pendente || ms.every(soCamadas)) return;
       pendente = requestAnimationFrame(function () { pendente = 0; if (!reduzido()) aplicar(); });
     }).observe(titulo, { childList: true, subtree: true });
   }
