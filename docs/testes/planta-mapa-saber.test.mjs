@@ -42,6 +42,14 @@ test('origensDoCaso: rótulos tocados, texto livre com a negação da oração, 
   assert.deepEqual(origens('pelo google quase nunca, é mais indicação'), ['indicacao']);
   assert.deepEqual(origens('Instagram, não sei se ajuda'), ['instagram'], 'a vírgula fecha a oração: o "não" de depois é de outra');
   assert.deepEqual(origens('Pelo Instagram e o WhatsApp não'), ['instagram'], 'só a palavra colada no "não" cai');
+  /* revisão do 5a: o "e"/"ou" abre outra oração do lado de depois; a negação dela não apaga a origem afirmada antes */
+  assert.deepEqual(origens('Vem por indicação e não pelo Google'), ['indicacao']);
+  assert.deepEqual(origens('Instagram e não tenho site'), ['instagram']);
+  assert.deepEqual(origens('WhatsApp ou nunca chamam'), ['whatsapp']);
+  /* (a leitura do esboço antigo: amigo e conhecido trazem por indicação) */
+  assert.deepEqual(origens('minhas amigas trazem gente'), ['indicacao']);
+  assert.deepEqual(origens('vem tudo de conhecidos'), ['indicacao']);
+  assert.deepEqual(origens('não tenho amigos aqui, é pelo Instagram'), ['instagram']);
   for (const ruim of [undefined, null, 42, {}, []]) assert.deepEqual(S.origensDoCaso(ruim, R.SUGESTOES), []);
   assert.deepEqual(S.origensDoCaso('Pelo Instagram', null), ['instagram'], 'sem a tabela de rótulos, o texto livre ainda vale');
 });

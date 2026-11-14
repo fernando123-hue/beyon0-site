@@ -43,12 +43,13 @@
     ['whatsapp', /\b(?:whatsapp|whats|zap|zapzap|wpp)\b/g],
     ['google_mapa', /\b(?:mapas?|maps|endereco)\b/g],
     ['google_busca', /\b(?:google|busca|buscando|pesquisa\w*)\b/g],
-    ['indicacao', /\b(?:indica\w*|boca a boca)\b/g],
+    ['indicacao', /\b(?:indica\w*|boca a boca|amig[oa]s?|conhecid[oa]s?)\b/g],
     ['passa_na_frente', /\bpass\w* na frente\b|\bfachada\b/g]
   ];
   var NEGACAO = /\b(?:nao|nunca|nem|sem|nada de)(?: \w+){0,3}$/;
-  /* a negação DEPOIS da palavra, na mesma oração, com até 2 palavras no meio: "Pelo Instagram não", "Instagram eu não uso" (pente fino, parte E) */
-  var NEGACAO_DEPOIS = /^ *(?:\w+ +){0,2}(?:nao|nunca)\b/;
+  /* a negação DEPOIS da palavra, na mesma oração, com até 2 palavras no meio: "Pelo Instagram não", "Instagram eu não uso" (pente fino, parte E).
+     "e"/"ou" no meio abrem outra oração: "indicação e não pelo Google" não apaga a indicação (revisão do 5a) */
+  var NEGACAO_DEPOIS = /^ *(?:(?!(?:e|ou) )\w+ +){0,2}(?:nao|nunca)\b/;
   var FIM_DA_ORACAO = /[,;.!?\n]|\b(?:mas|so|porem)\b/;
 
   var semAcento = function (t) { return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); };
