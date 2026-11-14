@@ -18,7 +18,9 @@ Para o teste com o modelo real da spec do orçamento em conversa (`2026-11-13-or
    - **simulada**: o de hoje.
 2. **O livro do gasto**, um JSON fora do repositório (padrão `~/.beyon-gasto-ia.json`, ou `BZ_IA_LIVRO`), soma o `custo_usd` de cada chamada real, inclusive o já pago de uma chamada que falhou, com papel, modelo, tempo e hora. Ele sobrevive aos servidores.
 3. **O teto** (`BZ_IA_TETO_USD`, padrão 3; valor inválido, ≤ 0 ou > 10 volta ao padrão) é conferido ANTES de cada chamada real: o gasto do livro + o reservado das chamadas em voo + a reserva do papel (`reservaUsd`). Passou: erro `limite`, a chamada não sai, e a página mostra a recuperação de sempre.
-4. **A gravação** (`BZ_IA_GRAVAR=<arquivo>`, desligada por padrão): uma linha JSON por chamada real (papel, a última fala da pessoa, ms, resposta). É o que a fita lê.
+4. **A gravação** (`BZ_IA_GRAVAR=<arquivo>`, desligada por padrão): uma linha JSON por chamada real (papel, a última fala da pessoa, ms, e a resposta ou o motivo do erro). É o que a fita lê; a fita repete o erro no mesmo lugar. Ela guarda o texto das conversas: só dados fictícios, fora do repositório (o servidor avisa ao subir).
+   - **Robustez do registro (revisões):** uma resposta sem custo somável entra com a reserva do papel (marcada `custo_estimado`), nunca de graça; o livro que não grava depois de uma chamada paga (arquivo preso, disco cheio) não derruba a resposta: o valor fica na memória do servidor e segue contando no teto, com aviso alto.
+   - **Um servidor real por vez:** entre processos o livro soma em sequência, sem trava; duas rodadas reais simultâneas podem passar do teto pelo que estiver em voo nas duas.
 5. **O gancho em `api/_ia/provedor.mjs`:** `criarIA` usa `globalThis.__BZ_LOCAL.ia` primeiro, **só** com `ambienteDe(env) === 'local'`, como o armazém e o banco locais já fazem. Na Cloudflare e na Vercel o gancho é ignorado mesmo que exista.
 6. O servidor diz no início qual modo, o teto, o gasto do livro e onde ele está (nunca a chave). `JEV_SOMBRA` é apagada no local: a sombra chama o SDK direto, fora do teto.
 
@@ -28,5 +30,6 @@ Para o teste com o modelo real da spec do orçamento em conversa (`2026-11-13-or
 - o teto barra antes de chamar, conta as chamadas em voo e o custo de falha;
 - o livro sobrevive a uma instância nova; teto inválido volta ao padrão;
 - a geração vai à simulada, salvo com o interruptor próprio;
-- a gravação e a fita: a mesma resposta volta, por papel, em ordem; a fita acabada é `indisponivel`;
+- a gravação e a fita: a mesma resposta volta, por papel, em ordem; a fita acabada é `indisponivel`; o erro gravado volta como erro; linha sem resposta nem erro é recusada;
+- resposta sem custo entra com a reserva; o livro que falha não derruba a resposta paga nem a tira do teto;
 - o gancho de `criarIA` vale no local e é ignorado na Cloudflare.

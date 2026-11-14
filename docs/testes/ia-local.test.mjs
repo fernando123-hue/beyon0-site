@@ -104,6 +104,47 @@ test('real: o custo já pago de uma chamada que falhou entra no livro', async ()
   assert.equal(livro.chamadas()[0].erro, 'formato');
 });
 
+test('real: resposta sem custo entra com a reserva do papel, nunca de graça', async () => {
+  const livro = abrirLivro(path.join(pasta(), 'l.json'));
+  const semCusto = { async mensagem() { return { texto: 'x', chamadas: [], parada: 'fim', modelo: 'm' }; } };
+  await criarIALocal({ real: semCusto, simulada: simuladaFalsa(), livro, teto: 3 }).mensagem(pedido('conversa'));
+  for (const custo of [NaN, null, -1, '0.2']) {
+    const ia = criarIALocal({ real: realFalsa({ custo }), simulada: simuladaFalsa(), livro, teto: 3 });
+    await ia.mensagem(pedido('conversa'));
+  }
+  const ch = livro.chamadas();
+  assert.equal(ch.length, 5);
+  for (const c of ch) { assert.equal(c.custo_usd, reservaUsd('conversa')); assert.equal(c.custo_estimado, true); }
+});
+
+test('real: o livro que não grava depois de uma chamada paga não derruba a resposta e o valor segue contando no teto', async () => {
+  const preso = Object.assign(new Error('arquivo preso'), { code: 'EPERM' });
+  const livro = { arquivo: 'x', total: () => 0, chamadas: () => [], anotar() { throw preso; } };
+  const real = realFalsa({ custo: 3 - reservaUsd('conversa') / 2 });
+  const ia = criarIALocal({ real, simulada: simuladaFalsa(), livro, teto: 3 });
+  const r = await ia.mensagem(pedido('conversa'));
+  assert.equal(r.texto, 'oi 1', 'a resposta paga chega');
+  await assert.rejects(ia.mensagem(pedido('conversa')), e => e.motivo === 'limite');
+  assert.equal(real.chamadas.length, 1);
+});
+
+test('gravação: a chamada que falhou entra na fita e a reprodução repete a falha no mesmo lugar', async () => {
+  const dir = pasta(), fitaArq = path.join(dir, 'fita.jsonl');
+  const livro = abrirLivro(path.join(dir, 'l.json'));
+  const ia = criarIALocal({ real: realFalsa({ falha: new ErroIA('recusa', 'não', 0.02) }), simulada: simuladaFalsa(), livro, teto: 3, gravar: fitaArq });
+  await assert.rejects(ia.mensagem(pedido('conversa')), e => e.motivo === 'recusa');
+  const linhas = lerFita(fitaArq);
+  assert.equal(linhas[0].erro, 'recusa');
+  const toca = criarIALocal({ simulada: simuladaFalsa(), livro, teto: 3, fita: linhas, ritmo: 'imediato' });
+  await assert.rejects(toca.mensagem(pedido('conversa')), e => e instanceof ErroIA && e.motivo === 'recusa');
+});
+
+test('fita: linha sem resposta nem erro é recusada na leitura', () => {
+  const arq = path.join(pasta(), 'f.jsonl');
+  fs.writeFileSync(arq, JSON.stringify({ papel: 'conversa', ms: 1, resposta: { texto: 'a' } }) + '\n' + JSON.stringify({ papel: 'conversa', ms: 1 }) + '\n');
+  assert.throws(() => lerFita(arq), /linha 2/);
+});
+
 test('real: a geração (Opus) vai à simulada, salvo com BZ_IA_REAL_GERACAO=1', async () => {
   const livro = abrirLivro(path.join(pasta(), 'l.json'));
   const real = realFalsa(), sim = simuladaFalsa();

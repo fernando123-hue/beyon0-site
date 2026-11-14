@@ -8,7 +8,10 @@
                (BZ_IA_RITMO=imediato tira a espera). Sem chave e sem gasto
      simulada  o padrão, de graça
    O LIVRO do gasto (BZ_IA_LIVRO, padrão ~/.beyon-gasto-ia.json) soma o custo de cada chamada real e sobrevive aos servidores;
-   o TETO (BZ_IA_TETO_USD, padrão US$ 3) é conferido antes de cada chamada real. BZ_IA_GRAVAR=<arquivo> grava a fita. */
+   o TETO (BZ_IA_TETO_USD, padrão US$ 3) é conferido antes de cada chamada real. BZ_IA_GRAVAR=<arquivo> grava a fita.
+   UM servidor real por vez: entre processos o livro soma em sequência, sem trava; duas rodadas reais ao mesmo tempo podem
+   passar do teto pelo que estiver em voo nas duas (as reservas em voo são de cada processo).
+   A fita guarda o texto das conversas: só com dados fictícios, fora do repositório. */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -47,16 +50,23 @@ export function abrirLivro(arquivo = LIVRO_PADRAO) {
       const custo = Number(registro.custo_usd) || 0;
       const novo = { total_usd: d.total_usd + custo, chamadas: [...d.chamadas, { quando: new Date().toISOString(), ...registro, custo_usd: custo }] };
       fs.mkdirSync(path.dirname(arquivo), { recursive: true });
-      const tmp = arquivo + '.tmp';
+      const tmp = arquivo + '.' + process.pid + '.tmp';
       fs.writeFileSync(tmp, JSON.stringify(novo, null, 1));
       fs.renameSync(tmp, arquivo);
     }
   };
 }
 
+/* cada linha: { papel, fala, ms, resposta } de uma chamada que deu certo, ou { papel, fala, ms, erro } de uma que falhou */
 export function lerFita(arquivo) {
   return fs.readFileSync(arquivo, 'utf8').split('\n').filter(l => l.trim()).map((l, i) => {
-    try { return JSON.parse(l); } catch { throw new Error('fita ' + arquivo + ': linha ' + (i + 1) + ' ilegível'); }
+    const ruim = () => new Error('fita ' + arquivo + ': linha ' + (i + 1) + ' ilegível');
+    let d;
+    try { d = JSON.parse(l); } catch { throw ruim(); }
+    const ok = d && typeof d === 'object' && typeof d.papel === 'string'
+      && ((d.resposta && typeof d.resposta === 'object' && !Array.isArray(d.resposta)) || typeof d.erro === 'string');
+    if (!ok) throw ruim();
+    return d;
   });
 }
 
@@ -70,6 +80,9 @@ function ultimaFala(pedido) {
 
 const dormir = ms => new Promise(r => setTimeout(r, ms));
 const brl = v => 'US$ ' + v.toFixed(2);
+const avisar = msg => console.error('[ia-local] ' + msg);
+/* um custo que dá para somar, ou null */
+const custoValido = v => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null);
 
 export function criarIALocal({ real = null, simulada, livro, teto = TETO_PADRAO_USD, geracaoReal = false, gravar = null, fita = null, ritmo = 'gravado', esperar = dormir, agora = Date.now }) {
   if (fita) {
@@ -80,37 +93,56 @@ export function criarIALocal({ real = null, simulada, livro, teto = TETO_PADRAO_
       async mensagem(pedido) {
         if (pedido.papel === 'geracao' && !geracaoReal) return simulada.mensagem(pedido);
         const l = (filas[pedido.papel] || []).shift();
-        if (!l) throw new ErroIA('indisponivel', 'a fita acabou para o papel ' + pedido.papel);
+        if (!l) { avisar('a fita acabou para o papel ' + pedido.papel + ': a conversa passou do que foi gravado'); throw new ErroIA('indisponivel', 'a fita acabou para o papel ' + pedido.papel); }
         if (ritmo !== 'imediato') await esperar(Number(l.ms) || 0);
+        if (l.erro) throw new ErroIA(l.erro, 'da fita: ' + l.erro);
         return l.resposta;
       }
     };
   }
   if (!real) return { nome: 'simulada', modo: 'simulada', mensagem: p => simulada.mensagem(p) };
-  let emVoo = 0;
+  let emVoo = 0, naoAnotado = 0;
+  /* uma chamada já paga não pode sumir do teto nem derrubar a resposta: o livro que não grava (arquivo preso pelo antivírus,
+     disco cheio) fica com o valor na memória deste servidor, em voz alta */
+  function registrar(reg) {
+    try { livro.anotar(reg); } catch (e) {
+      naoAnotado += reg.custo_usd;
+      avisar('o livro não gravou ' + brl(reg.custo_usd) + ' (' + (e?.code || e?.message) + '); o teto deste servidor conta pela memória');
+    }
+  }
+  function gravarFita(linha) {
+    if (!gravar) return;
+    try { fs.appendFileSync(gravar, JSON.stringify(linha) + '\n', { mode: 0o600 }); } catch (e) { avisar('a fita não gravou a chamada: ' + (e?.code || e?.message)); }
+  }
   return {
     nome: 'anthropic', modo: 'real',
     async mensagem(pedido) {
       if (pedido.papel === 'geracao' && !geracaoReal) return simulada.mensagem(pedido);
       const reserva = reservaUsd(pedido.papel);
-      const gasto = livro.total();
+      const gasto = livro.total() + naoAnotado;
       if (gasto + emVoo + reserva > teto) {
         throw new ErroIA('limite', 'teto local da IA real: ' + brl(gasto) + ' gastos (+ ' + brl(emVoo) + ' em voo) de ' + brl(teto) + '; a chamada não saiu');
       }
       emVoo += reserva;
-      const t0 = agora();
+      const t0 = agora(), papel = pedido.papel, fala = ultimaFala(pedido);
+      let r;
       try {
-        const r = await real.mensagem(pedido);
-        const ms = agora() - t0;
-        livro.anotar({ papel: pedido.papel, modelo: r.modelo || '', custo_usd: r.custo_usd, ms });
-        if (gravar) fs.appendFileSync(gravar, JSON.stringify({ papel: pedido.papel, fala: ultimaFala(pedido), ms, resposta: r }) + '\n');
-        return r;
+        r = await real.mensagem(pedido);
       } catch (e) {
-        livro.anotar({ papel: pedido.papel, modelo: '', custo_usd: e?.custo_usd || 0, ms: agora() - t0, erro: e?.motivo || 'falha' });
+        const ms = agora() - t0, motivo = e?.motivo || 'falha';
+        registrar({ papel, modelo: '', custo_usd: custoValido(e?.custo_usd) ?? 0, ms, erro: motivo });
+        gravarFita({ papel, fala, ms, erro: motivo });
         throw e;
       } finally {
         emVoo -= reserva;
       }
+      const ms = agora() - t0;
+      /* sem custo que dê para somar, entra a reserva do papel (o pior caso previsto), nunca zero */
+      let custo = custoValido(r?.custo_usd), estimado = false;
+      if (custo === null) { custo = reserva; estimado = true; avisar('a resposta veio sem custo; anotei a reserva do papel ' + papel + ' (' + brl(reserva) + ')'); }
+      registrar({ papel, modelo: r?.modelo || '', custo_usd: custo, ms, ...(estimado ? { custo_estimado: true } : {}) });
+      gravarFita({ papel, fala, ms, resposta: r });
+      return r;
     }
   };
 }
@@ -133,7 +165,7 @@ export async function montarIALocal(env = process.env) {
     ia = criarIALocal(comum);
   }
   ia.descricao = ia.modo === 'real'
-    ? 'IA REAL (custa): teto ' + brl(comum.teto) + ', já gastos ' + brl(livro.total()) + ' (livro ' + livro.arquivo + ')' + (comum.geracaoReal ? ', geração no Opus' : ', geração simulada') + (env.BZ_IA_GRAVAR ? ', gravando a fita' : '')
+    ? 'IA REAL (custa): teto ' + brl(comum.teto) + ', já gastos ' + brl(livro.total()) + ' (livro ' + livro.arquivo + ')' + (comum.geracaoReal ? ', geração no Opus' : ', geração simulada') + (env.BZ_IA_GRAVAR ? ', gravando a fita em ' + env.BZ_IA_GRAVAR + ' (ela guarda o texto das conversas: só dados fictícios)' : '')
     : ia.modo === 'fita' ? 'IA da fita ' + env.BZ_IA_REPRODUZIR + ' (sem gasto)' : 'IA simulada (de graça)';
   return ia;
 }
