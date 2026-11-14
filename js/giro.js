@@ -94,8 +94,6 @@
   function passo() {
     if (trocando) return;
     if (parado()) { agendar(TEMPO.folga); return; }
-    /* não disputa com o surto da palavra em destaque (js/energia-texto.js) */
-    if (titulo.querySelector('.energizando')) { agendar(TEMPO.folga); return; }
     trocar();
   }
 
