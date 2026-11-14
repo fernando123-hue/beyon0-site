@@ -19,11 +19,11 @@ test('o esboço tem sempre os mesmos cinco lugares e o objetivo, na mesma ordem'
   }
 });
 
-test('sem nada contado, só a chegada provisória; o resto é fantasma com o que falta entender', () => {
+test('sem nada contado, só a chegada provisória; o resto é lugar vazio, sem texto (PR 5: sem "a entender")', () => {
   const e = Cresce.derivar({});
   assert.equal(e.estacoes[0].conhecido, true);
   assert.equal(e.estacoes[0].provisorio, true);
-  e.estacoes.slice(1).forEach(x => { assert.equal(x.conhecido, false); assert.ok(x.falta); });
+  e.estacoes.slice(1).forEach(x => { assert.equal(x.conhecido, false); assert.equal(x.falta, undefined); assert.equal(x.titulo, undefined); });
   assert.equal(e.objetivo.conhecido, false);
 });
 
@@ -34,12 +34,12 @@ test('o texto da pessoa nunca entra no desenho (só escolhe a frase das listas f
   for (const proibido of ['script', 'Clínica X', 'PROMOÇÃO', 'R$', '5.000']) assert.ok(!txt.includes(proibido), proibido);
 });
 
-test('a chegada reconhece as origens no texto livre e respeita o limite de 4', () => {
-  assert.deepEqual(Cresce.origensDe('Pelo Google, pelo mapa, por indicação, no Instagram e por anúncio'), ['busca', 'mapa', 'indicacao', 'rede']);
+test('a chegada usa as origens do módulo comum (js/mapa-saber.js), com o limite de 3 (PR 5)', () => {
+  assert.deepEqual(Cresce.origensDe('Pelo Google, pelo mapa, por indicação, no Instagram'), ['instagram', 'google_mapa', 'indicacao']);
   assert.deepEqual(Cresce.origensDe(''), []);
   const e = Cresce.derivar({ situacao_atual: { como_chegam: 'instagram' } });
   assert.equal(e.estacoes[0].n, 1);
-  assert.equal(e.estacoes[0].titulo, 'Rede social');
+  assert.equal(e.estacoes[0].titulo, 'Instagram');
 });
 
 test('a ação depende do que a pessoa quer: agenda, loja ou orçamento; o objetivo só com um deles', () => {

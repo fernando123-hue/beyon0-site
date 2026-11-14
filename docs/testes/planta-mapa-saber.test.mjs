@@ -16,11 +16,12 @@ const origens = (texto) => S.origensDoCaso(texto, R.SUGESTOES);
 test('as tabelas batem com a forma do mapa: os mesmos códigos, o mesmo teto, nenhuma chave herdada', () => {
   assert.deepEqual(Object.keys(S.NOMES).sort(), F.ORIGENS_MAPA.slice().sort());
   assert.deepEqual(Object.keys(S.PELO).sort(), F.ORIGENS_MAPA.slice().sort());
+  assert.deepEqual(Object.keys(S.CURTO).sort(), F.ORIGENS_MAPA.slice().sort());
   assert.equal(S.ORIGENS_MAX, F.LIMITES_MAPA.hoje_origens_max);
   for (const v of Object.values(S.ORIGEM_DA_SUGESTAO)) assert.ok(F.ORIGENS_MAPA.includes(v), v);
   for (const [cod, sug] of Object.entries(R.SUGESTOES)) if (sug.campo === 'como_chegam') assert.ok(Object.prototype.hasOwnProperty.call(S.ORIGEM_DA_SUGESTAO, cod), 'rótulo sem origem: ' + cod);
   assert.equal(S.ORIGEM_DA_SUGESTAO.google, 'google_busca', '"Me acham no Google" é a busca');
-  for (const t of [S.NOMES, S.PELO, S.ORIGEM_DA_SUGESTAO]) assert.equal(Object.prototype.hasOwnProperty.call(t, 'constructor'), false);
+  for (const t of [S.NOMES, S.CURTO, S.PELO, S.ORIGEM_DA_SUGESTAO]) assert.equal(Object.prototype.hasOwnProperty.call(t, 'constructor'), false);
 });
 
 test('origensDoCaso: rótulos tocados, texto livre com a negação da oração, google como busca e mapa só quando dito', () => {
@@ -34,6 +35,13 @@ test('origensDoCaso: rótulos tocados, texto livre com a negação da oração, 
   assert.deepEqual(origens('Sem Instagram, só WhatsApp'), ['whatsapp']);
   assert.deepEqual(origens('Nada de Google, é tudo indicação'), ['indicacao']);
   assert.deepEqual(origens('Instagram, WhatsApp, Google e indicação'), ['instagram', 'whatsapp', 'google_busca'], 'teto de 3');
+  /* a negação DEPOIS da palavra, na mesma oração (pente fino, parte E): "Pelo Instagram não" */
+  assert.deepEqual(origens('Instagram não, vem tudo por indicação e pelo zap'), ['whatsapp', 'indicacao']);
+  assert.deepEqual(origens('Pelo Instagram não'), []);
+  assert.deepEqual(origens('Instagram eu não uso, só WhatsApp'), ['whatsapp']);
+  assert.deepEqual(origens('pelo google quase nunca, é mais indicação'), ['indicacao']);
+  assert.deepEqual(origens('Instagram, não sei se ajuda'), ['instagram'], 'a vírgula fecha a oração: o "não" de depois é de outra');
+  assert.deepEqual(origens('Pelo Instagram e o WhatsApp não'), ['instagram'], 'só a palavra colada no "não" cai');
   for (const ruim of [undefined, null, 42, {}, []]) assert.deepEqual(S.origensDoCaso(ruim, R.SUGESTOES), []);
   assert.deepEqual(S.origensDoCaso('Pelo Instagram', null), ['instagram'], 'sem a tabela de rótulos, o texto livre ainda vale');
 });
@@ -42,7 +50,7 @@ test('o servidor e a tela dão as mesmas origens para o mesmo "como chegam"', ()
   const frases = [
     'Pelo Instagram; Me acham no Google', 'Indicação; Passam na frente', 'me acham no google maps', 'pelo zap e pelo insta',
     'não uso instagram, vem tudo do boca a boca', 'Sem Instagram nem WhatsApp', 'site antigo e indicação', 'pelo Instagram não',
-    'Pelo WhatsApp', 'vem gente do tiktok', '', 'Instagram, WhatsApp, Google e indicação'
+    'Pelo WhatsApp', 'vem gente do tiktok', '', 'Instagram, WhatsApp, Google e indicação', 'Instagram eu não uso, só WhatsApp'
   ];
   for (const f of frases) assert.deepEqual(oQueSeSabe({ situacao_atual: { como_chegam: f } }).origens, origens(f), f);
 });

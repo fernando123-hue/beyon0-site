@@ -617,6 +617,8 @@ export const SABOTAGENS = [
     de: "  return montar(c.setas.filter(s => ficaram.has(s[0]) && ficaram.has(s[1])));", para: "  return montar(c.setas);" },
   { nome: "mapa: a negação das origens atravessa \"só\" e \"mas\"", fonte: "js/mapa-saber.js", testes: ['docs/testes/planta-mapa-padrao.test.mjs', 'docs/testes/planta-mapa-saber.test.mjs'],
     de: "var FIM_DA_ORACAO = /[,;.!?\\n]|\\b(?:mas|so|porem)\\b/;", para: "var FIM_DA_ORACAO = /[,;.!?\\n]/;" },
+  { nome: "mapa: a negação depois da origem (\"Pelo Instagram não\") deixa de valer", fonte: "js/mapa-saber.js", testes: ['docs/testes/planta-mapa-saber.test.mjs'],
+    de: "  var NEGACAO_DEPOIS = /^ *(?:\\w+ +){0,2}(?:nao|nunca)\\b/;", para: "  var NEGACAO_DEPOIS = /^$^/;" },
   { nome: "mapa: o servidor deixa de ler as origens do módulo comum (o esboço e o padrão divergem)", fonte: "api/_vendas/mapa-padrao.mjs", testes: ['docs/testes/planta-mapa-saber.test.mjs'],
     de: "    saber.origens = S.origensDoCaso(s.como_chegam, R.SUGESTOES);", para: "    saber.origens = S.origensDoCaso(s.como_chegam, R.SUGESTOES).slice(0, 1);" },
   { nome: "mapa: o \"hoje\" deixa de rodar as travas do Zero", fonte: "api/_vendas/planta-textos.mjs", testes: ['docs/testes/planta-mapa-hoje.test.mjs'],

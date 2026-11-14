@@ -3,7 +3,8 @@
    mesmas origens, por CÓDIGO (a lista fechada de js/orcamento-mapa-forma.js). O nome e o "pelo …" de cada código também moram aqui: a tela nunca
    mostra o código cru. PURO (sem DOM), ES5: window.BZMapaSaber na tela, CommonJS no Node.
    A regra (PR 4, revisões): o rótulo tocado vale como trecho exato; a palavra-chave do texto livre vale se alguma ocorrência não estiver negada na
-   MESMA oração (vírgula, ponto, "mas", "só" e "porém" fecham a oração; "não", "nunca", "nem", "sem" e "nada de" até 3 palavras antes negam); o Google
+   MESMA oração (vírgula, ponto, "mas", "só" e "porém" fecham a oração; "não", "nunca", "nem", "sem" e "nada de" até 3 palavras antes negam, e
+   "não"/"nunca" até 2 palavras depois também); o Google
    do texto com mapa e sem falar de busca é só o mapa, decidido ANTES do teto de 3. */
 (function (raiz, fabrica) {
   'use strict';
@@ -31,6 +32,11 @@
     instagram: 'pelo Instagram', whatsapp: 'pelo WhatsApp', google_busca: 'pela busca no Google', google_mapa: 'pelo mapa do Google', indicacao: 'por indicação',
     passa_na_frente: 'passando na frente', facebook: 'pelo Facebook', tiktok: 'pelo TikTok', site_atual: 'pelo site de hoje', outro: 'por outro canal'
   });
+  /* o nome curto, para o título da chegada no esboço (cabe em duas linhas a 320 px com três origens); minúscula no que não é marca */
+  var CURTO = tabela({
+    instagram: 'Instagram', whatsapp: 'WhatsApp', google_busca: 'Google', google_mapa: 'mapa', indicacao: 'indicação', passa_na_frente: 'fachada',
+    facebook: 'Facebook', tiktok: 'TikTok', site_atual: 'site atual', outro: 'outro canal'
+  });
   /* as palavras-chave do texto livre (minúsculas, sem acento), na ordem em que entram */
   var POR_PALAVRA = [
     ['instagram', /\b(?:instagram|insta|direct|reels?)\b/g],
@@ -41,6 +47,8 @@
     ['passa_na_frente', /\bpass\w* na frente\b|\bfachada\b/g]
   ];
   var NEGACAO = /\b(?:nao|nunca|nem|sem|nada de)(?: \w+){0,3}$/;
+  /* a negação DEPOIS da palavra, na mesma oração, com até 2 palavras no meio: "Pelo Instagram não", "Instagram eu não uso" (pente fino, parte E) */
+  var NEGACAO_DEPOIS = /^ *(?:\w+ +){0,2}(?:nao|nunca)\b/;
   var FIM_DA_ORACAO = /[,;.!?\n]|\b(?:mas|so|porem)\b/;
 
   var semAcento = function (t) { return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); };
@@ -55,7 +63,10 @@
       for (cod in sugestoes) {
         if (!tem(sugestoes, cod)) continue;
         var sug = sugestoes[cod];
-        if (sug && sug.campo === 'como_chegam' && typeof sug.rotulo === 'string' && chegam.indexOf(sug.rotulo) >= 0 && tem(ORIGEM_DA_SUGESTAO, cod)) tocadas.push(ORIGEM_DA_SUGESTAO[cod]);
+        if (!sug || sug.campo !== 'como_chegam' || typeof sug.rotulo !== 'string' || !tem(ORIGEM_DA_SUGESTAO, cod)) continue;
+        var onde = chegam.indexOf(sug.rotulo);
+        /* o rótulo vale como trecho exato, salvo se ela mesma o negou logo depois ("Pelo Instagram não" foi escrito, não tocado) */
+        if (onde >= 0 && !NEGACAO_DEPOIS.test(semAcento(chegam.slice(onde + sug.rotulo.length)).split(FIM_DA_ORACAO)[0])) tocadas.push(ORIGEM_DA_SUGESTAO[cod]);
       }
     }
     var texto = semAcento(chegam);
@@ -63,8 +74,8 @@
       var re = POR_PALAVRA[i][1], m;
       re.lastIndex = 0;
       while ((m = re.exec(texto))) {
-        var oracao = texto.slice(0, m.index).split(FIM_DA_ORACAO).pop().trim();
-        if (!NEGACAO.test(oracao)) { doTexto.push(POR_PALAVRA[i][0]); break; }
+        var oracao = texto.slice(0, m.index).split(FIM_DA_ORACAO).pop().trim(), resto = texto.slice(m.index + m[0].length).split(FIM_DA_ORACAO)[0];
+        if (!NEGACAO.test(oracao) && !NEGACAO_DEPOIS.test(resto)) { doTexto.push(POR_PALAVRA[i][0]); break; }
       }
     }
     var soMapa = doTexto.indexOf('google_mapa') >= 0 && /\bgoogle\b/.test(texto) && !/\bbusca\w*|pesquisa\w*/.test(texto);
@@ -72,5 +83,5 @@
     return unicos(todas).slice(0, ORIGENS_MAX);
   }
 
-  return congelar({ ORIGENS_MAX: ORIGENS_MAX, ORIGEM_DA_SUGESTAO: ORIGEM_DA_SUGESTAO, NOMES: NOMES, PELO: PELO, origensDoCaso: origensDoCaso });
+  return congelar({ ORIGENS_MAX: ORIGENS_MAX, ORIGEM_DA_SUGESTAO: ORIGEM_DA_SUGESTAO, NOMES: NOMES, CURTO: CURTO, PELO: PELO, origensDoCaso: origensDoCaso });
 });
