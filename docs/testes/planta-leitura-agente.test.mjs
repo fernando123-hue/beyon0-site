@@ -10,6 +10,7 @@ import { montarSistema, proximoPasso, ferramentas, PREFIXO_PLANTA, PREFIXO_LEITU
 import { executarTurno, estadoParaModelo } from '../../api/_vendas/agente.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { planoPadrao } from '../../api/_vendas/planta-padrao.mjs';
+import { planoDoCaso } from '../../api/_vendas/mapa-padrao.mjs';
 import { custoUsd, RESERVA_USD, PAPEIS, TETOS } from '../../api/_ia/config.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
@@ -323,8 +324,9 @@ test('executarTurno devolve leitura_rebaixos (eixo, de, para, motivo) do que o v
 });
 
 /* ---------- C2: a leitura não gasta as rodadas da planta ---------- */
-const bom = () => { const p = planoPadrao('generico'); p.etapas[0].titulo = 'Página feita para o seu negócio'; return p; };
-const ruim = () => { const p = planoPadrao('generico'); p.etapas[0].titulo = 'Passo 1 da página'; return p; };
+/* (PR 4) o modelo escreve o mapa v3 */
+const bom = () => { const p = planoDoCaso('generico', {}); p.nos[0].titulo = 'Página feita para você'; return p; };
+const ruim = () => { const p = planoDoCaso('generico', {}); p.nos[0].titulo = 'Passo 1 da página'; return p; };
 test('C2: no turno em que a planta é obrigatória e ainda não foi gravada, ler_caso numa volta DEPOIS da primeira é recusado (a planta vem primeiro); na mesma volta, depois da planta, vale', async () => {
   const l = leitura({ informacao: { nivel: 'comentou', evidencia: 'a recepção anota num caderno' } });
   const ia = roteiro(resp([chamada('desenhar_planta', ruim())]), resp([chamada('ler_caso', l)]), resp([chamada('desenhar_planta', bom())]), resp([], 'Desenhei.'));

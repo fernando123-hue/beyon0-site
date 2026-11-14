@@ -8,9 +8,11 @@ import fs from 'node:fs';
 import { montarSistema, proximoPasso, ferramentas, PREFIXO_PLANTA } from '../../api/_vendas/consultor.mjs';
 import { executarTurno, estadoParaModelo } from '../../api/_vendas/agente.mjs';
 import { planoPadrao } from '../../api/_vendas/planta-padrao.mjs';
+import { planoDoCaso, oQueSeSabe } from '../../api/_vendas/mapa-padrao.mjs';
+import { nichoDaPlanta } from '../../api/_vendas/planta-padrao.mjs';
 import { validarPlano } from '../../api/_vendas/planta-esquema.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
-import F from '../../js/orcamento-planta-forma.js';
+import M from '../../js/orcamento-mapa-forma.js';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -31,6 +33,8 @@ function roteiro(...respostas) {
 const volta = (ia, n) => JSON.parse(ia.recebidos[n].mensagens.at(-1).content[0].content);   /* o resultado da 1ª ferramenta devolvido ao modelo na rodada n */
 const conversaDe = (extra = {}) => ({ etapa: 'estimativa', briefing: clone(BRIEFING), mensagens: clone(MENSAGENS), estimativa: ESTIMATIVA, ...extra });
 /* (a planta SOZINHA: o radar, que segue a mesma flag no fluxo, tem os testes dele em planta-leitura-agente.test.mjs; aqui leitura: false mantém os testes do 2a isolados) */
+/* (PR 4) o padrão gravado é o mapa do caso: o nicho do briefing e o que se sabe dele */
+const padraoDe = briefing => planoDoCaso(nichoDaPlanta(briefing), oQueSeSabe(briefing));
 const turno = (ia, extra = {}, planta = true) => executarTurno({ ia, regras: REGRAS, conversa: conversaDe(extra.conversa), mensagem: extra.mensagem || 'ok', planta, leitura: false });
 
 /* ---------- a lista de ferramentas ---------- */
@@ -68,25 +72,26 @@ test('desenhar_planta: esquema FECHADO (sem campo extra em nenhum nível), com a
   };
   fechado(f.input_schema, 'planta');
   const p = f.input_schema.properties;
-  assert.deepEqual(p.topologia.enum, [...F.TOPOLOGIAS]);
-  assert.deepEqual(p.etapas.items.properties.tipo.enum, [...F.TIPOS_ETAPA]);
-  assert.ok(!p.etapas.items.properties.tipo.enum.includes('chegada'));
-  assert.deepEqual(p.etapas.items.properties.verbo.enum, [...F.VERBOS]);
-  assert.deepEqual(p.chegada.properties.origens.items.enum, [...F.ORIGENS]);
-  assert.deepEqual(f.input_schema.required.sort(), ['chegada', 'etapas', 'fecho', 'fim', 'topologia']);
+  assert.deepEqual(p.estrutura.enum, [...M.ESTRUTURAS]);
+  assert.deepEqual(p.nos.items.properties.papel.enum, [...M.PAPEIS]);
+  assert.deepEqual(p.nos.items.properties.icone.enum, [...M.ICONES]);
+  assert.deepEqual(p.nos.items.properties.origem.enum, [...M.ORIGENS_MAPA]);
+  assert.deepEqual(p.hoje.properties.origens.items.enum, [...M.ORIGENS_MAPA]);
+  assert.deepEqual(f.input_schema.required.sort(), ['estrutura', 'fecho', 'hoje', 'nos', 'objetivo', 'setas']);
   /* a descrição: quando chamar, uma vez, ajustes, "está certa" não redesenha, o que é proibido, os resultados possíveis */
   const d = f.description;
   assert.match(d, /UMA vez/);
-  assert.match(d, /certa/i);
+  assert.match(d, /cert[oa]/i);
   assert.match(d, /exemplo: true|exemplo/);
   assert.match(d, /número|dígito/);
   assert.match(d, /depoimento/);
-  assert.match(d, /4 versões/);
-  /* os três exemplos completos estão na descrição e validam pelo MESMO validador do servidor */
+  assert.match(d, /6 versões/);
+  assert.match(d, /Nunca escolha uma estrutura para variar/, 'nunca sortear (§7.1)');
+  /* os três exemplos completos estão na descrição, são de TRÊS estruturas diferentes e validam pelo MESMO validador do servidor */
   const exemplos = [...d.matchAll(/EXEMPLO \d: (\{.*\})$/gm)].map(m => JSON.parse(m[1]));
   assert.equal(exemplos.length, 3);
-  assert.deepEqual(exemplos.map(x => x.topologia).sort(), ['bifurca', 'espinha', 'laco']);
-  for (const x of exemplos) assert.equal(validarPlano(x, { nomeDoNegocio: '', regulado: true }).ok, true);
+  assert.deepEqual(exemplos.map(x => x.estrutura).sort(), ['antes_depois', 'ciclo', 'ramos']);
+  for (const x of exemplos) assert.equal(validarPlano(x, { nomeDoNegocio: '', regulado: true, versoes: ['v3'] }).ok, true);
   assert.ok(!/R\$|\d{4}/.test(d.replace(/EXEMPLO \d: .*$/gm, '')), 'sem valor na descrição');
 });
 
@@ -132,8 +137,9 @@ test('contexto do modelo: o prefixo vem no ESTADO do começo do turno, e NO turn
 });
 
 /* ---------- o turno do agente ---------- */
-const bom = () => { const p = planoPadrao('generico'); p.etapas[0].titulo = 'Página feita para o seu negócio'; return p; };
-const ruim = () => { const p = planoPadrao('generico'); p.etapas[0].titulo = 'Passo 1 da página'; return p; };
+/* (PR 4) o modelo escreve o mapa v3: o padrão genérico com o 1º nó trocado */
+const bom = () => { const p = planoDoCaso('generico', {}); p.nos[0].titulo = 'Página feita para você'; return p; };
+const ruim = () => { const p = planoDoCaso('generico', {}); p.nos[0].titulo = 'Passo 1 da página'; return p; };
 
 test('plano bom: grava origem "modelo" com a posição da fala do Zero, devolve na_tela e o número de caixas', async () => {
   const ia = roteiro(resp([chamada('desenhar_planta', bom())]), resp([], 'Desenhei o seu site em planta, logo abaixo.'));
@@ -141,8 +147,8 @@ test('plano bom: grava origem "modelo" com a posição da fala do Zero, devolve 
   const p = r.briefing.planta;
   assert.equal(p.v, 1); assert.equal(p.versao, 1); assert.equal(p.origem, 'modelo'); assert.deepEqual(p.motivos, []); assert.equal(p.tentativas, 1);
   assert.equal(p.n_mensagens, MENSAGENS.length + 1, 'a fala do Zero deste turno é a de índice len + 1 (a do visitante é a len)');
-  assert.equal(p.plano.etapas[0].titulo, 'Página feita para o seu negócio');
-  assert.deepEqual(volta(ia, 1), { ok: true, na_tela: true, etapas: 8 });
+  assert.equal(p.plano.nos[0].titulo, 'Página feita para você');
+  assert.deepEqual(volta(ia, 1), { ok: true, na_tela: true, etapas: 3 }, 'os 2 nós e o objetivo');
   assert.equal(r.briefing.planta_pedidos, undefined);
   assert.ok(r.resposta.includes('planta'));
 });
@@ -153,7 +159,7 @@ test('plano ruim: volta ok:false com erros legíveis (sem o texto do modelo) e o
   const v = volta(ia, 1);
   assert.equal(v.ok, false);
   assert.ok(Array.isArray(v.erros) && v.erros.length >= 1 && v.erros.every(e => typeof e === 'string'));
-  assert.match(v.erros[0], /etapa 1/i);
+  assert.match(v.erros[0], /nó 1/i);
   assert.match(v.erros[0], /número|algarismo/i);
   assert.ok(!JSON.stringify(v).includes('Passo 1'), 'o texto do modelo não volta');
   assert.equal(JSON.parse(ia.recebidos[1].mensagens.at(-1).content[0].content).ok, false);
@@ -171,7 +177,9 @@ test('plano ruim duas vezes: o servidor grava o padrão do nicho e devolve { ok:
   assert.equal(p.origem, 'padrao');
   assert.equal(p.tentativas, 2);
   assert.deepEqual(p.motivos, ['digito']);
-  assert.deepEqual(p.plano, planoPadrao('saude_agenda'), 'clínica odontológica -> padrão de saúde');
+  assert.deepEqual(p.plano, padraoDe(BRIEFING), 'clínica odontológica, por indicação -> o mapa padrão de saúde com a origem');
+  assert.equal(p.plano.estrutura, 'ciclo');
+  assert.deepEqual(p.plano.hoje.origens, ['indicacao']);
   assert.deepEqual(volta(ia, 2), { ok: true, na_tela: true, exemplo: true });
 });
 
@@ -180,7 +188,8 @@ test('o padrão segue o nicho do briefing: loja, indústria e desconhecido (gen�
     const ia = roteiro(resp([chamada('desenhar_planta', {})]), resp([chamada('desenhar_planta', {})]), resp([], 'ok'));
     const r = await turno(ia, { conversa: { briefing: { ...BRIEFING, negocio: { segmento } } } });
     assert.equal(r.briefing.planta.origem, 'padrao', segmento);
-    assert.deepEqual(r.briefing.planta.plano, planoPadrao(chave), segmento);
+    assert.equal(nichoDaPlanta({ negocio: { segmento } }), chave, segmento);
+    assert.deepEqual(r.briefing.planta.plano, padraoDe({ ...BRIEFING, negocio: { segmento } }), segmento);
   }
 });
 
@@ -192,19 +201,20 @@ test('um plano aceito por turno: o 2º, no mesmo turno, é recusado e a versão 
   assert.equal(resultados[1].ok, false);
   assert.match(resultados[1].motivo, /neste turno/);
   assert.equal(r.briefing.planta.versao, 1);
-  assert.equal(r.briefing.planta.plano.topologia, 'laco', 'ficou o primeiro');
+  assert.equal(r.briefing.planta.plano.nos[0].titulo, 'Página feita para você', 'ficou o primeiro');
 });
 
-test('teto de 4 versões: a 4ª é aceita, a 5ª é recusada e o desenho anterior segue', async () => {
-  const gravado = v => ({ v: 1, versao: v, origem: 'modelo', motivos: [], tentativas: 1, n_mensagens: 2, plano: planoPadrao('generico') });
-  const ia4 = roteiro(resp([chamada('desenhar_planta', fx('loja'))]), resp([], 'Refiz.'));
-  const r4 = await turno(ia4, { conversa: { briefing: { ...BRIEFING, planta: gravado(3) } } });
-  assert.equal(r4.briefing.planta.versao, 4);
-  assert.equal(r4.briefing.planta.plano.topologia, 'espinha');
-  const ia5 = roteiro(resp([chamada('desenhar_planta', fx('loja'))]), resp([], 'Não dá.'));
-  const r5 = await turno(ia5, { conversa: { briefing: { ...BRIEFING, planta: gravado(4) } } });
-  assert.equal(r5.briefing.planta.versao, 4);
-  assert.equal(r5.briefing.planta.plano.topologia, 'laco', 'o desenho anterior segue');
+test('teto de 6 versões: a 6ª é aceita, a 7ª é recusada e o desenho anterior segue', async () => {
+  const gravado = v => ({ v: 1, versao: v, origem: 'modelo', motivos: [], tentativas: 1, n_mensagens: 2, plano: planoDoCaso('generico', {}) });
+  const ia6 = roteiro(resp([chamada('desenhar_planta', planoDoCaso('loja_online', {}))]), resp([], 'Refiz.'));
+  const r6 = await turno(ia6, { conversa: { briefing: { ...BRIEFING, planta: gravado(5) } } });
+  assert.equal(r6.briefing.planta.versao, 6);
+  assert.equal(r6.briefing.planta.plano.estrutura, 'ramos');
+  const ia7 = roteiro(resp([chamada('desenhar_planta', planoDoCaso('loja_online', {}))]), resp([], 'Não dá.'));
+  const r7 = await turno(ia7, { conversa: { briefing: { ...BRIEFING, planta: gravado(6) } } });
+  assert.equal(r7.briefing.planta.versao, 6);
+  assert.equal(r7.briefing.planta.plano.estrutura, 'caminho', 'o desenho anterior segue');
+  const ia5 = ia7;
   assert.equal(volta(ia5, 1).ok, false);
   assert.match(volta(ia5, 1).motivo, /versões/);
 });
@@ -229,7 +239,7 @@ test('modelo que ignora o prefixo: 1º turno só conta (planta_pedidos 1); no 2�
   assert.equal(r2.briefing.planta.origem, 'padrao');
   assert.deepEqual(r2.briefing.planta.motivos, ['nao_chamou']);
   assert.equal(r2.briefing.planta.tentativas, 0);
-  assert.deepEqual(r2.briefing.planta.plano, planoPadrao('saude_agenda'));
+  assert.deepEqual(r2.briefing.planta.plano, padraoDe(BRIEFING));
   assert.equal(r2.briefing.planta.n_mensagens, MENSAGENS.length + 1);
   /* depois do padrão gravado o prefixo some (o plano existe) e o contador não anda mais */
   const ia3 = roteiro(resp([], 'Beleza.'));
@@ -320,12 +330,12 @@ test('limite de corpo ANTES da forma: um tool_use enorme é recusado como tentat
 
 test('o plano gravado leva os textos normalizados e não aceita nome de terceiro; o nome do negócio da pessoa passa', async () => {
   const p = bom();
-  p.chegada.frase = 'A pessoa chega à Clínica Aurora pela busca, pelo mapa ou por indicação.';
+  p.nos[0].frase = 'A pessoa chega à Clínica Aurora pela busca';
   const ia = roteiro(resp([chamada('desenhar_planta', p)]), resp([], 'Desenhei.'));
   const r = await turno(ia);
   assert.equal(r.briefing.planta.origem, 'modelo', 'o nome que a pessoa deu (briefing.negocio.nome) passa');
   const q = bom();
-  q.chegada.frase = 'A pessoa chega à Clínica Horizonte pela busca, pelo mapa ou por indicação.';
+  q.nos[0].frase = 'A pessoa chega à Clínica Horizonte pela busca';
   const ia2 = roteiro(resp([chamada('desenhar_planta', q)]), resp([], 'Desenhei.'));
   const r2 = await turno(ia2);
   assert.equal(volta(ia2, 1).ok, false);
@@ -334,7 +344,7 @@ test('o plano gravado leva os textos normalizados e não aceita nome de terceiro
 
 test('nicho regulado: o texto de depoimento é recusado no plano do modelo (a sessão é regulada pelo briefing)', async () => {
   const p = bom();
-  p.etapas[5].frase = 'Quem ficou com dúvida lê depoimentos de pacientes e volta à conversa.';
+  p.nos[1].frase = 'Lê depoimentos de pacientes e conversa';
   const ia = roteiro(resp([chamada('desenhar_planta', p)]), resp([], 'Desenhei.'));
   await turno(ia);
   assert.equal(volta(ia, 1).ok, false);
@@ -358,7 +368,7 @@ test('simulado: planta-boa desenha à primeira; planta-ruim erra uma vez e acert
   const boa = await turnoSim('planta-boa');
   assert.equal(boa.briefing.planta.origem, 'modelo');
   assert.equal(boa.briefing.planta.tentativas, 1);
-  assert.match(boa.resposta, /planta/i);
+  assert.match(boa.resposta, /planta|mapa/i);
   const ruimUmaVez = await turnoSim('planta-ruim');
   assert.equal(ruimUmaVez.briefing.planta.origem, 'modelo');
   assert.equal(ruimUmaVez.briefing.planta.tentativas, 2);
@@ -396,7 +406,7 @@ const textosDoPlano = (v, saida = []) => {
 };
 const GRAVADO = { v: 1, versao: 2, origem: 'modelo', motivos: ['digito'], tentativas: 2, n_mensagens: 3, plano: fx('embalagens') };
 
-test('contexto do modelo com plano gravado: nenhuma frase do plano, nenhum contador; a versão compacta (até 600 caracteres) está dentro do bloco BRIEFING e fora do ESTADO', () => {
+test('contexto do modelo com plano gravado: nenhuma frase do plano, nenhum contador; a versão compacta (até 900 caracteres) está dentro do bloco BRIEFING e fora do ESTADO', () => {
   const briefing = { ...BRIEFING, planta: GRAVADO, leitura: { eixos: [{ eixo: 'volume', nivel: 'comentou', evidencia: 'MARCA-DA-LEITURA' }] }, planta_pedidos: 1 };
   const frases = [...GRAVADO.plano.etapas.map(e => e.frase), GRAVADO.plano.fecho, GRAVADO.plano.fim.frase, GRAVADO.plano.chegada.frase];
   for (const planta of [true, false]) {
@@ -407,18 +417,18 @@ test('contexto do modelo com plano gravado: nenhuma frase do plano, nenhum conta
     assert.ok(!estado.includes('planta_desenhada') && !estado.includes('familias'), 'a versão compacta não vai no ESTADO (que tem autoridade)');
     if (!planta) { assert.ok(!dados.includes('planta_desenhada'), 'flag desligada: nem a compacta'); continue; }
     const compacta = JSON.parse(dados.split('\n')[1]).planta_desenhada;
-    assert.ok(JSON.stringify(compacta).length <= 600, 'compacta: ' + JSON.stringify(compacta).length);
+    assert.ok(JSON.stringify(compacta).length <= 900, 'compacta: ' + JSON.stringify(compacta).length);
     assert.equal(compacta.etapas.length, 8, 'as 8 etapas (9 caixas com a chegada) cabem');
     assert.deepEqual(compacta.etapas[0], ['familias', 'caixa', 'Famílias de embalagem e seus usos']);
     assert.equal(compacta.versao, 2);
   }
 });
 
-test('plantaParaModelo: sempre até 600 caracteres, mesmo com 9 caixas de id e título no tamanho máximo; sem plano, null', () => {
+test('plantaParaModelo: sempre até 900 caracteres (o v2 gravado, com 9 caixas de id e título no tamanho máximo); sem plano, null', () => {
   const longo = planoPadrao('industria_b2b');
   longo.etapas.forEach((e, i) => { e.id = 'identificador-longo-de-' + i; e.titulo = 'Titulo de quarenta letras para teste ' + i + 'x'.repeat(2); });
   const c = plantaParaModelo({ versao: 4, origem: 'modelo', plano: longo });
-  assert.ok(JSON.stringify(c).length <= 600);
+  assert.ok(JSON.stringify(c).length <= 900);
   assert.ok(c.etapas.length >= 1 && c.etapas.length <= 8);
   assert.equal(plantaParaModelo(null), null);
   assert.equal(plantaParaModelo({ plano: 7 }), null);

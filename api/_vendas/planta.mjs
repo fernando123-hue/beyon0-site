@@ -11,16 +11,24 @@
    Só este módulo (e a ferramenta, depois do validador) escreve nessas chaves: atualizar_briefing descarta chave desconhecida.
    ========================================================================== */
 import F from '../../js/orcamento-planta-forma.js';
+import M from '../../js/orcamento-mapa-forma.js';
 import { validarPlano } from './planta-esquema.mjs';
 import { cidadeValida } from './planta-textos.mjs';
-import { planoPadrao, nichoDaPlanta } from './planta-padrao.mjs';
+import { nichoDaPlanta } from './planta-padrao.mjs';
+import { planoDoCaso, oQueSeSabe } from './mapa-padrao.mjs';
 
 export const PLANTA_CHAVES = F.PLANTA_CHAVES;
 export const plantaLigada = env => !!env && env.BZ_PLANTA === 'ligada';
 
-export const MAX_VERSOES = 4;            /* versões do desenho por conversa (a 5ª é recusada) */
+/* (PR 4) o modelo escreve o MAPA DO CASO v3 (js/orcamento-mapa-forma.js): estrutura, nós por papel, setas. Um v2 gravado continua lido e
+   desenhado (a leitura aceita as duas versões); o ajuste de um v2 vem como um v3 inteiro. O padrão é composto do caso (api/_vendas/mapa-padrao.mjs). */
+export const MAX_VERSOES = 6;            /* versões do mapa por conversa (a 7ª é recusada) */
 export const PEDIDOS_SEM_PLANO_MAX = 2;  /* turnos em que o prefixo pediu e o modelo não desenhou: no 2º o servidor grava o padrão */
-const COMPACTO_MAX = 600;                /* caracteres da versão compacta que o modelo vê */
+const COMPACTO_MAX = 900;                /* caracteres da versão compacta que o modelo vê (6 nós e 9 setas cabem) */
+export const REGISTRO_BYTES_MAX = 8192;  /* o registro "planta" gravado no briefing; acima disso não se grava (o desenho anterior fica) */
+/* o padrão do caso: o nicho e o que se sabe (origens e trava tocadas) */
+const padraoDoCaso = briefing => planoDoCaso(nichoDaPlanta(briefing), oQueSeSabe(briefing));
+const ehV3 = plano => !!plano && typeof plano === 'object' && Object.hasOwn(plano, 'estrutura');
 const ERROS_AO_MODELO_MAX = 6;
 
 /* ---------- o que o modelo e o gerador veem ---------- */
@@ -31,9 +39,23 @@ export function semChavesDaPlanta(briefing) {
   return Object.fromEntries(Object.entries(briefing).filter(([k]) => !PLANTA_CHAVES.includes(k)));
 }
 
-/* a versão compacta para o modelo ajustar mantendo os ids: id, tipo e título de cada caixa (nunca as frases). Cabe em 600 caracteres */
+/* a versão compacta do mapa v3 (no bloco BRIEFING, como dado): os nós [id, papel, título] e as setas [de, para, rótulo], nunca as frases. Cabe em
+   COMPACTO_MAX: corta primeiro o rótulo das setas, depois as setas; os nós nunca (o ajuste precisa dos ids) */
+function mapaParaModelo(planta, plano) {
+  const nos = (Array.isArray(plano.nos) ? plano.nos : []).filter(n => n && typeof n.id === 'string').map(n => [n.id, n.papel, String(n.titulo || '').slice(0, M.LIMITES_MAPA.titulo_max)]);
+  const setas = (Array.isArray(plano.setas) ? plano.setas : []).filter(s => s && typeof s.de === 'string').map(s => [s.de, s.para, String(s.rotulo || '').slice(0, M.LIMITES_MAPA.rotulo_max)]);
+  const origens = plano.hoje && Array.isArray(plano.hoje.origens) ? plano.hoje.origens.slice(0, M.LIMITES_MAPA.hoje_origens_max) : [];
+  const objetivo = plano.objetivo && typeof plano.objetivo.titulo === 'string' ? plano.objetivo.titulo.slice(0, M.LIMITES_MAPA.titulo_max) : '';
+  const montar = ss => ({ versao: planta.versao, origem: planta.origem, estrutura: plano.estrutura, origens, nos, setas: ss, objetivo });
+  let c = montar(setas);
+  if (JSON.stringify(c).length > COMPACTO_MAX) c = montar(setas.map(s => [s[0], s[1]]));
+  while (JSON.stringify(c).length > COMPACTO_MAX && c.setas.length) c = montar(c.setas.slice(0, -1));
+  return c;
+}
+/* a versão compacta para o modelo ajustar mantendo os ids: do v3, o mapa acima; do v2, id, tipo e título de cada caixa (nunca as frases) */
 export function plantaParaModelo(planta) {
   const plano = planta && typeof planta === 'object' ? planta.plano : null;
+  if (ehV3(plano)) return mapaParaModelo(planta, plano);
   if (!plano || typeof plano !== 'object' || !Array.isArray(plano.etapas)) return null;
   const etapas = [];
   for (const et of plano.etapas) {
@@ -46,47 +68,74 @@ export function plantaParaModelo(planta) {
   return { versao: planta.versao, origem: planta.origem, topologia: plano.topologia, etapas };
 }
 
-/* ---------- a ferramenta ---------- */
+/* ---------- a ferramenta (o mapa do caso v3) ---------- */
 const texto = { type: 'string' };
-const ETAPA = { type: 'object', additionalProperties: false, required: ['id', 'tipo', 'verbo', 'titulo', 'frase'], properties: {
-  id: texto, tipo: { type: 'string', enum: [...F.TIPOS_ETAPA] }, verbo: { type: 'string', enum: [...F.VERBOS] }, titulo: texto, frase: texto,
-  decisao: { type: 'boolean' }, ramo: { type: 'integer', enum: [0, 1] }, satelite_de: texto, lado: { type: 'string', enum: ['cima', 'baixo'] },
-  laco: { type: 'boolean' }, retorno: { type: 'boolean' } } };
-const ESQUEMA_PLANTA = { type: 'object', additionalProperties: false, required: ['topologia', 'chegada', 'etapas', 'fim', 'fecho'], properties: {
-  topologia: { type: 'string', enum: [...F.TOPOLOGIAS] },
-  chegada: { type: 'object', additionalProperties: false, required: ['origens', 'titulo', 'frase'], properties: { origens: { type: 'array', items: { type: 'string', enum: [...F.ORIGENS] } }, titulo: texto, frase: texto } },
-  etapas: { type: 'array', items: ETAPA },
-  fim: { type: 'object', additionalProperties: false, required: ['titulo', 'frase'], properties: { titulo: texto, frase: texto } },
-  fecho: texto, rotulo_retorno: texto, rotulos_ramos: { type: 'array', items: texto } } };
+const ESQUEMA_PLANTA = { type: 'object', additionalProperties: false, required: ['estrutura', 'hoje', 'nos', 'setas', 'objetivo', 'fecho'], properties: {
+  estrutura: { type: 'string', enum: [...M.ESTRUTURAS] },
+  hoje: { type: 'object', additionalProperties: false, required: ['origens'], properties: {
+    origens: { type: 'array', items: { type: 'string', enum: [...M.ORIGENS_MAPA] } }, texto, trava: texto } },
+  nos: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'papel', 'icone', 'titulo', 'frase'], properties: {
+    id: texto, papel: { type: 'string', enum: [...M.PAPEIS] }, icone: { type: 'string', enum: [...M.ICONES] }, origem: { type: 'string', enum: [...M.ORIGENS_MAPA] },
+    titulo: texto, frase: texto } } },
+  setas: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['de', 'para', 'rotulo'], properties: { de: texto, para: texto, rotulo: texto } } },
+  objetivo: { type: 'object', additionalProperties: false, required: ['titulo', 'frase'], properties: { titulo: texto, frase: texto } },
+  fecho: texto } };
 
-const EXEMPLOS = ['saude_agenda', 'industria_b2b', 'loja_online'];
-const DESCRICAO = 'Desenha na tela, logo abaixo da conversa, a planta do site desta pessoa: o caminho de quem chega, em 8 ou 9 caixas, do começo até o objetivo. ' +
-  'Chame UMA vez, no turno em que o proximo_passo do ESTADO mandar, e de novo só se a pessoa pedir para mudar a planta ou o caso mudar de verdade (até 4 versões por conversa; mantenha o id das etapas que não mudam). ' +
-  'Se ela disser que a planta está certa, não desenhe de novo. Quem desenha é o código: você só entrega o plano em JSON, com as listas fechadas do esquema. ' +
-  'Escreva em português do Brasil, na voz da Beyon ("a gente"), em terceira pessoa para quem chega, no presente, sem jargão. É o desenho do que o site PODE fazer a partir do que a pessoa contou, nunca promessa: ' +
-  'proibido qualquer número ou algarismo, preço, custo, prazo, resultado, garantia, suporte, marca ou nome de terceiro (vale só o nome do negócio que a pessoa deu), link, e-mail, emoji e formatação; nada de "mais clientes" nem "vende sozinho". ' +
-  'Em saúde e advocacia, nada de depoimento nem de antes e depois. ' +
-  'Tamanhos: título de 3 a 40 caracteres, frase de 20 a 110, rótulo de 3 a 28; 7 ou 8 etapas (mais a chegada, 8 ou 9 caixas); títulos diferentes entre si; id de 2 a 24 letras minúsculas, números ou hífen (não use os ids reservados nucleo, led, chegada, constructor, prototype e proto); o fecho conta como frase (20 a 110 caracteres). ' +
-  'Topologia: laco (o fim volta ao começo; a última etapa leva retorno true; rotulo_retorno opcional), bifurca (a conversa decide e o caminho se divide e se junta: 1 ou mais etapas de entrada, a última com decisao true; 1 a 2 etapas no ramo 0; 1 a 2 no ramo 1; 1 a 2 de saída sem ramo; rotulos_ramos com 2 rótulos), ' +
-  'espinha (4 a 5 etapas de tronco e 2 a 4 satélites, cada um com satelite_de apontando para o id de uma etapa do tronco e lado cima ou baixo; no máximo um satélite por etapa e um só com laco true). ' +
-  'Resultado: ok com na_tela, o desenho já está na tela: diga em uma frase que desenhou o site em planta, logo abaixo, sem descrever as etapas. ok false com erros: corrija e chame de novo UMA vez. ' +
-  'ok com exemplo true: o código mostrou um desenho de exemplo para o tipo de negócio; diga isso e que você refaz conforme a pessoa contar mais. ' +
+/* três exemplos de três estruturas diferentes, montados pelo padrão do caso (passam no validador): o modelo não ancora numa estrutura só */
+const EXEMPLOS = [
+  ['saude_agenda', { origens: ['instagram', 'indicacao'] }],
+  ['servico_orcamento', { origens: ['google_busca'], trava: 'responde_na_mao', travaRotulo: 'Respondo preço e horário na mão' }],
+  ['loja_online', { origens: ['instagram', 'passa_na_frente'] }]
+];
+/* (texto aprovado pelo dono como "DESCRICAO v3"; os tamanhos e os ids são a regra técnica que acompanha) */
+const DESCRICAO = 'Monta, logo abaixo da conversa, o mapa do caso desta pessoa: de onde ela chega, o que trava hoje, o que o site faz e onde ela quer chegar. ' +
+  'Chame UMA vez, no turno em que o proximo_passo do ESTADO mandar, e de novo só se a pessoa pedir para mudar o mapa ou o caso mudar de verdade (até ' + MAX_VERSOES + ' versões por conversa). ' +
+  'Se ela disser que o mapa está certo, não monte de novo. Quem desenha é o código: você só entrega o plano em JSON, com as listas fechadas do esquema. ' +
+  'A estrutura sai do que a pessoa contou, pela primeira regra que valer: o ganho está na volta (recompra, retorno, revisão, mensalidade): ciclo; dois públicos ou dois serviços com caminhos diferentes: ramos; ' +
+  'a dor é trabalho repetido ou perda fora de hora: antes_depois; várias forças ao mesmo tempo (duas origens ou mais, uma trava e um desejo): mapa; nos outros casos: caminho. ' +
+  'Mesma história, mesma estrutura. Nunca escolha uma estrutura para variar nem copie a dos exemplos: eles mostram a forma, não o seu caso. ' +
+  'No hoje: em origens, só os códigos dos lugares que ela disse (Google sem falar de mapa é google_busca); texto e trava com as palavras dela, sem marca; preço só como o que perguntam a ela, nunca valor, juízo ou comparação; não escreva Hoje (a tela põe). ' +
+  'O objetivo não é um nó: as setas o chamam pelo id objetivo. Seta de volta só no ciclo, e uma só. ' +
+  'Escreva em português do Brasil, na voz da Beyon (a gente), em terceira pessoa para quem chega, no presente, sem jargão. É o que o site PODE fazer a partir do que a pessoa contou, nunca promessa: ' +
+  'proibido número ou algarismo, preço como valor, custo, prazo, resultado, garantia, marca ou nome de terceiro (vale só o nome do negócio que ela deu), link, e-mail, emoji e formatação; nada de mais clientes nem vende sozinho. ' +
+  'Em saúde e advocacia, nada de depoimento nem de foto de antes e depois (a estrutura antes_depois fala do trabalho, nunca do corpo). ' +
+  'Papéis: origem (de onde chega, com o código em origem, um dos de hoje.origens; no máximo 2), hoje e trava (como é hoje e o que se perde), site, conversa e acao (o que o site faz), volta (o retorno, no ciclo), ajustado (o que mudou num ajuste). ' +
+  'Por estrutura: em ramos um nó se divide em exatamente 2 setas; em antes_depois há trava e site ou acao; o caminho não se divide nem se junta; o mapa tem 4 nós ou mais, com trava e origem. ' +
+  'Tamanhos: título de 3 a 28 caracteres, frase de 20 a 60, rótulo de seta de 3 a 24, texto e trava do hoje de 10 a 60, fecho de 20 a 80; 2 a 6 nós e 1 a 9 setas; no máximo 5 passos de cima a baixo (o objetivo conta) e 2 nós lado a lado; ' +
+  'nenhuma seta chega a um nó de origem; seta que pula um passo só passa onde não há nó; todo nó chega ao objetivo; títulos diferentes entre si; id de 1 a 12 letras minúsculas, números ou _ (não use objetivo, hoje, constructor, prototype e proto). ' +
+  'Ajuste: mantenha os ids e o texto do que não mudou; o nó novo ou trocado leva o papel ajustado e entra ligado por uma seta com rótulo. Se planta_desenhada tem topologia, é um desenho antigo: escreva o plano inteiro de novo, sem ajustado. ' +
+  'Resultado: ok com na_tela, o mapa já está na tela: diga em uma frase que montou o mapa do caso, logo abaixo, sem descrever os nós. ok false com erros: corrija e chame de novo UMA vez. ' +
+  'ok com exemplo true: o código mostrou um mapa de exemplo para o tipo de negócio; diga isso e que você refaz conforme a pessoa contar mais. ' +
   'Os exemplos abaixo são modelo de forma e de voz; escreva textos novos para ESTE negócio.';
 
-/* strict NÃO está ligado (decisão do PR 2a). api/_ia/anthropic.mjs passa o objeto da ferramenta inteiro à API (pedido.tools = ferramentas), então "strict: true"
-   chegaria lá; mas sem uma chamada real não dá para provar que a API aceita este esquema (28 tipos, 34 verbos, aninhamento, regras de tamanho só na
-   descrição), e um 400 derrubaria o turno inteiro do Zero. O esquema já evita palavras que o modo estrito recusa (sem minLength, maxLength, minItems,
-   pattern): ligar é UMA linha, a fazer na rodada real 8 se mais de 30% dos planos caírem no padrão. */
+/* strict NÃO está ligado (decisão do PR 2a; o esquema evita minLength, maxLength, minItems e pattern): ligar é UMA linha, na rodada real. */
 /* a ferramenta (nova a cada chamada: quem a recebe pode mexer) */
 export function ferramentaPlanta() {
-  const exemplos = EXEMPLOS.map((chave, i) => '\nEXEMPLO ' + (i + 1) + ': ' + JSON.stringify(planoPadrao(chave))).join('');
+  const exemplos = EXEMPLOS.map(([chave, saber], i) => '\nEXEMPLO ' + (i + 1) + ': ' + JSON.stringify(planoDoCaso(chave, saber))).join('');
   return { name: 'desenhar_planta', description: DESCRICAO + exemplos, input_schema: JSON.parse(JSON.stringify(ESQUEMA_PLANTA)) };
 }
 
 /* ---------- os erros que voltam ao modelo: só caminho e regra, nunca o texto dele ---------- */
+/* (o modelo só escreve v3: os tamanhos são os do mapa, js/orcamento-mapa-forma.js LIMITES_MAPA) */
 const REGRA = {
-  titulo_curto: 'título curto demais (3 a 40 caracteres)', titulo_longo: 'título longo demais (3 a 40 caracteres)',
-  frase_curta: 'frase curta demais (20 a 110 caracteres)', frase_longa: 'frase longa demais (20 a 110 caracteres)', rotulo: 'rótulo fora de 3 a 28 caracteres',
+  titulo_curto: 'título curto demais (3 a 28 caracteres)', titulo_longo: 'título longo demais (3 a 28 caracteres)',
+  frase_curta: 'frase curta demais (20 a 60 caracteres)', frase_longa: 'frase longa demais (20 a 60 caracteres)', rotulo: 'rótulo da seta fora de 3 a 24 caracteres',
+  hoje_curto: 'texto do hoje curto demais (10 a 60 caracteres)', hoje_longo: 'texto do hoje longo demais (10 a 60 caracteres)',
+  fecho_curto: 'fecho curto demais (20 a 80 caracteres)', fecho_longo: 'fecho longo demais (20 a 80 caracteres)',
+  estrutura: 'estrutura fora da lista (caminho, antes_depois, ramos, ciclo ou mapa)', versao: 'o plano mistura o formato antigo (topologia) com o novo (estrutura): use só estrutura',
+  versao_antiga: 'escreva no formato novo, com estrutura, nos e setas', nos_qtd: 'o mapa precisa de 2 a 6 nós (o objetivo não conta)', setas_qtd: 'o mapa precisa de 1 a 9 setas',
+  papel: 'papel fora da lista', icone: 'ícone fora da lista', origem: 'origem fora da lista, repetida, ou em nó que não é de origem (o nó de origem precisa dela)',
+  origem_fora_do_hoje: 'a origem do nó precisa estar em hoje.origens', origens_nos: 'no máximo 2 nós de origem',
+  id_no: 'id fora do formato (1 a 12 letras minúsculas, números ou _)', seta_ref: 'seta que aponta para um id que não existe (use o id de um nó ou objetivo)',
+  seta_propria: 'seta que sai e chega no mesmo nó', seta_repetida: 'seta repetida', seta_para_origem: 'nenhuma seta chega a um nó de origem (ele é o começo)',
+  objetivo_sai: 'o objetivo só tem seta saindo no ciclo, e uma só', no_solto: 'nó sem nenhuma seta', nao_chega: 'nó que não chega ao objetivo por nenhuma seta',
+  sem_objetivo: 'nenhuma seta chega ao objetivo', camadas: 'passos demais de cima a baixo (no máximo 5, com o objetivo)',
+  camada_cheia: 'nós demais lado a lado no mesmo passo (no máximo 2, e sem cair um em cima do outro)', pulo: 'seta que pula um passo por cima de outro nó',
+  volta: 'seta de volta só no ciclo, e lá exatamente uma', ramos: 'em ramos, um nó precisa se dividir em exatamente 2 setas',
+  antes_depois: 'antes_depois precisa de um nó trava e de um site ou acao', caminho_divide: 'o caminho não se divide nem se junta', mapa: 'o mapa precisa de 4 nós ou mais, com trava e origem',
+  ajustado: 'no máximo 2 nós ajustado', ajustado_sem_plano: 'ajustado só num ajuste de um mapa no formato novo (escreva o mapa inteiro, sem ajustado)',
+  hoje: 'hoje fora do formato', hoje_vazio: 'hoje sem nada: ponha as origens, o texto ou a trava (ou tire o hoje)', objetivo: 'objetivo fora do formato',
+  no: 'nó fora do formato', seta: 'seta fora do formato', redigido: 'tem dado pessoal (telefone, e-mail, documento): tire', registro: 'plano grande demais para guardar',
   titulo_repetido: 'título igual ao de outra caixa (use títulos diferentes)',
   digito: 'tem número ou algarismo (escreva sem números)', simbolo: 'tem símbolo de valor ou porcentagem', preco: 'fala de preço, custo ou valor', prazo: 'fala de prazo ou de tempo, mesmo negando ("sem prometer resposta imediata" também cai): tire palavras como imediata, rápido, hoje, agora, dias, horas, na hora, toda semana e descreva só o passo',
   numeral: 'tem número por extenso (de dois em diante)', promessa: 'promete resultado', garantia: 'fala de garantia', suporte: 'fala de suporte ou manutenção',
@@ -104,6 +153,9 @@ const REGRA = {
 };
 const FORMA = 'fora da forma do esquema';
 function lerCaminho(c) {
+  /* (v3) nós e setas pelo ÍNDICE, nunca pelo id (o id é do modelo) */
+  const v3 = String(c || '').match(/^(nos|setas|camadas)\[(\d{1,2})\]\.?(.*)$/);
+  if (v3) return { nos: 'nó ', setas: 'seta ', camadas: 'passo ' }[v3[1]] + (Number(v3[2]) + 1) + (v3[3] ? ', ' + ({ titulo: 'título', frase: 'frase', rotulo: 'rótulo' }[v3[3]] || v3[3]) : '');
   const m = String(c || '').match(/^etapas\[(\d{1,2})\]\.?(.*)$/);
   const campo = r => ({ titulo: 'título', frase: 'frase', id: 'id', tipo: 'tipo', verbo: 'verbo', ramo: 'ramo', satelite_de: 'satelite_de', lado: 'lado', laco: 'laco', retorno: 'retorno', decisao: 'decisao' }[r] || r);
   if (m) return 'etapa ' + (Number(m[1]) + 1) + (m[2] ? ', ' + campo(m[2]) : '');
@@ -112,7 +164,7 @@ function lerCaminho(c) {
 }
 /* só o NÚMERO de caracteres do texto recusado por tamanho (nunca o texto): o modelo erra a conta de 110 */
 function tamanhoDoTexto(codigo, caminho, plano) {
-  if (!/^(?:titulo|frase)_(?:curt|long)[oa]$/.test(codigo) || typeof caminho !== 'string' || !plano || typeof plano !== 'object') return '';
+  if (!/^(?:titulo|frase|hoje|fecho)_(?:curt|long)[oa]$/.test(codigo) || typeof caminho !== 'string' || !plano || typeof plano !== 'object') return '';
   try {
     const v = caminho.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean).reduce((o, k) => (o == null || typeof o !== 'object' || !Object.hasOwn(o, k) ? undefined : o[k]), plano);
     return typeof v === 'string' ? ' (tem ' + v.trim().length + ' caracteres)' : '';
@@ -134,7 +186,14 @@ function gravarPlanta(briefing, { plano, origem, motivos, tentativas, nMensagens
   const anterior = briefing && briefing.planta && Number.isInteger(briefing.planta.versao) ? briefing.planta.versao : 0;
   return { ...briefing, planta: { v: 1, versao: anterior + 1, origem, motivos: uniao([], motivos), tentativas, n_mensagens: nMensagens, plano } };
 }
-const caixas = plano => plano.etapas.length + 1;
+/* as caixas na tela: no v3, os nós e o objetivo; no v2, as etapas e a chegada */
+const caixas = plano => (ehV3(plano) ? plano.nos.length : plano.etapas.length) + 1;
+/* o registro cabe no teto? (puro, para o teste e a mutação; o plano v3 válido mede até ~6 KB, então o teto só pega uma mudança de limite futura) */
+export function cabeNoRegistro(registro, max = REGISTRO_BYTES_MAX) {
+  let n;
+  try { n = new TextEncoder().encode(JSON.stringify(registro)).length; } catch { return false; }
+  return Number.isFinite(n) && n <= max;
+}
 
 /* o estado do turno da planta (zerado a cada turno) */
 export const turnoDaPlantaInicial = () => Object.freeze({ falhas: 0, motivos: [], gravou: false });
@@ -148,16 +207,22 @@ export function resolverDesenho({ entrada, briefing, turno, ctx }) {
   const versao = briefing.planta && Number.isInteger(briefing.planta.versao) ? briefing.planta.versao : 0;
   if (versao >= MAX_VERSOES) return recusa('limite de ' + MAX_VERSOES + ' versões da planta nesta conversa');
   if (turno.falhas >= 2) return recusa('já foram duas tentativas neste turno; o desenho que estava na tela continua');
-  const v = validarPlano(entrada, { nomeDoNegocio: ctx.nomeDoNegocio, regulado: ctx.regulado, cidade: cidadeValida(ctx.cidade) });
+  /* do modelo, só o mapa v3; o papel "ajustado" só num ajuste de um v3 (o v3 que nasce de um v2 não leva "Ajustado") */
+  let v = validarPlano(entrada, { nomeDoNegocio: ctx.nomeDoNegocio, regulado: ctx.regulado, cidade: cidadeValida(ctx.cidade), versoes: ['v3'] });
+  if (v.ok && v.plano.nos.some(n => n.papel === 'ajustado') && !ehV3(briefing.planta && briefing.planta.plano)) {
+    v = { ok: false, motivos: ['ajustado_sem_plano'], erros: [{ caminho: 'nos', codigo: 'ajustado_sem_plano' }] };
+  }
   if (v.ok) {
     const novo = gravarPlanta(briefing, { plano: v.plano, origem: 'modelo', motivos: turno.motivos, tentativas: turno.falhas + 1, nMensagens: ctx.nMensagens });
+    /* o registro passou do teto: nada se grava, e o desenho anterior (se houver) fica */
+    if (!cabeNoRegistro(novo.planta)) return { saida: { ok: false, motivo: REGRA.registro }, briefing, turno: { ...turno, falhas: turno.falhas + 1, motivos: uniao(turno.motivos, ['grande']) } };
     return { saida: { ok: true, na_tela: true, etapas: caixas(v.plano) }, briefing: novo, turno: { ...turno, gravou: true } };
   }
   const t = { ...turno, falhas: turno.falhas + 1, motivos: uniao(turno.motivos, v.motivos) };
   if (t.falhas === 1) return { saida: { ok: false, erros: errosParaModelo(v.erros, entrada) }, briefing, turno: t };
   /* a 2ª falha: sem planta ainda, o servidor grava o padrão do nicho; com uma planta já na tela, ela fica (o padrão é só para quem não tem desenho) */
   if (versao > 0) return { saida: { ok: false, mantida: true, motivo: 'o desenho anterior continua na tela; não desenhe de novo neste turno' }, briefing, turno: t };
-  const plano = planoPadrao(nichoDaPlanta(briefing));
+  const plano = padraoDoCaso(briefing);
   const novo = gravarPlanta(briefing, { plano, origem: 'padrao', motivos: t.motivos, tentativas: t.falhas, nMensagens: ctx.nMensagens });
   return { saida: { ok: true, na_tela: true, exemplo: true }, briefing: novo, turno: { ...t, gravou: true } };
 }
@@ -168,12 +233,12 @@ export function fecharTurno({ briefing, turno, prefixoUsado, esgotou, nMensagens
   if (turno.gravou) return briefing;
   const semPlanta = !(briefing.planta && Number.isInteger(briefing.planta.versao));
   if (esgotou && turno.falhas > 0 && semPlanta) {
-    return gravarPlanta(briefing, { plano: planoPadrao(nichoDaPlanta(briefing)), origem: 'padrao', motivos: uniao(turno.motivos, ['estouro']), tentativas: turno.falhas, nMensagens });
+    return gravarPlanta(briefing, { plano: padraoDoCaso(briefing), origem: 'padrao', motivos: uniao(turno.motivos, ['estouro']), tentativas: turno.falhas, nMensagens });
   }
   if (!prefixoUsado || !semPlanta) return briefing;
   const pedidos = (Number.isInteger(briefing.planta_pedidos) ? briefing.planta_pedidos : 0) + 1;
   if (pedidos >= PEDIDOS_SEM_PLANO_MAX) {
-    return { ...gravarPlanta(briefing, { plano: planoPadrao(nichoDaPlanta(briefing)), origem: 'padrao', motivos: uniao(turno.motivos, ['nao_chamou']), tentativas: turno.falhas, nMensagens }), planta_pedidos: pedidos };
+    return { ...gravarPlanta(briefing, { plano: padraoDoCaso(briefing), origem: 'padrao', motivos: uniao(turno.motivos, ['nao_chamou']), tentativas: turno.falhas, nMensagens }), planta_pedidos: pedidos };
   }
   return { ...briefing, planta_pedidos: pedidos };
 }
@@ -213,8 +278,8 @@ function planoRevalidado(plano, nomeDoNegocio, regulado, cidade = '') {
   return v.ok ? v.plano : null;
 }
 
-/* a planta gravada, REVALIDADA a cada leitura: { versao, origem, n_mensagens, plano } (sem motivos nem tentativas, que ficam no banco), ou null.
-   Plano gravado que deixou de ser válido sai como o padrão do nicho (origem "padrao"). `turnos` e `mensagensNaJanela` põem n_mensagens na janela da tela. */
+/* a planta gravada, REVALIDADA a cada leitura (v2 ou v3, pela chave): { versao, origem, n_mensagens, plano } (sem motivos nem tentativas, que ficam no
+   banco), ou null. Plano gravado que deixou de ser válido sai como o padrão do caso, v3 (origem "padrao"). `turnos` e `mensagensNaJanela` põem n_mensagens na janela da tela. */
 export function montarPlanta(briefing, { regulado = false, turnos, mensagensNaJanela } = {}) {
   const p = briefing && typeof briefing === 'object' ? briefing.planta : null;
   if (!p || typeof p !== 'object' || Array.isArray(p) || !Number.isInteger(p.versao) || p.versao < 1) return null;
@@ -223,7 +288,7 @@ export function montarPlanta(briefing, { regulado = false, turnos, mensagensNaJa
   const plano = planoRevalidado(p.plano, nomeDoNegocio, !!regulado, cidade);
   const nMensagens = posicaoNaJanela(Number.isInteger(p.n_mensagens) && p.n_mensagens >= 0 ? p.n_mensagens : 0, { turnos, mensagensNaJanela });
   if (plano) return { versao: p.versao, origem: p.origem === 'modelo' ? 'modelo' : 'padrao', n_mensagens: nMensagens, plano };
-  return { versao: p.versao, origem: 'padrao', n_mensagens: nMensagens, plano: planoPadrao(nichoDaPlanta(briefing)) };
+  return { versao: p.versao, origem: 'padrao', n_mensagens: nMensagens, plano: padraoDoCaso(briefing) };
 }
 
 /* a leitura do radar: a lógica mora em ./leitura.mjs (PR 2d-ligação); o estado continua chamando este nome */

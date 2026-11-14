@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { errosParaModelo, resolverDesenho, turnoDaPlantaInicial } from '../../api/_vendas/planta.mjs';
 import { planoPadrao } from '../../api/_vendas/planta-padrao.mjs';
+import { planoDoCaso } from '../../api/_vendas/mapa-padrao.mjs';
 
 test('marca: diz o que trocar (rede social, aplicativo de mensagens) e o que vale', () => {
   const [m] = errosParaModelo([{ caminho: 'etapas[1].frase', codigo: 'marca' }]);
@@ -27,13 +28,13 @@ test('campo fora da topologia: diz quais campos cada topologia usa', () => {
 });
 
 test('frase longa: diz quantos caracteres tem, sem devolver o texto', () => {
-  const p = JSON.parse(JSON.stringify(planoPadrao('saude_agenda')));
+  const p = planoDoCaso('saude_agenda', {});   /* (PR 4: o mapa v3; a frase vai de 20 a 60) */
   const longa = 'A pessoa chega pela busca e vê as áreas de atuação do escritório, o perfil de quem atende e a forma de marcar uma conversa inicial.';
-  p.etapas[1].frase = longa;
+  p.nos[1].frase = longa;
   const d = resolverDesenho({ entrada: p, briefing: {}, turno: turnoDaPlantaInicial(), ctx: { estimativaNoInicio: true, nMensagens: 2, regulado: false, nomeDoNegocio: '' } });
   assert.equal(d.saida.ok, false);
   const msg = d.saida.erros.join(' | ');
   assert.match(msg, new RegExp('tem ' + longa.length + ' caracteres'));
-  assert.match(msg, /110/);
+  assert.match(msg, /60/);
   assert.ok(!msg.includes('escritório'), 'o texto do modelo não volta');
 });

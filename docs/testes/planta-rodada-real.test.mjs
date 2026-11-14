@@ -50,7 +50,8 @@ test('um roteiro com planta: mede origem, tentativas, rodadas, tokens, custo, te
   assert.equal(p.tempo_ms, 1000);
   assert.ok(p.custo_usd > 0 && p.tokens.total > 0);
   assert.equal(p.textos.reprovados.length, 0, JSON.stringify(p.textos.reprovados));
-  assert.ok(p.textos.total >= 10 && p.textos.lista.length === p.textos.total);
+  assert.ok(p.textos.total >= 8 && p.textos.lista.length === p.textos.total, 'o mapa v3 do dublê: 2 nós, 2 setas, o objetivo e o fecho');
+  assert.equal(p.estrutura, 'caminho', 'a métrica da estrutura (PR 4)');
   assert.equal(r.turnos.filter(x => x.planta).length >= 1, true);
   assert.ok(r.turnos.every(x => typeof x.resposta === 'string' && Array.isArray(x.ferramentas) && 'niveis' in x));
 });
