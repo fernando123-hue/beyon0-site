@@ -590,7 +590,7 @@ export const SABOTAGENS = [
   { nome: "mapa: a forma aceita 99 camadas (o limite de 5 some)", fonte: "js/orcamento-mapa-forma.js", testes: ['docs/testes/planta-mapa-forma.test.mjs'],
     de: "camadas_max: 5,", para: "camadas_max: 99," },
   { nome: "mapa: a seta para um id que não existe passa (seta_ref não conferida)", fonte: "js/orcamento-mapa-forma.js", testes: ['docs/testes/planta-mapa-forma.test.mjs'],
-    de: "if (!deOk || !paraOk) { c.add(cam, 'seta_ref'); continue; }", para: "" },
+    de: "if (!deOk || !paraOk) { c.add(cam, 'seta_ref'); continue; }", para: "/* seta_ref sabotada */" },
   { nome: "mapa: a seta de volta vale fora do ciclo", fonte: "js/orcamento-mapa-forma.js", testes: ['docs/testes/planta-mapa-forma.test.mjs'],
     de: "if (est === 'ciclo' ? lay.volta.length !== 1 : lay.volta.length > 0) c.add('setas', 'volta');", para: "if (est === 'ciclo' && lay.volta.length !== 1) c.add('setas', 'volta');" },
   { nome: "mapa: a seta pula camada sem exigir a faixa vazia", fonte: "js/orcamento-mapa-forma.js", testes: ['docs/testes/planta-mapa-forma.test.mjs'],
