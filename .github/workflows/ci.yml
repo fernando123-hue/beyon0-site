@@ -21,7 +21,8 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # na main não cancela: a mutação só roda lá (revisão do #161); nos outros ramos, o envio novo cancela o velho
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   testes:
