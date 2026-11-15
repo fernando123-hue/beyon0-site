@@ -44,24 +44,13 @@
 .mpc-quadro--desk .mpc-no__frase { display: block; }
 .mpc-quadro--cel .mpc-no__txt { padding-top: 8px; }
 
-/* pele TRILHO: o chip de canto cortado com o ícone; o objetivo é o LED */
+/* a estação (pele TRILHO, escolha do dono em 14/11): o chip de canto cortado com o ícone; o objetivo é o LED */
 .mpc-chip { flex: 0 0 auto; width: 36px; height: 36px; overflow: hidden; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .mpc-chip__borda { fill: var(--s2); stroke: var(--cor); stroke-width: 1.1; transition: stroke .5s var(--ease); }
 .mpc-chip .mpc-ico { stroke: var(--t3); stroke-width: 2.6; transition: stroke .5s var(--ease); }
 .mpc-chip .mpc-ac { stroke: var(--cor); }
 .mpc-chip__aro, .mpc-chip__rumos { stroke: var(--cor); stroke-width: 1.1; transition: stroke .5s var(--ease); }
 .mpc-chip__disco { fill: var(--cor); stroke: none; transition: fill .5s var(--ease); }
-
-/* pele CAIXA: a moldura de canto cortado atrás do texto, com o ícone solto */
-.mpc-moldura { position: absolute; left: 0; top: 0; overflow: visible; z-index: 0; }
-.mpc-moldura path { fill: var(--s2); stroke: var(--cor); stroke-width: 1; transition: stroke .5s var(--ease); }
-.mpc-ico--solto { position: relative; z-index: 1; flex: 0 0 auto; width: 22px; height: 22px; fill: none; stroke: var(--t3); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.mpc-ico--solto .mpc-ac { stroke: var(--cor); }
-/* o respiro vem da pele do quadro (já está lá quando o desenho MEDE; a moldura só entra depois) */
-.mpc-pele-caixa .mpc-ico--solto { margin: 8px 0 0 10px; }
-.mpc-pele-caixa .mpc-no__txt { padding: 8px 10px 8px 0; }
-.mpc-pele-caixa.mpc-quadro--desk .mpc-ico--solto { margin: 10px 0 0 12px; }
-.mpc-pele-caixa.mpc-quadro--desk .mpc-no__txt { padding: 0 12px 12px; }
 
 /* as cores por papel (a paleta V4 não tem mais tons: pares repetem; trava em branco, hoje em cinza, objetivo em ouro) */
 .mpc-no--hoje { --cor: var(--stroke); }
@@ -91,7 +80,7 @@
 .mpc-luz { width: 6px; height: 6px; border-radius: 50%; background: var(--ac-2); opacity: 0; pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .mpc-chip__borda, .mpc-chip .mpc-ico, .mpc-chip__aro, .mpc-chip__rumos, .mpc-chip__disco, .mpc-moldura path, .is-ouro .mpc-no--objetivo .mpc-no__titulo { transition: none; }
+  .mpc-chip__borda, .mpc-chip .mpc-ico, .mpc-chip__aro, .mpc-chip__rumos, .mpc-chip__disco, .is-ouro .mpc-no--objetivo .mpc-no__titulo { transition: none; }
   .mpc-luz { display: none; }
 }
 html.menos-movimento .mpc-luz { display: none; }

@@ -1,8 +1,8 @@
 /* Laboratório das 5 estruturas do mapa do caso (spec 2026-11-13, §7). Desde o PR 5b ele desenha com os MÓDULOS REAIS da página (js/mapa-layout.js,
    js/mapa-desenho.js, css/orcamento-mapa.css): o que se aprova aqui é o que vai para a conversa. Cada caso de docs/lab-estruturas-casos.js nas 5
    estruturas, uma instância do desenho por estrutura (BZMapa.criar()). Fora do deploy. ES5.
-   Parâmetros: ?caso=clinica|embalagens|loja|limites  &estatico=1 (quadro final, sem animação)  &captura=1 (sem os botões)  &pele=caixa|trilho
-   (a pele do dono; sem o parâmetro, a da página). Fotos e conferência: node docs/lab-estruturas-fotos.mjs <pasta> */
+   Parâmetros: ?caso=clinica|embalagens|loja|limites  &estatico=1 (quadro final, sem animação)  &captura=1 (sem os botões).
+   Fotos e conferência: node docs/lab-estruturas-fotos.mjs <pasta> */
 (function () {
   'use strict';
   var CASOS = window.LAB_ESTRUTURAS_CASOS, Mapa = window.BZMapa, Forma = window.BZMapaForma, Saber = window.BZMapaSaber;
@@ -10,8 +10,6 @@
   if (!CASOS || !Mapa || !Forma || !Saber || !raiz) return;
   var q = new URLSearchParams(location.search);
   var parado = q.get('estatico') === '1';
-  var pele = q.get('pele') === 'caixa' || q.get('pele') === 'trilho' ? q.get('pele') : undefined;
-  if (pele) document.documentElement.classList.add('pele-' + pele);
   var tem = function (o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); };
   var ESTRUTURAS = [
     { id: 'caminho', nome: 'Caminho', quando: 'Um fluxo direto: alguém procura, encontra e chama.' },
@@ -40,7 +38,7 @@
       var v = Forma.validarFormaMapa(plano);
       if (!v.ok) { erros.push(E.nome + ': ' + v.motivos.join(', ')); return; }
       var lugar = el('div', 'le-lugar', null, sec), m = Mapa.criar();
-      var r = m.montar(lugar, plano, { pele: pele, animar: !parado });
+      var r = m.montar(lugar, plano, { animar: !parado });
       if (!r.ok) erros.push(E.nome + ': ' + (r.motivos || []).join(', '));
       instancias.push(m);
     });

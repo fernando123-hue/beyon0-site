@@ -1,6 +1,6 @@
 /* O MAPA DO CASO NA TELA (PR 5b, tarefas 3 e 4; plano docs/superpowers/plans/2026-11-14-pr5b-mapa-desenho.md). window.BZMapa = { montar(raiz, plano,
    opcoes), atualizar(plano, opcoes), parar() }: o MESMO contrato do BZPlanta (js/planta-desenho.js), para a cola (js/orcamento-planta.js) trocar de
-   desenho pela versão do plano. Opções lidas: animar, esboco() (os pontos do esboço para o voo, lidos uma vez), som(nome), pele (só o laboratório).
+   desenho pela versão do plano. Opções lidas: animar, esboco() (os pontos do esboço para o voo, lidos uma vez), som(nome).
    COMO MONTA (sem CLS, uma leitura só): valida a forma (BZMapaForma); escreve os nós e os rótulos no quadro ESCONDIDO, com a largura que cada um vai
    ter (BZMapaLayout.pedidos); lê as alturas uma vez; BZMapaLayout.compor dá a geometria; grava a altura do quadro e só então o mostra.
    MOVIMENTO: Web Animations pelo relógio que pausa (BZPlantaRelogio: aba escondida e quadro fora da tela); só transform e opacity, e o traço da
@@ -18,8 +18,9 @@
   var Forma = win.BZMapaForma, Layout = win.BZMapaLayout, Pecas = win.BZPlantaPecas, Relogio = win.BZPlantaRelogio, Saber = win.BZMapaSaber;
   if (!Forma || !Layout || !Pecas || !Relogio || !Saber) return null;
 
-  /* a pele escolhida pelo dono (A caixa / B trilho); opcoes.pele só serve ao laboratório */
-  var PELE = 'trilho', CHANFRO = 8;
+  /* a pele que o dono escolheu (14/11): o TRILHO, a estação é o chip de canto cortado com o ícone, o texto ao lado (celular) ou embaixo, e a
+     linha passa pelos chips */
+  var CHANFRO = 8;
   var TITULO = 'O mapa do seu caso';
   var PERGUNTA = 'Montei o mapa do seu caso. Ficou certo?', CERTO = 'Está certo', AJUSTAR = 'Quero ajustar algo';
   var T = { no: 320, passo: 240, seta: 480, volta: 900, chega: 520, ouro: 420, depoisSeta: 160, pausa: 420, pulso: 520, voo: 700, repouso: 6000, repousos: 8 };
@@ -58,7 +59,7 @@
     return !!((m && m.matches) || (doc.documentElement && doc.documentElement.classList.contains('menos-movimento')));
   }
 
-  /* ---------- o nó: o chip (trilho) ou o ícone com a moldura de canto cortado (caixa), e o texto ---------- */
+  /* ---------- o nó: o chip e o texto ---------- */
   function desenhoDoNo(n) {
     if (n.papel === 'origem') return ORIGENS[codigoDaOrigem(n.origem)];
     return Pecas.desenhar(n.papel === 'objetivo' ? 'confirmacao' : n.icone) || Pecas.desenhar('pagina') || [];
@@ -79,28 +80,16 @@
     tracos(desenhoDoNo(n), g);
     return s;
   }
-  function icone(n, pai) {
-    var s = sv('svg', 'mpc-ico mpc-ico--solto', pai);
-    s.setAttribute('viewBox', '0 0 40 40'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('focusable', 'false');
-    tracos(desenhoDoNo(n), s);
-    return s;
-  }
-  function noEl(n, pele) {
+  function noEl(n) {
     var caixa = el('div', 'mpc-no ' + PAPEL[tem(PAPEL, n.papel) ? n.papel : 'site']);
     caixa.setAttribute('aria-hidden', 'true');
-    if (pele === 'trilho') chip(n, caixa); else icone(n, caixa);
+    chip(n, caixa);
     var txt = el('div', 'mpc-no__txt', null, caixa);
     if (n.papel === 'origem') el('span', 'mpc-no__origem', Saber.NOMES[codigoDaOrigem(n.origem)], txt);
     if (n.papel === 'ajustado') el('span', 'mpc-no__marca', 'Ajustado', txt);
     el('span', 'mpc-no__titulo', n.titulo, txt);
     el('span', 'mpc-no__frase', n.frase, txt);
     return caixa;
-  }
-  function moldura(caixa, w, h) {
-    var m = sv('svg', 'mpc-moldura');
-    m.setAttribute('width', w); m.setAttribute('height', h); m.setAttribute('aria-hidden', 'true');
-    sv('path', '', m).setAttribute('d', 'M' + CHANFRO + ' .5H' + (w - 0.5) + 'V' + (h - 0.5) + 'H.5V' + CHANFRO + 'Z');
-    caixa.insertBefore(m, caixa.firstChild);
   }
   /* polilinha com cantos arredondados (o raio encolhe no trecho curto) */
   function cantos(pts, raio) {
@@ -144,9 +133,9 @@
 
   /* ---------- montar: tudo numa chamada; o quadro só aparece com a geometria final ---------- */
   function compor(i) {
-    var plano = i.plano, pele = i.pele, quadro = i.quadro, larg = quadro.clientWidth || i.raiz.clientWidth || 0;
+    var plano = i.plano, quadro = i.quadro, larg = quadro.clientWidth || i.raiz.clientWidth || 0;
     if (!(larg > 0)) return false;
-    var pedidos = Layout.pedidos(plano, larg, pele), nos = Object.create(null), rots = [], medidas = {};
+    var pedidos = Layout.pedidos(plano, larg), nos = Object.create(null), rots = [], medidas = {};
     var dados = Object.create(null);
     plano.nos.forEach(function (n) { dados[n.id] = n; });
     dados.objetivo = { id: 'objetivo', papel: 'objetivo', titulo: plano.objetivo.titulo, frase: plano.objetivo.frase };
@@ -156,7 +145,7 @@
     quadro.classList.toggle('mpc-quadro--desk', !(pedidos[0] && pedidos[0].celular));
     /* 1. escreve tudo */
     pedidos.forEach(function (p) {
-      if (p.chave.indexOf('no:') === 0) { var e = noEl(dados[p.id], pele); e.style.width = p.largura + 'px'; quadro.appendChild(e); nos[p.id] = e; }
+      if (p.chave.indexOf('no:') === 0) { var e = noEl(dados[p.id]); e.style.width = p.largura + 'px'; quadro.appendChild(e); nos[p.id] = e; }
       else { var r = el('span', 'mpc-rot', plano.setas[+p.chave.slice(4)].rotulo, quadro); r.setAttribute('aria-hidden', 'true'); r.style.maxWidth = p.larguraMax + 'px'; rots[+p.chave.slice(4)] = r; }
     });
     /* 2. lê tudo, uma vez */
@@ -165,7 +154,7 @@
       else { var r = rots[+p.chave.slice(4)]; medidas[p.chave] = { w: r.offsetWidth || 0, h: r.offsetHeight || 0 }; }
     });
     /* 3. a geometria, e só escrita daqui em diante */
-    var g = Layout.compor(plano, larg, medidas, pele);
+    var g = Layout.compor(plano, larg, medidas);
     var svg = sv('svg', 'mpc-svg');
     svg.setAttribute('width', larg); svg.setAttribute('height', g.H); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
     quadro.insertBefore(svg, quadro.firstChild);
@@ -173,7 +162,6 @@
       var b = g.caixas[id], e = nos[id];
       e.style.height = b.h + 'px';
       e.style.transform = 'translate(' + b.x + 'px,' + b.y + 'px)';
-      if (pele !== 'trilho') moldura(e, b.w, b.h);
     });
     var setas = g.setas.map(function (r) {
       var fim = r.curva ? r.curva[3] : r.linha[r.linha.length - 1], ini = r.curva ? r.curva[0] : r.linha[0];
@@ -430,8 +418,7 @@
     while (raizEl.firstChild) raizEl.removeChild(raizEl.firstChild);
     el('h2', 'mpc-titulo', TITULO, wrap);
     var hojeEl = linhaDeHoje(v.plano, wrap);
-    var pele = op.pele === 'caixa' || op.pele === 'trilho' ? op.pele : PELE;
-    var quadro = el('div', 'mpc-quadro mpc-pele-' + pele, null, wrap);
+    var quadro = el('div', 'mpc-quadro', null, wrap);
     var fechoEl = el('p', 'mpc-fecho', v.plano.fecho || '', wrap);
     var lugarDasAcoes = el('div', 'mpc-lugar-acoes', null, wrap);
     var leituraEl = leitura(v.plano, wrap);
@@ -439,7 +426,7 @@
     status.setAttribute('role', 'status');
     raizEl.appendChild(wrap);
     var i = { raiz: raizEl, wrap: wrap, quadro: quadro, status: status, plano: v.plano, json: JSON.stringify(v.plano), opcoes: op,
-      hojeEl: hojeEl, fechoEl: fechoEl, leituraEl: leituraEl, pele: pele, rel: Relogio.criar(), io: null, aoVisivel: null, naTela: true, pronto: false, aoResize: null, timerResize: 0 };
+      hojeEl: hojeEl, fechoEl: fechoEl, leituraEl: leituraEl, rel: Relogio.criar(), io: null, aoVisivel: null, naTela: true, pronto: false, aoResize: null, timerResize: 0 };
     inst = i;
     i.lugarAcoes = lugarDasAcoes;
     acoes(i, lugarDasAcoes);
