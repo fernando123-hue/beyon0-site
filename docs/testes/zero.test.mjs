@@ -1255,12 +1255,13 @@ test('hospedagem e código: o Zero diz conta no nome do cliente e código do cli
   assert.doesNotMatch(p, /não confirma: de quem fica o código/);
   for (const pag of ['../../condicoes.html', '../../sites.html', '../../index.html', '../../privacidade.html']) {
     const html = fs.readFileSync(new URL(pag, import.meta.url), 'utf8');
-    assert.doesNotMatch(html, /hospedado na conta da Beyon|Cloudflare, na conta da Beyon|numa conta no seu nome:|valor por mês escrito na proposta/, pag);
+    assert.doesNotMatch(html, /hospedado na conta da Beyon|Cloudflare, na conta da Beyon|numa conta no seu nome(:| que nós ajudamos a criar na entrega)|valor por mês escrito na proposta/, pag);
   }
   /* decisão do dono 14/11 noite: ao ar na conta da Beyon até o restante; depois, conta do cliente */
   for (const pag of ['../../condicoes.html', '../../sites.html', '../../privacidade.html']) {
     const html = fs.readFileSync(new URL(pag, import.meta.url), 'utf8');
-    assert.match(html, /restante (pago|ser pago)/, pag + ': diz que a conta passa ao cliente com o restante pago');
+    assert.match(html, /vai ao ar (primeiro )?na (conta da Beyon|nossa conta)/, pag + ': diz que o site vai ao ar primeiro na conta da Beyon');
+    assert.match(html, /com o restante pago|até o restante ser pago/, pag + ': diz que a conta passa ao cliente com o restante pago');
   }
 });
 
