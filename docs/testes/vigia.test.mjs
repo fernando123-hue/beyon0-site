@@ -105,6 +105,75 @@ test('decidir: várias novidades numa ronda viram um e-mail só, urgentes primei
   assert.deepEqual(d.linhas, [ITENS.ia_conta.quebrou, ITENS.rotina_diaria.quebrou]);
 });
 
+/* ---- conferir: o que o Worker confere sozinho (sem rede externa) ---- */
+import { conferir, PAGINAS } from '../../api/_vigia/conferir.mjs';
+import { avisarDonoLinhas } from '../../api/_aviso.mjs';
+
+const ENV_CONF = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_CHAVE_SECRETA: 's'.repeat(40), SUPABASE_CHAVE_PUBLICA: 'p'.repeat(40),
+  ANTHROPIC_API_KEY: 'k', CRON_SECRET: 'c'.repeat(40), MP_AMBIENTE: 'teste', MP_ACCESS_TOKEN: 'TEST-' + 'a'.repeat(30) + '-123456', MP_PUBLIC_KEY: 'b'.repeat(30),
+  MP_WEBHOOK_SEGREDO: 'w'.repeat(20), MP_USER_ID: '123456' };
+const assets = resposta => { const vistos = []; return { vistos, fetch: async req => { vistos.push(new URL(req.url).pathname); return resposta(new URL(req.url).pathname, vistos.length); } }; };
+const pagina = () => new Response('<!doctype html><html lang="pt-BR"><body>ok</body></html>', { status: 200 });
+const semEspera = async () => {};
+
+test('conferir: páginas pelo ASSETS (sem rede), todas com 200 e <html; configuração completa → nada falta', async () => {
+  const a = assets(pagina);
+  const r = await conferir({ ...ENV_CONF, ASSETS: a }, { esperar: semEspera });
+  assert.deepEqual(r, { paginas: true, configuracao: [], pagamentosLigados: true });
+  assert.deepEqual(a.vistos, PAGINAS);
+  assert.deepEqual(PAGINAS, ['/', '/sites', '/automacao', '/orcamento']);
+});
+
+test('conferir: página com erro ou sem <html falha (depois da 2ª tentativa); uma falha passageira não', async () => {
+  for (const ruim of [() => new Response('x', { status: 500 }), () => new Response('vazio', { status: 200 }), () => { throw new Error('caiu'); }]) {
+    const r = await conferir({ ...ENV_CONF, ASSETS: assets((p) => (p === '/sites' ? ruim() : pagina())) }, { esperar: semEspera });
+    assert.equal(r.paginas, false);
+  }
+  let vez = 0;
+  const passageira = assets(p => (p === '/orcamento' && vez++ === 0 ? new Response('x', { status: 503 }) : pagina()));
+  assert.equal((await conferir({ ...ENV_CONF, ASSETS: passageira }, { esperar: semEspera })).paginas, true);
+  assert.deepEqual(passageira.vistos.filter(p => p === '/orcamento').length, 2);
+});
+
+test('conferir: sem ASSETS (servidor local, testes) as páginas não são conferidas; cada configuração que falta aparece pelo nome', async () => {
+  assert.equal((await conferir(ENV_CONF, { esperar: semEspera })).paginas, true);
+  const falta = async tirar => (await conferir(Object.fromEntries(Object.entries(ENV_CONF).filter(([k]) => !tirar.includes(k))), { esperar: semEspera }));
+  assert.deepEqual((await falta(['SUPABASE_URL'])).configuracao, ['supabase']);
+  assert.deepEqual((await falta(['ANTHROPIC_API_KEY'])).configuracao, ['anthropic']);
+  assert.deepEqual((await conferir({ ...ENV_CONF, CRON_SECRET: 'curto' }, { esperar: semEspera })).configuracao, ['cron']);
+  const semMp = await falta(['MP_ACCESS_TOKEN']);
+  assert.deepEqual(semMp.configuracao, ['pagamentos']); assert.equal(semMp.pagamentosLigados, false);
+  assert.deepEqual((await conferir({}, { esperar: semEspera })).configuracao, ['supabase', 'anthropic', 'cron', 'pagamentos']);
+});
+
+/* ---- o e-mail de várias linhas (mesmo canal e mesmo modelo dos outros avisos) ---- */
+class EmailFalso { constructor(de, para, bruto) { Object.assign(this, { de, para, bruto }); } }
+const corpoDe = bruto => Buffer.from(bruto.split('\r\n\r\n')[1].replace(/\r\n/g, ''), 'base64').toString('utf8');
+const assuntoDe = bruto => Buffer.from(/Subject: =\?UTF-8\?B\?([^?]+)\?=/.exec(bruto)[1], 'base64').toString('utf8');
+
+test('aviso em linhas: um e-mail com as linhas na ordem e o link do painel; assunto curto da 1ª linha', async () => {
+  const enviados = [];
+  const env = { AVISO_EMAIL: { send: async m => { enviados.push(m); } }, AVISO_PARA: 'dono@exemplo.com' };
+  assert.equal(await avisarDonoLinhas(env, [ITENS.ia_conta.quebrou, ITENS.paginas.voltou], { EmailMessage: EmailFalso }), true);
+  assert.equal(enviados.length, 1);
+  const corpo = corpoDe(enviados[0].bruto);
+  assert.ok(corpo.startsWith(ITENS.ia_conta.quebrou + '\n' + ITENS.paginas.voltou + '\n\nAbra o painel: https://beyonzero.com.br/painel'), corpo);
+  assert.ok(assuntoDe(enviados[0].bruto).length <= 36);
+});
+
+test('aviso em linhas: sem linhas, sem canal, endereço estranho ou envio que falha → false, sem lançar e sem fetch', async () => {
+  const salvo = globalThis.fetch; let rede = 0;
+  globalThis.fetch = async () => { rede++; return new Response('x'); };
+  try {
+    const canal = { send: async () => { throw new Error('caiu'); } };
+    assert.equal(await avisarDonoLinhas({ AVISO_EMAIL: { send: async () => {} }, AVISO_PARA: 'a@b.com' }, [], { EmailMessage: EmailFalso }), false);
+    assert.equal(await avisarDonoLinhas({}, ['x'], { EmailMessage: EmailFalso }), false);
+    assert.equal(await avisarDonoLinhas({ AVISO_EMAIL: { send: async () => {} }, AVISO_PARA: 'a@b.com, c@d.com' }, ['x'], { EmailMessage: EmailFalso }), false);
+    assert.equal(await avisarDonoLinhas({ AVISO_EMAIL: canal, AVISO_PARA: 'a@b.com' }, ['x'], { EmailMessage: EmailFalso }), false);
+    assert.equal(rede, 0);
+  } finally { globalThis.fetch = salvo; }
+});
+
 /* ---- banco fora: sem memória, regra fixa ---- */
 test('banco fora: só nas rondas das 01, 07, 13 e 19 UTC e nunca duas vezes em 24 h no mesmo isolado', () => {
   const memoria = new Map();
