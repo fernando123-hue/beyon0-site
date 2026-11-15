@@ -29,72 +29,76 @@ avisos; `api/_aviso.mjs` ganha o Resend como **reserva**: se o binding faltar ou
 sai pelo Resend (de `avisos@beyonzero.com.br`, domínio verificado). Assim um alerta não se perde por um canal só. O
 dono pediu (10/11) que o e-mail saia quando o app com push existir; troca-se num lugar só.
 
-**D2. Memória do vigia: um Durable Object (`Vigia`), não o banco.** O vigia precisa lembrar o que já avisou (para não
-repetir toda hora) e quando cada rotina rodou bem. Se essa memória ficasse no Supabase, o caso mais importante (banco
-fora ou pausado por inatividade) deixaria o vigia sem memória e mandaria e-mail de hora em hora. O Durable Object com
-SQLite é grátis no plano Free, nasce sozinho no deploy (migration no `wrangler.jsonc`, sem o dono criar nada no
-painel) e não depende do Supabase. Uma instância só (`idFromName('vigia')`). Uso estimado: ~50 pedidos por dia
-(limite grátis: 100 mil).
+**D2. Memória do vigia: no banco, numa tabela própria (uma migration que o dono aplica).** O vigia precisa lembrar o
+que já avisou (para não repetir toda hora). Descartados: Durable Object (o Worker de prévias deixaria de gerar os links
+de prévia por branch: a Cloudflare não gera "Version URLs" para Worker que implementa Durable Object), KV (o dono
+teria de criar o namespace, e o limite grátis de 1.000 gravações por dia é curto), Cache API (é por data center, e o
+cron roda em qualquer um). A tabela `app.vigia` guarda, por item, `{ ativo, desde, avisado_em }`, só com
+`service_role`, sem dado pessoal. Duas funções: `app.rotinas_vigia_ler` (o estado e os números que o vigia confere,
+numa leitura) e `app.rotinas_vigia_gravar` (o estado novo). Bônus: a leitura de hora em hora impede o Supabase grátis
+de pausar o projeto por inatividade.
 
-**D3. Sem migration de banco.** Nada desta entrega exige o dono rodar SQL em produção.
+**D3. Banco fora = sem memória: regra fixa.** Quando o banco não responde, o vigia não consegue ler o que já avisou.
+Aí ele avisa "banco não responde" só nas rondas das 01h, 07h, 13h e 19h UTC (no máximo 4 e-mails por dia, o primeiro
+em até 6 h) e, dentro do mesmo isolado do Worker, nunca duas vezes em 24 h. O caso é raro (o Supabase não pausa mais;
+queda dele costuma voltar sozinha).
 
 **D4. Cron: o de 3 em 3 horas vira de hora em hora.** O plano Free tem 5 crons por conta; hoje são 4 (2 por Worker).
-Um cron novo por Worker passaria do limite. Então `23 */3 * * *` vira `23 * * * *`: toda hora roda o vigia; nas horas
-múltiplas de 3 (UTC, as mesmas de hoje) roda antes a reconciliação, como sempre. A rotina diária não muda.
+Um cron novo por Worker passaria do limite. Então `23 */3 * * *` vira `23 * * * *`: nas horas múltiplas de 3 (UTC, as
+mesmas de hoje) roda só a reconciliação, como sempre; nas outras 16 roda o vigia. Os dois nunca dividem a mesma
+execução, então o orçamento de 50 subpedidos da reconciliação fica intacto (o vigia gasta no máximo 4). O maior
+intervalo sem ronda é de 2 h. A rotina diária não muda.
 
-**D5. Custo de IA do vigia: zero.** O vigia nunca chama modelo. A saúde da IA vem das conversas reais: cada falha do
-provedor que o código já classifica (`ErroIA`) é anotada no `Vigia` (motivo e hora, nada mais).
+**D5. Custo de IA do vigia: zero.** O vigia nunca chama modelo. A saúde da IA vem das conversas reais, pelo registro
+que já existe (`app.ia_chamadas`: motivo do erro, sem conteúdo). Nada novo é anotado no caminho da conversa. (O
+atendente dos sites de clientes tem tetos e avisos próprios e fica fora.)
 
 ## Camada 1 — o vigia
 
-Arquivos novos: `api/_vigia/conferir.mjs` (as conferências), `api/_vigia/decidir.mjs` (função pura: estado + resultado
-→ novo estado + avisos), `cloudflare/vigia-do.mjs` (o Durable Object, fino: guarda o JSON e chama `decidir`).
+Arquivos novos: `api/_vigia/conferir.mjs` (as conferências feitas no Worker), `api/_vigia/decidir.mjs` (função pura:
+estado + achados → novo estado + linhas do e-mail), `api/_vigia/rondar.mjs` (junta: lê, confere, decide, grava, avisa),
+`supabase/migrations/20261115120000_vigia.sql`. Muda: `cloudflare/agenda.mjs`, `cloudflare/worker.mjs` (passa a hora
+agendada), `wrangler.jsonc` (o cron), `api/_aviso.mjs` (o envio de texto composto e o Resend de reserva),
+`api/_vendas/transporte.mjs` (o prefixo `rotinas_` já é aceito; nada muda se o nome couber).
 
-### O que confere, toda hora
+### O que confere
 
 | Item | Como | Falha quando |
 |---|---|---|
-| `paginas` | `env.ASSETS.fetch` de `/`, `/sites`, `/automacao`, `/orcamento` (sem rede externa) | status ≠ 200 ou o corpo não tem `<html` (uma 2ª tentativa depois de 2 s antes de falhar) |
+| `paginas` | `env.ASSETS.fetch` de `/`, `/sites`, `/automacao`, `/orcamento` (sem rede externa) | status ≠ 200 ou o corpo não tem `<html` (2ª tentativa depois de 2 s) |
 | `api` | `GET /api/vendas?acao=sessao-config` pelo roteador, em processo (não toca o banco nem a IA) | status ≠ 200 ou `consultor: false` (o Zero está desligado) (2ª tentativa) |
-| `banco` | leitura de `vendas_ia_disponivel` (só leitura, 1 subpedido) | o banco não responde (2ª tentativa) |
-| `ia_falhando` (também) | a mesma leitura diz se o disjuntor está aberto agora | disjuntor aberto |
 | `configuracao` | presença (sem ler valor) de Supabase, chave da Anthropic, `CRON_SECRET` com 32+, pagamentos ativos (`configPagamentos(env).ativo`), canal de aviso | falta algum; o e-mail diz qual, pelo nome |
-| `pagamentos` | o `Vigia` guarda a hora da última reconciliação que respondeu 200 | nenhuma em 6 h 30 (duas seguidas perdidas) |
-| `pagamento_atencao` | o resumo da reconciliação traz `atencao` (eventos que pedem uma pessoa) | `atencao > 0` |
-| `rotina_diaria` | o `Vigia` guarda a última rotina diária que respondeu 200 e quantos alertas **urgentes** ela deixou | nenhuma em 26 h, ou urgentes > 0 |
-| `ia_falhando` | falhas do provedor anotadas (tempo, limite, falha) | 3 ou mais na última hora |
-| `ia_conta` | falha "indisponivel" anotada (crédito acabou, chave recusada, modelo não existe, cobrança) | qualquer uma na última hora |
+| `banco` | `rotinas_vigia_ler` (2ª tentativa) | não responde |
+| `pagamentos` | última `payment.reconciled` em `app.pagamentos_auditoria` | nenhuma em 6 h 30 (duas seguidas perdidas) |
+| `rotina_diaria` | última linha `diaria` em `app.rotinas_execucoes` | nenhuma em 26 h |
+| `alertas_urgentes` | `app.alertas` urgentes não resolvidos dos últimos 7 dias (pagamento que pede uma pessoa, prazo de entrega vencido, rotina que falhou…) | 1 ou mais (o e-mail diz quantos e manda abrir o painel) |
+| `ia_falhando` | `app.ia_chamadas` com erro `tempo`, `limite` ou `falha` na última hora | 3 ou mais |
+| `ia_conta` | `app.ia_chamadas` com erro `indisponivel` na última hora (crédito acabou, chave recusada, modelo não existe, cobrança) | 1 ou mais |
 
-Antes da primeira execução de cada rotina, o prazo conta a partir da estreia do vigia (sem alarme falso no 1º dia).
-
-Orçamento de subpedidos (50 por execução): o vigia gasta no máximo 3 fora da Cloudflare (o `banco` com a 2ª
-tentativa e, se o binding falhar, o Resend). Nas horas de reconciliação ele roda depois dela e **não** lê o `banco`
-(a reconciliação já é a prova do banco naquela hora), então a soma fica ≤ 46.
+Os prazos de `pagamentos` e `rotina_diaria` contam a partir da estreia do vigia, se ela for mais recente (sem alarme
+falso no 1º dia). No staging (`env.previa`) o vigia roda igual, mas sem canal de e-mail: só registra no log.
 
 ### Quando avisa (sem repetir)
 
-Para cada item o `Vigia` guarda `{ ativo, desde, avisado_em }`:
-
-- passou a falhar → entra no e-mail desta hora;
+- passou a falhar → entra no e-mail desta ronda;
 - continua falhando → entra de novo só se o último aviso tem mais de 24 h;
 - voltou ao normal depois de ter sido avisado → uma linha "voltou ao normal";
-- uma rodada junta tudo num e-mail só; sem novidade, nenhum e-mail.
+- uma ronda junta tudo num e-mail só; sem novidade, nenhum e-mail;
+- o estado só é gravado como "avisado" depois que o e-mail saiu (se o envio falhar, sai na ronda seguinte).
 
-Se o envio falhar, os itens voltam a "não avisado" e saem na hora seguinte. Os textos são fixos por item (nada do
-cliente, nada de valor de configuração). Exemplo do corpo:
+Os textos são fixos por item; o único número é uma contagem (sem nada do cliente, nada de valor de configuração).
+Exemplo:
 
 ```
 URGENTE: a IA recusou a conta (crédito, chave ou modelo). O Zero está oferecendo o contato no lugar da conversa.
-Voltou ao normal: páginas do site.
+Voltou ao normal: as páginas do site.
 Abra o painel: https://beyonzero.com.br/painel
 ```
 
-**Teste de ponta a ponta:** na primeira rodada depois do deploy o vigia manda um e-mail único de estreia ("O vigia do
-site está ligado. Ele confere o site de hora em hora e só escreve quando algo quebra ou volta.") — é o alerta de teste
-que prova o caminho inteiro em produção (cron → conferências → Durable Object → e-mail). Nos testes locais o mesmo
-caminho roda com o canal e o Durable Object falsos.
-
-No staging (`env.previa`) o vigia roda igual, mas sem o binding de e-mail: só registra no log.
+**Teste de ponta a ponta:** na primeira ronda com a tabela vazia o vigia manda um e-mail único de estreia ("O vigia do
+site está ligado. Ele confere o site ao longo do dia e só escreve quando algo quebra ou volta ao normal."). É o alerta
+de teste que prova o caminho inteiro em produção (cron → conferências → banco → e-mail), logo depois da migration e
+da promoção. Nos testes locais o mesmo caminho roda com o banco local (PGlite, as mesmas migrations) e um canal falso.
 
 ## Camada 2 — conserto previsível
 
@@ -104,13 +108,10 @@ No staging (`env.previa`) o vigia roda igual, mas sem o binding de e-mail: só r
    `claude-haiku-5-5 → claude-sonnet-5-5` em esforço `low` (só durante a queda; os tetos continuam valendo pelo custo
    real do modelo que respondeu). Os preços dos modelos reserva entram em `PRECO_POR_MILHAO`. O registro
    (`app.ia_chamadas`) já mostra o modelo que respondeu. Com o disjuntor aberto nada disso roda (ele vem antes).
-2. **Anotar a falha para o vigia**: no mesmo `catch`, as falhas do provedor (`tempo`, `limite`, `falha`,
-   `indisponivel`) são anotadas no `Vigia` (motivo + hora). Sem binding (Node, testes) não faz nada; erro ao anotar
-   nunca troca o erro original.
-3. **Reconciliação**: conferida, cobre os casos (aberto, pago recente, desconhecido; parcial passa à frente). O que
+2. **Reconciliação**: conferida, cobre os casos (aberto, pago recente, desconhecido; parcial passa à frente). O que
    faltava era alguém saber quando ela para ou quando pede uma pessoa: resolvido pelos itens `pagamentos` e
-   `pagamento_atencao` do vigia. Sem mudança na lógica de dinheiro.
-4. **Freios de custo**: conferidos, param sozinhos (reserva antes de cada chamada, teto por conversa/dia/IP/48,
+   `alertas_urgentes` do vigia (a rotina diária já grava "pagamento pede uma pessoa" como alerta urgente). Sem mudança na lógica de dinheiro.
+3. **Freios de custo**: conferidos, param sozinhos (reserva antes de cada chamada, teto por conversa/dia/IP/48,
    disjuntor). Achado para o dono, não mudado: o teto do dia é US$ 25, maior que o crédito da conta; quem para primeiro
    é a Anthropic (sem crédito). Agora o vigia avisa nesse caso (`ia_conta`). Baixar o teto do dia é decisão dele.
 
@@ -138,12 +139,16 @@ não o crédito da API.
 
 - `decidir.mjs` (pura): estreia, falha nova, falha contínua < 24 h e > 24 h, volta ao normal, envio que falhou, prazos
   das rotinas a partir da estreia.
-- `conferir.mjs`: páginas/API/banco/configuração com `ASSETS` e roteador falsos; 2ª tentativa; orçamento ≤ 3.
-- `agenda.mjs`: cron horário roda a reconciliação só nas horas múltiplas de 3 e o vigia sempre; registra resultados.
+- `decidir.mjs`: banco fora sem memória (só nas horas fixas, nunca 2× em 24 h no mesmo isolado).
+- Banco (PGlite, migrations reais): `rotinas_vigia_ler` conta certo (janelas de 1 h, 7 dias, 6 h 30, 26 h; só
+  urgentes não resolvidos), `rotinas_vigia_gravar` grava e só aceita itens conhecidos; nenhum acesso para
+  `anon`/`authenticated`.
+- `conferir.mjs`: páginas/API/configuração com `ASSETS` e roteador falsos; 2ª tentativa.
+- `rondar.mjs`: ponta a ponta com banco local e canal falso (estreia, falha nova, envio que falhou não marca avisado).
+- `agenda.mjs`: o cron horário roda a reconciliação só nas horas múltiplas de 3 e o vigia só nas outras.
 - `anthropic.mjs`: fallback só em 5xx/529/rede após as repetições, nunca em tempo/4xx; custo pelo modelo que
-  respondeu; anotação no vigia sem trocar o erro.
-- `wrangler.jsonc`: crons, binding e migration do Durable Object nos dois ambientes (o teste do `wrangler.jsonc` que já
-  existe ganha esses casos); `npm run cf:fumaca`.
+  respondeu.
+- `wrangler.jsonc`: os crons nos dois ambientes == a AGENDA (testes que já existem, atualizados); `npm run cf:fumaca`.
 - Cobertura de mutação (`npm run testar:mutacao`) nos arquivos novos.
 
 ## Fora desta entrega
