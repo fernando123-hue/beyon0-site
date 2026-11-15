@@ -34,10 +34,10 @@ test('JS da faixa que a pessoa baixa quando a planta chega (forma + 3 módulos):
    também. O teto mede o que vai ao ar: o arquivo COMPACTADO pelo deploy (cloudflare/montar-publico.mjs, sem comentários; 10/11), porque os comentários
    do repositório são a memória do projeto e não chegam à pessoa. Medido em 12/11: a da faixa 4.265 bytes (era 3.589 antes da v2), a do esboço 2.551. */
 const publicado = (rel) => zlib.gzipSync(Buffer.from(compactar(rel, ler(rel).toString('utf8'))), { level: 9 }).length;
-/* (PR 5b, 14/11) +200: os dois conjuntos (v2 e o mapa do caso v3), a troca no meio da conversa e as correções da revisão (o módulo comum a caminho é esperado; a falha de um conjunto que já não é o da vez não esconde o outro); medido 4.778 (era 4.265 em 12/11). Spec §7.5: a medida vai ao PR */
-test('a ligação da faixa (js/orcamento-planta.js), publicada: no máximo 4.800 bytes com gzip -9', () => {
+/* (PR 5b e 5c, 14/11) +300: os dois conjuntos (v2 e o mapa do caso v3), a troca no meio da conversa e as correções da revisão (o módulo comum a caminho é esperado; a falha de um conjunto que já não é o da vez não esconde o outro); medido 4.778 (era 4.265 em 12/11); 4.835 com o botão "Ver a planta" achando a fala certa entre os toques (PR 5c; sumia desde o PR 2). Spec §7.5: a medida vai ao PR */
+test('a ligação da faixa (js/orcamento-planta.js), publicada: no máximo 4.900 bytes com gzip -9', () => {
   const n = publicado('js/orcamento-planta.js');
-  assert.ok(n <= 4800, 'gzip -9 ' + n);
+  assert.ok(n <= 4900, 'gzip -9 ' + n);
 });
 test('a ligação do esboço (js/orcamento-planta-esboco.js), publicada: no máximo 3.000 bytes com gzip -9', () => {
   const n = publicado('js/orcamento-planta-esboco.js');
@@ -46,15 +46,15 @@ test('a ligação do esboço (js/orcamento-planta-esboco.js), publicada: no máx
 
 /* (PR 5b, 14/11) O MAPA DO CASO (v3): o que a pessoa baixa quando o plano tem "estrutura" (js/orcamento-planta.js, CONJUNTOS.v3). Medido com LF (o que o
    deploy serve; o CRLF de uma cópia no Windows não conta): 26.523 bytes com as duas peles no código, antes da escolha do dono; 27.202 depois das
-   correções da revisão (girar a tela, esperar as fontes, exceção sem nada vivo); 26.684 só com a pele que o dono escolheu (o trilho, 14/11). Teto 26.900
-   (o v2 tem 29.300 para a mesma coisa). O CSS do mapa: 2.375 com as duas peles, 2.200 só com o trilho; teto 2.500. */
+   correções da revisão (girar a tela, esperar as fontes, exceção sem nada vivo); 27.764 com o "Ficou certo?" do PR 5c; 28.515 com o ajuste (deslize e nó novo); 29.033 com as correções da revisão do 5c;
+   28.518 só com a pele que o dono escolheu (o trilho, 14/11). Teto 28.800 (o v2 tem 29.300 para a mesma coisa). O CSS do mapa: 2.320 só com o trilho; teto 2.600. */
 const gzLF = (rel) => zlib.gzipSync(Buffer.from(ler(rel).toString('utf8').replace(/\r\n/g, '\n')), { level: 9 }).length;
 const MODULOS_V3 = ['js/planta-pecas.js', 'js/planta-relogio.js', 'js/mapa-saber.js', 'js/orcamento-mapa-forma.js', 'js/mapa-layout.js', 'js/mapa-desenho.js'];
-test('JS do mapa do caso (v3) que a pessoa baixa: no máximo 26.900 bytes com gzip -9', () => {
+test('JS do mapa do caso (v3) que a pessoa baixa: no máximo 28.800 bytes com gzip -9', () => {
   const por = MODULOS_V3.map((m) => [m, gzLF(m)]);
   const soma = por.reduce((s, [, n]) => s + n, 0);
-  assert.ok(soma <= 26900, 'gzip -9 soma ' + soma + ' (' + por.map(([m, n]) => m + ' ' + n).join(', ') + ')');
+  assert.ok(soma <= 28800, 'gzip -9 soma ' + soma + ' (' + por.map(([m, n]) => m + ' ' + n).join(', ') + ')');
 });
-test('CSS do mapa do caso: no máximo 2.500 bytes com gzip -9', () => {
-  assert.ok(gzLF('css/orcamento-mapa.css') <= 2500, String(gzLF('css/orcamento-mapa.css')));
+test('CSS do mapa do caso: no máximo 2.600 bytes com gzip -9', () => {
+  assert.ok(gzLF('css/orcamento-mapa.css') <= 2600, String(gzLF('css/orcamento-mapa.css')));
 });

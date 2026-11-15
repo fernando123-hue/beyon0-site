@@ -19,7 +19,7 @@
   });
   var versaoDoPlano = function (plano) { return typeof plano.estrutura === 'string' ? 'v3' : typeof plano.topologia === 'string' ? 'v2' : ''; };
   var TEXTO_CERTO = 'A planta está certa.';
-  var DICA_AJUSTE = 'Diga o que mudar na planta.';
+  var DICA_AJUSTE = 'Diga o que mudar na planta.', DICA_AJUSTE_MAPA = 'Diga o que mudar no mapa.';
   var ROTULO_BOTAO = 'Ver a planta do seu site';
   var ESPERA_ROLAGEM = 150, FALA_MAX = 120, NOME_MAX = 40;
   /* a planta viva v2 (decisões do dono de 12/11): abaixo de 960 px a planta consagra NO CARTÃO da conversa (js/orcamento-planta-esboco.js) e a faixa
@@ -57,17 +57,20 @@
       if (st.botao && st.botao.parentNode) st.botao.parentNode.removeChild(st.botao);
       st.botao = null;
     }
-    /* a fala do Zero de índice n_mensagens (a abertura fixa é o 1º item do DOM); se aquela posição não é fala do Zero, a mais próxima antes, ou a 1ª depois */
+    /* a fala do Zero de índice n_mensagens (a abertura fixa é a 1ª fala do DOM); se aquela posição não é fala do Zero, a mais próxima antes, ou a 1ª depois */
     function falaDoZero(E, p) {
       var log = $('o-log');
       if (!log) return null;
-      var m = Array.isArray(E.mensagens) ? E.mensagens : [], itens = log.children, i = Math.min(p.n_mensagens, m.length - 1), alvo = -1;
+      /* (PR 5c) só as FALAS contam: a conversa nova põe toques e o cartão do esboço entre elas, e a posição na lista inteira desandava (o botão
+         sumia desde o PR 2) */
+      var m = Array.isArray(E.mensagens) ? E.mensagens : [], itens = [], i = Math.min(p.n_mensagens, m.length - 1), alvo = -1, c;
+      for (c = 0; c < log.children.length; c++) if (log.children[c].classList && log.children[c].classList.contains('msg')) itens.push(log.children[c]);
       if (m.length === 0) return null;
       for (var j = i; j >= 0 && alvo < 0; j--) if (m[j] && m[j].papel === 'agente') alvo = j;
       for (var k = i + 1; k < m.length && alvo < 0; k++) if (m[k] && m[k].papel === 'agente') alvo = k;
       if (alvo < 0) return null;
-      var li = itens[alvo + 1];
-      return li && li.classList && li.classList.contains('msg--agente') ? li : null;
+      var li = itens[alvo + 1];   /* a abertura fixa é a 1ª fala */
+      return li && li.classList.contains('msg--agente') ? li : null;
     }
     function colocarBotao(E, p) {
       var li = falaDoZero(E, p);
@@ -285,7 +288,7 @@
       if (!editavel()) return;
       var t = $('o-texto'), form = $('o-form');
       if (!t) return;
-      t.placeholder = DICA_AJUSTE;
+      t.placeholder = st.v === 'v3' ? DICA_AJUSTE_MAPA : DICA_AJUSTE;
       /* a faixa fica longe da conversa: rola como "Perguntar ao consultor" e foca sem rolar de novo */
       if (form && typeof form.scrollIntoView === 'function') form.scrollIntoView({ block: 'center' });
       t.focus({ preventScroll: true });

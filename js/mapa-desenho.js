@@ -22,6 +22,7 @@
      linha passa pelos chips */
   var CHANFRO = 8;
   var TITULO = 'O mapa do seu caso';
+  var PERGUNTA = 'Montei o mapa do seu caso. Ficou certo?', CERTO = 'Está certo', AJUSTAR = 'Quero ajustar algo';
   var T = { no: 320, passo: 240, seta: 480, volta: 900, chega: 520, ouro: 420, depoisSeta: 160, pausa: 420, pulso: 520, voo: 700, repouso: 6000, repousos: 8 };
   var tem = function (o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); };
   /* papel -> classe (lista fechada; nada do plano vira classe) */
@@ -195,6 +196,7 @@
   function pronta(i) {
     if (i.pronto) return;
     i.pronto = true;
+    if (i.acoes) i.acoes.classList.remove('is-espera');
     i.status.textContent = 'O mapa do seu caso está pronto.';
     if (win.CustomEvent && doc.dispatchEvent) doc.dispatchEvent(new win.CustomEvent('bz:planta-pronta'));
   }
@@ -202,11 +204,103 @@
     i.quadro.classList.add('is-aceso', 'is-ouro');
     pronta(i);
   }
+  /* "Ficou certo?" (spec §7.4; PR 5c): a pergunta e os dois toques moram DENTRO do mapa (a conversa é refeita a cada estado e levaria uma fala
+     solta). O lugar existe desde a montagem, invisível (is-espera), e aparece quando o mapa fica pronto. "Está certo" é só uma fala na tela: não
+     chama a cola, não gasta IA e nada é gravado (ao recarregar, a pergunta volta). "Quero ajustar algo" chama opcoes.aoAjustar (a cola foca a caixa
+     com a dica) e só existe com a planta editável. */
+  function acoes(i, pai) {
+    var a = el('div', 'mpc-acoes is-espera', null, pai);
+    el('p', 'mpc-pergunta', PERGUNTA, a);
+    var botoes = el('div', 'mpc-botoes', null, a);
+    var certo = el('button', 'btn btn--sm', CERTO, botoes), ajustar = el('button', 'btn btn--sm btn--ghost', AJUSTAR, botoes);
+    certo.setAttribute('type', 'button'); ajustar.setAttribute('type', 'button');
+    certo.addEventListener('click', function () {
+      if (botoes.parentNode) botoes.parentNode.removeChild(botoes);
+      /* (revisão do 5c) o botão com foco sai: o foco vai para a fala, e o status anuncia */
+      var fala = el('p', 'mpc-fala', CERTO + '.', a);
+      fala.setAttribute('tabindex', '-1');
+      i.status.textContent = CERTO + '.';
+      if (typeof fala.focus === 'function') fala.focus();
+    });
+    ajustar.addEventListener('click', function () { if (typeof i.opcoes.aoAjustar === 'function') { try { i.opcoes.aoAjustar(); } catch (e) { aviso(e); } } });
+    i.acoes = a; i.btnAjustar = ajustar;
+    editavel(i);
+  }
+  function editavel(i) { if (i.btnAjustar) i.btnAjustar.hidden = i.opcoes.editavel !== true; }
+  /* (revisão do 5c) o mapa mudou: a pergunta volta (ninguém olhou o novo) */
+  function refazerAcoes(i) {
+    if (i.acoes && i.acoes.parentNode) i.acoes.parentNode.removeChild(i.acoes);
+    acoes(i, i.lugarAcoes);
+    if (i.pronto) i.acoes.classList.remove('is-espera');
+  }
+  /* o relógio novo nasce pausado se o quadro está fora da tela ou a aba escondida */
+  function novoRelogio(i) {
+    var r = Relogio.criar();
+    if (i.naTela === false || doc.hidden) r.pausar();
+    return r;
+  }
+  function trocarTextos(i, plano) {
+    var hoje = linhaDeHoje(plano, null);
+    if (i.hojeEl && i.hojeEl.parentNode) i.hojeEl.parentNode.removeChild(i.hojeEl);
+    if (hoje) i.wrap.insertBefore(hoje, i.quadro);
+    i.hojeEl = hoje;
+    i.fechoEl.textContent = plano.fecho || '';
+    var ol = leitura(plano, null);
+    if (i.leituraEl && i.leituraEl.parentNode) i.leituraEl.parentNode.removeChild(i.leituraEl);
+    i.wrap.insertBefore(ol, i.status);
+    i.leituraEl = ol;
+  }
+  /* O AJUSTE (spec §7.4; PR 5c): um plano novo com nós em comum não refaz a entrada. Quem ficou desliza do lugar antigo para o novo (só transform);
+     o nó novo (com "Ajustado") e as setas dele crescem pela luz depois do deslize; as outras setas reaparecem no lugar novo. Os textos (Hoje, fecho)
+     e a leitura acompanham o plano. O valor não é liberado de novo (ele já foi, na entrada). Movimento reduzido: o quadro novo, direto. */
+  /* (revisão do 5c) três casos: com as fontes ainda chegando, só troca o plano e os textos (a composição e a entrada esperam as fontes); no meio da
+     entrada, vai direto ao quadro final do plano novo (e libera o valor que esperava); com o mapa pronto, o ajuste animado. A composição vem ANTES
+     de qualquer troca: se ela falha (sem largura), o mapa de antes fica inteiro e a mesma versão pode entrar depois. */
+  function ajuste(i, plano, novos) {
+    var antes = Object.create(null), novo = Object.create(null), velho = { plano: i.plano, json: i.json };
+    if (i.esperaFontes) { i.plano = plano; i.json = JSON.stringify(plano); trocarTextos(i, plano); refazerAcoes(i); return true; }
+    Object.keys(i.g.caixas).forEach(function (id) { antes[id] = i.g.caixas[id]; });
+    novos.forEach(function (id) { novo[id] = true; });
+    i.plano = plano; i.json = JSON.stringify(plano);
+    var deu = false;
+    try { deu = compor(i); } catch (e) { aviso(e); }
+    if (!deu) {
+      i.plano = velho.plano; i.json = velho.json;
+      try { compor(i); } catch (e2) { aviso(e2); }
+      return false;
+    }
+    try { i.rel.parar(); } catch (e3) { aviso(e3); }
+    i.rel = novoRelogio(i);
+    trocarTextos(i, plano);
+    refazerAcoes(i);
+    if (!i.pronto) { final(i); return true; }
+    i.quadro.classList.add('is-aceso', 'is-ouro');
+    i.status.textContent = 'Ajustei o mapa do seu caso.';
+    if (i.opcoes.animar === false || reduzido() || typeof i.quadro.animate !== 'function') return true;
+    var rel = i.rel, cresce = T.voo + T.chega, som = typeof i.opcoes.som === 'function' ? i.opcoes.som : function () {};
+    Object.keys(i.nos).forEach(function (id) {
+      var b = i.g.caixas[id], pos = 'translate(' + b.x + 'px,' + b.y + 'px)', a = antes[id];
+      if (novo[id] || !a) rel.anim(i.nos[id], [{ opacity: 0, transform: pos + ' translateY(5px)' }, { opacity: 1, transform: pos }], { duration: T.no, delay: cresce, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' });
+      else if (a.x !== b.x || a.y !== b.y) rel.anim(i.nos[id], [{ transform: 'translate(' + a.x + 'px,' + a.y + 'px)' }, { transform: pos }], { duration: T.voo, easing: 'cubic-bezier(.3,.1,.2,1)', fill: 'backwards' });
+    });
+    i.setas.forEach(function (x) {
+      if (novo[x.r.de] || novo[x.r.para]) {
+        rel.anim(x.linha, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: T.seta, delay: T.voo, easing: 'ease-in-out', fill: 'backwards' });
+        rel.anim(x.rot, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: T.voo + T.seta * 0.5, fill: 'backwards' });
+        luz(i, x.r, T.seta, T.voo, 1);
+      } else {
+        rel.anim(x.g, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: T.voo, fill: 'backwards' });
+        rel.anim(x.rot, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: T.voo, fill: 'backwards' });
+      }
+    });
+    rel.depois(cresce, function () { som('passa'); });
+    return true;
+  }
   /* (revisão do 5b) girar a tela ou mudar a largura: refaz na largura nova, já pronto, sem entrada nem som (como o esboço); a entrada que ainda
      corria para, e o valor que a esperava é liberado */
   function recompor(i) {
     try { i.rel.parar(); } catch (e) { aviso(e); }
-    i.rel = Relogio.criar();
+    i.rel = novoRelogio(i);
     if (compor(i)) final(i);
   }
   /* ---------- o ROTEIRO de cada estrutura (puro: do plano e da geometria saem os instantes; desenho do PR 5 §5) ----------
@@ -323,16 +417,19 @@
     var op = opcoes || {}, wrap = el('div', 'mpc');
     while (raizEl.firstChild) raizEl.removeChild(raizEl.firstChild);
     el('h2', 'mpc-titulo', TITULO, wrap);
-    linhaDeHoje(v.plano, wrap);
+    var hojeEl = linhaDeHoje(v.plano, wrap);
     var quadro = el('div', 'mpc-quadro', null, wrap);
-    if (v.plano.fecho) el('p', 'mpc-fecho', v.plano.fecho, wrap);
-    leitura(v.plano, wrap);
+    var fechoEl = el('p', 'mpc-fecho', v.plano.fecho || '', wrap);
+    var lugarDasAcoes = el('div', 'mpc-lugar-acoes', null, wrap);
+    var leituraEl = leitura(v.plano, wrap);
     var status = el('p', 'mpc-status', '', wrap);
     status.setAttribute('role', 'status');
     raizEl.appendChild(wrap);
     var i = { raiz: raizEl, wrap: wrap, quadro: quadro, status: status, plano: v.plano, json: JSON.stringify(v.plano), opcoes: op,
-      rel: Relogio.criar(), io: null, aoVisivel: null, naTela: true, pronto: false, aoResize: null, timerResize: 0 };
+      hojeEl: hojeEl, fechoEl: fechoEl, leituraEl: leituraEl, rel: Relogio.criar(), io: null, aoVisivel: null, naTela: true, pronto: false, aoResize: null, timerResize: 0 };
     inst = i;
+    i.lugarAcoes = lugarDasAcoes;
+    acoes(i, lugarDasAcoes);
     var anima = op.animar !== false && !reduzido() && typeof quadro.animate === 'function';
     /* (revisão do 5b) a altura de cada caixa é medida: com a fonte ainda chegando, o quadro espera escondido (o lugar já reservado) e só então
        se mede, mostra e entra; uma exceção no meio não deixa nada vivo */
@@ -351,7 +448,8 @@
       win.addEventListener('resize', i.aoResize);
       if (fontes) {
         quadro.classList.add('is-medindo');
-        fontes.then(function () { if (inst !== i) return; try { if (compor(i)) comecar(); } catch (e) { aviso(e); parar(); } });
+        i.esperaFontes = true;
+        fontes.then(function () { if (inst !== i) return; i.esperaFontes = false; try { if (compor(i)) comecar(); } catch (e) { aviso(e); parar(); } });
       } else comecar();
     } catch (e) { aviso(e); parar(); return { ok: false, motivos: ['excecao'] }; }
     return { ok: true, largura: i.larg, altura: i.g.H, animada: anima, etapas: i.g.ordem.length };
@@ -364,7 +462,16 @@
     if (!v || !v.ok) return { ok: false, motivos: (v && v.motivos) || ['forma'] };
     var op = inst.opcoes, k;
     if (opcoes) for (k in opcoes) if (Object.prototype.hasOwnProperty.call(opcoes, k)) op[k] = opcoes[k];
+    editavel(inst);
     if (JSON.stringify(v.plano) === inst.json) return { ok: true, refeita: false };
+    /* com nós em comum é o AJUSTE (o resto fica); sem nenhum, outro mapa: a entrada de novo */
+    var antigos = Object.create(null), novos = [], comuns = 0;
+    inst.plano.nos.forEach(function (n) { antigos[n.id] = true; });
+    v.plano.nos.forEach(function (n) { if (antigos[n.id]) comuns++; else novos.push(n.id); });
+    if (comuns) {
+      try { if (!ajuste(inst, v.plano, novos)) return { ok: false, motivos: ['sem_largura'] }; } catch (e) { aviso(e); return { ok: false, motivos: ['excecao'] }; }
+      return { ok: true, refeita: false, novos: novos };
+    }
     var r = montar(inst.raiz, v.plano, op);
     return r.ok ? { ok: true, refeita: true } : r;
   }

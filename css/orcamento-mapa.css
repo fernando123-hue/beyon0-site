@@ -20,6 +20,13 @@
 .mpc-fecho { margin: 14px 0 0; font-size: var(--fs-s); line-height: 1.5; color: var(--t2); text-wrap: pretty; }
 .mpc-sr, .mpc-status { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
+/* "Ficou certo?" (PR 5c): o lugar já reservado (is-espera = invisível) aparece quando o mapa fica pronto */
+.mpc-acoes { margin-top: 14px; }
+.mpc-acoes.is-espera { visibility: hidden; }
+.mpc-pergunta { margin: 0 0 10px; font-size: var(--fs-s); line-height: 1.5; color: var(--t1); }
+.mpc-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.mpc-fala { margin: 0; font-size: var(--fs-s); line-height: 1.5; color: var(--t2); text-align: right; }
+
 /* o quadro: medido escondido (is-medindo), depois mostrado com a altura final */
 .mpc-quadro { position: relative; contain: layout paint; }
 .mpc-quadro.is-medindo { visibility: hidden; }

@@ -9,6 +9,7 @@
 >   - `js/mapa-layout.js`, `js/mapa-desenho.js` (roteiro por estrutura, voo, ouro) e `css/orcamento-mapa.css`;
 >   - `casarMapa`; o laboratório nos módulos reais; `docs/fotos-mapa.mjs`;
 >   - revisões de código e de segurança feitas e corrigidas (`efd356c`; textos para o PR em `scratchpad/rev-5b-*.md`).
+> - **5c pronto** no branch `zero-mapa-ajuste`, empilhado sobre o 5b. Tem: "Ficou certo?" dentro do mapa, com "Está certo" local (sem IA); o ajuste (quem fica desliza, o nó novo cresce); o botão "Ver a planta" de volta; e `docs/e2e-planta.mjs` refeito (22 de 22). As revisões estão corrigidas (`6b0430c`; textos em `scratchpad/rev-5c-*.md`).
 > - **Falta só a escolha do dono, A (caixa) ou B (trilho)**, pedida à sessão principal. Fotos em `00 Entrada/orcamento-conversa/lab-estruturas-1411/` e `pr5b/`.
 >
 > **PRÓXIMO PASSO EXATO:**
