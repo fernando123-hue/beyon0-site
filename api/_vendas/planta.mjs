@@ -101,8 +101,9 @@ const DESCRICAO = 'Monta, logo abaixo da conversa, o mapa do caso desta pessoa: 
   'Chame UMA vez, no turno em que o proximo_passo do ESTADO mandar, e de novo só se a pessoa pedir para mudar o mapa ou o caso mudar de verdade (até ' + MAX_VERSOES + ' versões por conversa). ' +
   'Se ela disser que o mapa está certo, não monte de novo. Quem desenha é o código: você só entrega o plano em JSON, com as listas fechadas do esquema. ' +
   'A estrutura sai do que a pessoa contou, pela primeira regra que valer: o ganho está na volta (recompra, retorno, revisão, mensalidade): ciclo; dois públicos ou dois serviços com caminhos diferentes: ramos; ' +
-  'duas origens ou mais e uma trava (várias forças ao mesmo tempo): mapa; a dor é uma perda que já acontece (falta, horário vazio, pedido que se perde fora de hora): antes_depois; ' +
-  'a dor é pergunta repetida ou atendimento na mão, com uma origem só: caminho (o site responde no caminho); nos outros casos: caminho. ' +
+  'duas origens ou mais e uma trava (várias forças ao mesmo tempo): mapa; a perda vem DEPOIS do contato (marca e falta, horário que fica vazio, pedido que se perde fora de hora): antes_depois; ' +
+  'a dor vem ANTES do contato (a mesma pergunta o dia todo, o preço, gente que some antes de marcar ou comprar), com uma origem só: caminho (o site responde no caminho); nos outros casos: caminho. ' +
+  'O canal por onde a pessoa conversa (WhatsApp, direct) não é uma segunda origem: origem é onde ela encontra o negócio. ' +
   'Mesma história, mesma estrutura. Nunca escolha uma estrutura para variar nem copie a dos exemplos: eles mostram a forma, não o seu caso. ' +
   'No hoje: em origens, só os códigos dos lugares que ela disse (Google sem falar de mapa é google_busca); texto e trava com as palavras dela, sem marca; preço só como o que perguntam a ela ("pergunta o preço no direct"), nunca valor, juízo ou comparação; não escreva Hoje (a tela põe). ' +
   'O objetivo não é um nó: as setas o chamam pelo id objetivo. Seta de volta só no ciclo, e uma só. No caminho e no ciclo há uma fila só: um nó por passo, então no máximo um nó de origem (com duas origens, ponha só a principal num nó e as duas em hoje.origens). ' +
