@@ -22,7 +22,11 @@ const WRANGLER = path.join(RAIZ, 'node_modules', 'wrangler', 'bin', 'wrangler.js
 const IP_DE_TESTE = '203.0.113.7';
 const LIMITE_STARTUP_MS = 400;
 const PEDIDOS_DO_FREIO = 60;
-const CRONS = [{ cron: '41 6 * * *', esperado: /rotina desligada/ }];
+/* o horário (auto-reparo, 15/11) disparado com a hora FIXA (time=, em ms no Miniflare) de uma ronda do VIGIA (01:23 UTC, fora das horas da
+   reconciliação): no workerd ele abre as páginas pelo ASSETS de verdade (paginas:true) e, sem segredo nenhum, para por falta de banco */
+const RONDA_DO_VIGIA_MS = Date.UTC(2026, 10, 15, 1, 23);
+const CRONS = [{ cron: '41 6 * * *', esperado: /rotina desligada/ },
+  { cron: '23 * * * *', tempo: RONDA_DO_VIGIA_MS, esperado: /ronda sem banco configurado","paginas":true/ }];
 const falhas = [];
 const ok = (nome) => console.log('  ok     ' + nome);
 const falha = (nome, detalhe) => { falhas.push(nome); console.log('  FALHOU ' + nome + (detalhe ? ' — ' + detalhe : '')); };
@@ -110,11 +114,11 @@ async function subirDev(pasta) {
   }
 }
 
-async function disparar(base, cron) {
+async function disparar(base, cron, tempo) {
   /* Wrangler >= 4.139: /cdn-cgi/local/scheduled; antes: /cdn-cgi/handler/scheduled com --test-scheduled (o 4.136.3) */
   for (const caminho of ['/cdn-cgi/local/scheduled', '/cdn-cgi/handler/scheduled', '/__scheduled']) {
     try {
-      const r = await fetch(base + caminho + '?cron=' + encodeURIComponent(cron), { signal: AbortSignal.timeout(15000) });
+      const r = await fetch(base + caminho + '?cron=' + encodeURIComponent(cron) + (tempo ? '&time=' + tempo : ''), { signal: AbortSignal.timeout(15000) });
       if (r.status === 200) return caminho;
     } catch { /* tenta o próximo */ }
   }
@@ -160,8 +164,8 @@ async function noWorker(dev) {
   const segundo = [];
   for (let i = 0; i < PEDIDOS_DO_FREIO; i++) segundo.push((await evento('2.2.2.2')).status);
   confere('2º lote (x-forwarded-for diferente, mesmo cf-connecting-ip) cai na mesma chave do freio: 429', segundo.every(s => s === 429), [...new Set(segundo)].join(','));
-  for (const { cron, esperado } of CRONS) {
-    const via = await disparar(base, cron);
+  for (const { cron, tempo, esperado } of CRONS) {
+    const via = await disparar(base, cron, tempo);
     confere('cron ' + cron + ' disparável à mão', !!via, 'nenhum caminho de disparo respondeu');
     if (!via) continue;
     for (let i = 0; i < 20 && !esperado.test(estado.log); i++) await dormir(500);   /* (até 10 s: a máquina carregada atrasa o log) */

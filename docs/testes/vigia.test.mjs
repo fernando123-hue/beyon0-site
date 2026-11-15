@@ -186,3 +186,71 @@ test('banco fora: só nas rondas das 01, 07, 13 e 19 UTC e nunca duas vezes em 2
   assert.deepEqual(decidirSemBanco(as(13) + 24 * H, memoria, []), [BANCO_FORA]);
   assert.deepEqual(decidirSemBanco(as(7), new Map(), []), [BANCO_FORA], 'isolado novo: sem memória, vale o horário');
 });
+
+/* ---- rondar: ponta a ponta com o banco local (PGlite, migrations reais) e um canal falso ---- */
+import { rondar } from '../../api/_vigia/rondar.mjs';
+import { novoBanco } from './_banco.mjs';
+import { rpcDe, prepararOrg, ORG } from './_entrega.mjs';
+import { ErroBanco } from '../../api/_vendas/transporte.mjs';
+
+const CONF_FALSA = r => async () => ({ paginas: true, configuracao: [], pagamentosLigados: true, ...r });
+async function cenario() {
+  const db = await novoBanco();
+  await prepararOrg(db);
+  const enviados = [];
+  let canalOk = true;
+  const avisar = async linhas => { if (!canalOk) return false; enviados.push(linhas); return true; };
+  const ronda = (agora, conf = {}) => rondar({}, { banco: rpcDe(db), avisar, agora, conferir: CONF_FALSA(conf), esperar: semEspera, memoria: new Map() });
+  return { db, enviados, ronda, quebrarCanal: v => { canalOk = !v; } };
+}
+
+test('ronda: a 1ª manda a estreia e grava; a 2ª, sem novidade, não manda nada', async () => {
+  const c = await cenario();
+  const r1 = await c.ronda(AGORA);
+  assert.deepEqual(r1.linhas, [ESTREIA]); assert.equal(r1.enviado, true);
+  const r2 = await c.ronda(AGORA + H);
+  assert.deepEqual(r2.linhas, []);
+  assert.equal(c.enviados.length, 1);
+  assert.deepEqual((await c.db.query('select item from app.vigia')).rows.map(x => x.item), ['estreia']);
+});
+
+test('ronda: e-mail que não saiu não marca nada como avisado; a ronda seguinte repete', async () => {
+  const c = await cenario();
+  c.quebrarCanal(true);
+  assert.equal((await c.ronda(AGORA, { paginas: false })).enviado, false);
+  assert.equal((await c.db.query('select count(*)::int as n from app.vigia')).rows[0].n, 0);
+  c.quebrarCanal(false);
+  assert.deepEqual((await c.ronda(AGORA + H, { paginas: false })).linhas, [ESTREIA, ITENS.paginas.quebrou]);
+  assert.deepEqual((await c.ronda(AGORA + 2 * H, { paginas: false })).linhas, [], 'já avisado há 1 h');
+  assert.deepEqual((await c.ronda(AGORA + 3 * H)).linhas, [ITENS.paginas.voltou]);
+});
+
+test('ronda: a falha real da IA nas conversas vira aviso (sem chamar modelo nenhum)', async () => {
+  const c = await cenario();
+  await c.ronda(Date.now());
+  await c.db.query("insert into app.ia_chamadas (org_id, conversa_id, papel, erro, created_at) values ($1, '11111111-0000-4000-8000-000000000001', 'conversa', 'indisponivel', now())", [ORG]);
+  assert.deepEqual((await c.ronda(Date.now() + 60e3)).linhas, [ITENS.ia_conta.quebrou]);
+});
+
+test('ronda: banco fora → regra fixa (só no horário, uma vez por isolado), com as conferências do Worker juntas', async () => {
+  const fora = async () => { throw new ErroBanco('08006', 'banco indisponível'); };
+  const enviados = [], memoria = new Map();
+  const ronda = (h, conf = {}) => rondar({}, { banco: fora, avisar: async l => { enviados.push(l); return true; }, agora: Date.UTC(2026, 10, 15, h, 23), conferir: CONF_FALSA(conf), esperar: semEspera, memoria });
+  assert.deepEqual((await ronda(2)).linhas, []);
+  const r = await ronda(7, { paginas: false });
+  assert.equal(r.semBanco, true); assert.deepEqual(r.linhas, [BANCO_FORA, ITENS.paginas.quebrou]);
+  assert.deepEqual((await ronda(13)).linhas, []);
+  assert.equal(enviados.length, 1);
+});
+
+test('ronda: a migration do vigia ainda não aplicada não vira "banco fora" (só log, nenhum e-mail)', async () => {
+  const semFuncao = async () => { throw new ErroBanco('PGRST202', 'rpc rotinas_vigia_ler: HTTP 404'); };
+  let avisou = false;
+  const r = await rondar({}, { banco: semFuncao, avisar: async () => { avisou = true; return true; }, agora: Date.UTC(2026, 10, 15, 7, 23), conferir: CONF_FALSA({}), esperar: semEspera, memoria: new Map() });
+  assert.deepEqual(r.linhas, []); assert.equal(avisou, false);
+});
+
+test('ronda: sem banco configurado (staging sem segredos) não lança e não avisa', async () => {
+  const r = await rondar({}, { banco: null, avisar: async () => true, agora: Date.UTC(2026, 10, 15, 7, 23), conferir: CONF_FALSA({}), esperar: semEspera, memoria: new Map() });
+  assert.deepEqual(r.linhas, []);
+});
