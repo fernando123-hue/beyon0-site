@@ -104,7 +104,7 @@ const DESCRICAO = 'Monta, logo abaixo da conversa, o mapa do caso desta pessoa: 
   'a dor é trabalho repetido ou perda fora de hora: antes_depois; várias forças ao mesmo tempo (duas origens ou mais, uma trava e um desejo): mapa; nos outros casos: caminho. ' +
   'Mesma história, mesma estrutura. Nunca escolha uma estrutura para variar nem copie a dos exemplos: eles mostram a forma, não o seu caso. ' +
   'No hoje: em origens, só os códigos dos lugares que ela disse (Google sem falar de mapa é google_busca); texto e trava com as palavras dela, sem marca; preço só como o que perguntam a ela ("pergunta o preço no direct"), nunca valor, juízo ou comparação; não escreva Hoje (a tela põe). ' +
-  'O objetivo não é um nó: as setas o chamam pelo id objetivo. Seta de volta só no ciclo, e uma só. ' +
+  'O objetivo não é um nó: as setas o chamam pelo id objetivo. Seta de volta só no ciclo, e uma só. No caminho e no ciclo há uma fila só: um nó por passo, então no máximo um nó de origem (com duas origens, ponha só a principal num nó e as duas em hoje.origens). ' +
   'Escreva em português do Brasil, na voz da Beyon (a gente), em terceira pessoa para quem chega, no presente, sem jargão. É o que o site PODE fazer a partir do que a pessoa contou, nunca promessa: ' +
   'proibido número ou algarismo, as palavras preço, valor e custo (fora do hoje nunca: no lugar de "tamanho e preço", "tamanhos e medidas" ou "o que precisa saber"), sigla técnica ou palavra de outra língua, prazo, resultado, garantia, marca ou nome de terceiro (vale só o nome do negócio que ela deu), link, e-mail, emoji e formatação; nada de mais clientes nem vende sozinho. ' +
   'Em saúde e advocacia, nada de depoimento nem de foto de antes e depois (a estrutura antes_depois fala do trabalho, nunca do corpo). ' +
@@ -139,7 +139,7 @@ const REGRA = {
   seta_propria: 'seta que sai e chega no mesmo nó', seta_repetida: 'seta repetida', seta_para_origem: 'nenhuma seta chega a um nó de origem (ele é o começo)',
   objetivo_sai: 'o objetivo só tem seta saindo no ciclo, e uma só', no_solto: 'nó sem nenhuma seta', nao_chega: 'nó que não chega ao objetivo por nenhuma seta',
   sem_objetivo: 'nenhuma seta chega ao objetivo', camadas: 'passos demais de cima a baixo (no máximo 5, com o objetivo)',
-  camada_cheia: 'nós demais lado a lado no mesmo passo (no máximo 2, e sem cair um em cima do outro)', pulo: 'seta que pula um passo por cima de outro nó',
+  camada_cheia: 'nós demais lado a lado no mesmo passo (no máximo 2, e sem cair um em cima do outro; no caminho e no ciclo, um só: deixe um nó de origem só)', pulo: 'seta que pula um passo por cima de outro nó',
   volta: 'seta de volta só no ciclo, e lá exatamente uma', ramos: 'em ramos, um nó precisa se dividir em exatamente 2 setas',
   antes_depois: 'antes_depois precisa de um nó trava e de um site ou acao', caminho_divide: 'o caminho não se divide nem se junta', mapa: 'o mapa precisa de 4 nós ou mais, com trava e origem',
   ajustado: 'no máximo 2 nós ajustado', ajustado_sem_plano: 'ajustado só num ajuste de um mapa no formato novo (escreva o mapa inteiro, sem ajustado)',
