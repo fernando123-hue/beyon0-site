@@ -629,8 +629,14 @@
     function limparEnergia() { ondas.length = 0; pacotes.length = 0; marcas.length = 0; rotas.length = 0; }
     /* a origem: centro (tela), raio visível do reator R0 (px), giro (rad) */
     function origem(ox, oy, R0, giro, rotor) {
-      var mudouEscala = Math.abs(R0 - G.R0) > 0.5;
+      var mudouEscala = Math.abs(R0 - G.R0) > 0.5, dGiro = (giro || 0) - G.giro;
       G.ox = ox; G.oy = oy; G.giro = giro || 0; G.rotor = rotor === undefined ? G.giro : rotor;
+      /* o estator gira (js/rede.js): o que já corre nele anda junto, para não sair do raio (revisão do #163). O que
+         está no rotor ou engatando nele já é re-ancorado em passo() */
+      if (dGiro) {
+        for (var i = 0; i < pacotes.length; i++) if (!pacotes[i].rotor && !pacotes[i].engate) pacotes[i].a += dGiro;
+        for (var j = 0; j < rotas.length; j++) if (rotas[j].r >= G.Q * 2) rotas[j].ar += dGiro;
+      }
       if (mudouEscala || !aneis.length) { G.R0 = R0; G.Q = R0 * 1.45; gerarAneis(); limparEnergia(); }
     }
     return {

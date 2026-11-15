@@ -146,3 +146,19 @@ test('estator: raios de fora seguem o giro; os números de rumo do aro não saem
   assert.deepEqual(b.rotulos, a.rotulos, 'os números de rumo ficam no lugar com o estator girado');
   assert.notDeepEqual(b.pontos, a.pontos, 'os raios e nós de fora acompanham o giro do estator');
 });
+
+/* (revisão do #163) o que já corre no estator anda junto com ele: o pacote e a rota de fora guardam o ângulo do raio
+   em que nasceram; com o estator girando, ficavam fora do raio (o pacote descia por onde não há traço) */
+test('estator: pacote e rota de fora seguem o raio quando o estator gira', () => {
+  const { campo } = montar();
+  campo.origem(195, 300, 150, 0, 0);
+  const Q = 150 * 1.45, a0 = campo.raioPerto(Q * 3, 0.3);
+  const p = campo.pacote(Q * 3, a0, false);
+  const pt = campo.ponto(Q * 3, 0.3);
+  const ro = campo.rota(pt.x, pt.y, { fica: true });
+  const ar0 = ro.ar;
+  campo.origem(195, 300, 150, 0.2, 0);
+  assert.ok(Math.abs(p.a - (a0 + 0.2)) < 1e-9, 'o pacote acompanhou o raio (' + p.a + ' em vez de ' + (a0 + 0.2) + ')');
+  assert.ok(Math.abs(ro.ar - (ar0 + 0.2)) < 1e-9, 'a rota acompanhou o raio');
+  assert.ok(Math.abs(campo.raioPerto(Q * 3, p.a) - p.a) < 1e-9, 'o pacote está em cima de um raio do estator');
+});
