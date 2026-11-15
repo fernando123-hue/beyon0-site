@@ -112,3 +112,15 @@ test('as falhas voltam ao modelo só com caminho e regra, nunca com o texto', ()
   assert.ok(msgs.length >= 2);
   for (const m of msgs) { assert.doesNotMatch(m, /499|clareamento/); assert.match(m, /^secoes\[\d\]/); }
 });
+
+test('medição com a IA real (15/11): a escolha da pessoa ("o melhor horário", "o melhor canal") não é superlativo; a autopromoção continua sendo', () => {
+  for (const t of ['Escolha o melhor horário para você', 'Indique o melhor dia', 'Escolha o canal que for melhor e o melhor momento', 'O melhor período para a revisão'])
+    assert.ok(!regras(conferirDirecao(comTexto(base('CRO-RJ 1'), t), 'odontologia')).includes('superlativo'), t);
+  for (const t of ['O melhor dentista de Curitiba', 'A melhor clínica da região', 'O melhor tratamento da cidade'])
+    assert.ok(regras(conferirDirecao(comTexto(base('CRO-RJ 1'), t), 'odontologia')).includes('superlativo'), t);
+});
+
+test('medição (15/11): o resumo e o nome do conceito (a tela da Beyon, não o site) ficam fora da conferência', () => {
+  const d = { ...base('OAB/MG 1'), resumo: 'Como a norma da OAB não permite depoimentos nem números, a confiança vem da formação.', nome_conceito: 'O melhor caminho' };
+  assert.deepEqual(regras(conferirDirecao(d, 'advocacia')), []);
+});

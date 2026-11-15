@@ -77,6 +77,10 @@ export const SABOTAGENS = [
     de: 'registro: registroValido(a.negocio.registro) || undefined', para: 'registro: a.negocio.registro || undefined' },
   { nome: 'regulado: o ramo "Saúde" tocado não é nicho', fonte: 'api/_vendas/agente.mjs', testes: ['docs/testes/nicho-regulado.test.mjs'],
     de: "  if (typeof b.negocio?.segmento === 'string' && RAMO_SAUDE.test(b.negocio.segmento)) return { chave: 'saude_generica' };", para: '  void RAMO_SAUDE;' },
+  { nome: 'regulado: "o melhor horário" vira superlativo', fonte: 'api/_vendas/conferencia-regulada.mjs', testes: ['docs/testes/conferencia-regulada.test.mjs'],
+    de: "re('[oa]s? melhor(?:es)?' + ESCOLHA_DA_PESSOA,", para: "re('[oa]s? melhor(?:es)?',"},
+  { nome: 'regulado: o resumo do modelo volta à conferência', fonte: 'api/_vendas/conferencia-regulada.mjs', testes: ['docs/testes/conferencia-regulada.test.mjs'],
+    de: 'textosDe({ navegacao: direcao?.navegacao, secoes:', para: 'textosDe({ resumo: direcao?.resumo, navegacao: direcao?.navegacao, secoes:' },
   /* ---- saúde atende, mas não fecha pelo site (decisão do dono, 14/11) ---- */
   { nome: 'saúde: o pagamento não confere a saúde', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
     de: '      if (comAEquipe(est)) throw new Recusa(409, SAUDE_COM_A_EQUIPE, { recado: true });\n', para: '      void 0; /* sabotado */\n' },

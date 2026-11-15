@@ -19,7 +19,10 @@ const re = (...partes) => new RegExp('\\b(?:' + partes.join('|') + ')\\b');
 const PROMESSA = re('(?<!(?:sigilo|privacidade|confidencialidade|discricao) )garantid[oa]s?', 'garantimos(?! (?:o |a |seu |sua )?(?:sigilo|privacidade|confidencialidade|discricao))', 'garante a cura', 'cura garantida', 'garantia de resultado', 'resultado garantido', 'infalivel', 'sem dor', 'milagros[oa]s?', 'milagre', 'revolucionari[oa]s?', 'cura definitiva');
 /* (o "%" não é letra: o \b não cabe depois dele) */
 const CEM_POR_CENTO = /\b100 ?%/;
-const SUPERLATIVO = re('[oa]s? melhor(?:es)?', 'o unico', 'a unica', 'numero 1', 'n 1', 'top 1', 'referencia (?:em|no|na|da|do)', 'lider(?:es)? (?:em|no|na)', 'mais experiente');
+/* (medição com a IA real, 15/11: todo "superlativo" que derrubou um modelo era agenda, "o melhor horário", "o melhor dia", "o melhor canal";
+   a escolha da pessoa não é autopromoção) */
+const ESCOLHA_DA_PESSOA = '(?! (?:horario|dia|periodo|momento|canal|forma|formato|data|caminho|opcao|jeito|maneira|hora|turno|local|meio|contato)s?\\b)';
+const SUPERLATIVO = re('[oa]s? melhor(?:es)?' + ESCOLHA_DA_PESSOA, 'o unico', 'a unica', 'numero 1', 'n 1', 'top 1', 'referencia (?:em|no|na|da|do)', 'lider(?:es)? (?:em|no|na)', 'mais experiente');
 const GRATIS = re('gratis', 'gratuit[oa]s?', 'sorteio', 'sorteamos', 'brindes?', 'cupom', 'cupons', 'de graca');
 const URGENCIA = re('ultimas vagas', 'ultimo dia', 'so hoje', 'apenas hoje', 'corra', 'nao perca', 'por tempo limitado', 'vagas limitadas');
 const ANTES_DEPOIS = re('antes e depois', 'antes depois', 'depoimentos?', 'relatos? de pacientes?', 'o que nossos pacientes dizem', 'avaliacoes de pacientes');
@@ -65,7 +68,9 @@ export function conferirDirecao(direcao, nichoOuChave, { hoje = '' } = {}) {
   const falha = (regra, caminho) => { const k = regra + '|' + caminho; if (!viu.has(k)) { viu.add(k); falhas.push({ regra, caminho }); } };
   (direcao?.secoes || []).forEach((s, i) => { if (s && SECOES_FORA.has(s.tipo)) falha('secao_' + s.tipo, 'secoes[' + i + ']'); });
   const saude = nicho.tipo === 'saude', oab = nicho.tipo === 'advocacia';
-  for (const { caminho, texto } of textosDe({ nome_conceito: direcao?.nome_conceito, resumo: direcao?.resumo, navegacao: direcao?.navegacao, secoes: direcao?.secoes, rodape: direcao?.rodape })) {
+  /* (medição, 15/11) só o que vai ao SITE: o resumo e o nome do conceito descrevem o modelo na tela da Beyon, e o modelo explica ali a
+     norma ("a OAB não permite depoimentos"), o que não é publicidade do profissional */
+  for (const { caminho, texto } of textosDe({ navegacao: direcao?.navegacao, secoes: direcao?.secoes, rodape: direcao?.rodape })) {
     if (/\.tipo$|\.variante$/.test(caminho)) continue;
     const b = paraBusca(String(texto).replace(/(?<=(?:^|[^\p{L}])\p{L})[.\-_*·•|/](?=\p{L}(?:[^\p{L}]|$))/gu, ' '));
     if (!b) continue;
