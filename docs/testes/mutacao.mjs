@@ -56,7 +56,7 @@ export const SABOTAGENS = [
     de: 'if (semConfirmacao) throw semConfirmacao;', para: 'if (false) throw semConfirmacao;' },
   /* ---- saúde atende, mas não fecha pelo site (decisão do dono, 14/11) ---- */
   { nome: 'saúde: o pagamento não confere a saúde', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
-    de: '      if (comAEquipe(est)) throw new Recusa(409, SAUDE_COM_A_EQUIPE, { recado: true });\n', para: '\n' },
+    de: '      if (comAEquipe(est)) throw new Recusa(409, SAUDE_COM_A_EQUIPE, { recado: true });\n', para: '      void 0; /* sabotado */\n' },
   { nome: 'saúde: o modelo sai na hora', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
     de: "if (modo === 'manual' || comAEquipe(est)) return { status: 'na_fila' };", para: "if (modo === 'manual') return { status: 'na_fila' };" },
   { nome: 'saúde: o estado não avisa a página', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
