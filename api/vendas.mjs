@@ -20,6 +20,7 @@ import { aquecerBanco, avisarFalha } from './_vendas/aquecer-banco.mjs';
 import { criarVisitantes } from './_vendas/visitante.mjs';
 import { configPagamentos, configPublica } from './_pagamentos/config.mjs';
 import { criarServicoPagamentos } from './_pagamentos/servico.mjs';
+import { confirmacaoDoAmbiente } from './_pagamentos/confirmacao.mjs';
 import { criarIA } from './_ia/provedor.mjs';
 import { modoDirecoes } from './_ia/config.mjs';
 import { ambienteDe } from './_ambiente.mjs';
@@ -96,7 +97,7 @@ export async function atender(request, env, metodo, deps, ctx) {
   const d = deps || { banco: criarTransporte(env), visitantes: criarVisitantes(env, { ip }), ia: await criarIA(env), segredoFreio: env.FREIO_SEGREDO || env.SUPABASE_CHAVE_SECRETA, armazem: criarArmazem(env) };
   if (!deps && d.banco) {
     const cfg = configPagamentos(env);
-    if (cfg.ativo) d.pagamentos = criarServicoPagamentos({ banco: d.banco, cfg });
+    if (cfg.ativo) d.pagamentos = criarServicoPagamentos({ banco: d.banco, cfg, confirmacao: confirmacaoDoAmbiente(env) });
     else if (cfg.motivo) log('erro', { request_id: requestId, evento: 'pagamentos desligados', motivo: cfg.motivo });
   }
   /* (F3 do JEV) o modo sombra, só no turno do Zero e só com JEV_SOMBRA=1 e a chave: senão null, zero chamadas */

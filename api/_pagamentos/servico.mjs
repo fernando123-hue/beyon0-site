@@ -14,6 +14,7 @@
 import { criarMercadoPago, retratoDe, ErroProvedor } from './mercadopago.mjs';
 import { ATIVOS } from './estados.mjs';
 import { orcamentoDe, SemOrcamento, ORCAMENTO_SUBPEDIDOS } from '../_orcamento.mjs';
+import { confirmarEntradas } from './confirmacao.mjs';
 
 /* fins SEM dinheiro: só depois deles uma nova tentativa pode começar (aprovada, duplicada, estornada etc. mostram o estado) */
 const LIVRES = new Set(['recusada', 'cancelada', 'expirada']);
@@ -32,6 +33,7 @@ const PARALELO = 5;                    /* consultas simultâneas na reconciliaç
 const VARREDURA_DIAS = 0.5;            /* a janela da varredura: 12 h, 4× o intervalo do cron (3 h); o que passou disso a lista de tentativas já cobre */
 const SEM_DINHEIRO = new Set(['canceled', 'expired', 'failed']);   /* (estados da listagem em que a order não tem dinheiro a conferir) */
 const RESERVA_FINAL = 2;               /* subpedidos guardados para o fim da reconciliação (pagamentos_atencao e a ocorrência) */
+const CONFIRMACOES_POR_VEZ = 5;        /* confirmações da entrada recuperadas por reconciliação (1 reserva + 1 envio cada) */
 export const ORG = 'beyon-zero';
 
 /* ---------- validação do que vem do navegador (nada aqui decide valor) ---------- */
@@ -81,8 +83,10 @@ function traduzirLimite(e) {
 
 /* o miolo que fala com o banco e com o provedor (aplicar o retrato de uma order, atualizar uma tentativa). É função própria
    para a reconciliação criar, a CADA execução, um núcleo com banco e provedor CONTADOS (orçamento de subpedidos da
-   Cloudflare, api/_orcamento.mjs); o serviço normal usa um núcleo com o banco e o provedor sem contagem */
-function criarNucleo({ banco, mp, cfg, agora }) {
+   Cloudflare, api/_orcamento.mjs); o serviço normal usa um núcleo com o banco e o provedor sem contagem.
+   `confirmacao` (api/_pagamentos/confirmacao.mjs): com ela, a entrada aprovada AGORA (aplicado = 'aprovada', o banco diz isso
+   uma vez só) recebe o e-mail logo depois de gravada; o núcleo contado da reconciliação vai sem ela e confirma pela varredura */
+function criarNucleo({ banco, mp, cfg, agora, confirmacao = null }) {
   const PROV = mp.nome;
   const idade = iso => (agora() - new Date(iso).getTime()) / 1000;
   const ocorrencia = (evento, tentativa_id, provedor_ref, detalhe, origem) =>
@@ -96,7 +100,10 @@ function criarNucleo({ banco, mp, cfg, agora }) {
       await ocorrencia('payment.divergence', null, null, { motivo: 'order sem id válido' }, origem);
       return { ignorado: 'order sem id' };
     }
-    return banco('pagamentos_aplicar', { provedor: PROV, origem, request_id: request_id || null, conta_esperada: cfg.contaEsperada, org_slug: ORG, retrato });
+    const r = await banco('pagamentos_aplicar', { provedor: PROV, origem, request_id: request_id || null, conta_esperada: cfg.contaEsperada, org_slug: ORG, retrato });
+    /* o pagamento já está gravado (outra transação): o e-mail nunca o desfaz; erro do e-mail só vai para o log */
+    if (confirmacao && r && r.aplicado === 'aprovada') await confirmarEntradas({ banco, confirmacao, provedor: PROV, filtro: { provedor_order_id: retrato.order_id } });
+    return r;
   }
 
   /* traz uma tentativa ativa para o estado real do provedor. Erro do provedor: não muda nada */
@@ -128,10 +135,10 @@ function criarNucleo({ banco, mp, cfg, agora }) {
   return { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar };
 }
 
-export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Date.now() }) {
+export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Date.now(), confirmacao = null }) {
   if (!cfg || !cfg.ativo) throw new Error('pagamentos desligados');
   const mp = provedor || criarMercadoPago({ token: cfg.token, base: cfg.base, fetch: cfg.fetch || globalThis.fetch });
-  const { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar } = criarNucleo({ banco, mp, cfg, agora });
+  const { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar } = criarNucleo({ banco, mp, cfg, agora, confirmacao });
 
   /* decide o que fazer com a tentativa ativa antes de começar outra */
   async function resolverAtiva(ctx, t, metodoNovo) {
@@ -188,6 +195,9 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
         t = await iniciarNoBanco();
         if (t.ativa) throw new ErroPagamento(409, AGUARDE, { aguarde: true });
       }
+      /* o e-mail de quem paga fica na tentativa só para a confirmação da entrada (o provedor não o devolve depois). Falhar aqui não impede pagar */
+      await banco('pagamentos_guardar_pagador', { tentativa_id: t.tentativa_id, email: vp.dados.email })
+        .catch(e => console.error('[pagamentos] o e-mail de quem paga não foi guardado:', (e && e.codigo) || 'erro'));
       const pixExpiraEm = metodo === 'pix' ? new Date(agora() + PIX_MINUTOS * 60e3).toISOString() : null;
       let criada;
       try {
@@ -247,7 +257,7 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
        cron (3 em 3 h): a lista vem na ordem da migration (order by coalesce(consultada_em, created_at): as conferidas há
        mais tempo primeiro, então o que ficou de fora passa à frente na vez seguinte). Resumo: `parcial` e `subpedidos` */
     async reconciliar({ limite = 15, varrerDias = VARREDURA_DIAS, varrerPaginas = 1, orcamento = ORCAMENTO_SUBPEDIDOS } = {}) {
-      const resumo = { conferidas: 0, aplicadas: 0, erros: 0, desconhecidas: 0, parcial: false, subpedidos: 0 };
+      const resumo = { conferidas: 0, aplicadas: 0, erros: 0, desconhecidas: 0, parcial: false, subpedidos: 0, confirmacoes: 0 };
       const gasto = orcamentoDe(orcamento, RESERVA_FINAL);
       const bancoContado = gasto.contar(banco);
       const mpContado = { ...mp, consultarOrdem: gasto.contar(mp.consultarOrdem), buscarRecentes: gasto.contar(mp.buscarRecentes),
@@ -272,6 +282,13 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
       const lista = await bancoContado('pagamentos_para_reconciliar', { provedor: PROV, limite, idade_min_s: 120 });
       resumo.conferidas = lista.length;
       await umPorVez(lista, t => nucleo.atualizar(t, 'reconciliacao'));
+      /* as confirmações da entrada que ficaram para trás (aprovada por aqui, aviso que caiu antes do envio, chave que faltava):
+         só com folga para a reserva e para cada envio; o que não couber fica para a próxima (a reserva é do banco, uma vez só) */
+      const folga = Math.min(CONFIRMACOES_POR_VEZ, gasto.restantes() - 1);
+      if (!parou && confirmacao && confirmacao.ligada && folga >= 1) {
+        try { resumo.confirmacoes = (await confirmarEntradas({ banco: bancoContado, confirmacao: confirmacao.contada(gasto.contar), provedor: PROV, filtro: { limite: folga } })).enviadas; }
+        catch (e) { if (e instanceof SemOrcamento) parou = true; else throw e; }
+      }
       if (varrerDias > 0 && !parou) {
         const desde = agora() - varrerDias * 86400e3;
         for (let pagina = 1; pagina <= varrerPaginas && !parou; pagina++) {

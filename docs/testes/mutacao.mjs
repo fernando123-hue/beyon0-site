@@ -41,7 +41,8 @@ export const SABOTAGENS = [
   /* (a função vendas_reter vive na migration MAIS NOVA que a redefine: sabotar a antiga não tinha efeito) */
   { nome: 'retenção apaga o briefing e o contato de quem pagou', arquivo: '20261011120000_retencao_pagos_e_contato.sql', testes: ['docs/testes/fluxo-api.test.mjs'],
     de: "pg.status in ('pago', 'estornado', 'contestado')", para: "pg.status in ('estornado', 'contestado')" },
-  { nome: 'retenção apaga a prova de um pagamento contestado', arquivo: '20261011120000_retencao_pagos_e_contato.sql', testes: ['docs/testes/fluxo-api.test.mjs'],
+  /* (desde 20261115130000 a vendas_reter mora na migration da confirmação da entrada; a conversas_paradas, acima, segue na 20261011120000) */
+  { nome: 'retenção apaga a prova de um pagamento contestado', arquivo: '20261115130000_confirmacao_entrada.sql', testes: ['docs/testes/fluxo-api.test.mjs'],
     de: "and (pg.status = 'contestado' or exists (", para: "and (false and exists (" },
   /* ---- o pedido de modelos (PR 2a): os freios ---- */
   { nome: 'telefone sem limite de pedido aberto', arquivo: '20261013120000_pedidos.sql', testes: ['docs/testes/pedidos-banco.test.mjs'],
@@ -716,6 +717,29 @@ export const SABOTAGENS = [
     de: "if (prefixoUsado && !desenho.gravou && i > 0) saida =", para: "if (false) saida =" },
   { nome: "leitura: o estado devolve a evidência de um eixo que a pessoa não falou", fonte: "api/_vendas/leitura.mjs", testes: ['docs/testes/planta-leitura.test.mjs'],
     de: "const r = e.nivel === 'nao_falou' || e.evidencia === undefined ? null :", para: "const r = e.evidencia === undefined ? null :" },
+  /* ---- a confirmação da entrada por e-mail (decisões do dono, 14 e 15/11/2026): uma vez só, só a entrada, nunca derruba o pagamento ---- */
+  { nome: 'confirmação: a reserva não apaga o e-mail de quem pagou', arquivo: '20261115130000_confirmacao_entrada.sql', testes: ['docs/testes/confirmacao-banco.test.mjs'],
+    de: 'set confirmacao_email_em = now(), pagador_email = null', para: 'set confirmacao_email_em = now()' },
+  { nome: 'confirmação: a reserva vale também para o restante (saldo)', arquivo: '20261115130000_confirmacao_entrada.sql', testes: ['docs/testes/confirmacao-banco.test.mjs'],
+    de: "where t.status = 'aprovada' and pg.parcela = 'sinal' and", para: "where t.status = 'aprovada' and" },
+  { nome: 'confirmação: a reserva vale para a entrada estornada antes do envio', arquivo: '20261115130000_confirmacao_entrada.sql', testes: ['docs/testes/confirmacao-banco.test.mjs'],
+    de: "where t.status = 'aprovada' and pg.parcela = 'sinal' and pg.status = 'pago' and", para: "where t.status in ('aprovada', 'estornada') and pg.parcela = 'sinal' and" },
+  { nome: 'confirmação: a varredura manda confirmação atrasada (sem a janela de 48 h)', arquivo: '20261115130000_confirmacao_entrada.sql', testes: ['docs/testes/confirmacao-banco.test.mjs'],
+    de: "      and t.aprovada_em > now() - interval '48 hours'\n", para: '' },
+  { nome: 'confirmação: a retenção deixa o e-mail do pagador para sempre', arquivo: '20261115130000_confirmacao_entrada.sql', testes: ['docs/testes/confirmacao-banco.test.mjs'],
+    de: 'where t.pagador_email is not null and t.created_at < now() - make_interval(days => v_dias_pagos);', para: 'where false;' },
+  { nome: 'confirmação: o anon executa a reserva', arquivo: '20261115130000_confirmacao_entrada.sql', testes: ['docs/testes/confirmacao-banco.test.mjs'],
+    acrescentar: '\ngrant usage on schema app to anon;\ngrant execute on function app.pagamentos_reservar_confirmacao(jsonb) to anon;\n' },
+  { nome: 'confirmação: o e-mail de quem paga não é guardado', fonte: 'api/_pagamentos/servico.mjs', testes: ['docs/testes/confirmacao-email.test.mjs'],
+    de: "await banco('pagamentos_guardar_pagador', { tentativa_id: t.tentativa_id, email: vp.dados.email })", para: 'await Promise.resolve({ tentativa_id: t.tentativa_id, email: vp.dados.email })' },
+  { nome: 'confirmação: o HTML do e-mail sem escape', fonte: 'api/_pagamentos/confirmacao.mjs', testes: ['docs/testes/confirmacao-email.test.mjs'],
+    de: 'export const escaparHtml = s => String(s).replace(/[&<>"\']/g, c => ESCAPES[c]);', para: 'export const escaparHtml = s => String(s);' },
+  { nome: 'confirmação: a falha da reserva derruba o aviso do Mercado Pago', fonte: 'api/_pagamentos/confirmacao.mjs', testes: ['docs/testes/confirmacao-email.test.mjs'],
+    de: "    if (e instanceof SemOrcamento) throw e;\n    console.error('[pagamentos] confirmação da entrada: a reserva falhou:'", para: "    throw e;\n    console.error('[pagamentos] confirmação da entrada: a reserva falhou:'" },
+  { nome: 'confirmação: envia sem a chave do Resend', fonte: 'api/_pagamentos/confirmacao.mjs', testes: ['docs/testes/confirmacao-email.test.mjs'],
+    de: "      if (!ligada) return { enviado: false, motivo: 'sem chave' };\n", para: '' },
+  { nome: 'confirmação: a reconciliação reserva sem folga no orçamento de subpedidos', fonte: 'api/_pagamentos/servico.mjs', testes: ['docs/testes/confirmacao-email.test.mjs'],
+    de: 'const folga = Math.min(CONFIRMACOES_POR_VEZ, gasto.restantes() - 1);', para: 'const folga = CONFIRMACOES_POR_VEZ;' },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
