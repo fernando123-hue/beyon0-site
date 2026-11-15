@@ -208,6 +208,7 @@ export function briefingSemProibidos(briefing) {
 }
 
 /* o aviso do código ao modelo no estado ATUAL (o prompt já manda; isto faz o nicho valer a sessão toda) */
+import { CONSELHOS } from './regras-conselhos.mjs';
 /* os nichos de SAÚDE humana (a advocacia é regulada, mas não é saúde: segue fechando pelo site até o dono decidir) */
 export const CHAVES_DE_SAUDE = new Set(['odontologia', 'psicologia', 'nutricao', 'fisioterapia', 'medicina', 'fonoaudiologia', 'enfermagem', 'biomedicina', 'estetica']);
 /* (decisão do dono, 14/11) saúde atende, mas não fecha pelo site até o modelo de saúde ficar pronto: o pedido vai à equipe. Nunca o nome de ninguém */
@@ -216,6 +217,11 @@ export function avisoRegulado(nicho, { pediuAgora = false } = {}) {
   if (!nicho) return null;
   return {
     ...(CHAVES_DE_SAUDE.has(nicho.chave) ? { fechamento: FECHAMENTO_SAUDE } : {}),
+    /* (spec 2026-11-15 §4) o que o conselho deixa e não deixa no site, e o registro para pôr no site */
+    ...(Object.hasOwn(CONSELHOS, nicho.chave) ? {
+      regras_do_conselho: CONSELHOS[nicho.chave].resumo,
+      registro: 'Se o briefing ainda não tem negocio.registro, pergunte UMA vez, com naturalidade, o número do registro (' + CONSELHOS[nicho.chave].registro + ', com a UF) para pôr no site, e registre em negocio.registro. Se a pessoa não souber ou não quiser, siga sem insistir.'
+    } : {}),
     nicho: nicho.site, conselho: nicho.conselho === 'conselho' ? 'o conselho da profissão da pessoa' : nicho.conselho,
     nunca: ['depoimento de paciente ou cliente', 'antes e depois', `preço ou promoção de ${nicho.procedimento}`, 'promessa de resultado', 'sessão grátis ou sorteio'],
     cabe: nicho.cabe, pediu_item_proibido_agora: pediuAgora,

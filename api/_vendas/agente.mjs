@@ -105,6 +105,18 @@ export function saudeDaSessao({ briefing, mensagens, mensagem }) {
   const fontes = [b.negocio?.segmento, b.negocio?.descricao, ...(Array.isArray(b.servicos) ? b.servicos : []), ...doVisitante(mensagens), mensagem];
   return fontes.some((f) => { const n = f ? nichoRegulado(f) : null; return !!n && CHAVES_DE_SAUDE.has(n.chave); });
 }
+/* QUAL nicho regulado (saúde ou advocacia), para a geração e a conferência dos modelos (spec 2026-11-15 §2): a profissão de qualquer fonte
+   vence; sem ela, a advocacia; sem as duas, o ramo "Saúde" tocado é a saúde genérica */
+export function nichoReguladoDaSessao({ briefing, mensagens, mensagem }) {
+  const b = briefing || {};
+  const fontes = [b.negocio?.segmento, b.negocio?.descricao, ...(Array.isArray(b.servicos) ? b.servicos : []), ...doVisitante(mensagens), mensagem];
+  const chaves = fontes.map((f) => (f ? nichoRegulado(f) : null)).filter(Boolean).map((n) => n.chave);
+  const saude = chaves.find((c) => CHAVES_DE_SAUDE.has(c));
+  if (saude) return { chave: saude };
+  if (chaves.includes('advocacia')) return { chave: 'advocacia' };
+  if (typeof b.negocio?.segmento === 'string' && RAMO_SAUDE.test(b.negocio.segmento)) return { chave: 'saude_generica' };
+  return null;
+}
 /* pediu de novo o que já foi recusado (a recusa fixa no histórico, ou o pedido proibido numa mensagem anterior) */
 const insistiu = mensagens => doVisitante(mensagens).some(pedeItemProibido) || (mensagens || []).some(m => m.papel !== 'visitante' && /a Beyon não coloca depoimento/.test(String(m.conteudo ?? '')));
 
