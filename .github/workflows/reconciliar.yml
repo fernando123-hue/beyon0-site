@@ -5,9 +5,11 @@
 # redirecionamento) e CRON_SECRET. Só quem tem push no repositório (o dono) pode mudar este arquivo.
 name: Reconciliar pagamentos
 
+# 14/11/2026: o AGENDAMENTO saiu daqui. A mesma conferência já roda de graça no Worker da Cloudflare a cada 3 h
+# (wrangler.jsonc triggers.crons '23 */3 * * *' → cloudflare/agenda.mjs → /api/pagamentos?acao=reconciliar); este
+# agendamento era da época da Vercel e, com o repositório privado, gastava ~240 min/mês da cota do GitHub Actions.
+# Fica só para rodar à mão (Actions → Reconciliar pagamentos → Run workflow).
 on:
-  schedule:
-    - cron: '23 */3 * * *'
   workflow_dispatch:
 
 permissions: {}
