@@ -112,3 +112,16 @@ Baixos:
 - "Quero ajustar algo" com o pedido confirmado: o botão sai e a altura do cartão é regravada sem animação.
 
 Fatias, com os ajustes: **5a** (saber + esboço + teste do voo v2) → **5b** (layout, desenho, cola com troca v2→v3, `atualizar` que refaz, E2E básico de montagem nos dois modos) → **5c** ("Ficou certo?" no cartão, ajuste com nó novo e deslize, E2E completo).
+
+## 10. O que a implementação mudou (5b e 5c, 14/11)
+
+- **"Está certo" local só no v3.**
+  - O v2 é legado: a flag nunca foi ligada na produção, e o v2 só existe em conversas de teste.
+  - Ele mantém o "Está certo" que manda "A planta está certa.". Tirar isso reescreveria os testes do envio incerto (`orcamento.js`) sem ganho para ninguém.
+  - O v3 nunca chama a cola: é só uma fala na tela, sem IA e sem gravar nada.
+- **Os módulos comuns vêm primeiro na lista do v3** (`planta-pecas`, `planta-relogio`, `mapa-saber`). A nova tentativa baixa do 1º que falta em diante, e assim o que o v2 já trouxe não desce de novo. O módulo comum que ainda está a caminho é esperado.
+- **O botão "Ver a planta do seu site" voltou.** Ele sumia desde o PR 2: a cola achava a fala do Zero pela posição na lista inteira, e a conversa nova põe toques e o cartão do esboço no meio. Agora só as falas contam.
+- **Tetos de bytes, medidos:**
+  - ligação da faixa: 4.900 (medido 4.835);
+  - JS do mapa v3: 29.000 (medido 28.515, ainda com as duas peles; desce depois da escolha do dono).
+- **E2E:** `docs/e2e-planta.mjs` refeito com celular, computador, ajuste forjado, regressão do v2 e flag desligada. `docs/fotos-mapa.mjs` tira as fotos do mapa na página real.

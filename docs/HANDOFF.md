@@ -1,29 +1,25 @@
 # Beyon Zero — transferência de contexto
 
-> **ESTADO DA SESSÃO "ORÇAMENTO COMO CONVERSA" (14/11, manhã; worktree `03 Projetos/site-zero-mapa`, branch `zero-mapa-desenho`).**
+> **ESTADO DA SESSÃO "ORÇAMENTO COMO CONVERSA" (14/11, tarde; worktree `03 Projetos/site-zero-mapa`, branch `zero-mapa-desenho-b`).**
 > <!-- passagem-auto: 1-cf05db7a-0aec-488c-92c5-4f1b5ccd43e9 -->
 > **Feito:**
-> - PR 1 a 4 mesclados. **PR 4 (#154, o mapa do caso v3 no servidor) = main `eee008a`.** O dono respondeu os 3 pontos (Decisões.md, 14/11) e aceitou o custo de 6 versões. Não promover entre o PR 4 e o PR 5 ("Combinado").
-> - A migração `aceite_versao` está no banco de TESTE. Na produção, aplicar só antes da promoção que levar o PR 3; o sim do dono já foi dado.
-> - **PR 5, com calma, em 3 fatias** (desenho: `docs/superpowers/specs/2026-11-14-mapa-desenho-design.md`; a §9 traz o que a revisão independente mudou):
->   - **5a (este branch, PR a abrir):**
->     - `js/mapa-saber.js`: as origens num módulo comum ao servidor e à tela, com a negação antes e depois da palavra.
->     - O esboço sem fantasma, sem tracejado e sem número; o trilho corre inteiro pelo lugar vazio.
->     - `docs/fotos-esboco.mjs`.
->     - Mutação: `mapa:` 24 de 24; depois entrou mais uma sabotagem, a do "depois".
->   - **5b (depois):** layout e desenho v3, a cola com troca v2→v3, o movimento por estrutura, E2E básico. **Depende da escolha do dono, A (caixas) ou B (trilho)**: fotos e LEIA.md em `00 Entrada/orcamento-conversa/lab-estruturas-1411/`, pedido feito à sessão principal. O laboratório desenha as duas (`?pele=caixa|trilho`).
->   - **5c:** "Ficou certo?" dentro do cartão ("Está certo" local, sem IA), o ajuste com nó novo e deslize, E2E completo.
-> - Depois do PR 5: o interruptor local da IA real (PR), o teste com a IA real (as 5 conversas e o teste C, ≤ US$ 3, com vídeos) e a promoção, que é do dono.
+> - PR 4 (#154) = main `eee008a`; **PR 5a (#157) = main `b8c23dc`**: as origens num módulo comum (`js/mapa-saber.js`, com a negação antes e depois) e o esboço sem fantasma. SHAs mandados à sessão principal. **Não promover até o 5b.**
+> - **5b quase pronto** neste branch (plano `docs/superpowers/plans/2026-11-14-pr5b-mapa-desenho.md`; tarefas 1 a 7 feitas):
+>   - a cola com CONJUNTOS v2/v3 e a troca no meio da conversa;
+>   - `js/mapa-layout.js`, `js/mapa-desenho.js` (roteiro por estrutura, voo, ouro) e `css/orcamento-mapa.css`;
+>   - `casarMapa`; o laboratório nos módulos reais; `docs/fotos-mapa.mjs`;
+>   - revisões de código e de segurança feitas e corrigidas (`efd356c`; textos para o PR em `scratchpad/rev-5b-*.md`).
+> - **5c pronto** no branch `zero-mapa-ajuste`, empilhado sobre o 5b. Tem: "Ficou certo?" dentro do mapa, com "Está certo" local (sem IA); o ajuste (quem fica desliza, o nó novo cresce); o botão "Ver a planta" de volta; e `docs/e2e-planta.mjs` refeito (22 de 22). As revisões estão corrigidas (`6b0430c`; textos em `scratchpad/rev-5c-*.md`).
+> - **Falta só a escolha do dono, A (caixa) ou B (trilho)**, pedida à sessão principal. Fotos em `00 Entrada/orcamento-conversa/lab-estruturas-1411/` e `pr5b/`.
 >
 > **PRÓXIMO PASSO EXATO:**
-> 1. Abrir o PR 5a com as evidências do `docs/PROCESSO.md`:
->    - a suíte;
->    - o E2E do orçamento nos dois modos, cada um em servidor novo (`scratchpad/e2e-dois.sh` da sessão; o modelo está no CI);
->    - as fotos do esboço (`00 Entrada/orcamento-conversa/esboco-1411/`);
->    - as duas revisões: código e segurança, por agentes diferentes;
->    - o vermelho visto: o `mapa-saber` não existia; a negação "depois" falhou antes da correção.
-> 2. Mesclar com tudo verde e mandar o SHA à sessão principal.
-> 3. Esperar a escolha da pele para começar o 5b. Enquanto isso, o plano do 5b pela skill writing-plans.
+> 1. Com a resposta do dono, deixar só a pele escolhida:
+>    - `PELE` em `js/mapa-desenho.js`;
+>    - tirar a outra de `js/mapa-layout.js`, `js/mapa-desenho.js` e `css/orcamento-mapa.css` (o laboratório pode guardar `?pele=`);
+>    - baixar o teto do v3 em `planta-bytes` para a medida nova (hoje 27.500, com as duas peles 27.202).
+> 2. Rodar a suíte, o E2E do orçamento nos dois modos (`scratchpad/e2e-dois.sh`), `docs/fotos-mapa.mjs` e `docs/lab-estruturas-fotos.mjs`.
+> 3. Abrir o PR 5b (nível 3, a cola) com as evidências; mesclar com tudo verde e mandar o SHA.
+> 4. Depois, o 5c ("Ficou certo?" no cartão, o ajuste com nó novo e deslize, `docs/e2e-planta.mjs` refeito, incluindo o botão "Ver a planta", que não acha a fala do Zero desde o PR 2).
 >
 > **Pendências:**
 > - `docs/e2e-planta.mjs` está velho: desde o PR 4 a IA simulada gera v3, e a tela ainda não o desenha. Refazer no 5b/5c, com um plano v2 forjado para a regressão do voo v2.

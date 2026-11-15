@@ -116,7 +116,9 @@
     function pontosDoEsboco(plano, ref) {
       var I = st.esb && st.esb.interno, Cresce = win.BZPlantaCresce;
       if (!I || !I.esboco || !Cresce) return null;
-      var q = I.quadro.getBoundingClientRect(), dx = q.left - ref.left, dy = q.top - ref.top, mapa = Cresce.casar(I.esboco, plano), o = Object.create(null);
+      var q = I.quadro.getBoundingClientRect(), dx = q.left - ref.left, dy = q.top - ref.top, o = Object.create(null);
+      /* (PR 5b) o mapa do caso (v3) casa pelo papel; a estação sem par some na luz */
+      var mapa = typeof plano.estrutura === 'string' ? Cresce.casarMapa(I.esboco, plano) : Cresce.casar(I.esboco, plano);
       var ponto = function (cx, cy, s, li) { return { x: dx + cx, y: dy + cy, s: s, tx: dx + li.offsetLeft, ty: dy + li.offsetTop }; };
       o.nucleo = ponto(I.nucleo.cx, I.nucleo.cy, PONTA, I.nucleo.li);
       I.est.forEach(function (x, k) { var id = mapa[Cresce.LUGARES[k]]; if (id && x.est) o[id] = ponto(x.cx, x.cy, CHIP, x.li); });
