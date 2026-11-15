@@ -18,6 +18,7 @@
      pelo modelo já foi apagado antes). É uma lista: nunca fecha. É uma camada a
      mais; a tela e o motor continuam sendo a verdade.
    ========================================================================== */
+import { CONSELHOS } from './regras-conselhos.mjs';
 import { normalizar } from './promessa.mjs';
 
 /* ---------- textos fixos ---------- */
@@ -216,6 +217,11 @@ export function avisoRegulado(nicho, { pediuAgora = false } = {}) {
   if (!nicho) return null;
   return {
     ...(CHAVES_DE_SAUDE.has(nicho.chave) ? { fechamento: FECHAMENTO_SAUDE } : {}),
+    /* (spec 2026-11-15 §4) o que o conselho deixa e não deixa no site, e o registro para pôr no site */
+    ...(Object.hasOwn(CONSELHOS, nicho.chave) ? {
+      regras_do_conselho: CONSELHOS[nicho.chave].resumo,
+      registro: 'Se o briefing ainda não tem negocio.registro, pergunte UMA vez, com naturalidade, o número do registro (' + CONSELHOS[nicho.chave].registro + ', com a UF) para pôr no site, e registre em negocio.registro. Se a pessoa não souber ou não quiser, siga sem insistir.'
+    } : {}),
     nicho: nicho.site, conselho: nicho.conselho === 'conselho' ? 'o conselho da profissão da pessoa' : nicho.conselho,
     nunca: ['depoimento de paciente ou cliente', 'antes e depois', `preço ou promoção de ${nicho.procedimento}`, 'promessa de resultado', 'sessão grátis ou sorteio'],
     cabe: nicho.cabe, pediu_item_proibido_agora: pediuAgora,
