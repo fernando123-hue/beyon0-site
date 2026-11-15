@@ -41,7 +41,12 @@ de pausar o projeto por inatividade.
 **D3. Banco fora = sem memória: regra fixa.** Quando o banco não responde, o vigia não consegue ler o que já avisou.
 Aí ele avisa "banco não responde" só nas rondas das 01h, 07h, 13h e 19h UTC (no máximo 4 e-mails por dia, o primeiro
 em até 6 h) e, dentro do mesmo isolado do Worker, nunca duas vezes em 24 h. O caso é raro (o Supabase não pausa mais;
-queda dele costuma voltar sozinha).
+queda dele costuma voltar sozinha). A mesma regra vale para os outros dois casos sem memória (revisões do PR #168:
+nenhum fica calado): sem banco configurado ("banco não responde" + a configuração que falta) e a migration do vigia
+ainda não aplicada (uma linha dizendo que ela falta, nunca "banco fora"). Em todos, as linhas do que o Worker conferiu
+sozinho (páginas, configuração) vão junto. Também das revisões: o texto que muda num item já avisado (ex.: de 1 para
+5 alertas urgentes) é novidade e sai na hora (coluna `detalhe`); a gravação do estado tem 2ª tentativa; a leitura das
+chamadas de IA olha 30 dias.
 
 **D4. Cron: o de 3 em 3 horas vira de hora em hora.** O plano Free tem 5 crons por conta; hoje são 4 (2 por Worker).
 Um cron novo por Worker passaria do limite. Então `23 */3 * * *` vira `23 * * * *`: nas horas múltiplas de 3 (UTC, as

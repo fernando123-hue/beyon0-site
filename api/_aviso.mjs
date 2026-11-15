@@ -82,6 +82,6 @@ export async function avisarDono(env, tipo, deps = {}) {
 /* o e-mail do VIGIA (api/_vigia): várias linhas fixas num e-mail só (as linhas vêm de api/_vigia/decidir.mjs, textos fixos,
    o único número é contagem). Sem freio aqui: quem decide não repetir é o vigia, com a memória dele no banco */
 export async function avisarDonoLinhas(env, linhas, deps = {}) {
-  if (!Array.isArray(linhas) || !linhas.length || !linhas.every(l => typeof l === 'string' && l && !l.includes('\n'))) return false;
+  if (!Array.isArray(linhas) || !linhas.length || !linhas.every(l => typeof l === 'string' && l && !/[\r\n]/.test(l))) return false;
   return enviar(env, linhas.join('\n'), 'vigia', (deps.agora ?? Date.now)(), deps);
 }

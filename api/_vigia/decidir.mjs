@@ -18,6 +18,7 @@ const SEM_BANCO_INTERVALO_MS = 23 * H;           /* (23, não 24: a ronda do dia
 
 export const ESTREIA = 'O vigia do site está ligado. Ele confere o site ao longo do dia e só escreve quando algo quebra ou volta ao normal.';
 export const BANCO_FORA = 'URGENTE: o banco de dados do site não responde. O orçamento e o Zero ficam fora do ar até ele voltar.';
+export const SEM_MEMORIA = 'O vigia do site está sem a tabela dele no banco: falta aplicar a atualização do banco do vigia (migration 20261115120000_vigia). Até lá ele confere só as páginas e a configuração.';
 
 const ROTULOS_CONFIGURACAO = { supabase: 'banco de dados', anthropic: 'chave da IA', cron: 'segredo das rotinas', pagamentos: 'pagamentos' };
 
@@ -60,37 +61,39 @@ export function achadosDe(leitura, conferencias, agora) {
   };
 }
 
-const PARADO = Object.freeze({ ativo: false, desde: null, avisado_em: null });
+const PARADO = Object.freeze({ ativo: false, desde: null, avisado_em: null, detalhe: null });
 
 export function decidir(estado, achados, agora) {
   const linhas = [], itens = [];
   if (!estado.estreia) {
     linhas.push(ESTREIA);
-    itens.push({ item: 'estreia', ativo: false, desde: iso(agora), avisado_em: iso(agora), noEmail: true });
+    itens.push({ item: 'estreia', ativo: false, desde: iso(agora), avisado_em: iso(agora), detalhe: null, noEmail: true });
   }
   for (const item of Object.keys(ITENS)) {
     const texto = achados[item] || null;
     const antes = estado[item] || PARADO;
     if (texto) {
-      const lembrar = !antes.ativo || !Number.isFinite(ms(antes.avisado_em)) || agora - ms(antes.avisado_em) >= LEMBRAR_MS;
-      if (!lembrar) continue;   /* continua quebrado e já avisado há pouco: nada muda */
+      /* o texto mudou (ex.: de 1 para 5 alertas urgentes, ou falta mais um item de configuração) é novidade: avisa já */
+      const lembrar = !antes.ativo || !Number.isFinite(ms(antes.avisado_em)) || agora - ms(antes.avisado_em) >= LEMBRAR_MS || antes.detalhe !== texto;
+      if (!lembrar) continue;   /* continua quebrado do mesmo jeito e já avisado há pouco: nada muda */
       linhas.push(texto);
-      itens.push({ item, ativo: true, desde: antes.ativo && antes.desde ? antes.desde : iso(agora), avisado_em: iso(agora), noEmail: true });
+      itens.push({ item, ativo: true, desde: antes.ativo && antes.desde ? antes.desde : iso(agora), avisado_em: iso(agora), detalhe: texto, noEmail: true });
     } else if (antes.ativo) {
       const avisar = !!antes.avisado_em && !!ITENS[item].voltou;
       if (avisar) linhas.push(ITENS[item].voltou);
-      itens.push({ item, ativo: false, desde: null, avisado_em: null, noEmail: avisar });
+      itens.push({ item, ativo: false, desde: null, avisado_em: null, detalhe: null, noEmail: avisar });
     }
   }
   return { linhas, itens };
 }
 
-/* outras: as linhas que o Worker conferiu sozinho (páginas, configuração) */
-export function decidirSemBanco(agora, memoria, outras = []) {
+/* sem memória (banco fora, sem banco configurado, migration do vigia ausente): a linha principal + as que o Worker conferiu
+   sozinho (páginas, configuração), só nas horas fixas e no máximo uma vez a cada 23 h no mesmo isolado */
+export function decidirSemBanco(agora, memoria, outras = [], principal = BANCO_FORA) {
   if (!HORAS_SEM_BANCO.has(new Date(agora).getUTCHours())) return [];
   const ultimo = memoria.get('banco');
   if (ultimo !== undefined && agora - ultimo < SEM_BANCO_INTERVALO_MS) return [];
-  return [BANCO_FORA, ...outras];
+  return [principal, ...outras];
 }
 /* só depois que o e-mail saiu: se ele falhar, a próxima ronda no horário tenta de novo */
 export const lembrarSemBanco = (memoria, agora) => memoria.set('banco', agora);

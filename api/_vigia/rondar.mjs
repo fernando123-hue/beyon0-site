@@ -13,7 +13,7 @@ import { criarTransporte } from '../_vendas/transporte.mjs';
 import { ORG } from '../_vendas/org.mjs';
 import { avisarDonoLinhas } from '../_aviso.mjs';
 import { conferir as conferirPadrao } from './conferir.mjs';
-import { achadosDe, decidir, decidirSemBanco, lembrarSemBanco } from './decidir.mjs';
+import { achadosDe, decidir, decidirSemBanco, lembrarSemBanco, BANCO_FORA, SEM_MEMORIA } from './decidir.mjs';
 
 const ESPERA_MS = 2000;
 const MEMORIA_DO_ISOLADO = new Map();
@@ -43,31 +43,37 @@ export async function rondar(env = {}, deps = {}) {
   const memoria = deps.memoria ?? MEMORIA_DO_ISOLADO;
   const conferencias = await (deps.conferir ?? conferirPadrao)(env, { esperar });
 
-  if (!banco) {
-    log({ nivel: 'erro', evento: 'ronda sem banco configurado', paginas: conferencias.paginas, faltando: conferencias.configuracao });
-    return { linhas: [], enviado: false, semBanco: true };
-  }
-  const { leitura, semFuncao, erro } = await ler(banco, esperar);
-  if (semFuncao) { log({ nivel: 'erro', evento: 'a migration do vigia não foi aplicada (app.rotinas_vigia_ler)' }); return { linhas: [], enviado: false, semBanco: true }; }
-
-  if (!leitura) {
+  /* sem memória: não há banco configurado, a migration do vigia falta ou o banco não respondeu. Nenhum dos três fica calado
+     (revisões do PR #168): vale a regra fixa de horário, com a linha principal do caso e o que o Worker conferiu sozinho */
+  const semMemoria = async (evento, principal, erro) => {
     const doWorker = Object.values(achadosDe(LEITURA_NEUTRA, conferencias, agora)).filter(Boolean);
-    const linhas = decidirSemBanco(agora, memoria, doWorker);
+    const linhas = decidirSemBanco(agora, memoria, doWorker, principal);
     const enviado = linhas.length ? await avisar(linhas) : false;
     if (enviado) lembrarSemBanco(memoria, agora);
-    log({ nivel: 'erro', evento: 'ronda com o banco fora', erro, linhas: linhas.length, enviado });
+    log({ nivel: 'erro', evento, erro, paginas: conferencias.paginas, faltando: conferencias.configuracao, linhas: linhas.length, enviado });
     return { linhas, enviado, semBanco: true };
-  }
+  };
+  if (!banco) return semMemoria('ronda sem banco configurado', BANCO_FORA);
+  const { leitura, semFuncao, erro } = await ler(banco, esperar);
+  if (semFuncao) return semMemoria('a migration do vigia não foi aplicada (app.rotinas_vigia_ler)', SEM_MEMORIA);
+  if (!leitura) return semMemoria('ronda com o banco fora', BANCO_FORA, erro);
 
   const achados = achadosDe(leitura, conferencias, agora);
   const { linhas, itens } = decidir(leitura.estado || {}, achados, agora);
   const enviado = linhas.length ? await avisar(linhas) : false;
   const gravar = itens.filter(i => enviado || !i.noEmail).map(({ noEmail, ...i }) => i);
-  if (gravar.length) {
-    try { await banco('rotinas_vigia_gravar', { itens: gravar }); }
-    catch (e) { log({ nivel: 'erro', evento: 'estado do vigia não gravado', erro: codigoDe(e) }); }
-  }
+  const gravado = gravar.length ? await gravarEstado(banco, gravar, esperar) : true;
   const quebrados = Object.keys(achados).filter(k => achados[k]);
-  log({ nivel: quebrados.length ? 'erro' : 'info', evento: 'ronda', quebrados, linhas: linhas.length, enviado });
+  log({ nivel: quebrados.length || !gravado ? 'erro' : 'info', evento: 'ronda', quebrados, linhas: linhas.length, enviado, gravado });
   return { linhas, enviado, semBanco: false };
+}
+
+/* o e-mail já saiu: sem gravar, a ronda seguinte repetiria o aviso. Uma 2ª tentativa (revisões do PR #168) */
+async function gravarEstado(banco, itens, esperar) {
+  try { await banco('rotinas_vigia_gravar', { itens }); return true; }
+  catch {
+    await esperar(ESPERA_MS);
+    try { await banco('rotinas_vigia_gravar', { itens }); return true; }
+    catch (e) { log({ nivel: 'erro', evento: 'estado do vigia não gravado', erro: codigoDe(e) }); return false; }
+  }
 }

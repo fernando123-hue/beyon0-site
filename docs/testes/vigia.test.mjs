@@ -3,7 +3,7 @@
    com o banco local e um canal de e-mail falso (api/_vigia/rondar.mjs).  node --test docs/testes/vigia.test.mjs */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ITENS, ESTREIA, BANCO_FORA, achadosDe, decidir, decidirSemBanco, lembrarSemBanco } from '../../api/_vigia/decidir.mjs';
+import { ITENS, ESTREIA, BANCO_FORA, SEM_MEMORIA, achadosDe, decidir, decidirSemBanco, lembrarSemBanco } from '../../api/_vigia/decidir.mjs';
 
 const H = 3600e3;
 const AGORA = Date.UTC(2026, 10, 15, 13, 23);
@@ -65,7 +65,7 @@ const ESTRELADO = { estreia: { ativo: false, desde: iso(AGORA - 100 * H), avisad
 test('decidir: a 1ª ronda manda a estreia (o alerta de teste) e grava o item estreia junto do e-mail', () => {
   const d = decidir({}, NADA, AGORA);
   assert.deepEqual(d.linhas, [ESTREIA]);
-  assert.deepEqual(d.itens, [{ item: 'estreia', ativo: false, desde: iso(AGORA), avisado_em: iso(AGORA), noEmail: true }]);
+  assert.deepEqual(d.itens, [{ item: 'estreia', ativo: false, desde: iso(AGORA), avisado_em: iso(AGORA), detalhe: null, noEmail: true }]);
 });
 
 test('decidir: sem novidade, nenhuma linha e nada a gravar', () => {
@@ -75,13 +75,23 @@ test('decidir: sem novidade, nenhuma linha e nada a gravar', () => {
 test('decidir: falha nova entra no e-mail; continua por menos de 24 h fica quieta; depois de 24 h lembra', () => {
   const nova = decidir(ESTRELADO, { ...NADA, paginas: ITENS.paginas.quebrou }, AGORA);
   assert.deepEqual(nova.linhas, [ITENS.paginas.quebrou]);
-  assert.deepEqual(nova.itens, [{ item: 'paginas', ativo: true, desde: iso(AGORA), avisado_em: iso(AGORA), noEmail: true }]);
-  const estado = { ...ESTRELADO, paginas: { ativo: true, desde: iso(AGORA - 5 * H), avisado_em: iso(AGORA - 5 * H) } };
+  assert.deepEqual(nova.itens, [{ item: 'paginas', ativo: true, desde: iso(AGORA), avisado_em: iso(AGORA), detalhe: ITENS.paginas.quebrou, noEmail: true }]);
+  const estado = { ...ESTRELADO, paginas: { ativo: true, desde: iso(AGORA - 5 * H), avisado_em: iso(AGORA - 5 * H), detalhe: ITENS.paginas.quebrou } };
   const quieta = decidir(estado, { ...NADA, paginas: ITENS.paginas.quebrou }, AGORA);
   assert.deepEqual(quieta, { linhas: [], itens: [] }, 'nada mudou: não regrava');
   const lembra = decidir({ ...estado, paginas: { ...estado.paginas, avisado_em: iso(AGORA - 24 * H) } }, { ...NADA, paginas: ITENS.paginas.quebrou }, AGORA);
   assert.deepEqual(lembra.linhas, [ITENS.paginas.quebrou]);
   assert.equal(lembra.itens[0].desde, iso(AGORA - 5 * H), 'o "desde" é o do começo da falha');
+});
+
+test('decidir: o texto mudou enquanto continua quebrado (de 1 para 5 alertas, mais uma configuração faltando) é novidade: avisa já', () => {
+  const um = achadosDe({ ...LEITURA_OK, urgentes: 1 }, CONF_OK, AGORA).alertas_urgentes;
+  const cinco = achadosDe({ ...LEITURA_OK, urgentes: 5 }, CONF_OK, AGORA).alertas_urgentes;
+  const estado = { ...ESTRELADO, alertas_urgentes: { ativo: true, desde: iso(AGORA - 2 * H), avisado_em: iso(AGORA - H), detalhe: um } };
+  assert.deepEqual(decidir(estado, { ...NADA, alertas_urgentes: um }, AGORA).linhas, [], 'mesmo texto, avisado há 1 h');
+  const d = decidir(estado, { ...NADA, alertas_urgentes: cinco }, AGORA);
+  assert.deepEqual(d.linhas, [cinco]);
+  assert.equal(d.itens[0].desde, iso(AGORA - 2 * H)); assert.equal(d.itens[0].detalhe, cinco);
 });
 
 test('decidir: voltou ao normal depois de avisado → uma linha; a falha que nunca foi avisada volta calada; os alertas do painel voltam calados', () => {
@@ -243,14 +253,40 @@ test('ronda: banco fora → regra fixa (só no horário, uma vez por isolado), c
   assert.equal(enviados.length, 1);
 });
 
-test('ronda: a migration do vigia ainda não aplicada não vira "banco fora" (só log, nenhum e-mail)', async () => {
+/* (revisões do PR #168) sem memória o vigia NÃO fica calado: a migration ausente e o banco não configurado avisam pela mesma
+   regra fixa de horário do banco fora, com a linha do caso (a migration ausente não é "banco fora") e o que o Worker viu sozinho */
+const semMemoria = (banco, h) => {
+  const enviados = [];
+  return rondar({}, { banco, avisar: async l => { enviados.push(l); return true; }, agora: Date.UTC(2026, 10, 15, h, 23), conferir: CONF_FALSA({ paginas: false }), esperar: semEspera, memoria: new Map() })
+    .then(r => ({ ...r, enviados }));
+};
+
+test('ronda: a migration do vigia ainda não aplicada avisa que ela falta (não diz "banco fora"), só no horário', async () => {
   const semFuncao = async () => { throw new ErroBanco('PGRST202', 'rpc rotinas_vigia_ler: HTTP 404'); };
-  let avisou = false;
-  const r = await rondar({}, { banco: semFuncao, avisar: async () => { avisou = true; return true; }, agora: Date.UTC(2026, 10, 15, 7, 23), conferir: CONF_FALSA({}), esperar: semEspera, memoria: new Map() });
-  assert.deepEqual(r.linhas, []); assert.equal(avisou, false);
+  assert.deepEqual((await semMemoria(semFuncao, 2)).enviados, []);
+  const r = await semMemoria(semFuncao, 7);
+  assert.deepEqual(r.linhas, [SEM_MEMORIA, ITENS.paginas.quebrou]);
+  assert.ok(!r.linhas.includes(BANCO_FORA));
 });
 
-test('ronda: sem banco configurado (staging sem segredos) não lança e não avisa', async () => {
-  const r = await rondar({}, { banco: null, avisar: async () => true, agora: Date.UTC(2026, 10, 15, 7, 23), conferir: CONF_FALSA({}), esperar: semEspera, memoria: new Map() });
-  assert.deepEqual(r.linhas, []);
+test('ronda: sem banco configurado não lança e avisa no horário (o staging não tem canal de e-mail: lá nada sai)', async () => {
+  assert.deepEqual((await semMemoria(null, 2)).enviados, []);
+  assert.deepEqual((await semMemoria(null, 13)).linhas, [BANCO_FORA, ITENS.paginas.quebrou]);
+});
+
+test('ronda: o e-mail saiu e a gravação falhou uma vez → a 2ª tentativa grava (a ronda seguinte não repete o aviso)', async () => {
+  const c = await cenario();
+  const real = rpcDe(c.db);
+  let falhas = 1;
+  const oscila = async (nome, p) => { if (nome === 'rotinas_vigia_gravar' && falhas-- > 0) throw new ErroBanco('HTTP503', 'rpc: HTTP 503'); return real(nome, p); };
+  const enviados = [];
+  const ronda = agora => rondar({}, { banco: oscila, avisar: async l => { enviados.push(l); return true; }, agora, conferir: CONF_FALSA({}), esperar: semEspera, memoria: new Map() });
+  assert.deepEqual((await ronda(AGORA)).linhas, [ESTREIA]);
+  assert.deepEqual((await ronda(AGORA + H)).linhas, [], 'gravou na 2ª tentativa');
+  assert.equal(enviados.length, 1);
+});
+
+test('aviso em linhas: linha com \\r também é recusada (nada de quebra no corpo)', async () => {
+  const env = { AVISO_EMAIL: { send: async () => {} }, AVISO_PARA: 'a@b.com' };
+  assert.equal(await avisarDonoLinhas(env, ['ok\rcabeçalho: x'], { EmailMessage: EmailFalso }), false);
 });

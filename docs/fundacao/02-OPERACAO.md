@@ -167,8 +167,8 @@ A resposta tem de ser **erro de permissão**, nunca dados.
 
 O cron horário do Worker confere o site nas horas sem reconciliação (spec
 `docs/superpowers/specs/2026-11-15-auto-reparo-design.md`). Ele **não chama IA**. Precisa da migration
-`20261115120000_vigia.sql` aplicada **antes** da promoção que leva o código ao ar; sem ela, o vigia só registra no log
-"a migration do vigia não foi aplicada" e não avisa nada.
+`20261115120000_vigia.sql` aplicada **antes** da promoção que leva o código ao ar; sem ela, o vigia fica sem memória e manda, só às 01, 07, 13 e
+19 h UTC, o e-mail "O vigia do site está sem a tabela dele no banco…" (com o que ele conseguiu conferir sozinho).
 
 - **Primeiro e-mail:** "O vigia do site está ligado…", na primeira ronda depois da promoção (até ~2 h). É o teste de
   ponta a ponta. Se não chegar em 3 h, procure `"origem":"vigia"` nos logs do Worker de produção (`enviado: false` =

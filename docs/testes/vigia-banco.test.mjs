@@ -20,8 +20,9 @@ const chamada = (db, conversa, erro, minutosAtras) => db.query(
   `insert into app.ia_chamadas (org_id, conversa_id, papel, erro, created_at) values ($1, $2, 'conversa', $3, now() - make_interval(mins => $4))`,
   [ORG, conversa, erro, minutosAtras]);
 
-test('vigia: com tudo vazio, a leitura devolve estado vazio, contagens zero e datas nulas', async () => {
-  const { rpc } = await banco();
+test('vigia: com tudo vazio (chamadas de IA só de mais de 30 dias: fora da janela), a leitura devolve estado vazio, contagens zero e datas nulas', async () => {
+  const { db, rpc } = await banco();
+  await chamada(db, C1, 'indisponivel', 60 * 24 * 31); await chamada(db, C1, null, 60 * 24 * 40);
   const r = await rpc('rotinas_vigia_ler', LER);
   assert.deepEqual(r, { estado: {}, estreia_em: null, falhas_ia_hora: 0, conversas_falha_hora: 0, ultima_falha_conta_em: null,
     ultima_ok_ia_em: null, ultima_falha_ia_em: null, ultima_reconciliacao_em: null, ultima_diaria_em: null, urgentes: 0 });
@@ -64,7 +65,11 @@ test('vigia: grava o estado e lê de volta; a estreia vem do item "estreia"; reg
     { item: 'paginas', ativo: true, desde: agora, avisado_em: null }] });
   assert.equal(r.gravados, 2);
   await rpc('rotinas_vigia_gravar', { itens: [{ item: 'paginas', ativo: false, desde: null, avisado_em: agora }] });
+  await rpc('rotinas_vigia_gravar', { itens: [{ item: 'alertas_urgentes', ativo: true, desde: agora, avisado_em: agora, detalhe: 'Há 2 alertas urgentes no painel esperando você.' }] });
   const l = await rpc('rotinas_vigia_ler', LER);
+  assert.equal(l.estado.alertas_urgentes.detalhe, 'Há 2 alertas urgentes no painel esperando você.', 'o texto avisado volta na leitura');
+  assert.equal(l.estado.paginas.detalhe, null);
+  delete l.estado.alertas_urgentes;
   assert.equal(Date.parse(l.estreia_em), Date.parse(agora));
   assert.deepEqual(Object.keys(l.estado).sort(), ['estreia', 'paginas']);
   assert.equal(l.estado.paginas.ativo, false); assert.equal(l.estado.paginas.desde, null); assert.equal(Date.parse(l.estado.paginas.avisado_em), Date.parse(agora));
