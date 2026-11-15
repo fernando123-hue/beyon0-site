@@ -110,6 +110,8 @@ test('todo env.X lido em api/ está no .env.example ou na lista de chaves só lo
   const exemplo = fs.readFileSync(path.join(RAIZ, '.env.example'), 'utf8');
   const declarados = new Set([...exemplo.matchAll(/^\s*#?\s*([A-Z][A-Z0-9_]+)=/gm)].map(m => m[1]));
   const lidos = new Set(arquivosDe(path.join(RAIZ, 'api')).flatMap(a => [...fs.readFileSync(a, 'utf8').matchAll(/\benv\.([A-Z][A-Z0-9_]+)/g)].map(m => m[1])));
-  const faltam = [...lidos].filter(n => !declarados.has(n) && !SO_LOCAIS.has(n)).sort();
+  /* bindings do wrangler.jsonc (não são variáveis nem segredos): o vigia lê o ASSETS para conferir as páginas (auto-reparo, 15/11) */
+  const BINDINGS = new Set(['ASSETS']);
+  const faltam = [...lidos].filter(n => !declarados.has(n) && !SO_LOCAIS.has(n) && !BINDINGS.has(n)).sort();
   assert.deepEqual(faltam, []);
 });
