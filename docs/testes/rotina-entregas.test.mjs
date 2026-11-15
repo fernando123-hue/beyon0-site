@@ -86,7 +86,8 @@ test('a rotina cabe no orçamento (não fica "parcial") e não ganha cron novo',
     if (!existsSync(arq(nome))) continue;
     const bloco = /"crons"\s*:\s*\[([^\]]*)\]/.exec(readFileSync(arq(nome), 'utf8'));
     assert.ok(bloco, nome + ': sem a lista de crons');
-    assert.deepEqual([...bloco[1].matchAll(/"([^"]+)"/g)].map(m => m[1]).sort(), ['23 */3 * * *', '41 6 * * *'], nome + ': os dois crons da Cloudflare, nenhum novo');
+    /* (auto-reparo, 15/11) o de 3 em 3 h virou horário (reconciliação nas horas múltiplas de 3, vigia nas outras): continuam DOIS, o plano grátis tem 5 por conta */
+    assert.deepEqual([...bloco[1].matchAll(/"([^"]+)"/g)].map(m => m[1]).sort(), ['23 * * * *', '41 6 * * *'], nome + ': os dois crons da Cloudflare, nenhum novo');
   }
 });
 
