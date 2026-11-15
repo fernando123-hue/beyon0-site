@@ -97,7 +97,8 @@ test('nicho comum: igual a antes (gera na hora no modo api e não leva o selo)',
 test('a página e o painel: o texto de saúde, sem prazo prometido, e o selo "Saúde: com o dono"', () => {
   const pag = fs.readFileSync(new URL('../../js/orcamento.js', import.meta.url), 'utf8');
   assert.match(pag, /saude_com_a_equipe === true/);
-  assert.match(pag, /Na área da saúde a gente confere tudo antes de mandar os modelos, então falamos com você pelo WhatsApp\./);
+  assert.match(pag, /Os três modelos saem depois que a equipe conferir o seu pedido\./);
+  assert.match(fs.readFileSync(new URL('../../js/orcamento-detalhes.js', import.meta.url), 'utf8'), /Na área da saúde a gente confere tudo antes de mandar os modelos, então falamos com você pelo WhatsApp\./);
   assert.match(fs.readFileSync(new URL('../../js/orcamento-preparo.js', import.meta.url), 'utf8'), /saude_com_a_equipe !== true/, 'sem o prazo de 24 horas úteis');
   assert.match(fs.readFileSync(new URL('../../js/painel-fila.js', import.meta.url), 'utf8'), /Saúde: com o dono/);
   assert.match(fs.readFileSync(new URL('../../api/painel.mjs', import.meta.url), 'utf8'), /saudeDaSessao\(\{ briefing: p\.briefing/);

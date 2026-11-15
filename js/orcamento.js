@@ -573,7 +573,7 @@
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
   /* (decisão do dono, 14/11) saúde: a equipe confere antes dos modelos e fala pelo WhatsApp; sem prazo prometido */
   var saude = function () { return !!E && E.saude_com_a_equipe === true; };
-  var TEXTO_SAUDE = 'Recebemos o seu pedido. Na área da saúde a gente confere tudo antes de mandar os modelos, então falamos com você pelo WhatsApp.';
+  var TEXTO_SAUDE = 'Os três modelos saem depois que a equipe conferir o seu pedido.';   /* (o "Pedido recebido" já diz o resto: js/orcamento-detalhes.js) */
   var TEXTOS_MANUAL = {
     direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página por ele.',
     prontas: 'Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio.'
@@ -622,7 +622,7 @@
       } else corpo.appendChild(el('p', 'dir__resumo', 'Os ajustes seguem sobre a direção escolhida.'));
     } else if (manual()) {
       var f = el('div', 'dir__progresso');
-      f.appendChild(el('p', '', saude() ? 'A equipe confere o pedido antes de fazer esta direção.' : 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
+      f.appendChild(el('p', '', saude() ? 'A direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' sai depois que a equipe conferir o pedido.' : 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
       mini.appendChild(f);
       corpo.appendChild(el('p', 'dir__resumo', 'Você pode voltar a esta página neste aparelho quando quiser: o pedido fica salvo aqui.'));
       var conf = botao('btn btn--sm', 'Conferir agora', function () { conferir(conf); });   /* (sem consulta automática: a pessoa confere quando quiser) */
