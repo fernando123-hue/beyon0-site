@@ -8,7 +8,7 @@
    Falha de IA: nada é inventado; a resposta é a recuperação elegante pedida
    na especificação, e o que a pessoa já contou continua no banco.
    ========================================================================== */
-import { executarTurno, nichoDaSessao, saudeDaSessao } from './agente.mjs';
+import { executarTurno, nichoDaSessao, saudeDaSessao, nichoReguladoDaSessao } from './agente.mjs';
 import { estimar, LANDING_GRANDE, CHAVE as CHAVE_EXTRA } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
 import { montarEscopo } from './escopo.mjs';
@@ -592,7 +592,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
         const p = await banco('vendas_reivindicar_direcao', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id });
         if (!p.reivindicada) return { status: p.status };
         try {
-          const g = await gerarDirecao({ ia, briefing: p.briefing, estrategia: p.estrategia, numero: p.numero, fatores: p.fatores });
+          /* (spec 2026-11-15 §5) saúde e advocacia: as regras do conselho no prompt e a conferência antes de gravar */
+          const nicho = nichoReguladoDaSessao({ briefing: p.briefing, mensagens: est.mensagens });
+          const g = await gerarDirecao({ ia, briefing: p.briefing, estrategia: p.estrategia, numero: p.numero, fatores: p.fatores, nicho, hoje: new Date().toISOString().slice(0, 10) });
           await somarCusto(corpo.conversa_id, vid, g.custo_usd);   /* (antes de gravar: a Opus já cobrou, dê certo ou não a gravação) */
           await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, conteudo: g.direcao, modelo: g.modelo });
           return { status: 'pronta' };
