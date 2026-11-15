@@ -35,7 +35,7 @@ function porIp(ip, textos = ['Tenho uma padaria e quero um site']) {
   };
 }
 const seg = n => n.toString(16);
-const RESP = { ramo: 'saude', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
+const RESP = { ramo: 'beleza', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
 const visitanteDeConversa = async c => (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
 
 /* ---------- Task 2 (pista 1): o limite diário do consultor também por /48 ---------- */

@@ -54,7 +54,7 @@
     return [m[0], dataDoPrazo(prazo), m[1]];
   }
   function deveMostrar(E) {
-    return !!(E && E.modo_direcoes === 'manual' && E.pedido && E.pedido.status === 'confirmado' && E.pedido.confirmado_em && !isNaN(Date.parse(E.pedido.confirmado_em)) &&
+    return !!(E && E.modo_direcoes === 'manual' && E.saude_com_a_equipe !== true && E.pedido && E.pedido.status === 'confirmado' && E.pedido.confirmado_em && !isNaN(Date.parse(E.pedido.confirmado_em)) &&
       Array.isArray(E.direcoes) && E.direcoes.some(function (d) { return d.status === 'gerando'; }));
   }
 

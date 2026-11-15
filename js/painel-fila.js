@@ -79,6 +79,7 @@
     }
     var selo = C.selo(p.suspeito);
     if (selo) texto.appendChild(selo);
+    if (p.saude === true) texto.appendChild(el('p', 'pn__selo', 'Saúde: com o dono. Não fecha pelo site; fale pelo WhatsApp'));
     texto.appendChild(el('p', 'pn__fila-nome', (p.contato && p.contato.nome) || 'Sem nome'));
     var formato = p.fatores && Object.prototype.hasOwnProperty.call(FORMATOS, p.fatores.formato) ? FORMATOS[p.fatores.formato] : '';
     texto.appendChild(el('p', null, negocio(p.briefing) + (formato ? ' · ' + formato : '')));
