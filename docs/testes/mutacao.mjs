@@ -83,7 +83,11 @@ export const SABOTAGENS = [
     de: 'textosDe({ navegacao: direcao?.navegacao, secoes:', para: 'textosDe({ resumo: direcao?.resumo, navegacao: direcao?.navegacao, secoes:' },
   /* ---- saúde e advocacia vendem pelo site, com a ciência do dono (spec 2026-11-15 §9) ---- */
   { nome: 'regulado: o pedido de saúde leva o aviso comum', fonte: 'api/_vendas/fluxo-pedido.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
-    de: "avisarAoFundo(r.fila_cheia ? 'fila_cheia' : ramo ? 'pedido_regulado' : 'pedido');", para: "avisarAoFundo(r.fila_cheia ? 'fila_cheia' : 'pedido');" },
+    de: "avisarAoFundo(r.fila_cheia ? 'fila_cheia' : tipoDoPedido(vid, corpo.conversa_id));", para: "avisarAoFundo(r.fila_cheia ? 'fila_cheia' : 'pedido');" },
+  { nome: 'regulado: o melhor da cidade passa pela agenda', fonte: 'api/_vendas/conferencia-regulada.mjs', testes: ['docs/testes/conferencia-regulada.test.mjs'],
+    de: "'melhor(?:es)? (?:[a-z]+ ){0,3}(?:da|na|de|do) (?:cidade|regiao|bairro)', ", para: "'melhor(?:es)? da cidade', " },
+  { nome: 'regulado: o pedido espera a leitura do ramo', fonte: 'api/_vendas/fluxo-pedido.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
+    de: "avisarAoFundo(r.fila_cheia ? 'fila_cheia' : tipoDoPedido(vid, corpo.conversa_id));", para: "avisarAoFundo(r.fila_cheia ? 'fila_cheia' : await tipoDoPedido(vid, corpo.conversa_id));" },
   { nome: 'regulado: o dublê gera depoimentos em saúde', fonte: 'api/_ia/simulado-geracao.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
     de: ".filter(tipo => !regulado || (tipo !== 'depoimentos' && tipo !== 'numeros'))", para: '.filter(tipo => tipo)' },
   /* ---- o mapa e a trava de pagamento: o canal ("Chama no direct") passa só no mapa (teste C, 14/11) ---- */

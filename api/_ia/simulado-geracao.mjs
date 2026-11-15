@@ -20,7 +20,7 @@ export function gerarSimulado({ mensagens, sistema = '' }) {
   /* (spec 2026-11-15) em ramo regulado o dublê segue a norma como o modelo deve: sem depoimentos nem números, sem "referência", e a
      identificação no rodapé (o registro do bloco do prompt, ou o marcador) */
   const regulado = /RAMO REGULADO/.test(sistema);
-  const registroDoBloco = (String(sistema).match(/o registro ([A-Za-z]+-?[A-Za-z0-9]* [\d.\-/A-Z]+)/) || [])[1];
+  const registroDoBloco = ((String(sistema).match(/o registro ([A-Za-z]+-?[A-Za-z0-9]* [\d.\-/A-Z]+)/) || [])[1] || '').replace(/[.\-/]+$/, '');
   const txt = mensagens[0].content;
   const briefing = JSON.parse(txt.split('<briefing>\n')[1].split('\n</briefing>')[0]);   /* (o delimitador de gerador.mjs) */
   const estrategia = /AUTORIDADE/.test(txt) ? 'autoridade' : /EXPERIÊNCIA/.test(txt) ? 'experiencia' : 'conversao';

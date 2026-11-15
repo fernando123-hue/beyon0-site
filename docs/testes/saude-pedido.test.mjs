@@ -62,7 +62,7 @@ test('saúde fecha pelo site: o pedido gera os 3 modelos (conferidos), e a escol
 
 test('a ciência do dono: o pedido de saúde ou advocacia leva o aviso próprio (texto fixo, sem dado); o comum segue com o de sempre', async () => {
   assert.match(AVISOS.pedido_regulado, /saúde ou advocacia/);
-  assert.doesNotMatch(AVISOS.pedido_regulado, /[@\d]|Fernando/);
+  assert.doesNotMatch(AVISOS.pedido_regulado, /[@\d]|Fernando|[Cc]onfira o registro/, 'o e-mail não promete o selo');
   for (const [regulado, esperado] of [[async () => true, 'pedido_regulado'], [async () => false, 'pedido'], [async () => { throw new Error('banco fora'); }, 'pedido']]) {
     const avisos = [];
     const acoes = criarAcoesDoPedido({ banco: async () => ({ ok: true, codigo: 'BZ-ACDEF', fila_cheia: false }), visitante: async () => '11111111-1111-4111-8111-111111111111',
@@ -73,6 +73,13 @@ test('a ciência do dono: o pedido de saúde ou advocacia leva o aviso próprio 
     await new Promise((s) => setTimeout(s, 0));
     assert.deepEqual(avisos, [esperado]);
   }
+  /* o banco lento na leitura do ramo não segura a confirmação do pedido */
+  const lenta = criarAcoesDoPedido({ banco: async () => ({ ok: true, codigo: 'BZ-ACDEF', fila_cheia: false }), visitante: async () => '11111111-1111-4111-8111-111111111111',
+    segredoFreio: 's'.repeat(32), avisar: async () => true, segundoPlano: () => {}, regulado: () => new Promise(() => {}) });
+  const req = new Request(BASE + '/api/vendas?acao=detalhes', { method: 'POST', headers: { 'x-forwarded-for': '203.0.113.8' } });
+  const corrida = await Promise.race([lenta.detalhes({ request: req, corpo: { conversa_id: '22222222-2222-4222-8222-222222222222', negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true, aceite_versao: 'a1' } }),
+    new Promise((s) => setTimeout(() => s('esperou'), 500))]);
+  assert.equal(corrida?.status, 'confirmado', 'o pedido não espera a leitura do ramo');
 });
 
 test('o Zero não diz mais "não fecha pelo site" e nunca cita o nome de ninguém da equipe', () => {
@@ -90,5 +97,6 @@ test('o painel: o selo de saúde ou advocacia com o conselho e o registro (ou a 
   assert.match(api, /regulado: \{ tipo: c\.tipo, conselho: c\.conselho, registro: registroDoNicho\(/);
   const js = fs.readFileSync(new URL('../../js/painel-fila.js', import.meta.url), 'utf8');
   assert.match(js, /conferir antes de produzir/);
+  assert.match(js, /conselho da profissão/, 'o ramo sem conselho próprio não mostra a palavra solta');
   assert.doesNotMatch(js, /com o dono\. Não fecha pelo site/);
 });

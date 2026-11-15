@@ -58,7 +58,8 @@ export const CASOS = {
   }
 };
 /* o Zero pediu o registro? (em algum turno antes de a pessoa dar) */
-const PEDIU_REGISTRO = /\b(?:registro|cro|crm|crefito|crp|crn|oab)\b/i;
+/* (só a pergunta conta: a frase com o registro termina em "?") */
+const PEDIU_REGISTRO = /\b(?:registro|cro|crm|crefito|crp|crn|oab)\b[^.!?\n]*\?/i;
 
 const arg = (nome, padrao) => { const i = process.argv.indexOf('--' + nome); return i > 0 ? process.argv[i + 1] : padrao; };
 const lista = (nome, padrao, validos) => {
@@ -80,14 +81,17 @@ async function principal() {
   const iaDe = (m) => criarIALocal({ real: criarAnthropic(process.env, undefined, { conversa: { modelo: MODELOS[m] }, geracao: { modelo: MODELOS[m] } }), simulada: criarSimulada(), livro, teto, geracaoReal: true });
   const regras = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
   const pasta = arg('saida', path.join(os.tmpdir(), 'medicao-regulado-' + new Date().toISOString().replace(/[:.]/g, '-')));
-  fs.mkdirSync(pasta, { recursive: true });
+  fs.mkdirSync(pasta, { recursive: true, mode: 0o700 });
+  let noTeto = false;   /* (o teto do livro para a medição inteira, não só o laço da vez) */
   const relatorio = { quando: new Date().toISOString(), teto_usd: teto, gasto_antes_usd: livro.total(), conversas: [], geracoes: [] };
   const etapaGasto = (nome, antes) => { const g = livro.total() - antes; console.log('  [gasto da etapa ' + nome + ': US$ ' + g.toFixed(4) + ' · livro US$ ' + livro.total().toFixed(4) + ' de ' + teto + ']'); return g; };
   const briefings = {};
   for (const caso of casos) {
+    if (noTeto) break;
     const c = CASOS[caso];
     if (etapas.includes('conversa')) {
       for (const m of modelos) {
+        if (noTeto) break;
         const antes = livro.total(), t0 = Date.now();
         try {
           const r = await avaliarCenario({ ia: iaDe(m), regras, cenario: { id: caso + '-' + m, sobre: c.sobre, mensagens: c.mensagens, espera: [] } });
@@ -100,7 +104,7 @@ async function principal() {
         } catch (e) {
           relatorio.conversas.push({ caso, modelo: m, erro: e?.motivo || e?.message || String(e), custo_usd: etapaGasto('conversa ' + caso + ' ' + m, antes) });
           console.log('ERRO  conversa ' + caso + ' ' + m + ': ' + (e?.motivo || e?.message));
-          if (e?.motivo === 'limite') break;
+          if (e?.motivo === 'limite') { noTeto = true; break; }
         }
       }
     }
@@ -109,6 +113,7 @@ async function principal() {
       const briefing = briefings[caso] || { negocio: { nome: 'Caso ' + caso, descricao: c.mensagens.join(' ').slice(0, 600), registro: (c.mensagens.at(-1).match(/(CRO|OAB|CREFITO)[^.]*/) || [''])[0] } };
       const nicho = nichoReguladoDaSessao({ briefing, mensagens: c.mensagens.map((t) => ({ papel: 'visitante', conteudo: t })) });
       for (const m of modelos) {
+        if (noTeto) break;
         for (const [i, estrategia] of Object.keys(ESTRATEGIAS).entries()) {
           const antes = livro.total(), t0 = Date.now(), tentativas = [];
           const linha = { caso, nicho: nicho?.chave || null, modelo: m, estrategia };
@@ -131,7 +136,7 @@ async function principal() {
           relatorio.geracoes.push(linha);
           console.log((linha.ok ? 'OK   ' : 'FALHA') + ' geração ' + caso + ' ' + m + ' ' + estrategia + ' · tentativas: ' + (linha.tentativas || tentativas.length) +
             ' · falhas: ' + (tentativas.map((t) => '[' + t.falhas.join(',') + ']').join(' ') || '-') + (linha.erro ? ' · erro: ' + linha.erro : ''));
-          if (linha.erro === 'limite') break;
+          if (linha.erro === 'limite') { noTeto = true; break; }
         }
       }
     }

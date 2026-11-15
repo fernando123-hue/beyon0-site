@@ -114,9 +114,9 @@ test('as falhas voltam ao modelo só com caminho e regra, nunca com o texto', ()
 });
 
 test('medição com a IA real (15/11): a escolha da pessoa ("o melhor horário", "o melhor canal") não é superlativo; a autopromoção continua sendo', () => {
-  for (const t of ['Escolha o melhor horário para você', 'Indique o melhor dia', 'Escolha o canal que for melhor e o melhor momento', 'O melhor período para a revisão'])
+  for (const t of ['Escolha o melhor horário para você', 'Indique o melhor dia', 'Escolha o canal que for melhor e o melhor turno', 'O melhor período para a revisão'])
     assert.ok(!regras(conferirDirecao(comTexto(base('CRO-RJ 1'), t), 'odontologia')).includes('superlativo'), t);
-  for (const t of ['O melhor dentista de Curitiba', 'A melhor clínica da região', 'O melhor tratamento da cidade'])
+  for (const t of ['O melhor dentista de Curitiba', 'A melhor clínica da região', 'O melhor tratamento da cidade', 'A melhor opção para o seu sorriso', 'O melhor caminho para o seu caso', 'O melhor horário da cidade'])
     assert.ok(regras(conferirDirecao(comTexto(base('CRO-RJ 1'), t), 'odontologia')).includes('superlativo'), t);
 });
 

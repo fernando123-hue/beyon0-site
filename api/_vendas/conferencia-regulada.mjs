@@ -20,9 +20,9 @@ const PROMESSA = re('(?<!(?:sigilo|privacidade|confidencialidade|discricao) )gar
 /* (o "%" não é letra: o \b não cabe depois dele) */
 const CEM_POR_CENTO = /\b100 ?%/;
 /* (medição com a IA real, 15/11: todo "superlativo" que derrubou um modelo era agenda, "o melhor horário", "o melhor dia", "o melhor canal";
-   a escolha da pessoa não é autopromoção) */
-const ESCOLHA_DA_PESSOA = '(?! (?:horario|dia|periodo|momento|canal|forma|formato|data|caminho|opcao|jeito|maneira|hora|turno|local|meio|contato)s?\\b)';
-const SUPERLATIVO = re('[oa]s? melhor(?:es)?' + ESCOLHA_DA_PESSOA, 'o unico', 'a unica', 'numero 1', 'n 1', 'top 1', 'referencia (?:em|no|na|da|do)', 'lider(?:es)? (?:em|no|na)', 'mais experiente');
+   a escolha da pessoa não é autopromoção. Só a agenda: "a melhor opção", "o melhor caminho" podem ser autopromoção e seguem falhando) */
+const ESCOLHA_DA_PESSOA = '(?! (?:horario|dia|periodo|hora|turno|canal|data)s?\\b)';
+const SUPERLATIVO = re('[oa]s? melhor(?:es)?' + ESCOLHA_DA_PESSOA, 'melhor(?:es)? (?:[a-z]+ ){0,3}(?:da|na|de|do) (?:cidade|regiao|bairro)', 'o unico', 'a unica', 'numero 1', 'n 1', 'top 1', 'referencia (?:em|no|na|da|do)', 'lider(?:es)? (?:em|no|na)', 'mais experiente');
 const GRATIS = re('gratis', 'gratuit[oa]s?', 'sorteio', 'sorteamos', 'brindes?', 'cupom', 'cupons', 'de graca');
 const URGENCIA = re('ultimas vagas', 'ultimo dia', 'so hoje', 'apenas hoje', 'corra', 'nao perca', 'por tempo limitado', 'vagas limitadas');
 const ANTES_DEPOIS = re('antes e depois', 'antes depois', 'depoimentos?', 'relatos? de pacientes?', 'o que nossos pacientes dizem', 'avaliacoes de pacientes');

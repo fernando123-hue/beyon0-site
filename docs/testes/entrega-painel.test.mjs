@@ -13,10 +13,10 @@ before(async () => { local = await montarLocal({ base: BASE }); cen = criarCenar
 const codigoDe = async (n, c) => (await cen.estado(n, c)).pedido.codigo;
 const statusDoMaterial = async codigo => (await local.db.query("select m.status from app.materiais m join app.entregas e on e.id = m.entrega_id join app.pedidos pd on pd.conversa_id = e.conversa_id where pd.codigo = $1", [codigo])).rows[0].status;
 
-/* a captação recusa saúde (para-o-site.md §6, item 6). O cenário da 3a era de saúde até 15/11 e hoje é de beleza (saúde não fecha pelo site);
+/* a captação recusa saúde (para-o-site.md §6, item 6). O cenário da 3a era de saúde até 15/11 e hoje é de beleza (a saúde paga tem o próprio teste, saude-pedido.test.mjs);
    naoSaude segue garantindo o segmento comum onde o teste depende dele */
 const naoSaude = c => local.db.query("update app.conversas set briefing = jsonb_set(briefing, '{negocio,segmento}', '\"serviços\"') where id = $1", [c]);
-/* (15/11: saúde não fecha pelo site, então o cenário paga num nicho comum; a saúde aqui é a de quem pagou antes da regra ou que o dono fechou à mão) */
+/* (o cenário paga num nicho comum; a saúde paga, com o selo do painel, em saude-pedido.test.mjs) */
 const comSaude = c => local.db.query("update app.conversas set briefing = jsonb_set(briefing, '{negocio,segmento}', '\"saúde\"') where id = $1", [c]);
 
 test('o painel conhece as ações novas (a lista que o ensaio de CPU confere contra o código)', () => {
