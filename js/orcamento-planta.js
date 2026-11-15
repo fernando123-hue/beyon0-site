@@ -164,7 +164,9 @@
        só o que falta para ela aparecer (nunca a página; a mesma regra da mão: quem mexeu na caixa nos últimos 3 s não é puxado) */
     function rolarCaixaAPergunta() {
       var caixa = $('o-log-caixa'), a = st.raiz && st.raiz.querySelector('.mpc-acoes');
-      if (!caixa || !a || st.lugar !== 'cartao' || Date.now() - st.maoNaCaixa < MAO_NA_CAIXA) return;
+      /* (revisão) uma vez por versão do mapa: refazer ao girar a tela não puxa de novo quem subiu a caixa para reler */
+      if (!caixa || !a || st.lugar !== 'cartao' || st.perguntaVista === st.versao || Date.now() - st.maoNaCaixa < MAO_NA_CAIXA) return;
+      st.perguntaVista = st.versao;
       var falta = a.getBoundingClientRect().bottom - caixa.getBoundingClientRect().bottom + FOLGA;
       if (falta > 0) caixa.scrollTop += falta;
     }

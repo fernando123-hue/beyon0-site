@@ -73,14 +73,14 @@
   var ESPERA_VALOR_MS = 1200, PLANTA_MAX_MS = 20000, PLANTA_TETO_MS = 90000, PASSO_MS = 500;
   /* (teste com a IA real, 15/11) o prazo de segurança do valor conta só com o mapa À VISTA: fora da tela o mapa fica parado (de propósito) e o valor
      passava à frente dele. O teto absoluto garante que o valor nunca fica preso (quem nunca olha o mapa vê o valor em 90 s) */
-  function mapaAVista() {
-    if (document.hidden) return false;
-    var el = document.querySelector('#o-log .lv-item') || document.querySelector('#o-planta:not([hidden])');
+  function aVista(el) {
     if (!el) return false;
     var r = el.getBoundingClientRect(), topo = 0, base = window.innerHeight, caixa = document.getElementById('o-log-caixa');
     if (caixa && caixa.contains(el)) { var c = caixa.getBoundingClientRect(); topo = Math.max(topo, c.top); base = Math.min(base, c.bottom); }
     return r.height > 0 && r.bottom > topo && r.top < base;
   }
+  /* (revisão) os dois lugares do mapa: o cartão da conversa (celular) e a faixa (computador); um cartão vazio que sobrou não esconde a faixa */
+  function mapaAVista() { return !document.hidden && (aVista(document.querySelector('#o-log .lv-item')) || aVista(document.querySelector('#o-planta:not([hidden])'))); }
   function mostrarSim(d) {
     if (d.estimativa) {
       var valorNovo = investimento(d.estimativa, true);
