@@ -35,9 +35,10 @@ test('JS da faixa que a pessoa baixa quando a planta chega (forma + 3 módulos):
    do repositório são a memória do projeto e não chegam à pessoa. Medido em 12/11: a da faixa 4.265 bytes (era 3.589 antes da v2), a do esboço 2.551. */
 const publicado = (rel) => zlib.gzipSync(Buffer.from(compactar(rel, ler(rel).toString('utf8'))), { level: 9 }).length;
 /* (PR 5b e 5c, 14/11) +300: os dois conjuntos (v2 e o mapa do caso v3), a troca no meio da conversa e as correções da revisão (o módulo comum a caminho é esperado; a falha de um conjunto que já não é o da vez não esconde o outro); medido 4.778 (era 4.265 em 12/11); 4.835 com o botão "Ver a planta" achando a fala certa entre os toques (PR 5c; sumia desde o PR 2). Spec §7.5: a medida vai ao PR */
-test('a ligação da faixa (js/orcamento-planta.js), publicada: no máximo 4.900 bytes com gzip -9', () => {
+/* (teste com a IA real, 15/11) +100: a caixa da conversa mostra o "Ficou certo?" de um mapa mais alto que ela; medido 4.923 */
+test('a ligação da faixa (js/orcamento-planta.js), publicada: no máximo 5.000 bytes com gzip -9', () => {
   const n = publicado('js/orcamento-planta.js');
-  assert.ok(n <= 4900, 'gzip -9 ' + n);
+  assert.ok(n <= 5000, 'gzip -9 ' + n);
 });
 test('a ligação do esboço (js/orcamento-planta-esboco.js), publicada: no máximo 3.000 bytes com gzip -9', () => {
   const n = publicado('js/orcamento-planta-esboco.js');
