@@ -571,7 +571,7 @@ test('tela: a página de orçamento mostra o Zero como IA (etiqueta e primeira f
 
 test('prompt: fatos decididos pelo dono em 01/11 (domínio, hospedagem, nota) e a negociação sem desconto', () => {
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
-  for (const trecho of ['fica no nome do cliente', 'hospedado de graça no plano gratuito da Cloudflare, numa conta no nome do cliente', 'Nota fiscal: ainda não há', 'negocie sem baixar o valor', 'o resto entra depois, item a item, pela tabela'])
+  for (const trecho of ['fica no nome do cliente', 'hospedado de graça no plano gratuito da Cloudflare: vai ao ar na conta da Beyon e, com o restante pago, passa para uma conta no nome do cliente', 'Nota fiscal: ainda não há', 'negocie sem baixar o valor', 'o resto entra depois, item a item, pela tabela'])
     assert.ok(s.includes(trecho), 'falta no prompt: ' + trecho);
   assert.doesNotMatch(s, /mensalidade, hospedagem e de quem é/, 'mensalidade e hospedagem saíram da lista do que não se confirma');
   assert.doesNotMatch(s, /R\$ ?(800|1\.900)/, 'a oferta de lançamento não entra no texto do Zero');
@@ -1250,12 +1250,17 @@ test('público: o prompt do Zero e as respostas fixas não dizem "operação peq
 test('hospedagem e código: o Zero diz conta no nome do cliente e código do cliente; páginas sem "conta da Beyon"', async () => {
   const { montarPromptEfetivo } = await import('../zero/gerar.mjs');
   const p = montarPromptEfetivo();
-  assert.match(p, /numa conta no nome do cliente/);
+  assert.match(p, /vai ao ar na conta da Beyon e, com o restante pago, passa para uma conta no nome do cliente/);
   assert.match(p, /O código também é do cliente/);
   assert.doesNotMatch(p, /não confirma: de quem fica o código/);
   for (const pag of ['../../condicoes.html', '../../sites.html', '../../index.html', '../../privacidade.html']) {
     const html = fs.readFileSync(new URL(pag, import.meta.url), 'utf8');
-    assert.doesNotMatch(html, /na conta da Beyon|valor por mês escrito na proposta/, pag);
+    assert.doesNotMatch(html, /hospedado na conta da Beyon|Cloudflare, na conta da Beyon|numa conta no seu nome:|valor por mês escrito na proposta/, pag);
+  }
+  /* decisão do dono 14/11 noite: ao ar na conta da Beyon até o restante; depois, conta do cliente */
+  for (const pag of ['../../condicoes.html', '../../sites.html', '../../privacidade.html']) {
+    const html = fs.readFileSync(new URL(pag, import.meta.url), 'utf8');
+    assert.match(html, /restante (pago|ser pago)/, pag + ': diz que a conta passa ao cliente com o restante pago');
   }
 });
 
