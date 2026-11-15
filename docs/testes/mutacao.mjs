@@ -62,7 +62,7 @@ export const SABOTAGENS = [
   { nome: 'mapa: o canal com pagar passa no mapa', fonte: 'api/_vendas/promessa.mjs', testes: ['docs/testes/planta-textos5.test.mjs'],
     de: 'if (PAGAR.test(palavras) && NOME_DE_CANAL.test(palavras))', para: 'if (false)' },
   { nome: 'mapa: o canal com objeto ("manda a chave no direct") passa no mapa', fonte: 'api/_vendas/promessa.mjs', testes: ['docs/testes/planta-textos5.test.mjs'],
-    de: '|| achados.some((a) => !CHEGADA.test(', para: '|| achados.some((a) => !/./.test(' },
+    de: 'return achados.some((a) => !CHEGADA.test(', para: 'return achados.some((a) => !/./.test(' },
   /* ---- a IA real no servidor local: o teto do gasto, o que já foi pago e o gancho só no local ---- */
   { nome: 'ia-local: teto ignora o que está em voo', fonte: 'docs/ia-local.mjs', testes: ['docs/testes/ia-local.test.mjs'],
     de: 'if (gasto + emVoo + reserva > teto) {', para: 'if (gasto + reserva > teto) {' },
