@@ -45,7 +45,7 @@ function navegador(d = deps) {
 }
 async function ateCobranca(n = navegador()) {
   const s = await n.iniciar(), c = s.conversa_id;
-  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
   await detalhesEConfirmar(n.chamar, local.rpc, c, { nome: 'Ana' });
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });

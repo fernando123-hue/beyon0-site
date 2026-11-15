@@ -95,10 +95,15 @@ export function nichoDaSessao({ briefing, mensagens, mensagem }) {
   for (const f of fontes) { const n = f ? nichoRegulado(f) : null; if (n) return n; }
   return null;
 }
-/* a sessão é de SAÚDE (o pedido vai à equipe, sem modelos automáticos e sem pagamento pelo site; decisão do dono, 14/11) */
+/* a sessão é de SAÚDE (o pedido vai à equipe, sem modelos automáticos e sem pagamento pelo site; decisão do dono, 14/11). Revisões do PR:
+   - TODAS as fontes (o nichoDaSessao para no 1º nicho: "advogado" antes de "dentista" escondia a saúde);
+   - o ramo "Saúde" tocado (segmento 'saúde'): o caminho só de toques nunca escreve a profissão */
+const RAMO_SAUDE = /^\s*sa[uú]de\s*$/i;
 export function saudeDaSessao({ briefing, mensagens, mensagem }) {
-  const n = nichoDaSessao({ briefing, mensagens, mensagem });
-  return !!n && CHAVES_DE_SAUDE.has(n.chave);
+  const b = briefing || {};
+  if (typeof b.negocio?.segmento === 'string' && RAMO_SAUDE.test(b.negocio.segmento)) return true;
+  const fontes = [b.negocio?.segmento, b.negocio?.descricao, ...(Array.isArray(b.servicos) ? b.servicos : []), ...doVisitante(mensagens), mensagem];
+  return fontes.some((f) => { const n = f ? nichoRegulado(f) : null; return !!n && CHAVES_DE_SAUDE.has(n.chave); });
 }
 /* pediu de novo o que já foi recusado (a recusa fixa no histórico, ou o pedido proibido numa mensagem anterior) */
 const insistiu = mensagens => doVisitante(mensagens).some(pedeItemProibido) || (mensagens || []).some(m => m.papel !== 'visitante' && /a Beyon não coloca depoimento/.test(String(m.conteudo ?? '')));

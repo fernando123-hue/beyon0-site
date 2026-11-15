@@ -296,7 +296,7 @@ test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido)
   const n = navegador();
   const s = await n.iniciar();
   const c = s.conversa_id;
-  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
   const vid = (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
   /* o fluxo antigo: contato informado direto, sem linha em app.pedidos */
@@ -309,7 +309,7 @@ test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido)
   /* o pedido esperando a confirmação */
   const n2 = navegador();
   const c2 = (await n2.iniciar()).conversa_id;
-  await n2.chamar('POST', 'mensagem', { conversa_id: c2, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+  await n2.chamar('POST', 'mensagem', { conversa_id: c2, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
   await n2.chamar('POST', 'mensagem', { conversa_id: c2, texto: 'sim' });
   const det = await n2.chamar('POST', 'detalhes', { conversa_id: c2, negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true, aceite_versao: 'a1' });
   assert.equal(det.status, 200, JSON.stringify(det.corpo));
@@ -362,7 +362,7 @@ test('pedido descartado com as três prontas: gerar, gerar-direcao, escolher, aj
 test('descartado com a geração em andamento (as direções viram "falhou"): gerar diz "encerrado", não "ainda não foi confirmado"', async () => {
   const n = navegador();
   const c = (await n.iniciar()).conversa_id;
-  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
   await detalhesEConfirmar(n.chamar, local.rpc, c);
   await mudarPedido(c, 'descartar');
@@ -378,7 +378,7 @@ test('gerar responde uma frase por situação do pedido: arquivado (segue com a 
   const ate = async () => {
     const n = navegador();
     const c = (await n.iniciar()).conversa_id;
-    await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+    await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
     await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
     assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true, aceite_versao: 'a1' })).status, 200);
     return { n, c };
@@ -446,14 +446,14 @@ test('reserva de custo: erro do banco fecha (sem chamar o modelo); só a funçã
   for (const codigo of ['57014', '55P03']) {
     const fechado = navegador(comErro(codigo));
     const sf = await fechado.iniciar();
-    const rf = await fechado.chamar('POST', 'mensagem', { conversa_id: sf.conversa_id, texto: 'Tenho uma clínica e quero um site institucional' });
+    const rf = await fechado.chamar('POST', 'mensagem', { conversa_id: sf.conversa_id, texto: 'Tenho um estúdio de pilates e quero um site institucional' });
     assert.equal(rf.status, 503, codigo + ': ' + JSON.stringify(rf.corpo));
     assert.equal(rf.corpo.recado, true, codigo + ': oferece o WhatsApp');
     assert.equal(chamadas, 0, codigo + ': o modelo não é chamado');
   }
   const semFuncao = navegador(comErro('42883'));
   const sa = await semFuncao.iniciar();
-  const ra = await semFuncao.chamar('POST', 'mensagem', { conversa_id: sa.conversa_id, texto: 'Tenho uma clínica e quero um site institucional' });
+  const ra = await semFuncao.chamar('POST', 'mensagem', { conversa_id: sa.conversa_id, texto: 'Tenho um estúdio de pilates e quero um site institucional' });
   assert.equal(ra.status, 200, 'função ainda não criada (migration a aplicar): segue como antes — ' + JSON.stringify(ra.corpo));
   assert.equal(chamadas > 0, true);
 });
@@ -498,7 +498,7 @@ test('reserva de custo: resposta sem reserva_id fecha (não segue sem reserva) �
   const n = navegador({ ...deps, ia: { ...deps.ia, mensagem: async p => { chamadas++; return deps.ia.mensagem(p); } },
     banco: async (nome, p) => (nome === 'vendas_reservar_custo' ? null : deps.banco(nome, p)) });
   const s = await n.iniciar();
-  const r = await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho uma clínica e quero um site institucional' });
+  const r = await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho um estúdio de pilates e quero um site institucional' });
   assert.equal(r.status, 503, JSON.stringify(r.corpo));
   assert.equal(chamadas, 0);
 });
@@ -718,7 +718,7 @@ test('retenção pelo caminho real: o lead que o agente cria ("em_conversa") é 
 });
 
 /* ======================= correções da revisão (2026-10-07) ======================= */
-async function ateDirecoes(n, texto = 'Tenho uma clínica e quero um site institucional para agendamentos') {
+async function ateDirecoes(n, texto = 'Tenho um estúdio de pilates e quero um site institucional para agendamentos') {
   const s = await n.iniciar();
   const c = s.conversa_id;
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto });
@@ -763,7 +763,7 @@ test('conversa aberta até o pagamento: no escopo e na tela do sinal a pessoa pe
   for (const etapa of ['escopo', 'aguardando_pagamento']) {
     const n = navegador();
     const c = (await n.iniciar()).conversa_id;
-    await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+    await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
     const ler = async () => (await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo;
     const estimativas = async () => Number((await local.db.query('select count(*) as n from app.estimativas where conversa_id = $1', [c])).rows[0].n);
     const antes = await ler(), estAntes = await estimativas();

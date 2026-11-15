@@ -13,8 +13,8 @@ import { TETOS } from '../../api/_ia/config.mjs';
 import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
 
 const BASE = 'http://127.0.0.1:8899';
-const RESP = { ramo: 'saude', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
-const TEXTO = 'Tenho uma clínica e quero um site institucional';
+const RESP = { ramo: 'beleza', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
+const TEXTO = 'Tenho um estúdio de pilates e quero um site institucional';
 const MEIA_NOITE = `date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo'`;
 let local, deps, ipSeq = 0;
 before(async () => {

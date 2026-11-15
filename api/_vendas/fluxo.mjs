@@ -163,7 +163,10 @@ const NAO_GERA = {
 };
 /* (decisão do dono, 14/11) saúde atende, mas não fecha pelo site: sem modelos automáticos e sem pagamento; a equipe fala pelo WhatsApp */
 export const SAUDE_COM_A_EQUIPE = 'Na área da saúde a gente confere tudo antes de seguir, então o pagamento não é feito por aqui: falamos com você pelo WhatsApp.';
-const comAEquipe = (est) => saudeDaSessao({ briefing: est && est.conversa && est.conversa.briefing, mensagens: (est && est.mensagens) || [] });
+/* só ANTES da entrada: o restante de um site já em produção segue pelo site (revisão do PR: um cliente comum que fala "dentista" depois não trava) */
+const DEPOIS_DA_ENTRADA = new Set(['em_producao', 'encerrada']);
+const comAEquipe = (est) => !DEPOIS_DA_ENTRADA.has(est && est.conversa && est.conversa.etapa) &&
+  saudeDaSessao({ briefing: est && est.conversa && est.conversa.briefing, mensagens: (est && est.mensagens) || [] });
 /* sem pedido (o fluxo antigo, contato direto) ou em situação desconhecida: a frase de sempre */
 const SEM_CONFIRMACAO = ['O pedido ainda não foi confirmado.', undefined];
 function exigirNaoDescartado(est) {
@@ -616,6 +619,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
       const est = await estado(vid, corpo.conversa_id);
       exigirNaoDescartado(est);
+      if (comAEquipe(est)) throw new Recusa(409, SAUDE_COM_A_EQUIPE, { recado: true });
       exigir(est.escolha && est.estimativa, 409, 'Escolha uma direção antes.');
       const direcao = est.versao_final || est.direcoes.find(d => d.id === est.escolha.direcao_id)?.conteudo;
       exigir(direcao, 409, 'Escolha uma direção antes.');
@@ -636,6 +640,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id) && ehUuid(corpo?.proposta_id), 400, 'Dados inválidos.');
       exigir(corpo?.confirmo === true, 400, 'É preciso confirmar o escopo.');
+      if (comAEquipe(await estado(vid, corpo.conversa_id))) throw new Recusa(409, SAUDE_COM_A_EQUIPE, { recado: true });
       return banco('vendas_confirmar_escopo', { conversa_id: corpo.conversa_id, visitante_id: vid, proposta_id: corpo.proposta_id, confirmo: true, inicio_imediato: corpo.inicio_imediato === true });
     },
 

@@ -40,7 +40,7 @@ function navegador(d = deps, ip = '192.0.2.' + (++ipSeq)) {
 async function ateDirecoes(n) {
   const s = await n.iniciar();
   const c = s.conversa_id;
-  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
   await detalhesEConfirmar(n.chamar, local.rpc, c);
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });

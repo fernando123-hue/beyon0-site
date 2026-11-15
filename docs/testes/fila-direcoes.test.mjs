@@ -60,7 +60,7 @@ const direcao = (nome = 'Clareza que agenda') => ({
 });
 
 /* até a fila (PR 2a): perguntas → pacote → detalhes (o pedido já nasce confirmado e na fila) */
-const RESP = { ramo: 'saude', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
+const RESP = { ramo: 'beleza', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
 async function ateAFila(direcoes = 'manual', { telefone = telefoneDeTeste(), extra = {} } = {}) {
   const n = navegador(direcoes);
   const c = await n.iniciar();

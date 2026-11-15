@@ -54,6 +54,13 @@ test('quem é saúde: dentista, fisioterapia, psicologia, nutrição, medicina e
     assert.equal(saudeDaSessao({ briefing: {}, mensagens: [{ papel: 'visitante', conteudo: t }] }), false, t);
 });
 
+test('revisões: o ramo "Saúde" tocado conta, e um nicho anterior (advocacia) não esconde a saúde', () => {
+  assert.equal(saudeDaSessao({ briefing: { negocio: { segmento: 'saúde' } }, mensagens: [] }), true, 'só de toques');
+  assert.equal(saudeDaSessao({ briefing: { negocio: { segmento: 'Saúde' } }, mensagens: [] }), true);
+  assert.equal(saudeDaSessao({ briefing: { negocio: { segmento: 'advocacia' } }, mensagens: [{ papel: 'visitante', conteudo: 'na verdade sou dentista' }] }), true);
+  assert.equal(saudeDaSessao({ briefing: { negocio: { segmento: 'beleza' } }, mensagens: [] }), false);
+});
+
 test('o aviso de saúde ao modelo diz que não fecha pelo site, sem prazo dos modelos, sem Pix, e sem nome de ninguém; advocacia não recebe', () => {
   const a = avisoRegulado(nichoRegulado('clínica de fisioterapia'));
   assert.equal(a.fechamento, FECHAMENTO_SAUDE);
@@ -83,6 +90,20 @@ test('saúde: o pedido entra, mas sem modelos automáticos, sem entrada e sem Pi
   }
   const tentativas = await local.db.query('select 1 from app.tentativas_pagamento t join app.pagamentos p on p.id = t.pagamento_id join app.propostas pr on pr.id = p.proposta_id where pr.conversa_id = $1', [c]);
   assert.equal(tentativas.rows.length, 0, 'nenhuma tentativa de pagamento criada');
+});
+
+test('saúde: o escopo e a confirmação também recusam; o restante depois da entrada não trava', async () => {
+  const { n, c } = await atePedido(TEXTO_DENTISTA);
+  const esc = await n.chamar('POST', 'escopo', { conversa_id: c });
+  assert.equal(esc.status, 409);
+  assert.equal(esc.corpo.erro, SAUDE_COM_A_EQUIPE);
+  const conf = await n.chamar('POST', 'confirmar', { conversa_id: c, proposta_id: '00000000-0000-4000-8000-000000000000', confirmo: true });
+  assert.equal(conf.status, 409);
+  assert.equal(conf.corpo.erro, SAUDE_COM_A_EQUIPE);
+  /* depois da entrada (etapa em produção) a trava não vale: o restante segue pelo site */
+  await local.db.transaction(async (tx) => { await tx.exec("set local bz.transicao_livre = 'on'"); await tx.query("update app.conversas set etapa = 'em_producao' where id = $1", [c]); });
+  const pg = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR });
+  assert.notEqual(pg.corpo.erro, SAUDE_COM_A_EQUIPE, 'em produção, a recusa (se houver) é a do restante, não a da saúde');
 });
 
 test('nicho comum: igual a antes (gera na hora no modo api e não leva o selo)', async () => {

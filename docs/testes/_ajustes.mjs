@@ -10,7 +10,7 @@ import { LIMITES_DE_TESTE, telefoneDeTeste } from './_pedido.mjs';
 export const BASE = 'http://127.0.0.1:8899';
 const CHAVE = 'k'.repeat(40);
 export const ENV = { BZ_LOCAL: '1', PAINEL_CHAVE: CHAVE };
-const RESP = { ramo: 'saude', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
+const RESP = { ramo: 'beleza', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
 const VALIDA = JSON.parse(fs.readFileSync(new URL('./fixtures/direcao-valida.json', import.meta.url), 'utf8'));
 const secao = (tipo, titulo, itens) => ({ tipo, variante: 'lista', rotulo: '', titulo, subtitulo: '', texto: '', itens, cta: '' });
 
