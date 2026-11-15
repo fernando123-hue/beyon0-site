@@ -693,6 +693,11 @@ export const SABOTAGENS = [
     de: "if (prefixoUsado && !desenho.gravou && i > 0) saida =", para: "if (false) saida =" },
   { nome: "leitura: o estado devolve a evidência de um eixo que a pessoa não falou", fonte: "api/_vendas/leitura.mjs", testes: ['docs/testes/planta-leitura.test.mjs'],
     de: "const r = e.nivel === 'nao_falou' || e.evidencia === undefined ? null :", para: "const r = e.evidencia === undefined ? null :" },
+  /* ---- o modelo reserva na queda (auto-reparo, 15/11) ---- */
+  { nome: 'reserva: o tempo esgotado também chama o reserva (dobra a espera)', fonte: 'api/_ia/anthropic.mjs', testes: ['docs/testes/ia-reserva.test.mjs'],
+    de: '&& !(e instanceof Anthropic.APIConnectionTimeoutError));', para: ');' + ' /* sabotado */' },
+  { nome: 'reserva: o erro do reserva troca o da queda (um 4xx esconde o provedor fora do ar)', fonte: 'api/_ia/anthropic.mjs', testes: ['docs/testes/ia-reserva.test.mjs'],
+    de: 'catch (e2) { logReserva(e2); throw erroIA(e, cfg, tentativas); }', para: 'catch (e2) { logReserva(e2); throw erroIA(e2, cfg, tentativas); }' },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
