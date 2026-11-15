@@ -52,7 +52,9 @@ test('22/10: /condicoes traz os trechos da captação LITERAIS, o do material em
   const pagamento = secao('Pagamento');
   assert.ok(pagamento.includes(RESTANTE_1A), 'Pagamento: ' + pagamento);
   assert.ok(pagamento.indexOf('No institucional:') < pagamento.indexOf(RESTANTE_1A), 'o trecho do restante vem depois do institucional');
-  assert.ok(CONDICOES.includes('Última atualização: 22 de outubro de 2026'), 'a data da versão');
+  /* 14/11: hospedagem na conta do cliente (Decisões 14/11); a captação grava esta data como condicoes_versao
+     (config/entrega.json de lá), que sobe junto no PR da captação */
+  assert.ok(CONDICOES.includes('Última atualização: 14 de novembro de 2026'), 'a data da versão');
 });
 
 test('o contrato diz que o restante é pago quando o site estiver no ar (não "na entrega") e os dias úteis continuam como a 3b-2 deixou', () => {
