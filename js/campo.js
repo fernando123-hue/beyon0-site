@@ -74,7 +74,9 @@
     var G = { ox: 0, oy: 0, R0: 200, Q: 290, giro: 0, rotor: 0 };
     /* o ROTOR: o trecho dos 12 raios entre o vão e a 1ª ramificação gira com a
        roda do reator (crítica, rodada 1: o campo ficava parado com o reator
-       girando); da 1ª ramificação para fora é o ESTATOR, fixo */
+       girando); da 1ª ramificação para fora é o ESTATOR, que gira devagar ao
+       contrário do rotor desde 14/11 (G.giro; o dono: "essa parte deveria estar
+       girando ao contrário das outras") */
     var classes = [[], [], []], faixa = [0, TAU];
     var RUMOS = [];
     for (var ri = 0; ri < 12; ri++) RUMOS.push(('00' + (((ri * 30 + 90) % 360) || 360)).slice(-3));
@@ -413,10 +415,12 @@
         /* o rumo de cada um dos 12 raios fundamentais, logo fora do anel, FIXO
            (o aro de um instrumento: o rotor gira por baixo e a leitura do
            rumo bate com ele, crítica rodada 2). Onde há texto, um tique no
-           lugar do número: o aro fica inteiro */
+           lugar do número: o aro fica inteiro. Desde 14/11 o estator também
+           gira (ao contrário do rotor, js/rede.js) e o aro segue fixo, no
+           ângulo da TELA: é ele que a marca de rumo lê ("→ NOME · 340°") */
         if (b > 0) continue;   /* um aro só, o do vão */
         for (var i = 0; i < 12; i++) {
-          var a = G.giro + i * TAU / 12;
+          var a = i * TAU / 12;
           if (!angVisivel(a)) continue;
           var x = px(r + 15, a), y = py(r + 15, a);
           if (livre && !livreLargo(livre, x, y, cel)) {

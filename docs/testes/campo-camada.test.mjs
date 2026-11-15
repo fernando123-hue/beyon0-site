@@ -124,3 +124,25 @@ test('com 1 px por px CSS (linha fina, já barata) o desenho segue o de antes: a
   assert.equal(ctx.carimbos, 0);
   assert.ok(ctx.tracos.some((t) => /^(ML){3,}$/.test(t)), 'raios num caminho só');
 });
+
+/* O ESTATOR GIRA (dono, 14/11, com print do fundo do hero: "essa parte deveria estar girando ao contrário das outras,
+   porém ela continua parada"). Os raios e nós de fora seguem o ângulo do estator (o giro da origem); os números de
+   rumo do aro ficam FIXOS, como a escala de um instrumento sobre o disco que gira (a marca de rumo lê o ângulo da
+   tela, então o número tem de continuar no lugar dele) */
+test('estator: raios de fora seguem o giro; os números de rumo do aro não saem do lugar', () => {
+  const rotulos = [];
+  const camadas = [];
+  const documento = { createElement: () => ({ width: 0, height: 0, getContext: () => { const k = contexto('camada'); camadas.push(k); return k; } }) };
+  const B = { tom: (c) => c, texto(ctx, txt, fonte, cor, x, y) { rotulos.push(txt + '@' + Math.round(x) + ',' + Math.round(y)); }, largura: () => 10 };
+  vm.runInNewContext(FONTE, { window: { BEYON: B }, document: documento, Math });
+  const ctx = contexto('pagina'); ctx.__dpr = 1;
+  const pontos = [];
+  ctx.moveTo = function (x, y) { pontos.push(Math.round(x) + ',' + Math.round(y)); ctx.cmds.push('M'); };
+  const campo = B.campo({ ctx, cores: { AC: '73,229,221', AC2: '166,244,239', T1: '242,244,244', PRATA: '183,191,192' }, celular: false, livre: () => true, varre: false });
+  const estado = { W: 1440, H: 900, topo: 56, cursor: null, reduzido: false, rLimite: 24000 };
+  const quadro = (giro) => { rotulos.length = 0; pontos.length = 0; campo.origem(1000, 450, 200, giro, 0); campo.passo(0.016, estado); campo.desenhar(1, true); return { rotulos: rotulos.slice().sort(), pontos: pontos.slice().sort() }; };
+  const a = quadro(0), b = quadro(0.2);
+  assert.ok(a.rotulos.length >= 6, 'o aro escreveu os rumos (' + a.rotulos.length + ')');
+  assert.deepEqual(b.rotulos, a.rotulos, 'os números de rumo ficam no lugar com o estator girado');
+  assert.notDeepEqual(b.pontos, a.pontos, 'os raios e nós de fora acompanham o giro do estator');
+});
