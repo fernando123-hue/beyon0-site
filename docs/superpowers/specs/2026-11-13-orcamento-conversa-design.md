@@ -102,7 +102,7 @@ O "caso entendido" nunca depende do formato nem dos toques práticos, que já vi
 - o `pedePlanta`;
 - o `proximoPasso`;
 - a contagem do plano padrão (`planta.mjs:173-178`);
-- o `caso_entendido` do `estado`.
+- o `valor_liberado` do `estado`.
 
 Assim a planta e o valor nunca saem em turnos diferentes.
 
@@ -115,7 +115,7 @@ Nele:
   4. `estimar`.
 - O `ler_caso` (a leitura do radar) **nunca roda no turno do valor**: ele fica no turno seguinte, para caber nas `MAX_ITERACOES = 4` (`agente.mjs:32`; nesse turno: briefing, planta com uma correção, `estimar`).
 - Se o desenho falhar duas vezes, o plano padrão do nicho entra, como hoje (`fecharTurno`).
-- O `estado` passa a devolver `caso_entendido` (calculado, sem coluna nova), que o cliente usa na liberação do valor.
+- O `estado` passa a devolver `valor_liberado` (calculado, sem coluna nova), que o cliente usa na liberação do valor.
 
 **O servidor garante a ordem.**
 
@@ -287,7 +287,7 @@ O E2E roda os dois modos: com consultor (IA simulada) e com `BZ_SEM_CONSULTOR=1`
    - a ordem do turno do valor, com o `ler_caso` no turno da dor;
    - o simulado;
    - o prompt (`montarSistema`, `consultor.mjs` ~`:168, 172, 200, 209`) e a descrição da ferramenta da planta (`planta.mjs:64`);
-   - `caso_entendido` no `estado`.
+   - `valor_liberado` no `estado`.
 4. **Alarme de custo:** um aviso ao dono quando o custo de IA do dia passar de 80% do teto (`api/_aviso.mjs`, que já existe). Não muda nenhum limite.
 5. **Nada muda** em:
    - `detalhes`, `simular`, pagamentos, Turnstile, as travas de saída e os limites de custo;
@@ -484,7 +484,57 @@ O dono, 13/11: "O nosso JEV está poderoso igual o original? Ele funciona especi
     - o valor aparece só depois do mapa.
   - **Entrega:** os 3 mapas lado a lado (celular e computador), com o que cada pessoa disse ao lado, e o tempo de cada turno.
   - Se as estruturas saírem iguais, o prompt da escolha é ajustado e medido de novo, dentro do teto.
-- **Vídeos novos da página real** (celular primeiro), quando as seções 1 a 7 estiverem na `main`. Mesmo gravador e mesmas regras dos de hoje: câmera lenta controlada se a CPU estiver cheia, conferência quadro a quadro, cópias até 25 MB.
+- **Vídeos** [D] 13/11 ("Quando tudo estiver pronto quero um video de apresentação geral. E alguns vídeos da tabela viva"), em `00 Entrada/orcamento-conversa/videos/` (cofre), com `LEIA.md`:
+  1. **Apresentação geral**, celular 390 primeiro (computador opcional), com som: da página inicial até "Pedido recebido", passando pelo orçamento novo inteiro (toques, dor, mapa do caso, valor depois, pedido na conversa e cartão de aceite), em ritmo de uso real, sem corte que esconda espera. Quando as seções 1 a 7 estiverem na `main`.
+  2. **Um vídeo do mapa do caso para cada uma das 5 conversas do teste com a IA real**, gravado na própria rodada (as conversas não se pagam duas vezes). Se a câmera lenta não combinar com a IA real, a página real reproduz a resposta gravada da IA, e o `LEIA.md` diz como foi.
+  - Mesmo gravador e mesmas regras dos de 13/11: câmera lenta controlada se a CPU estiver cheia (com a velocidade dita), conferência quadro a quadro (nada cortado, nenhum salto, sem blur), cópias até 25 MB. Os caminhos vão à sessão principal, nunca ao dono direto.
+
+## 9E. O pente fino (parte E), antes do teste dos amigos e da promoção
+
+O dono, 13/11: "E a parte da tabela viva, orçamento e o Zero? Estão perfeitos? Eles também merecem um pente fino quando concluídos."
+
+**Quando:** depois das partes C (a IA real) e D (os vídeos).
+
+**Onde:** no site de teste (staging), com a IA **real** e a flag ligada só lá.
+
+**Processo de referência:** o dos criativos, no cofre (`04 Comercial/Instagram/PENTE-FINO.md`), adaptado ao site.
+
+**A rodada:**
+
+1. **Inventário:** o caminho inteiro do orçamento novo, no celular 390 primeiro e depois no computador.
+2. **Análise:** pelo menos dois revisores independentes, que não veem o parecer um do outro. Cada um percorre a lista abaixo por conta própria, com fotos e quadros da página real.
+3. **Juntar:** cada achado vira uma linha na tabela da rodada, com onde, o achado, a gravidade (obrigatório ou opcional), a correção e quem confere.
+4. **Correção:** cada correção vai em PR com o processo de sempre.
+5. **Conferência:** a correção é conferida na página real. A que não resolveu volta para a rodada seguinte.
+
+**Fim:** **duas rodadas seguidas sem nenhum achado obrigatório**, com revisores diferentes a cada rodada. Só então vêm o teste dos 2 amigos do dono e a promoção (do dono).
+
+**A lista** (cada item: ok, achado ou não se aplica):
+
+- **A tela:** leitura de relance; nada cortado nem sobreposto; vãos iguais; sem blur nem brilho suave; o movimento aprovado intacto. Celular 390 e 320 primeiro, depois 768, 1280 e 1440.
+- **O Zero em conversas reais e difíceis:**
+  - insiste no preço logo de cara;
+  - "é golpe?";
+  - cliente irritado;
+  - área de saúde (regulada);
+  - tentativa de dar ordens ao sistema;
+  - pede uma pessoa;
+  - muda de ramo no meio;
+  - escreve em vez de tocar.
+- **O mapa do caso:**
+  - as 5 estruturas;
+  - a unicidade, incluindo dois negócios do mesmo ramo com histórias diferentes;
+  - o "Ficou certo?" e o ajuste;
+  - legível para um leigo de relance.
+- **O momento do preço:** o valor só depois do caso; a exceção do pedido repetido; recarregar com o valor já dado.
+- **O pedido na conversa:** o cartão de aceite (LGPD, o texto, o "Corrigir", o link da política) e o caminho sem IA (sem chave, limite, "Seguir tocando").
+- **Acessibilidade:** teclado, leitor de tela, contraste, 200% de zoom e movimento reduzido.
+- **Tempo de resposta:** a mediana e o pior turno, medidos.
+- **Os textos:** voz humana em todas as falas fixas, no resumo fixo, no aceite e nos avisos.
+
+**Custo:** as conversas reais do pente fino entram no teto de testes do dono; se for passar, aviso antes.
+
+**Registro:** os achados, as correções e as rodadas ficam em `docs/superpowers/pente-fino-orcamento.md` (neste repositório, sem dado de cliente). A sessão principal recebe o arquivo quando as duas rodadas limpas fecharem.
 
 ## 10. Os PRs (na ordem, um por vez, porque os arquivos se cruzam)
 
@@ -557,7 +607,7 @@ Todos são nível 3, exceto onde dito. Cada um traz teste visto vermelho, revis�
 
 **Do arquiteto:**
 
-- **O turno do valor** ficou mal definido. Os toques práticos passaram para antes da dor, então todos chegam no 1º turno e o valor sai no primeiro turno que começa com o caso entendido (o 1º ou o 2º). O `ler_caso` nunca roda nesse turno, e o `estado` devolve `caso_entendido`.
+- **O turno do valor** ficou mal definido. Os toques práticos passaram para antes da dor, então todos chegam no 1º turno e o valor sai no primeiro turno que começa com o caso entendido (o 1º ou o 2º). O `ler_caso` nunca roda nesse turno, e o `estado` devolve `valor_liberado`.
 - **As travas de texto da planta** recusariam as palavras dela. As origens vão por código, a palavra "Hoje:" é da tela e os campos do "hoje" têm regra própria, com teste.
 - **v2 e v3:** a distinção é por `estrutura` contra `topologia`. O v2 fica só para leitura, o `plantaParaModelo` ganha a forma do v3, o cliente ignora a versão desconhecida e os PRs 4 e 5 entram em sequência.
 - **A fala do "Mudar"** é montada pelo módulo comum de rótulos e conferida pelo servidor, o que mantém a deduplicação.
@@ -598,3 +648,26 @@ Todos são nível 3, exceto onde dito. Cada um traz teste visto vermelho, revis�
   - o `observarNaSombra` passa a receber o plano.
 - PRs 4 e 5: o dono é avisado para não promover entre os dois.
 - O teste mede a taxa de "hoje" recusados pela trava de prazo.
+
+## Anexo C: o que o PR 4 fechou (o mapa do caso v3, lado do servidor)
+
+Plano: `docs/superpowers/plans/2026-11-13-pr4-composicao-servidor.md`. As decisões do §2 do plano foram adotadas como recomendadas:
+
+1. O objetivo é o campo `objetivo`, nunca um nó; as setas o chamam pelo id reservado. São 2 a 6 nós mais o objetivo. O objetivo só aparece como `de` no `ciclo`, uma vez.
+2. No máximo 5 camadas e 2 nós por camada. No máximo 2 nós de origem (opção A): o código de cada um está em `hoje.origens` (até 3), e nenhuma seta chega a um nó de origem.
+3. As regras de desenho são as do laboratório, por estrutura e no geral.
+4. O de-para das origens: o toque "google" é `google_busca`; as origens v2 ambíguas viram `outro`; o nome `google` em `js/orcamento-rotulos.js` não muda.
+5. "Preço" no "hoje", opção (b): só como o assunto da pergunta (`PRECO_COMO_DUVIDA`). **Pede o sim do dono antes do merge.**
+6. O prazo do cotidiano entra numa lista fechada; "eu respondo" passa pela regra forte de negar ser IA.
+7. O `hoje` é opcional na forma e obrigatório no esquema da ferramenta. O padrão sem nada conhecido vai sem ele, e o `hoje` vazio é recusado.
+8. O papel `ajustado` exige um v3 gravado antes.
+
+Desvios do plano, com o motivo:
+
+- **O padrão v3 está em `api/_vendas/mapa-padrao.mjs`** (`planoDoCaso`, `oQueSeSabe`). O `planta-padrao.mjs` segue com o v2 (`planoPadrao`) e com `nichoDaPlanta`. Assim os testes do v2 não mudam de nome e o arquivo novo fica pequeno.
+- **No modo `hoje`, a trava `negarIA` do Zero não roda.** Vale a `NEGAR_IA_FORTE`, como já acontece na fala da pessoa (`primeiraPessoa`). Sem isso "eu respondo cada mensagem" cairia, e "sou humano" e "não sou robô" continuam recusados. As outras nove travas rodam.
+- **A trava de custo do `zero.test.mjs` passou de +15% para +17%.** Medido em 14/11: uma conversa de 30 turnos com 6 desenhos custa US$ 1,24, contra US$ 1,07 hoje (+16,1%, 62% do teto de US$ 2). Quase tudo vem dos 6 turnos de desenho: com 4 seria +11,9%. Os 65% do teto continuam.
+- **Achado no caminho:** "pagam menos" e "pagamos menos" escapavam da raiz de preço em qualquer texto. Agora caem.
+- **Texto:** na regra de saúde e advocacia, "antes e depois" virou "foto de antes e depois", para não se confundir com a estrutura `antes_depois`.
+
+O registro `planta` segue `v: 1`, que é o formato do registro e não do plano. A versão do plano vem da chave: `estrutura` é v3, `topologia` é v2.

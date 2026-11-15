@@ -33,7 +33,10 @@ const TRAVAS_DE_IDENTIDADE = [IDENTIDADE_FIXO, IDENTIDADE_SEM_RECADO, EXPERIENCI
 const AFIRMA_HUMANO = /\bsou (uma )?(pessoa|humano|humana|gente)\b(?! (?:de verdade )?(?:n[ãa]o|nem))|\bn[ãa]o sou (uma )?(ia|rob[ôo]|intelig[êe]ncia)/i;
 const PROMETE_DESCONTO = /\b(te dou|vou (te )?(dar|fazer)|consigo|posso (te )?(dar|fazer)|fechamos com)\b[^.!?]{0,40}\b(desconto|metade|por menos)\b/i;
 const EXTRAS_PROIBIDOS = /pre[çc]o|pessoa real|gente de verdade|humano|garantia|desconto/i;
-const CHAVES_DE_TEXTO = /^(titulo|frase|fecho|rotulo\w*)$/;
+/* (PR 4) o "hoje" do mapa v3 é a fala da pessoa: "preço" como o que perguntam a ela vale lá (a camada de texto confere com campo: 'hoje') */
+const EXTRAS_DO_HOJE = /pessoa real|gente de verdade|humano|garantia|desconto/i;
+const CHAVES_DE_TEXTO = /^(titulo|frase|fecho|rotulo\w*|texto|trava)$/;
+const ehDoHoje = campo => /^hoje\./.test(campo);
 
 const soma = (a, b) => ({ entrada: a.entrada + (b?.entrada || 0), saida: a.saida + (b?.saida || 0), cache_leitura: a.cache_leitura + (b?.cache_leitura || 0), cache_escrita: a.cache_escrita + (b?.cache_escrita || 0) });
 const usoZero = () => ({ entrada: 0, saida: 0, cache_leitura: 0, cache_escrita: 0 });
@@ -61,9 +64,10 @@ export function conferirTextos(plano, { nomeDoNegocio = '', regulado = false, ci
   const itens = coletarTextos(plano);
   const reprovados = [];
   for (const it of itens) {
-    const r = textoDoPlanoPermitido(it.texto, { nomeDoNegocio, regulado, cidade, travas: true });
+    const hoje = ehDoHoje(it.campo);
+    const r = textoDoPlanoPermitido(it.texto, { nomeDoNegocio, regulado, cidade, travas: true, campo: hoje ? 'hoje' : '' });
     if (!r.ok) reprovados.push({ campo: it.campo, motivo: r.motivo });
-    else if (EXTRAS_PROIBIDOS.test(it.texto)) reprovados.push({ campo: it.campo, motivo: 'extra' });
+    else if ((hoje ? EXTRAS_DO_HOJE : EXTRAS_PROIBIDOS).test(it.texto)) reprovados.push({ campo: it.campo, motivo: 'extra' });
   }
   return { total: itens.length, reprovados, itens };
 }
@@ -148,7 +152,7 @@ export async function avaliarCenario({ ia, regras, cenario, relogio = () => Date
       const q = conferirTextos(p.plano, { nomeDoNegocio: nome, regulado, cidade: cidadeValida(r.briefing.negocio?.cidade) });
       plantas.push({
         turno: s.turnos, versao: p.versao, origem: p.origem, tentativas: p.tentativas, motivos: p.motivos || [],
-        valida_de_primeira: p.origem === 'modelo' && p.tentativas === 1, topologia: p.plano?.topologia || null,
+        valida_de_primeira: p.origem === 'modelo' && p.tentativas === 1, topologia: p.plano?.topologia || null, estrutura: p.plano?.estrutura || null,
         rodadas: turno.rodadas, estourou: turno.estourou, tempo_ms: tempo, custo_usd: turno.custo_usd, tokens: turno.tokens,
         textos: { total: q.total, reprovados: q.reprovados, lista: q.itens }, fala_do_zero: r.resposta
       });

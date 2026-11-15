@@ -24,10 +24,10 @@
   var DIMENSOES = congelar(['entrega', 'escopo', 'integracoes', 'prazo']);
   var MARCOS = congelar(['Briefing', 'Análise', 'Estimativa', 'Proposta', 'Confirmada']);
   var ROTULOS = congelar({
-    aguardando: 'Aguardando briefing', identificando: 'Identificando', analise: 'Escopo em análise', estimativa: 'Estimativa preliminar',
+    aguardando: 'Aguardando briefing', identificando: 'Identificando', analise: 'Escopo em análise', entendendo: 'Entendendo o seu caso', estimativa: 'Estimativa preliminar',
     proposta: 'Proposta configurada', confirmacao: 'Aguardando confirmação', confirmada: 'Proposta confirmada'
   });
-  var MARCO = congelar({ aguardando: 0, identificando: 0, analise: 1, estimativa: 2, proposta: 3, confirmacao: 4, confirmada: 4 });
+  var MARCO = congelar({ aguardando: 0, identificando: 0, analise: 1, entendendo: 1, estimativa: 2, proposta: 3, confirmacao: 4, confirmada: 4 });
   var ETAPAS_CONFIRMADAS = ['aguardando_pagamento', 'em_producao'];
   /* a pessoa confirmou o pacote: deixou o contato (tem_contato) ou o pedido já andou (passoAtual: direcoes, ajustes, escopo, pagamento).
      Só E.estimativa não basta: o Zero também grava estimativa, com a etapa ainda em descoberta/estimativa */
@@ -192,7 +192,10 @@
 
   /* ---------- o estado ---------- */
   function etapaDe(E) { return objeto(E) && objeto(E.conversa) && typeof E.conversa.etapa === 'string' ? E.conversa.etapa : ''; }
-  function estadoDoEscopo(E, simulacao, atividade) {
+  /* opcoes.reterValor (orçamento como conversa, spec 2026-11-13 §2): o caso ainda não foi entendido, ou a coreografia do turno do valor não terminou.
+     Os cantos se preenchem (o que entra), o miolo fica sem número e o estado é "entendendo". Só segura a ESTIMATIVA: proposta, escopo e ouro não */
+  function estadoDoEscopo(E, simulacao, atividade, opcoes) {
+    var reter = objeto(opcoes) && opcoes.reterValor === true;
     var at = objeto(atividade) ? atividade : {}, ativo = at.zero === true || at.preco === true;
     var salvo = doSalvo(E), sim = salvo ? null : daSimulacao(simulacao), b = doBriefing(E), et = etapaDe(E);
     var dims = {}, algum = false, i, q, d;
@@ -207,10 +210,11 @@
         : salvo && salvo.nivel === 2 ? 'proposta'
           : (salvo || sim) && (salvo || sim).valor !== null ? 'estimativa'
             : algum ? 'analise' : ativo ? 'identificando' : 'aguardando';
+    if (reter && estado === 'estimativa') estado = 'entendendo';
     /* o valor e DE ONDE ele veio: "Proposta atualizada" só compara valores da mesma fonte (trocar de fonte não é atualizar) */
     var valor = null, fonte = null, daProposta = objeto(E) && objeto(E.proposta) ? numero(E.proposta.valor_total) : null;
     if ((estado === 'confirmada' || estado === 'confirmacao') && daProposta !== null) { valor = daProposta; fonte = 'proposta'; }
-    else if (salvo && estado !== 'aguardando' && estado !== 'identificando' && estado !== 'analise') { valor = salvo.valor; fonte = 'estimativa'; }
+    else if (salvo && estado !== 'aguardando' && estado !== 'identificando' && estado !== 'analise' && estado !== 'entendendo') { valor = salvo.valor; fonte = 'estimativa'; }
     else if (estado === 'estimativa') { valor = sim.valor; fonte = 'simulacao'; }
     if (valor === null) fonte = null;
     return {

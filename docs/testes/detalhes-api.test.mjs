@@ -31,7 +31,7 @@ function navegador(ip = '198.51.100.' + (++ipSeq), extra = {}) {
   return { chamar, async iniciar() { const r = await chamar('POST', 'sessao', {}); token = r.corpo.token; return r.corpo.conversa_id; } };
 }
 const RESP = { ramo: 'saude', cidade: 'Goiânia', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
-const DETALHES = () => ({ negocio: 'Clínica Sol', vende: 'Consultas e exames', telefone: telefoneDeTeste(), aceite: true });
+const DETALHES = () => ({ negocio: 'Clínica Sol', vende: 'Consultas e exames', telefone: telefoneDeTeste(), aceite: true, aceite_versao: 'a1' });
 const um = async (sql, params) => (await local.db.query(sql, params)).rows[0];
 
 /* perguntas → preço → "Quero os três modelos" (o pacote gravado) */
@@ -281,10 +281,10 @@ test('a ação "contato" saiu e gerar exige o pedido confirmado, nos dois modos 
   const { criarSimulada } = await import('../../api/_ia/simulado.mjs');
   for (const extra of [{}, { direcoes: 'api', ia: criarSimulada() }]) {
     const n = navegador(undefined, extra), c = await comPacote(n);
-    assert.equal((await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Ana', telefone: '(21) 99999-0000', aceite: true })).status, 404, 'contato: ação inválida');
+    assert.equal((await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Ana', telefone: '(21) 99999-0000', aceite: true, aceite_versao: 'a1' })).status, 404, 'contato: ação inválida');
     /* o caminho antigo, direto no banco (lead sem pedido): a API não gera */
     const vid = (await um('select visitante_id from app.conversas where id = $1', [c])).visitante_id;
-    await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana', telefone: '+5521999990000', aceite: true });
+    await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana', telefone: '+5521999990000', aceite: true, aceite_versao: 'a1' });
     const g = await n.chamar('POST', 'gerar', { conversa_id: c });
     assert.equal(g.status, 409, (extra.direcoes || 'manual') + ': ' + JSON.stringify(g.corpo));
     assert.match(g.corpo.erro, /confirmado/);
@@ -364,7 +364,7 @@ test('detalhes: o log do motivo desconhecido leva o request_id do pedido', async
     const acoes = criarAcoesDoPedido({ banco: async () => ({ ok: false, motivo: 'motivo_de_amanha' }), visitante: async () => '11111111-1111-4111-8111-111111111111',
       segredoFreio: 's'.repeat(32), requestId: 'req-do-pedido' });
     const pedido = new Request('http://127.0.0.1:8899/api/vendas?acao=detalhes', { method: 'POST', headers: { 'x-forwarded-for': '203.0.113.250' } });
-    await assert.rejects(acoes.detalhes({ request: pedido, corpo: { conversa_id: '22222222-2222-4222-8222-222222222222', negocio: 'Clínica Sol', vende: 'Consultas', telefone: '(21) 98765-0000', aceite: true } }),
+    await assert.rejects(acoes.detalhes({ request: pedido, corpo: { conversa_id: '22222222-2222-4222-8222-222222222222', negocio: 'Clínica Sol', vende: 'Consultas', telefone: '(21) 98765-0000', aceite: true, aceite_versao: 'a1' } }),
       e => e.status === 409);
     assert.equal(JSON.parse(logs.find(l => l.includes('motivo_de_amanha'))).request_id, 'req-do-pedido');
   } finally { console.error = original; }

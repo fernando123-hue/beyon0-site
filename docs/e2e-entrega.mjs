@@ -242,7 +242,7 @@ export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral
   await d.p.click('#o-link-sair');
   ok(/peça um link novo à Beyon Zero/.test(await d.p.textContent('#o-link-aviso')), 'sair deste aparelho: o aviso diz como voltar (pedir um link novo), sem link de WhatsApp (D3)');
   await d.p.click('#o-link-sair');
-  await d.p.waitForSelector('#o-perguntas:not([hidden])', { timeout: 30000 });
+  await d.p.waitForSelector('#o-log .orc-toque button', { timeout: 30000 });   /* (a página recomeça pela conversa) */
   ok(await d.p.evaluate(() => localStorage.getItem('bz-orcamento')) === null, 'sair deste aparelho: a sessão foi esquecida');
   const f = await novoAparelho();
   await f.p.goto(origem + '/orcamento#pedido=' + codigo, { waitUntil: 'load' });

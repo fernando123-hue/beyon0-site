@@ -6,6 +6,7 @@ import { textoDoPlanoPermitido, SIGLAS_DE_CONSELHO } from '../../api/_vendas/pla
 import { validarPlano } from '../../api/_vendas/planta-esquema.mjs';
 import { resolverDesenho, turnoDaPlantaInicial, montarPlanta } from '../../api/_vendas/planta.mjs';
 import { planoPadrao } from '../../api/_vendas/planta-padrao.mjs';
+import { planoDoCaso } from '../../api/_vendas/mapa-padrao.mjs';
 
 const motivo = (t, o) => { const r = textoDoPlanoPermitido(t, o); return r.ok ? 'ok' : r.motivo; };
 
@@ -40,8 +41,8 @@ test('cidade que a pessoa deu passa; sem ela, nome próprio é marca; ela não a
 });
 
 const PLANO_COM_CIDADE = () => {
-  const p = JSON.parse(JSON.stringify(planoPadrao('saude_agenda')));
-  p.chegada.frase = 'A pessoa chega pela busca ou pelo mapa e vê o escritório em Curitiba.';
+  const p = planoDoCaso('saude_agenda', {});   /* (PR 4: o modelo escreve o mapa v3) */
+  p.nos[0].frase = 'Vê o escritório em Curitiba e marca';
   return p;
 };
 

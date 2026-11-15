@@ -35,7 +35,7 @@ function porIp(ip, textos = ['Tenho uma padaria e quero um site']) {
   };
 }
 const seg = n => n.toString(16);
-const RESP = { ramo: 'saude', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
+const RESP = { ramo: 'beleza', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
 const visitanteDeConversa = async c => (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
 
 /* ---------- Task 2 (pista 1): o limite diário do consultor também por /48 ---------- */
@@ -108,7 +108,7 @@ test('banco: com os detalhes enviados o pedido já está confirmado e o preço e
   const n = cenario.navegador(), c = await n.iniciar();
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
   assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 200);
-  assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Fisioterapia', telefone: telefoneDeTeste(), nome: 'Ana Souza', aceite: true })).status, 200);
+  assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Fisioterapia', telefone: telefoneDeTeste(), nome: 'Ana Souza', aceite: true, aceite_versao: 'a1' })).status, 200);
   const vid = await visitanteDeConversa(c);
   assert.equal((await local.db.query('select status from app.pedidos where conversa_id = $1', [c])).rows[0].status, 'confirmado');
   await assert.rejects(local.rpc('vendas_registrar_estimativa', { conversa_id: c, visitante_id: vid, regras_id: await regrasAtivasId(), fatores: { formato: 'institucional' }, valor_total: 3950, sinal: 1975, prazo_dias: 9 }), e => e.codigo === '55000');

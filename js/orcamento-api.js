@@ -4,7 +4,7 @@
    renovação e o id da conversa) para quem sai e volta continuar de onde
    parou. O token só abre a conversa deste visitante; não há preço, regra ou
    chave aqui: tudo isso fica no servidor.
-   A sessão nasce no "Ver o preço" das perguntas (ou na primeira mensagem
+   A sessão nasce no 1º toque da conversa (js/orcamento-toques.js pede a conta; ou na primeira mensagem
    ao consultor), não a cada visita: sem visitante anônimo criado à toa.
    ========================================================================== */
 (function () {
@@ -208,7 +208,8 @@
       if (!sessao || !sessao.conversa_id) return Promise.reject(new Falha(401, { erro: 'Sessão encerrada.' }));
       return chamar('GET', 'estado', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id), ESTADO_MS);
     },
-    mensagem: async function (texto) { await garantirSessao(); return chamar('POST', 'mensagem', comConversa({ texto: texto }), undefined, MENSAGEM_MS); },
+    /* (orçamento como conversa) as respostas tocadas seguem junto, quando houver (js/orcamento-toques.js) */
+    mensagem: async function (texto, respostas) { await garantirSessao(); return chamar('POST', 'mensagem', comConversa(respostas ? { texto: texto, respostas: respostas } : { texto: texto }), undefined, MENSAGEM_MS); },
     /* os detalhes do negócio (PR 2a): viram o pedido com código; o servidor redige e confere tudo de novo */
     detalhes: function (dados) { return chamar('POST', 'detalhes', comConversa(dados), undefined, ESTADO_MS); },
     gerar: function () { return chamar('POST', 'gerar', comConversa()); },

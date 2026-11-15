@@ -1,5 +1,41 @@
 # Beyon Zero — transferência de contexto
 
+> **ESTADO DA SESSÃO "ORÇAMENTO COMO CONVERSA" (14/11, tarde; worktree `03 Projetos/site-zero-mapa`, branch `zero-mapa-desenho-b`).**
+> <!-- passagem-auto: 1-cf05db7a-0aec-488c-92c5-4f1b5ccd43e9 -->
+> **Feito:**
+> - PR 4 (#154) = main `eee008a`; **PR 5a (#157) = main `b8c23dc`**: as origens num módulo comum (`js/mapa-saber.js`, com a negação antes e depois) e o esboço sem fantasma. SHAs mandados à sessão principal. **Não promover até o 5b.**
+> - **5b quase pronto** neste branch (plano `docs/superpowers/plans/2026-11-14-pr5b-mapa-desenho.md`; tarefas 1 a 7 feitas):
+>   - a cola com CONJUNTOS v2/v3 e a troca no meio da conversa;
+>   - `js/mapa-layout.js`, `js/mapa-desenho.js` (roteiro por estrutura, voo, ouro) e `css/orcamento-mapa.css`;
+>   - `casarMapa`; o laboratório nos módulos reais; `docs/fotos-mapa.mjs`;
+>   - revisões de código e de segurança feitas e corrigidas (`efd356c`; textos para o PR em `scratchpad/rev-5b-*.md`).
+> - **5c pronto** no branch `zero-mapa-ajuste`, empilhado sobre o 5b. Tem: "Ficou certo?" dentro do mapa, com "Está certo" local (sem IA); o ajuste (quem fica desliza, o nó novo cresce); o botão "Ver a planta" de volta; e `docs/e2e-planta.mjs` refeito (22 de 22). As revisões estão corrigidas (`6b0430c`; textos em `scratchpad/rev-5c-*.md`).
+> - **Falta só a escolha do dono, A (caixa) ou B (trilho)**, pedida à sessão principal. Fotos em `00 Entrada/orcamento-conversa/lab-estruturas-1411/` e `pr5b/`.
+>
+> **PRÓXIMO PASSO EXATO:**
+> 1. Com a resposta do dono, deixar só a pele escolhida:
+>    - `PELE` em `js/mapa-desenho.js`;
+>    - tirar a outra de `js/mapa-layout.js`, `js/mapa-desenho.js` e `css/orcamento-mapa.css` (o laboratório pode guardar `?pele=`);
+>    - baixar o teto do v3 em `planta-bytes` para a medida nova (hoje 27.500, com as duas peles 27.202).
+> 2. Rodar a suíte, o E2E do orçamento nos dois modos (`scratchpad/e2e-dois.sh`), `docs/fotos-mapa.mjs` e `docs/lab-estruturas-fotos.mjs`.
+> 3. Abrir o PR 5b (nível 3, a cola) com as evidências; mesclar com tudo verde e mandar o SHA.
+> 4. Depois, o 5c ("Ficou certo?" no cartão, o ajuste com nó novo e deslize, `docs/e2e-planta.mjs` refeito, incluindo o botão "Ver a planta", que não acha a fala do Zero desde o PR 2).
+>
+> **Pendências:**
+> - `docs/e2e-planta.mjs` está velho: desde o PR 4 a IA simulada gera v3, e a tela ainda não o desenha. Refazer no 5b/5c, com um plano v2 forjado para a regressão do voo v2.
+> - O E2E do orçamento sem consultor teve uma falha intermitente no CI (envio final depois da recarga; anotada no #154). Olhar no pente fino.
+> - Os medidores `docs/medir-orcamento-leve.mjs` e `docs/medir-planta.mjs` estão velhos: PR de limpeza.
+> - Pente fino (parte E): "Pular" apaga o valor; o nome entra na triagem por IA; teste com leitor de tela real. A negação "depois" ("Pelo Instagram não") já foi feita no 5a.
+>
+> **Armadilhas:**
+> - O guarda bloqueia heredoc com "push" ou "merge", até no código (`lista.push`): escrever o script com Write.
+> - Sabotagem com `para: ""` é recusada; antes do mutante, os arquivos "fonte" precisam estar commitados.
+> - `gh pr merge` exige `-R fernando123-hue/beyon0-site`.
+> - O teto de bytes do desenho só falha com CRLF local (com LF dá 21.167 de 21.200).
+> - Para o E2E: um servidor novo por modo. Para fotos: matar o servidor da 8899 no fim (`netstat -ano | grep :8899`, `taskkill`).
+>
+> **Skills para a próxima:** processo-qualidade (o PROCESSO.md do projeto manda), writing-plans (5b), voz-humana para os textos do mapa, revisao-ui no 5b.
+
 > **ESTADO DA SESSÃO "PLANTA VIVA v2" (2026-11-12, worktree `03 Projetos/site-planta-espetaculo`, branch `planta-espetaculo`).**
 > <!-- passagem-auto: 1-811cdf27-da18-484d-b51f-6ae6a93d4a32 -->
 > **13/11, madrugada: PR 1 (crescimento) MESCLADO (#141, main 2f3d98f). PR 2 (consagração) no ramo `planta-consagracao`:**

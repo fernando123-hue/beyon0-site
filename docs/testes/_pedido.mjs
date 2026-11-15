@@ -12,7 +12,7 @@ export const telefoneDeTeste = () => { const n = proximo(); return '(21) 9' + n.
 export const telefoneE164DeTeste = () => '+55219' + proximo();
 
 export async function detalhesEConfirmar(chamar, rpc, conversaId, extra = {}) {
-  const r = await chamar('POST', 'detalhes', { conversa_id: conversaId, negocio: 'Clínica Teste', vende: 'Consultas e exames', telefone: telefoneDeTeste(), nome: 'Rita', aceite: true, ...extra });
+  const r = await chamar('POST', 'detalhes', { conversa_id: conversaId, negocio: 'Clínica Teste', vende: 'Consultas e exames', telefone: telefoneDeTeste(), nome: 'Rita', aceite: true, aceite_versao: 'a1', ...extra });
   if (r.status !== 200) throw new Error('detalhes: ' + r.status + ' ' + JSON.stringify(r.corpo));
   if (r.corpo.status === 'confirmado') return r.corpo;   /* (a confirmação é automática, salvo pedido suspeito: aí o dono aprova) */
   const c = await rpc('vendas_confirmar_whatsapp', { org_slug: 'beyon-zero', conversa_id: conversaId });

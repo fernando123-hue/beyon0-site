@@ -10,7 +10,7 @@ import { LIMITES_DE_TESTE, telefoneDeTeste } from './_pedido.mjs';
 export const BASE = 'http://127.0.0.1:8899';
 const CHAVE = 'k'.repeat(40);
 export const ENV = { BZ_LOCAL: '1', PAINEL_CHAVE: CHAVE };
-const RESP = { ramo: 'saude', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
+const RESP = { ramo: 'beleza', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
 const VALIDA = JSON.parse(fs.readFileSync(new URL('./fixtures/direcao-valida.json', import.meta.url), 'utf8'));
 const secao = (tipo, titulo, itens) => ({ tipo, variante: 'lista', rotulo: '', titulo, subtitulo: '', texto: '', itens, cta: '' });
 
@@ -60,7 +60,7 @@ export function criarCenario(local) {
     const c = await n.iniciar();
     const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
     assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 200);
-    assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Fisioterapia', telefone: telefoneDeTeste(), nome: 'Ana Souza', aceite: true })).status, 200);
+    assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Aulas de pilates', telefone: telefoneDeTeste(), nome: 'Ana Souza', aceite: true, aceite_versao: 'a1' })).status, 200);
     const dirs = (await estado(n, c)).direcoes;
     for (const d of dirs) assert.equal((await painelPost({ entregar_direcao: d.id, conteudo: modelo(d.numero) })).status, 200, 'entrega do modelo ' + d.numero);
     assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs.find(d => d.numero === 1).id })).status, 200);

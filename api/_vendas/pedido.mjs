@@ -34,7 +34,8 @@ export const REDES = Object.freeze({
   youtube: { nome: 'YouTube', dominio: 'youtube.com', usuario: /^[A-Za-z0-9._-]{3,30}$/, prefixo: '@' },
   linkedin: { nome: 'LinkedIn', dominio: 'linkedin.com', usuario: /^[A-Za-z0-9-]{3,100}$/, prefixo: 'company/' }
 });
-const CAMPOS = ['conversa_id', 'negocio', 'vende', 'telefone', 'nome', 'publico', 'diferencial', 'admira', 'redes', 'autoriza_redes', 'aceite'];
+/* (aceite_versao: a versão do texto do aceite que a tela mostrou; quem a confere é o fluxo, api/_vendas/aceite.mjs) */
+const CAMPOS = ['conversa_id', 'negocio', 'vende', 'telefone', 'nome', 'publico', 'diferencial', 'admira', 'redes', 'autoriza_redes', 'aceite', 'aceite_versao'];
 /* campo: [mínimo (0 = opcional), máximo, como a tela chama] */
 const TEXTOS = {
   negocio: [2, 60, 'o nome do negócio'],

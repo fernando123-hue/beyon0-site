@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { montarPlanta, limparCacheDaPlanta, estatisticasDoCache } from '../../api/_vendas/planta.mjs';
 import { planoPadrao } from '../../api/_vendas/planta-padrao.mjs';
+import { planoDoCaso } from '../../api/_vendas/mapa-padrao.mjs';
 import { RESERVA_USD, reservaUsd } from '../../api/_ia/config.mjs';
 import { montarLocal } from '../banco-local.mjs';
 import { atender } from '../../api/vendas.mjs';
@@ -62,8 +63,9 @@ test('cache: o resultado de um plano inválido também vale (e vira o padrão do
   ruim.etapas[0].titulo = 'Passo 1 da vitrine';
   const a = montarPlanta(gravada(ruim, { negocio: { nome: 'x', segmento: 'loja de roupas femininas' } }));
   const b = montarPlanta(gravada(ruim, { negocio: { nome: 'x', segmento: 'clínica odontológica' } }));
-  assert.deepEqual(a.plano, planoPadrao('loja_online'));
-  assert.deepEqual(b.plano, planoPadrao('saude_agenda'), 'o mesmo plano ruim cai no padrão de cada nicho');
+  /* (PR 4) o padrão é o mapa do caso v3, do nicho de cada briefing */
+  assert.deepEqual(a.plano, planoDoCaso('loja_online', {}));
+  assert.deepEqual(b.plano, planoDoCaso('saude_agenda', {}), 'o mesmo plano ruim cai no padrão de cada nicho');
   assert.equal(estatisticasDoCache().acertos, 1, 'o segundo veio do cache da validação, não da escolha do nicho');
 });
 

@@ -60,13 +60,13 @@ const direcao = (nome = 'Clareza que agenda') => ({
 });
 
 /* até a fila (PR 2a): perguntas → pacote → detalhes (o pedido já nasce confirmado e na fila) */
-const RESP = { ramo: 'saude', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
+const RESP = { ramo: 'beleza', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
 async function ateAFila(direcoes = 'manual', { telefone = telefoneDeTeste(), extra = {} } = {}) {
   const n = navegador(direcoes);
   const c = await n.iniciar();
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
   assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 200);
-  const detalhes = await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Fisioterapia e pilates', telefone, nome: 'Ana Souza', aceite: true, ...extra });
+  const detalhes = await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Pilates e alongamento', telefone, nome: 'Ana Souza', aceite: true, aceite_versao: 'a1', ...extra });
   return { n, c, detalhes };
 }
 

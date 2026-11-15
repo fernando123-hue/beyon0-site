@@ -13,7 +13,8 @@ export const AVISOS = Object.freeze({
   fila_cheia: 'URGENTE: a fila de pedidos encheu ou o limite por hora foi atingido. Veja o painel.',
   atendente_cliente: 'O atendente de um cliente bateu o teto de gasto do dia e passou a mandar as pessoas para a equipe. Veja o painel.',
   atendente_contatos: 'O atendente de um cliente recebeu o máximo de contatos do dia (pode ser abuso). Veja o painel.',
-  atendente_global: 'URGENTE: o teto de gasto do dia do atendente (todos os clientes) acabou. Veja o painel.'
+  atendente_global: 'URGENTE: o teto de gasto do dia do atendente (todos os clientes) acabou. Veja o painel.',
+  custo_dia: 'O gasto de IA do orçamento está perto do teto do dia. Veja o painel.'
 });
 
 const PAINEL = 'https://beyonzero.com.br/painel';
@@ -31,7 +32,7 @@ const assuntoDe = texto => { const s = texto.split('.')[0]; return s.length <= A
 /* os avisos de alerta (fila cheia, tetos) mandam no máximo 1 e-mail por hora por tipo: com a fila cheia, cada tentativa de pedido
    chamaria o aviso (revisões técnica e de segurança). A memória é do isolado do Worker: freio de melhor esforço, que basta
    para não encher a caixa; recado e pedido avisam sempre (cada um já tem os freios por IP e no banco) */
-const COM_FREIO = new Set(['fila_cheia', 'atendente_cliente', 'atendente_contatos', 'atendente_global']);
+const COM_FREIO = new Set(['fila_cheia', 'atendente_cliente', 'atendente_contatos', 'atendente_global', 'custo_dia']);
 const FREIO_MS = 60 * 60e3;
 const ULTIMO_AVISO = new Map();
 

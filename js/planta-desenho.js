@@ -294,6 +294,7 @@
       aplicarFinal();
       fixarStatus((ajuste ? 'Planta ajustada, com ' : 'Planta pronta, com ') + etapasDe(inst.R.g) + ' etapas. ' + inst.plano.fecho);
       if (!ajuste) leitura('Planta pronta', inst.plano.fecho);
+      if (!ajuste && win.CustomEvent && doc.dispatchEvent) doc.dispatchEvent(new win.CustomEvent('bz:planta-pronta'));   /* (o valor espera: orcamento.js) */
       pulsoDeRepouso();
     }
 

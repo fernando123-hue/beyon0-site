@@ -125,14 +125,19 @@
   function atualizar(E) {
     var pedido = E && E.pedido;
     var formulario = !!E && !E.conversa.tem_contato && !!E.estimativa && !pedido;
-    $('o-contato').hidden = !formulario;
+    /* (orçamento como conversa, PR 3) os detalhes vão pelos passos do pedido na conversa (js/orcamento-pedido.js): daqui só fica o aviso de fila cheia */
+    var conversa = !!window.BZPedido;
+    $('o-contato').hidden = !formulario || (conversa && !E.fila_cheia);
     $('o-fila-cheia').hidden = !(formulario && E.fila_cheia);
-    $('o-detalhes-form').hidden = formulario && !!E.fila_cheia;
+    $('o-detalhes-form').hidden = conversa || (formulario && !!E.fila_cheia);
     if (formulario) sugestoes((E.conversa.briefing && E.conversa.briefing.negocio && E.conversa.briefing.negocio.segmento) || '');
     /* o pedido recebido: o código à vista até as direções ficarem prontas */
     var recebido = !!pedido && pedido.status === 'confirmado' && CODIGO.test(pedido.codigo) && (E.conversa.etapa === 'contato' || E.conversa.etapa === 'gerando');
     $('o-confirmar').hidden = !recebido;
     if (recebido) $('o-confirmar-codigo').textContent = pedido.codigo;
+    /* (decisão do dono, 14/11) saúde: sem "fila" de modelos automáticos */
+    var leadRecebido = document.querySelector('#o-confirmar .orc-bloco__lead');
+    if (leadRecebido) leadRecebido.textContent = E.saude_com_a_equipe === true ? 'Recebemos o seu pedido. Na área da saúde a gente confere tudo antes de mandar os modelos, então falamos com você pelo WhatsApp.' : 'O seu pedido já está na fila. Não precisa mandar mensagem nem confirmar nada.';
     var fim = !!pedido && Object.prototype.hasOwnProperty.call(FIM, pedido.status);
     $('o-pedido-fim').hidden = !fim;
     if (fim) $('o-pedido-fim-texto').textContent = FIM[pedido.status];

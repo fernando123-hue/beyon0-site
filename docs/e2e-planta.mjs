@@ -1,48 +1,67 @@
-/* E2E DA PLANTA NA PÁGINA DE ORÇAMENTO (PR 2c) num Chromium de verdade, contra o servidor local com a IA simulada. Roda as DUAS pontas da flag BZ_PLANTA:
+/* E2E DO MAPA DO CASO NA PÁGINA DE ORÇAMENTO (PR 5c; refeito para a conversa nova e o mapa v3) num Chromium de verdade, servidor local com a IA
+   simulada, nas DUAS pontas da flag BZ_PLANTA:
      node docs/servidor.mjs . 8931                           (flag ligada: padrão do servidor local)
      BZ_PLANTA_LOCAL=desligada node docs/servidor.mjs . 8932 (flag desligada: a página de hoje)
-     CHROMIUM=... node docs/e2e-planta.mjs [8931] [8932]
-   Ligada: a conversa vai até a planta (turno 1 estima, turno 2 leva o gatilho "planta-boa" da IA simulada); a faixa nasce fora da tela, o botão "Ver a planta do seu site"
-   fica sob a fala do Zero e SOBREVIVE a um turno novo, "Está certo" manda UMA mensagem, "Quero ajustar" só foca a caixa, o ajuste (estado de uma 2ª versão, forjado na
-   rede porque a IA simulada só tem um plano) marca só o id novo, preço fechado desliga os botões, a faixa à vista espera o gesto. Desligada: nada aparece, nenhum módulo
-   da planta é baixado, a conversa é a de sempre. Cada rodada cria sessões no freio local (8 por 10 min por IP): o script manda um IP novo por rodada. */
+     CHROMIUM=... node docs/e2e-planta.mjs [8931] [8932] [pasta das fotos]
+   Ligada, celular (390):
+     - a conversa até o mapa (o gatilho "planta-boa" do dublê dá um v3): o mapa monta no cartão, termina em ouro, libera o valor;
+     - "Ficou certo?" aparece; "Está certo" vira uma fala na tela e NÃO manda mensagem;
+     - ao recarregar, a pergunta volta;
+     - "Quero ajustar algo" foca a caixa com a dica do mapa;
+     - o AJUSTE: um estado forjado na rede (versão 2 com um nó "ajustado") faz o nó novo aparecer com a marca, sem refazer a entrada.
+   Ligada, computador (1280): o botão "Ver a planta do seu site" aparece sob a fala do Zero e abre a faixa com o mapa, com o foco no título.
+   Regressão do v2: um plano v2 forjado na rede desenha com o módulo antigo (.plv-quadro).
+   Desligada: nada da planta é baixado e a conversa é a de sempre.
+   Cada rodada usa um IP novo (o freio local de sessões por IP). Sai com 1 se algo falhar. */
 import { chromium } from 'playwright';
-import { mkdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { esperarToques, responderAteADor } from './e2e-toques.mjs';
+import { mkdir, readFile } from 'node:fs/promises';
+import path from 'node:path';
 
-const ON = 'http://127.0.0.1:' + (process.argv[2] || '8931'), OFF = 'http://127.0.0.1:' + (process.argv[3] || '8932');
-const EXEC = process.env.CHROMIUM || (process.env.LOCALAPPDATA + '/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe');
-const PASTA = new URL('./olhar-planta/', import.meta.url);
-await mkdir(PASTA, { recursive: true });
-const foto = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + '.png', PASTA)) });
-let falhou = false;
-const ok = (cond, msg) => { console.log((cond ? '  ok   ' : '  FALHOU ') + msg); if (!cond) falhou = true; };
+const ON = 'http://127.0.0.1:' + (process.argv[2] || '8931');
+const OFF = 'http://127.0.0.1:' + (process.argv[3] || '8932');
+const PASTA = process.argv[4] || null;
+const V2 = JSON.parse(await readFile(new URL('./testes/fixtures/planta/clinica.json', import.meta.url), 'utf8'));
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const ip = () => '10.' + (1 + Math.floor(Math.random() * 250)) + '.' + Math.floor(Math.random() * 250) + '.' + (1 + Math.floor(Math.random() * 250));
-const MODULOS = /\/(orcamento-planta-forma|planta-pecas|planta-layout|planta-desenho)\.js/;
-/* os que só a FAIXA baixa: planta-pecas.js também vem com o esboço da planta v2, que cresce na conversa desde a 1ª resposta (js/orcamento-planta-esboco.js) */
-const SO_DA_FAIXA = /\/(orcamento-planta-forma|planta-layout|planta-desenho)\.js|orcamento-planta\.css/;
-const nav = await chromium.launch({ executablePath: EXEC });
+let falhou = false;
+const ok = (cond, msg) => { console.log((cond ? '  ok   ' : '  FALHOU ') + msg); if (!cond) falhou = true; };
+const MODULOS_DA_PLANTA = /\/(orcamento-planta-forma|orcamento-mapa-forma|planta-layout|planta-desenho|mapa-layout|mapa-desenho|planta-pecas|planta-cresce|planta-esboco|mapa-saber)\.js|orcamento-(planta|mapa)\.css|planta-esboco\.css/;
+if (PASTA) await mkdir(PASTA, { recursive: true });
+const foto = async (alvo, nome) => { if (PASTA) await alvo.screenshot({ path: path.join(PASTA, nome + '.png') }); };
+const nav = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 
-/* (planta viva v2, decisão de 12/11: abaixo de 960 px a planta consagra no cartão da conversa e a faixa não é usada; as seções da FAIXA rodam no computador) */
-async function abrir(base, { larg = 1280, alt = 844 } = {}) {
+/* forja o estado: troca o plano (e a versão) da planta na resposta de "estado", a partir do momento em que `ligar()` é chamado */
+async function forjarEstado(page, troca) {
+  const ctl = { ativo: false };
+  await page.route('**/api/vendas?acao=estado*', async (route) => {
+    const r = await route.fetch();
+    if (!ctl.ativo) return route.fulfill({ response: r });
+    const j = await r.json();
+    if (j && j.planta && j.planta.plano) troca(j.planta);
+    return route.fulfill({ response: r, json: j });
+  });
+  return { ligar: () => { ctl.ativo = true; } };
+}
+async function abrir(base, { larg = 390, alt = 844 } = {}) {
   const ctx = await nav.newContext({ viewport: { width: larg, height: alt }, isMobile: larg < 500, hasTouch: larg < 500, extraHTTPHeaders: { 'x-forwarded-for': ip() } });
   const page = await ctx.newPage();
-  const baixados = [], erros = [];
-  page.on('request', (r) => { if (MODULOS.test(r.url()) || /orcamento-planta\.css/.test(r.url())) baixados.push(r.url().split('/').pop()); });
+  const baixados = [], erros = [], mensagens = [];
+  page.on('request', (r) => {
+    if (MODULOS_DA_PLANTA.test(r.url())) baixados.push(r.url().split('/').pop());
+    if (/acao=mensagem/.test(r.url()) && r.method() === 'POST') mensagens.push(r.postData() || '');
+  });
   page.on('pageerror', (e) => erros.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error' || (m.type() === 'warning' && /planta|beyon/.test(m.text()))) erros.push(m.text()); });
-  page.on('dialog', (d) => { erros.push('diálogo: ' + d.message()); d.dismiss(); });
+  await page.addInitScript(() => { window.__prontas = 0; document.addEventListener('bz:planta-pronta', () => { window.__prontas++; }); });
+  return { ctx, page, baixados, erros, mensagens };
+}
+async function conversarAteOMapa(page, base) {
   await page.goto(base + '/orcamento', { waitUntil: 'load', timeout: 90000 });
-  await page.waitForSelector('#o-perguntas:not([hidden])');
-  await page.click('[data-ramo="saude"]'); await page.fill('#o-p-cidade', 'Goiânia');
-  await page.click('.orc-p:not([hidden]) .orc-p__seguir');
-  await page.click('[data-objetivo="agendamentos"]'); await page.click('.orc-p:not([hidden]) .orc-p__seguir');
-  await page.click('[data-site-atual="instagram"]'); await page.click('[data-material="tenho"]');
-  await page.click('#o-p-ver-preco');
-  await page.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 20000 });
-  await page.click('#o-conversar');
-  return { ctx, page, baixados, erros };
+  await esperarToques(page);
+  await responderAteADor(page);
+  await turno(page, 'Pelo Instagram e por indicação, e muita gente pergunta e some');
+  await turno(page, 'planta-boa pode desenhar');
 }
 async function turno(page, texto) {
   const n = await page.locator('#o-log .msg--agente').count();
@@ -50,284 +69,111 @@ async function turno(page, texto) {
   await page.press('#o-texto', 'Enter');
   await page.waitForFunction((k) => document.querySelectorAll('#o-log .msg--agente').length > k, n, { timeout: 40000 });
   await page.waitForSelector('#o-pensando[hidden]', { state: 'attached', timeout: 40000 });
-  await espera(300);
 }
+const rolarAoCartao = (page) => page.evaluate(() => { const li = document.querySelector('#o-log .lv-item'); const c = document.getElementById('o-log-caixa'); if (li && c) c.scrollTop += li.getBoundingClientRect().top - c.getBoundingClientRect().top - 8; });
 const lateral = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
-const T1 = 'Tenho uma clínica odontológica e quero mais agendamentos, preciso de um site institucional';
 
-/* ---------- flag LIGADA ---------- */
-console.log('\n== flag ligada (' + ON + ') ==');
+/* ---------- ligada, celular ---------- */
+console.log('\n== flag ligada, celular 390 (' + ON + ') ==');
 {
-  const { ctx, page, baixados, erros } = await abrir(ON);
-  await turno(page, T1);
-  ok(await page.locator('#o-planta').isHidden() && !baixados.some((b) => SO_DA_FAIXA.test('/' + b)), 'antes da planta: a faixa está escondida e nenhum módulo da faixa foi baixado (' + baixados.join(',') + ')');
-  await turno(page, 'planta-boa pode desenhar');
-  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro', { timeout: 15000 });
-  ok(['orcamento-planta-forma.js', 'planta-layout.js', 'planta-desenho.js', 'orcamento-planta.css'].every((m) => baixados.filter((b) => b === m).length === 1) && baixados.includes('planta-pecas.js'), 'os módulos da faixa e o CSS foram baixados, uma vez cada (planta-pecas.js também vem com o esboço): ' + baixados.join(','));
-  ok(await page.locator('.plv-ver').count() === 1, 'o botão "Ver a planta do seu site" aparece uma vez');
-  ok((await page.evaluate(() => document.querySelector('.plv-ver').closest('li').textContent)).includes('Desenhei o seu site em planta'), 'o botão está dentro da fala do Zero que trouxe a planta');
-  ok(await lateral(page), 'computador com a faixa: sem rolagem lateral');
-  ok(await page.evaluate(() => document.querySelectorAll('.plv-lista li').length) >= 9, 'a lista de etapas tem as caixas da planta');
-  ok(await page.evaluate(() => [...document.querySelectorAll('.plv-lista li .plv-sr')].every((s) => s.textContent.length > 10)), 'cada etapa leva a frase para o leitor de tela');
-  const topoAntes = await page.evaluate(() => Math.round(document.getElementById('o-planta').getBoundingClientRect().top));
-  ok(topoAntes > 700, 'a faixa nasceu fora da área visível (topo em ' + topoAntes + ' px, janela de 844)');
-  ok(await page.evaluate(() => { const f = document.getElementById('o-planta'); return f.parentNode.lastElementChild === f && f.parentNode.tagName === 'MAIN' && f.getBoundingClientRect().top >= document.querySelector('.orc-mesa').getBoundingClientRect().bottom; }), 'a faixa é a última seção do <main>, depois da mesa (posição B)');
-  await page.click('.plv-ver');
-  await espera(900);
-  const aposToque = await page.evaluate(() => ({ topo: Math.round(document.getElementById('o-planta').getBoundingClientRect().top), foco: document.activeElement.className }));
-  ok(aposToque.topo < 200 && aposToque.topo > 0, 'tocar no botão leva a faixa ao topo da tela, abaixo do menu fixo (topo em ' + aposToque.topo + ' px)');
-  ok(aposToque.foco.includes('plv-titulo'), 'e o foco vai para o título da faixa');
-  await espera(9000);
-  await foto(page, 'ligada-1280-planta');
-  /* um turno novo refaz a lista: o botão e a faixa continuam, sem duplicar */
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await turno(page, 'E o prazo, como fica?');
-  ok(await page.locator('.plv-ver').count() === 1 && await page.locator('#o-planta .plv').count() === 1 && await page.locator('#o-planta:not([hidden])').count() === 1, 'depois de um turno novo: um botão, uma faixa');
-  ok((await page.evaluate(() => document.querySelector('.plv-ver').closest('li').textContent)).includes('Desenhei o seu site em planta'), 'o botão segue sob a fala da versão (a lista foi refeita)');
-  /* Quero ajustar: só foca */
-  const antes = await page.locator('#o-log .msg--visitante').count();
-  await page.locator('.plv-btn', { hasText: 'Quero ajustar algo' }).click();
-  ok(await page.evaluate(() => document.activeElement.id === 'o-texto' && document.getElementById('o-texto').placeholder === 'Diga o que mudar na planta.'), '"Quero ajustar algo" foca a caixa com a dica');
-  ok(await page.waitForFunction(() => { const r = document.getElementById('o-texto').getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight; }, null, { timeout: 4000 }).then(() => true, () => false), '"Quero ajustar algo" traz a caixa de texto de volta para dentro da tela (a faixa fica longe da conversa)');
-  ok(await page.locator('#o-log .msg--visitante').count() === antes, '"Quero ajustar algo" não envia nada');
-  /* Está certo: uma mensagem */
-  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
-  await page.waitForFunction((k) => document.querySelectorAll('#o-log .msg--visitante').length > k, antes, { timeout: 20000 });
-  await page.waitForSelector('#o-pensando[hidden]', { state: 'attached', timeout: 40000 });
-  ok(await page.locator('#o-log .msg--visitante').count() === antes + 1, '"Está certo" manda exatamente uma mensagem');
-  ok((await page.locator('#o-log .msg--visitante').last().textContent()).trim() === 'A planta está certa.', 'e é "A planta está certa."');
-  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
-  await espera(600);
-  ok(await page.locator('#o-log .msg--visitante').count() === antes + 1, 'clicar de novo na mesma versão não manda outra');
-  ok(await page.locator('.plv-ver').count() === 1 && await page.locator('#o-planta:not([hidden])').count() === 1, 'a planta continua depois do "Está certo" (o Zero não redesenha)');
-  ok(erros.length === 0, 'nenhum erro nem aviso no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
-  await ctx.close();
-}
-
-/* ---------- o ajuste: uma 2ª versão no estado (forjada na rede) marca só o id novo; preço fechado desliga os botões ---------- */
-console.log('\n== ajuste e preço fechado (estado forjado na rede) ==');
-{
-  const { ctx, page, erros } = await abrir(ON);
-  await turno(page, T1);
-  await turno(page, 'planta-boa pode desenhar');
-  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
-  let modo = null;
-  await page.route('**/api/vendas?acao=estado*', async (r) => {
-    const resp = await r.fetch(); const j = await resp.json();
-    if (modo && j.planta) {
-      if (modo === 'ajuste') {
-        const p = JSON.parse(JSON.stringify(j.planta.plano));
-        p.etapas.splice(2, 0, Object.assign({}, p.etapas[0], { id: 'sinal1', titulo: 'Sinal para segurar o horário', frase: 'A pessoa paga um sinal para garantir o horário.' }));
-        p.etapas = p.etapas.slice(0, 8);
-        j.planta = { versao: j.planta.versao + 1, origem: 'modelo', n_mensagens: j.mensagens.length - 1, plano: p };
-      } else if (modo === 'fechado') j.planta_editavel = false;
-    }
-    r.fulfill({ response: resp, body: JSON.stringify(j) });
+  const { ctx, page, erros, mensagens } = await abrir(ON);
+  const forja = await forjarEstado(page, (planta) => {
+    /* o ajuste: versão 2, o mesmo mapa com um nó "ajustado" entre a ação e o objetivo */
+    const p = planta.plano, acao = p.nos[p.nos.length - 1];
+    p.nos.push({ id: 'lembrete', papel: 'ajustado', icone: 'lembrete', titulo: 'Lembrete na véspera', frase: 'A pessoa recebe um aviso antes do horário' });
+    p.setas = p.setas.filter((s) => !(s.de === acao.id && s.para === 'objetivo'));
+    p.setas.push({ de: acao.id, para: 'lembrete', rotulo: 'avisa antes' }, { de: 'lembrete', para: 'objetivo', rotulo: 'confirma' });
+    planta.versao = 2;
   });
-  modo = 'ajuste';
-  await turno(page, 'Quero cobrar um sinal');
-  await page.waitForSelector('#o-planta .plv-lista li.is-ajustado', { timeout: 15000 });
-  const novos = await page.evaluate(() => [...document.querySelectorAll('.plv-lista li.is-ajustado')].map((l) => l.dataset.id));
-  ok(JSON.stringify(novos) === '["sinal1"]', 'o ajuste marca só o id novo: ' + novos.join(','));
-  ok(await page.locator('.plv-ver').count() === 1, 'o botão passou para a fala da versão nova (um só)');
-  ok((await page.evaluate(() => document.querySelector('.plv-ver').closest('li').textContent)).length > 0 && await page.evaluate(() => document.querySelector('.plv-ver').closest('li') === [...document.querySelectorAll('#o-log .msg--agente')].pop()), 'e está sob a última fala do Zero');
+  await conversarAteOMapa(page, ON);
+  await rolarAoCartao(page);
+  await page.waitForSelector('#o-log .lv-item .mpc-quadro', { timeout: 20000 });
   await espera(9000);
-  await foto(page, 'ligada-1280-ajuste');
-  modo = 'fechado';
-  await turno(page, 'Entendi, obrigado');
-  await espera(500);
-  const botoes = await page.evaluate(() => [...document.querySelectorAll('.plv-btn')].slice(0, 2).map((b) => b.disabled || b.hasAttribute('disabled')));
-  ok(botoes.length === 2 && botoes.every(Boolean), 'planta_editavel false: "Está certo" e "Quero ajustar algo" desligados');
-  ok(await page.locator('#o-planta:not([hidden]) .plv-quadro').count() === 1, 'e a planta segue visível');
-  const n = await page.locator('#o-log .msg--visitante').count();
-  await page.locator('.plv-btn').first().click({ force: true }).catch(() => {});
-  await espera(500);
-  ok(await page.locator('#o-log .msg--visitante').count() === n, 'clicar no botão desligado não envia nada');
-  ok(erros.length === 0, 'nenhum erro no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
-  await ctx.close();
-}
-
-/* ---------- "Está certo" só gasta a versão quando o envio entrou (achado 1 das revisões) ---------- */
-console.log('\n== "Está certo" com a conversa ocupada e com a rede caindo ==');
-{
-  const { ctx, page, erros } = await abrir(ON);
-  await turno(page, T1);
-  await turno(page, 'planta-boa pode desenhar');
-  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
-  const visitantes = () => page.locator('#o-log .msg--visitante').count();
-  const base = await visitantes();
-  /* (a) conversa ocupada: uma mensagem normal segura o envio por 2,5 s; o clique em "Está certo" nesse meio tempo não manda nada e não gasta a versão */
-  await page.route('**/api/vendas?acao=mensagem*', async (r) => { await espera(2500); r.continue(); });
-  await page.fill('#o-texto', 'E o prazo, como fica?'); await page.press('#o-texto', 'Enter');
-  await page.waitForFunction((k) => document.querySelectorAll('#o-log .msg--visitante').length > k, base);
-  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
-  await espera(300);
-  ok(await visitantes() === base + 1, 'com a conversa ocupada, "Está certo" não manda nada (só a mensagem que já estava indo)');
-  await page.waitForSelector('#o-pensando[hidden]', { state: 'attached', timeout: 40000 });
-  await page.unroute('**/api/vendas?acao=mensagem*');
-  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
-  await page.waitForFunction((k) => document.querySelectorAll('#o-log .msg--visitante').length > k, base + 1, { timeout: 20000 });
-  await page.waitForSelector('#o-pensando[hidden]', { state: 'attached', timeout: 40000 });
-  ok(await visitantes() === base + 2 && (await page.locator('#o-log .msg--visitante').last().textContent()).trim() === 'A planta está certa.', 'a versão não foi gasta pelo clique recusado: o clique seguinte manda "A planta está certa."');
-  await page.locator('.plv-btn', { hasText: 'Está certo' }).click(); await espera(500);
-  ok(await visitantes() === base + 2, 'e agora, aceito, a versão está gasta: outro clique não manda');
-  ok(erros.filter((e) => !/Failed to load resource|ERR_FAILED/.test(e)).length === 0, 'nenhum erro de página' + (erros.length ? ': ' + erros.join(' | ') : ''));
-  await ctx.close();
-}
-{
-  const { ctx, page } = await abrir(ON);
-  await turno(page, T1);
-  await turno(page, 'planta-boa pode desenhar');
-  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
-  const visitantes = () => page.locator('#o-log .msg--visitante').count();
-  const base = await visitantes();
-  /* (b) a rede cai no envio: o texto volta à caixa e a versão fica livre; com a rede de volta o botão manda */
-  let derrubar = true;
-  await page.route('**/api/vendas?acao=mensagem*', (r) => (derrubar ? r.abort('failed') : r.continue()));
-  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
-  await page.waitForFunction(() => !document.getElementById('o-pensando') || document.getElementById('o-pensando').hidden, null, { timeout: 40000 });
-  await espera(1500);
-  ok(await visitantes() === base, 'a rede caiu: nenhuma mensagem fica na conversa');
-  ok(await page.inputValue('#o-texto') === 'A planta está certa.', 'e o texto voltou à caixa (o aviso da tela oferece tentar de novo)');
-  derrubar = false;
-  await page.fill('#o-texto', '');
-  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
-  await page.waitForFunction((k) => document.querySelectorAll('#o-log .msg--visitante').length > k, base, { timeout: 20000 });
-  ok(await visitantes() === base + 1, 'a rede voltou: "Está certo" manda de novo (a versão não foi gasta pela falha)');
-  await ctx.close();
-}
-
-/* ---------- ajustes pós-radar: o turno ENTROU no servidor, a resposta se perdeu e a releitura também; a pessoa clica "Está certo" de novo ---------- */
-console.log('\n== "Está certo" depois de um envio que entrou sem a página saber ==');
-{
-  const { ctx, page, erros } = await abrir(ON);
-  await turno(page, T1);
-  await turno(page, 'planta-boa pode desenhar');
-  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
-  const visitantes = () => page.locator('#o-log .msg--visitante').count();
-  const base = await visitantes();
-  let semRede = true, noServidor = 0;
-  await page.route('**/api/vendas?acao=mensagem*', async (r) => {
-    if (!semRede) { noServidor++; return r.continue(); }
-    await r.fetch(); noServidor++;   /* o servidor grava o turno... */
-    r.abort('failed');               /* ...e a resposta nunca chega */
-  });
-  await page.route('**/api/vendas?acao=estado*', (r) => (semRede ? r.abort('failed') : r.continue()));
-  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
-  await page.waitForFunction(() => document.getElementById('o-pensando').hidden, null, { timeout: 40000 });
-  await espera(1500);
-  ok(noServidor === 1 && await visitantes() === base, 'a mensagem entrou no servidor, a tela não sabe (nenhuma mensagem nova na conversa)');
-  semRede = false;
-  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
-  await page.waitForFunction(() => document.getElementById('o-pensando').hidden, null, { timeout: 40000 });
-  await espera(1500);
-  ok(noServidor === 1, 'a rede voltou e a pessoa clicou de novo: a tela relê antes e NÃO manda a mesma versão pela 2a vez (chegaram ' + noServidor + ')');
-  ok(await visitantes() === base + 1 && (await page.locator('#o-log .msg--visitante').last().textContent()).trim() === 'A planta está certa.', 'a conversa mostra o turno uma vez só');
-  /* recarregar a página: o estado do servidor sozinho já diz que a versão foi confirmada */
+  const q = await page.evaluate(() => { const x = document.querySelector('#o-log .lv-item .mpc-quadro'); return { h: Math.round(x.getBoundingClientRect().height), ouro: x.classList.contains('is-ouro'), prontas: window.__prontas }; });
+  ok(q.ouro && q.prontas >= 1, 'o mapa monta no cartão, termina em ouro e libera o valor');
+  ok(q.h <= 440, 'o quadro cabe na caixa da conversa (' + q.h + ' px)');
+  ok(await lateral(page), 'sem rolagem lateral');
+  const acoes = page.locator('#o-log .lv-item .mpc-acoes');
+  ok(await acoes.isVisible() && /Ficou certo\?/.test(await acoes.textContent()), '"Ficou certo?" aparece');
+  await foto(page.locator('#o-log .lv-item'), 'e2e-390-pronto');
+  const antes = mensagens.length;
+  await page.getByRole('button', { name: 'Está certo', exact: true }).click();
+  await espera(2000);
+  ok(mensagens.length === antes, '"Está certo" não manda mensagem (não gasta IA)');
+  ok(/Está certo\./.test(await acoes.textContent()), '"Está certo" vira uma fala na tela');
   await page.reload({ waitUntil: 'load' });
-  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro', { timeout: 20000 });
-  const antesF5 = noServidor;
-  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
-  await espera(1200);
-  ok(noServidor === antesF5, 'depois do F5: "Está certo" não manda de novo');
-  ok(await page.locator('.plv-status', { hasText: 'Já enviei esta planta.' }).count() >= 1 || (await page.evaluate(() => document.body.textContent)).includes('Já enviei esta planta.'), 'e diz "Já enviei esta planta."');
-  ok(erros.filter((e) => !/Failed to load resource|ERR_FAILED/.test(e)).length === 0, 'nenhum erro de página' + (erros.length ? ': ' + erros.join(' | ') : ''));
-  await ctx.close();
-}
-
-/* ---------- 320 px e a faixa à vista ---------- */
-/* ---------- enviar o formulário com a faixa à vista logo abaixo do botão (achado da medida do 2c-B) ---------- */
-console.log('\n== enviar o formulário com a faixa abaixo do botão ==');
-{
-  const { ctx, page, erros } = await abrir(ON);
-  await turno(page, T1);
-  await turno(page, 'planta-boa pode desenhar');
-  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
-  const botao = page.locator('#o-detalhes-form button[type=submit]');
-  await botao.scrollIntoViewIfNeeded(); await espera(400);
-  await botao.click(); await espera(600);   /* envio RECUSADO pela própria tela (campos vazios): a faixa não se recolhe */
-  ok(await page.evaluate(() => !document.getElementById('o-planta').hidden && document.getElementById('o-contato-erro').textContent.length > 0), 'envio recusado pela tela (campos vazios): o erro aparece e a faixa NÃO se recolhe');
-  await page.fill('#o-d-negocio', 'Clínica Teste'); await page.fill('#o-d-vende', 'Consultas');
-  await page.fill('#o-tel', '(21) 9' + String(1000 + Math.floor(Math.random() * 9000)) + '-' + String(1000 + Math.floor(Math.random() * 9000))); await page.check('#o-aceite');
-  await botao.scrollIntoViewIfNeeded(); await espera(400);
-  const visivel = await page.evaluate(() => { const q = document.getElementById('o-planta').getBoundingClientRect(); return Math.round(Math.min(innerHeight, q.bottom) - Math.max(0, q.top)); });
-  ok(visivel > 100, 'antes do envio a faixa está à vista logo abaixo do botão (' + visivel + ' px)');
-  await page.evaluate(() => { window.__ls2 = []; new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__ls2.push([e.value, e.hadRecentInput, (e.sources || []).map((s) => s.node && (s.node.id || s.node.className)).join('+')]))).observe({ type: 'layout-shift', buffered: false }); });
-  await page.route('**/api/vendas?acao=detalhes*', async (rr) => { await espera(1500); rr.continue(); });
-  await botao.click();
-  await espera(400); await page.mouse.click(2, 2);   /* um toque no vazio durante o envio não devolve a faixa antes da resposta */
-  await page.waitForFunction(() => document.getElementById('o-planta').hidden, null, { timeout: 3000 }).then(() => ok(true, 'ao enviar, a faixa se recolhe na hora'), () => ok(false, 'ao enviar, a faixa se recolhe na hora'));
-  await espera(6000);
-  const cls = await page.evaluate(() => window.__ls2.filter((x) => !x[1] && /plv|o-planta/.test(x[2])).reduce((s, x) => s + x[0], 0));
-  ok(cls === 0, 'a troca do bloco de cima não desloca a faixa (CLS da planta ' + cls + ')');
-  ok(await page.locator('#o-planta .plv-quadro').count() === 1, 'a faixa segue montada (só estava recolhida), sem erro: ' + erros.join(' | '));
-  ok(erros.filter((e) => !/status of 503/.test(e)).length === 0, 'nenhum erro no console (o 503 da geração dos modelos, sem IA configurada no servidor local, é do servidor e não da página)');
-  await ctx.close();
-}
-
-for (const [larg, alt] of [[390, 844], [320, 640]]) {
-  console.log('\n== celular ' + larg + ' px: a planta no cartão da conversa (planta viva v2) ==');
-  const { ctx, page, erros } = await abrir(ON, { larg, alt });
-  await turno(page, T1);
-  await page.waitForSelector('#o-log .lv-item .lv', { timeout: 20000 });
-  ok(await page.evaluate(() => document.getElementById('o-log').lastElementChild.classList.contains('lv-item')), 'o esboço é o último item da conversa');
-  await turno(page, 'planta-boa pode desenhar');
-  await page.waitForSelector('#o-log .lv-item .plv-quadro', { timeout: 20000 });
-  ok(await page.locator('#o-planta').isHidden(), 'a faixa não é usada no celular');
-  ok(await page.evaluate(() => !document.querySelector('.lv-item .lv')), 'o esboço deu lugar ao desenho final no cartão');
-  ok(await lateral(page), larg + ' px com a planta no cartão: sem rolagem lateral');
-  await page.evaluate(() => { document.getElementById('o-conversa').scrollIntoView({ block: 'start' }); document.getElementById('o-log-caixa').scrollTop = 0; });
-  await espera(400);
-  const y0 = await page.evaluate(() => Math.round(scrollY));
-  await page.evaluate(() => document.querySelector('.plv-ver').click());
-  await espera(1200);
-  const depois = await page.evaluate(() => { const c = document.getElementById('o-log-caixa'); return { y: Math.round(scrollY), topo: Math.round(document.querySelector('.lv-item').getBoundingClientRect().top - c.getBoundingClientRect().top), foco: document.activeElement.className }; });
-  ok(depois.y === y0, '"Ver a planta do seu site" não rola a página (' + y0 + ' -> ' + depois.y + ')');
-  ok(Math.abs(depois.topo - 8) <= 2, 'rola a caixa até o cartão (topo do cartão a ' + depois.topo + ' px do topo da caixa)');
-  ok(/plv-titulo/.test(depois.foco), 'e o foco vai ao título');
-  await espera(9000);
-  ok(await page.evaluate(() => document.querySelector('.lv-item .plv-leitura__tag').textContent === 'Planta pronta'), 'a planta termina pronta, com o fecho');
-  await foto(page, 'ligada-' + larg + '-cartao');
-  ok(await lateral(page), larg + ' px no fim: sem rolagem lateral');
+  await page.waitForSelector('#o-log .lv-item .mpc-acoes:not(.is-espera)', { timeout: 30000 });
+  ok(await page.getByRole('button', { name: 'Está certo', exact: true }).count() === 1, 'ao recarregar, a pergunta volta (nada foi gravado)');
+  await page.getByRole('button', { name: 'Quero ajustar algo', exact: true }).click();
+  const caixa = await page.evaluate(() => ({ foco: document.activeElement && document.activeElement.id, dica: document.getElementById('o-texto').placeholder }));
+  ok(caixa.foco === 'o-texto' && caixa.dica === 'Diga o que mudar no mapa.', '"Quero ajustar algo" foca a caixa com a dica do mapa (' + JSON.stringify(caixa) + ')');
+  /* o ajuste: o próximo estado traz a versão 2 com o nó novo */
+  forja.ligar();
+  const prontasAntes = await page.evaluate(() => window.__prontas);
+  await turno(page, 'quero um lembrete na véspera');
+  await rolarAoCartao(page);
+  await page.waitForSelector('#o-log .lv-item .mpc-no--ajustado', { timeout: 20000 });
+  await espera(3000);
+  const aj = await page.evaluate(() => ({ marca: (document.querySelector('.lv-item .mpc-no--ajustado') || {}).textContent || '', ouro: document.querySelector('.lv-item .mpc-quadro').classList.contains('is-ouro'), prontas: window.__prontas }));
+  ok(/Ajustado/.test(aj.marca) && /Lembrete na véspera/.test(aj.marca), 'o ajuste: o nó novo aparece com a marca "Ajustado"');
+  ok(aj.ouro && aj.prontas === prontasAntes, 'o ajuste não refaz a entrada (o ouro fica; o valor não é liberado de novo)');
+  await foto(page.locator('#o-log .lv-item'), 'e2e-390-ajuste');
   ok(erros.length === 0, 'nenhum erro no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
   await ctx.close();
 }
-console.log('\n== faixa à vista (janela alta): espera o gesto ==');
+
+/* ---------- ligada, computador ---------- */
+console.log('\n== flag ligada, computador 1280 ==');
 {
-  const { ctx, page } = await abrir(ON, { larg: 1280, alt: 844 });
-  await turno(page, T1);
-  const fim = await page.evaluate(() => document.querySelector('.orc-mesa').getBoundingClientRect().bottom + window.scrollY);
-  /* a janela alta cobre a mesa E o formulário #o-contato (a faixa vem depois dele e ele aparece com a resposta do Zero: no computador, medido em 12/11, ele termina ~2.850 px abaixo da mesa): a posição da faixa fica à vista */
-  await page.setViewportSize({ width: 1280, height: Math.ceil(fim + 3600) });
-  await page.evaluate(() => window.scrollTo(0, 0)); await espera(300);
-  await turno(page, 'planta-boa pode desenhar');
-  await espera(1500);
-  ok(await page.locator('#o-planta').isHidden(), 'com a mesa inteira à vista a faixa NÃO é inserida sozinha');
-  ok(await page.locator('.plv-ver').count() === 1, 'mas o botão do chat está lá');
-  await page.mouse.click(2, 2); await espera(800);
-  ok(await page.locator('#o-planta:not([hidden]) .plv-quadro').count() === 1, 'o gesto seguinte da pessoa insere a faixa');
-  await foto(page, 'ligada-1280-alta-apos-gesto');
+  const { ctx, page, erros } = await abrir(ON, { larg: 1280, alt: 900 });
+  await conversarAteOMapa(page, ON);
+  await page.waitForFunction(() => !!window.BZMapa, null, { timeout: 20000 });
+  const ver = page.locator('.plv-ver');
+  await ver.first().waitFor({ timeout: 10000 }).catch(() => {});
+  ok(await ver.count() === 1, 'o botão "Ver a planta do seu site" aparece sob a fala do Zero');
+  if (await ver.count()) await ver.first().click();
+  await page.waitForSelector('#o-planta .mpc-quadro', { timeout: 20000 }).catch(() => {});
+  const f = await page.evaluate(() => ({ faixa: !document.getElementById('o-planta').hidden, mapa: !!document.querySelector('#o-planta .mpc-quadro'), foco: document.activeElement && document.activeElement.tagName }));
+  ok(f.faixa && f.mapa, 'o botão abre a faixa com o mapa');
+  ok(f.foco === 'H2', 'o foco vai ao título do mapa');
+  await espera(9000);
+  await foto(page.locator('#o-planta'), 'e2e-1280-faixa');
+  ok(await lateral(page), 'sem rolagem lateral');
+  ok(erros.length === 0, 'nenhum erro no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
   await ctx.close();
 }
 
-/* ---------- flag DESLIGADA ---------- */
+/* ---------- regressão do v2 (plano antigo gravado numa conversa) ---------- */
+console.log('\n== regressão: um plano v2 desenha com o módulo antigo ==');
+{
+  const { ctx, page, erros } = await abrir(ON);
+  const forja = await forjarEstado(page, (planta) => { planta.plano = JSON.parse(JSON.stringify(V2)); });
+  forja.ligar();
+  await conversarAteOMapa(page, ON);
+  await rolarAoCartao(page);
+  await page.waitForSelector('#o-log .lv-item .plv-quadro', { timeout: 20000 }).catch(() => {});
+  ok(await page.locator('#o-log .lv-item .plv-quadro').count() === 1, 'o v2 monta no cartão com o desenho antigo');
+  ok(await page.locator('.mpc-quadro').count() === 0, 'nada do desenho novo');
+  ok(erros.length === 0, 'nenhum erro no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
+  await ctx.close();
+}
+
+/* ---------- desligada ---------- */
 console.log('\n== flag desligada (' + OFF + ') ==');
 {
   const { ctx, page, baixados, erros } = await abrir(OFF);
-  await turno(page, T1);
+  await page.goto(OFF + '/orcamento', { waitUntil: 'load', timeout: 90000 });
+  await esperarToques(page);
+  await responderAteADor(page);
+  await turno(page, 'Pelo Instagram e por indicação');
   await turno(page, 'planta-boa pode desenhar');
-  await turno(page, 'Pode seguir');
   await espera(1500);
-  ok(await page.locator('#o-planta').isHidden(), 'a faixa fica escondida');
-  ok(await page.locator('.plv-ver').count() === 0 && await page.locator('#o-planta *').count() === 0, 'nenhum botão e nada dentro da faixa');
-  ok(baixados.length === 0, 'nenhum módulo da planta nem o CSS foi baixado');
-  ok(await page.evaluate(() => !window.BZPlanta && !window.BZPlantaForma), 'os módulos nem existem na página');
-  ok(await page.locator('#o-log .msg--agente').count() >= 4 && await lateral(page), 'a conversa segue normal, sem rolagem lateral');
-  await foto(page, 'desligada-390-conversa');
+  ok(baixados.length === 0, 'nenhum arquivo da planta baixado (' + baixados.join(',') + ')');
+  ok(await page.locator('.lv-item, .mpc-quadro, .plv-quadro, .plv-ver').count() === 0, 'nada da planta na tela');
   ok(erros.length === 0, 'nenhum erro no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
   await ctx.close();
 }
 
 await nav.close();
-console.log(falhou ? '\nE2E DA PLANTA: FALHOU' : '\nE2E da planta: tudo ok. Capturas em docs/olhar-planta/');
+console.log(falhou ? '\nFALHOU' : '\ntudo certo');
 process.exit(falhou ? 1 : 0);

@@ -8,7 +8,10 @@ import { atender } from '../../api/vendas.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { criarServicoPagamentos } from '../../api/_pagamentos/servico.mjs';
 import { configPagamentos } from '../../api/_pagamentos/config.mjs';
-import { planoPadrao } from '../../api/_vendas/planta-padrao.mjs';
+import { nichoDaPlanta } from '../../api/_vendas/planta-padrao.mjs';
+import { planoDoCaso, oQueSeSabe } from '../../api/_vendas/mapa-padrao.mjs';
+/* (PR 4) o padrão é o mapa do caso v3: o nicho e o que se sabe do briefing gravado */
+const padraoDe = b => planoDoCaso(nichoDaPlanta(b), oQueSeSabe(b));
 import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
 
 let local, deps;
@@ -68,7 +71,7 @@ test('flag ligada: o 2º turno desenha (origem "modelo") e o estado devolve a pl
   assert.equal(e.planta.origem, 'modelo');
   assert.equal(e.planta.n_mensagens, gravado.planta.n_mensagens);
   assert.deepEqual(Object.keys(e.planta).sort(), ['n_mensagens', 'origem', 'plano', 'versao']);
-  assert.equal(e.planta.plano.etapas[0].titulo, 'Página feita para o seu negócio');
+  assert.equal(e.planta.plano.nos[0].titulo, 'Página feita para você');
   assert.equal(e.planta_editavel, true);
   for (const k of CHAVES) assert.equal(e.conversa.briefing[k], undefined, 'conversa.briefing.' + k);
   assert.ok(!/motivos|tentativas|planta_pedidos/.test(bruto), 'nada do banco vaza para a tela');
@@ -95,10 +98,10 @@ test('flag DESLIGADA: plano gravado não aparece (nem planta, nem leitura, nem p
 
 test('plano gravado que deixou de ser válido sai como o padrão do nicho (a planta é revalidada a cada leitura)', async () => {
   const { n, c } = await conversaComPlanta();
-  await local.db.query(`update app.conversas set briefing = jsonb_set(briefing, '{planta,plano,etapas,0,titulo}', '"Passo 1 da pagina"') where id = $1`, [c]);
+  await local.db.query(`update app.conversas set briefing = jsonb_set(briefing, '{planta,plano,nos,0,titulo}', '"Passo 1 da pagina"') where id = $1`, [c]);
   const e = JSON.parse((await n.estado(LIGADA, c)).texto);
   assert.equal(e.planta.origem, 'padrao');
-  assert.deepEqual(e.planta.plano, planoPadrao('saude_agenda'));
+  assert.deepEqual(e.planta.plano, padraoDe(await briefingNoBanco(c)));
   assert.equal(e.planta.versao, 1, 'a versão e a posição da fala seguem');
   /* lixo no lugar do plano: também vira o padrão, nunca derruba o estado */
   await local.db.query(`update app.conversas set briefing = jsonb_set(briefing, '{planta,plano}', '"lixo"') where id = $1`, [c]);
@@ -150,7 +153,7 @@ test('com a flag ligada, o modelo que esquece duas vezes ganha o padrão do nich
   assert.deepEqual(b.planta.motivos, ['nao_chamou']);
   const e = JSON.parse((await n.estado(LIGADA, c)).texto);
   assert.equal(e.planta.origem, 'padrao');
-  assert.deepEqual(e.planta.plano, planoPadrao('saude_agenda'));
+  assert.deepEqual(e.planta.plano, padraoDe(b));
 });
 
 test('leitura gravada: só aparece com a flag ligada, validada na forma e nos textos; inválida some', async () => {

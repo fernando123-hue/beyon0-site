@@ -116,7 +116,29 @@
   ! Cache-Control
   Cache-Control: public, max-age=0, must-revalidate
 
+# o mapa do caso v3 (PR 5b): js/orcamento-planta.js baixa estes sob demanda, sem ?v, quando o plano tem "estrutura" (o planta-relogio.js está abaixo)
+/js/orcamento-mapa-forma.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/mapa-layout.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/mapa-desenho.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/css/orcamento-mapa.css
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
 # o esboço da planta viva v2 (js/orcamento-planta-esboco.js baixa estes sob demanda, sem ?v; o planta-pecas.js já está acima)
+# as origens do caso (PR 5), lidas pelo crescimento antes dele
+/js/mapa-saber.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
 /js/planta-cresce.js
   ! Cache-Control
   Cache-Control: public, max-age=0, must-revalidate

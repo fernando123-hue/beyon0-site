@@ -10,10 +10,16 @@
 })(typeof window !== 'undefined' ? window : null, function () {
   'use strict';
 
-  var MODULOS = ['js/orcamento-planta-forma.js', 'js/planta-pecas.js', 'js/planta-layout.js', 'js/planta-desenho.js'];
-  var CSS_DA_FAIXA = 'css/orcamento-planta.css';
+  /* (PR 5b) dois conjuntos, escolhidos pela VERSÃO do plano: o v2 (topologia) desenha como hoje; o v3 (o mapa do caso, estrutura) tem os seus
+     módulos, a sua forma e o seu desenho, com o MESMO contrato (montar/atualizar/parar). URLs constantes. Os módulos comuns aos dois vêm PRIMEIRO no v3:
+     a nova tentativa baixa do 1º que falta em diante, e assim o planta-pecas que o v2 já trouxe não desce de novo. O mapa-saber dá o nome das origens */
+  var CONJUNTOS = Object.freeze({
+    v2: { modulos: ['js/orcamento-planta-forma.js', 'js/planta-pecas.js', 'js/planta-layout.js', 'js/planta-desenho.js'], css: 'css/orcamento-planta.css', forma: 'BZPlantaForma', validar: 'validarFormaPlano', desenho: 'BZPlanta' },
+    v3: { modulos: ['js/planta-pecas.js', 'js/planta-relogio.js', 'js/mapa-saber.js', 'js/orcamento-mapa-forma.js', 'js/mapa-layout.js', 'js/mapa-desenho.js'], css: 'css/orcamento-mapa.css', forma: 'BZMapaForma', validar: 'validarFormaMapa', desenho: 'BZMapa' }
+  });
+  var versaoDoPlano = function (plano) { return typeof plano.estrutura === 'string' ? 'v3' : typeof plano.topologia === 'string' ? 'v2' : ''; };
   var TEXTO_CERTO = 'A planta está certa.';
-  var DICA_AJUSTE = 'Diga o que mudar na planta.';
+  var DICA_AJUSTE = 'Diga o que mudar na planta.', DICA_AJUSTE_MAPA = 'Diga o que mudar no mapa.';
   var ROTULO_BOTAO = 'Ver a planta do seu site';
   var ESPERA_ROLAGEM = 150, FALA_MAX = 120, NOME_MAX = 40;
   /* a planta viva v2 (decisões do dono de 12/11): abaixo de 960 px a planta consagra NO CARTÃO da conversa (js/orcamento-planta-esboco.js) e a faixa
@@ -33,11 +39,13 @@
     if (p.origem !== 'modelo' && p.origem !== 'padrao') return null;
     return p;
   }
+  /* um plano de versão que esta tela não conhece (nem topologia nem estrutura): não se baixa nada, some calado e o valor não espera */
+  var desconhecida = function (p) { return !versaoDoPlano(p.plano); };
 
   function criar(win) {
     var doc = win.document;
-    var st = { carga: 'nao', versaoFalha: 0, pegos: {}, elementos: {}, E: null, deps: {}, versao: 0, json: '', assin: '', mostrada: 0, valido: false, recusas: 0, avisouModulos: false, naTela: false, recolhida: false, ouveForm: false, pendente: false, gestos: false, botao: null, certoVersao: 0, timer: 0,
-      lugar: '', raiz: null, maoNaCaixa: -1e9, ouveCaixa: false, timerCartao: 0 };
+    var st = { cargas: {}, falhas: {}, v: '', conj: '', pegos: {}, voando: {}, elementos: {}, E: null, deps: {}, versao: 0, json: '', assin: '', mostrada: 0, valido: false, recusas: 0, avisouModulos: false, naTela: false, recolhida: false, ouveForm: false, pendente: false, gestos: false, botao: null, certoVersao: 0, timer: 0,
+      lugar: '', raiz: null, maoNaCaixa: -1e9, ouveCaixa: false, timerCartao: 0, prontaVersao: 0 };
 
     var $ = function (id) { return doc.getElementById(id); };
     function aviso(e) {
@@ -49,17 +57,20 @@
       if (st.botao && st.botao.parentNode) st.botao.parentNode.removeChild(st.botao);
       st.botao = null;
     }
-    /* a fala do Zero de índice n_mensagens (a abertura fixa é o 1º item do DOM); se aquela posição não é fala do Zero, a mais próxima antes, ou a 1ª depois */
+    /* a fala do Zero de índice n_mensagens (a abertura fixa é a 1ª fala do DOM); se aquela posição não é fala do Zero, a mais próxima antes, ou a 1ª depois */
     function falaDoZero(E, p) {
       var log = $('o-log');
       if (!log) return null;
-      var m = Array.isArray(E.mensagens) ? E.mensagens : [], itens = log.children, i = Math.min(p.n_mensagens, m.length - 1), alvo = -1;
+      /* (PR 5c) só as FALAS contam: a conversa nova põe toques e o cartão do esboço entre elas, e a posição na lista inteira desandava (o botão
+         sumia desde o PR 2) */
+      var m = Array.isArray(E.mensagens) ? E.mensagens : [], itens = [], i = Math.min(p.n_mensagens, m.length - 1), alvo = -1, c;
+      for (c = 0; c < log.children.length; c++) if (log.children[c].classList && log.children[c].classList.contains('msg')) itens.push(log.children[c]);
       if (m.length === 0) return null;
       for (var j = i; j >= 0 && alvo < 0; j--) if (m[j] && m[j].papel === 'agente') alvo = j;
       for (var k = i + 1; k < m.length && alvo < 0; k++) if (m[k] && m[k].papel === 'agente') alvo = k;
       if (alvo < 0) return null;
-      var li = itens[alvo + 1];
-      return li && li.classList && li.classList.contains('msg--agente') ? li : null;
+      var li = itens[alvo + 1];   /* a abertura fixa é a 1ª fala */
+      return li && li.classList.contains('msg--agente') ? li : null;
     }
     function colocarBotao(E, p) {
       var li = falaDoZero(E, p);
@@ -81,7 +92,7 @@
     /* ---- a faixa ---- */
     function opcoes(E, p, comFala) {
       var nome = E.conversa && E.conversa.briefing && E.conversa.briefing.negocio ? limpo(E.conversa.briefing.negocio.nome, NOME_MAX) : '';
-      var o = { origem: p.origem, editavel: E.planta_editavel === true, aoCerto: aoCerto, aoAjustar: aoAjustar, notaEmbaixo: true, som: tocar };
+      var o = { origem: p.origem, editavel: E.planta_editavel === true, aoCerto: aoCerto, aoAjustar: aoAjustar, aoPronta: rolarCaixaAPergunta, notaEmbaixo: true, som: tocar };
       if (nome) o.nome = nome;
       if (comFala && Array.isArray(E.mensagens)) {
         var m = E.mensagens[p.n_mensagens - 1];
@@ -107,11 +118,15 @@
       win.addEventListener('scroll', aoRolar, { passive: true });
       win.addEventListener('resize', aoRolar);
     }
+    /* o desenho do conjunto do plano de agora, e o do conjunto que está montado (os dois só diferem na troca v2 -> v3) */
+    function desenhoDaVez() { return st.v ? win[CONJUNTOS[st.v].desenho] : null; }
+    function desenhoMontado() { return st.conj ? win[CONJUNTOS[st.conj].desenho] : null; }
     function esconder() {
       soltarGestos();
       soltarCaixa();
       var faixa = $('o-planta');
-      if (st.naTela && win.BZPlanta && win.BZPlanta.parar) { try { win.BZPlanta.parar(); } catch (e) { aviso(e); } }
+      var d = desenhoMontado();
+      if (st.naTela && d && d.parar) { try { d.parar(); } catch (e) { aviso(e); } }
       if (st.lugar === 'cartao') devolverCartao();
       if (faixa) faixa.hidden = true;
       st.naTela = false; st.pendente = false; st.recolhida = false; st.lugar = ''; st.raiz = null;
@@ -145,6 +160,16 @@
       if (!caixa || !raiz) return;
       caixa.scrollTop = Math.max(0, caixa.scrollTop + raiz.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA);
     }
+    /* (teste com a IA real, 15/11) mapa pronto: num mapa mais alto que a caixa, a pergunta "Ficou certo?" ficava abaixo, fora da vista. A caixa desce
+       só o que falta para ela aparecer (nunca a página; a mesma regra da mão: quem mexeu na caixa nos últimos 3 s não é puxado) */
+    function rolarCaixaAPergunta() {
+      var caixa = $('o-log-caixa'), a = st.raiz && st.raiz.querySelector('.mpc-acoes');
+      /* (revisão) uma vez por versão do mapa: refazer ao girar a tela não puxa de novo quem subiu a caixa para reler */
+      if (!caixa || !a || st.lugar !== 'cartao' || st.perguntaVista === st.versao || Date.now() - st.maoNaCaixa < MAO_NA_CAIXA) return;
+      st.perguntaVista = st.versao;
+      var falta = a.getBoundingClientRect().bottom - caixa.getBoundingClientRect().bottom + FOLGA;
+      if (falta > 0) caixa.scrollTop += falta;
+    }
     /* depois de a fala aparecer: se a pessoa não mexeu na caixa à mão nos últimos 3 s, mostra o desenho; se mexeu, a entrada espera a vista */
     function talvezRolarAoCartao() {
       if (st.timerCartao) win.clearTimeout(st.timerCartao);
@@ -175,13 +200,14 @@
         reconciliar();
         return true;
       }
-      if (!p || !faixa || !st.valido || !win.BZPlanta) return false;
+      var D = desenhoDaVez();
+      if (!p || !faixa || !st.valido || !D) return false;
       /* celular: o cartão da conversa (o esboço entrega o lugar e os pontos para o voo); computador: a faixa, com o voo só se o esboço estiver à vista */
       var c = null, op = opcoes(E, p, false), r = null;
       if (noCartao()) { try { c = esboco().paraConsagrar(p.plano); } catch (e) { aviso(e); } }
       if (c && c.raiz) op.esboco = c.pontos;
       else { c = null; faixa.hidden = false; if (esboco() && esboco().pontosAVista) op.esboco = esboco().pontosAVista(p.plano); }
-      try { r = win.BZPlanta.montar(c ? c.raiz : faixa, p.plano, op); } catch (e) { aviso(e); }
+      try { r = D.montar(c ? c.raiz : faixa, p.plano, op); } catch (e) { aviso(e); }
       if (!r || !r.ok) {
         if (c) devolverCartao(); else faixa.hidden = true;
         st.recusas++;
@@ -190,7 +216,7 @@
         if (!r || st.recusas >= 2) { st.valido = false; st.pendente = false; tirarBotao(); soltarGestos(); }
         return false;
       }
-      st.naTela = true; st.pendente = false; st.lugar = c ? 'cartao' : 'faixa'; st.raiz = c ? c.raiz : faixa;
+      st.naTela = true; st.pendente = false; st.lugar = c ? 'cartao' : 'faixa'; st.raiz = c ? c.raiz : faixa; st.conj = st.v;
       if (c) { ouvirCaixa(); talvezRolarAoCartao(); } else ouvirFormulario();
       st.assin = st.versao + '|' + p.origem + '|' + (E.planta_editavel === true) + '|' + st.json; st.mostrada = p.versao;
       soltarGestos();
@@ -222,8 +248,12 @@
     }
 
     /* Enviar o formulário troca o bloco acima da faixa (CLS 0,9 se à vista): recolhe no envio; volta quando a posição sai da tela ou num gesto (não durante o envio).
-       DEPENDE DA ORDEM: o handler de js/orcamento-detalhes.js roda antes e marca aria-busy síncrono só se aceita o envio. */
-    function enviando() { var form = $('o-detalhes-form'); return !!form && form.getAttribute('aria-busy') === 'true'; }
+       DEPENDE DA ORDEM: o handler de js/orcamento-detalhes.js roda antes e marca aria-busy síncrono só se aceita o envio. O pedido na conversa
+       (js/orcamento-pedido.js) marca aria-busy no cartão do aceite e avisa com bz:pedido-enviando na caixa da conversa. */
+    function enviando() {
+      var form = $('o-detalhes-form'), log = $('o-log');
+      return (!!form && form.getAttribute('aria-busy') === 'true') || (!!log && !!log.querySelector('.orc-toque--aceite[aria-busy="true"]'));
+    }
     function aoEnviarFormulario() {
       var faixa = $('o-planta');
       if (!st.naTela || st.lugar !== 'faixa' || st.recolhida || !faixa || !enviando()) return;
@@ -231,8 +261,11 @@
       tentar();
     }
     function ouvirFormulario() {
-      var form = $('o-detalhes-form');
-      if (form && !st.ouveForm) { st.ouveForm = true; form.addEventListener('submit', aoEnviarFormulario); }
+      var form = $('o-detalhes-form'), log = $('o-log');
+      if (st.ouveForm) return;
+      st.ouveForm = true;
+      if (form) form.addEventListener('submit', aoEnviarFormulario);
+      if (log) log.addEventListener('bz:pedido-enviando', aoEnviarFormulario);
     }
 
     /* ---- os botões da faixa ---- */
@@ -265,7 +298,7 @@
       if (!editavel()) return;
       var t = $('o-texto'), form = $('o-form');
       if (!t) return;
-      t.placeholder = DICA_AJUSTE;
+      t.placeholder = st.v === 'v3' ? DICA_AJUSTE_MAPA : DICA_AJUSTE;
       /* a faixa fica longe da conversa: rola como "Perguntar ao consultor" e foca sem rolar de novo */
       if (form && typeof form.scrollIntoView === 'function') form.scrollIntoView({ block: 'center' });
       t.focus({ preventScroll: true });
@@ -274,44 +307,51 @@
     /* ---- o carregamento sob demanda ---- */
     /* O desenho lê os outros três ao carregar: a ordem é a da lista. Depois de uma falha só baixa o que falta (do módulo que falhou em diante e o CSS se não chegou), tirando
        o elemento velho do <head>; a nova tentativa só começa quando todo o lote anterior se resolveu. */
-    function anexar(url, tipo, aoFim) {
+    function anexar(url, tipo, aoFim) {   /* o CSS é o url do conjunto (cada conjunto tem o seu) */
+      /* (revisão do 5b) o módulo comum aos dois conjuntos que ainda está a caminho é ESPERADO, não recriado: recriar rodava o arquivo duas vezes e o
+         erro do elemento velho apagava o novo */
+      if (st.voando[url]) { st.voando[url].push(aoFim); return; }
       var velho = st.elementos[url];
       if (velho && velho.parentNode) velho.parentNode.removeChild(velho);
       var e = doc.createElement(tipo);
       if (tipo === 'link') {
         e.rel = 'stylesheet';
-        e.href = CSS_DA_FAIXA;
+        e.href = url;
       } else {
         e['async'] = false;
         e.src = url;
       }
-      e.addEventListener('load', function () { st.pegos[url] = true; aoFim(true); });
+      var avisar = function (deuCerto) { var fs = st.voando[url] || []; delete st.voando[url]; fs.forEach(function (fn) { fn(deuCerto); }); };
+      e.addEventListener('load', function () { st.pegos[url] = true; avisar(true); });
       e.addEventListener('error', function () {
         if (e.parentNode) e.parentNode.removeChild(e);
         delete st.elementos[url];
-        aoFim(false);
+        avisar(false);
       });
+      st.voando[url] = [aoFim];
       st.elementos[url] = e;
       doc.head.appendChild(e);
     }
-    function carregar() {
-      st.carga = 'indo';
+    function carregar(v) {
+      var C = CONJUNTOS[v], M = C.modulos, versaoDaCarga = st.versao;
+      st.cargas[v] = 'indo';
       var primeira = -1, i, falta = 0, falhou = false;
-      for (i = 0; i < MODULOS.length && primeira < 0; i++) if (!st.pegos[MODULOS[i]]) primeira = i;
-      if (primeira >= 0) for (i = primeira; i < MODULOS.length; i++) delete st.pegos[MODULOS[i]];
+      for (i = 0; i < M.length && primeira < 0; i++) if (!st.pegos[M[i]]) primeira = i;
+      if (primeira >= 0) for (i = primeira; i < M.length; i++) delete st.pegos[M[i]];
       var lista = [];
-      if (!st.pegos[CSS_DA_FAIXA]) lista.push([CSS_DA_FAIXA, 'link']);   /* o CSS vem junto, sob demanda: com a flag desligada a página não paga nem o CSS bloqueante nem os bytes */
-      if (primeira >= 0) for (i = primeira; i < MODULOS.length; i++) lista.push([MODULOS[i], 'script']);
-      if (!lista.length) { st.carga = 'ok'; seguir(); return; }
+      if (!st.pegos[C.css]) lista.push([C.css, 'link']);   /* o CSS vem junto, sob demanda: com a flag desligada a página não paga nem o CSS bloqueante nem os bytes */
+      if (primeira >= 0) for (i = primeira; i < M.length; i++) lista.push([M[i], 'script']);
+      if (!lista.length) { st.cargas[v] = 'ok'; seguir(); return; }
       falta = lista.length;
       function fim(deuCerto) {
         if (!deuCerto) falhou = true;
         if (--falta > 0) return;
         if (falhou) {
-          st.carga = 'falhou'; st.versaoFalha = st.versao;
+          st.cargas[v] = 'falhou'; st.falhas[v] = versaoDaCarga;
           aviso('não consegui baixar os módulos ou o CSS');
-          recolher();
-        } else { st.carga = 'ok'; seguir(); }
+          /* (revisão do 5b) a falha de um conjunto que já não é o da vez não esconde o outro, que pode estar na tela */
+          if (st.v === v) recolher();
+        } else { st.cargas[v] = 'ok'; if (st.v === v) seguir(); }
       }
       for (i = 0; i < lista.length; i++) anexar(lista[i][0], lista[i][1], fim);
     }
@@ -320,20 +360,22 @@
     function seguir() {
       var E = st.E, p = leve(E);
       if (!p) return sumir();
-      var Forma = win.BZPlantaForma;
-      if (!Forma || !win.BZPlanta) {
+      var C = CONJUNTOS[st.v], Forma = win[C.forma];
+      if (!Forma || typeof Forma[C.validar] !== 'function' || !desenhoDaVez()) {
         if (!st.avisouModulos) { st.avisouModulos = true; aviso('módulos incompletos'); }
         return recolher();
       }
       var json = JSON.stringify(p.plano);
       if (json !== st.json) {
-        var v = Forma.validarFormaPlano(p.plano);
+        var v = Forma[C.validar](p.plano);
         st.json = json; st.valido = !!(v && v.ok); st.recusas = 0;
         if (!st.valido) aviso('planta recusada pela forma (' + ((v && v.motivos) || []).join(',') + ')');
       }
       if (!st.valido) return recolher();   /* a planta recusada fica anotada (st.json): esconde e cala, sem revalidar nem avisar a cada render */
       st.versao = p.versao;
       colocarBotao(E, p);
+      /* a troca no meio da conversa (o ajuste de um v2 gera um v3): o desenho de antes para e o novo monta no lugar, pela entrada */
+      if (st.naTela && st.conj !== st.v) { esconder(); st.assin = ''; }
       if (st.naTela) {
         if (st.recolhida) { st.pendente = true; tentar(); return; }
         reconciliar();
@@ -345,12 +387,13 @@
     /* leva ao desenho o estado de agora, ao ler o estado ou na volta de recolhida (escondida não tem largura); versão ainda não mostrada = ajuste */
     function reconciliar() {
       var E = st.E, p = leve(E);
-      if (!p || !st.valido || !st.naTela || st.recolhida || !win.BZPlanta) return;
+      var D = desenhoMontado();
+      if (!p || !st.valido || !st.naTela || st.recolhida || !D || st.conj !== st.v) return;
       var assin = p.versao + '|' + p.origem + '|' + (E.planta_editavel === true) + '|' + st.json;
       if (assin === st.assin) return;   /* nada mudou para o desenho: não o chama de novo a cada leitura do estado */
       var nova = p.versao !== st.mostrada;
       st.assin = assin; st.mostrada = p.versao;
-      var r = win.BZPlanta.atualizar(p.plano, opcoes(E, p, nova));
+      var r = D.atualizar(p.plano, opcoes(E, p, nova));
       if (r && r.ok === false) aviso('atualizar recusou (' + (r.motivos || []).join(',') + ')');
     }
     /* esconde e tira o botão, mas lembra o que já foi julgado (planta recusada não é revalidada nem avisada de novo) */
@@ -367,9 +410,18 @@
         var p = leve(E);
         st.E = E;   /* sempre o estado mais novo: se a planta some durante o download, quando os módulos chegam não há o que montar */
         if (!p) { if (st.naTela || st.botao || st.pendente || st.gestos || st.json) sumir(); return; }
-        if (st.carga === 'falhou' && p.versao !== st.versaoFalha) st.carga = 'nao';
-        if (st.carga === 'nao') { st.versao = p.versao; carregar(); return; }
-        if (st.carga === 'ok') seguir();
+        if (desconhecida(p)) {
+          if (st.naTela || st.botao || st.pendente || st.gestos || st.json) sumir();
+          /* a coreografia do valor (js/orcamento.js) espera bz:planta-pronta: uma vez por versão, para não segurar o valor os 20 s */
+          if (st.prontaVersao !== p.versao && win.CustomEvent && doc.dispatchEvent) { st.prontaVersao = p.versao; doc.dispatchEvent(new win.CustomEvent('bz:planta-pronta')); }
+          return;
+        }
+        var v = versaoDoPlano(p.plano);
+        st.v = v;
+        if (st.cargas[v] === 'falhou' && p.versao !== st.falhas[v]) st.cargas[v] = 'nao';
+        var carga = st.cargas[v] || 'nao';
+        if (carga === 'nao') { st.versao = p.versao; carregar(v); return; }
+        if (carga === 'ok') seguir();
       } catch (e) {
         aviso(e);
         try { sumir(); } catch (e2) { /* nada mais a fazer */ }
@@ -379,5 +431,5 @@
     return { atualizar: atualizar };
   }
 
-  return { criar: criar, MODULOS: MODULOS };
+  return { criar: criar, MODULOS: CONJUNTOS.v2.modulos, CONJUNTOS: CONJUNTOS };
 });

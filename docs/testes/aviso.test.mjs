@@ -8,7 +8,7 @@ import { criarAcoesDoRecado } from '../../api/_vendas/fluxo-recado.mjs';
 
 test('aviso: os textos são fixos e não carregam dado de ninguém', () => {
   for (const t of Object.values(AVISOS)) assert.ok(!/[@\d]|BZ-|\+55/.test(t.replace(/\./g, '')), t);
-  assert.deepEqual(Object.keys(AVISOS).sort(), ['atendente_cliente', 'atendente_contatos', 'atendente_global', 'fila_cheia', 'pedido', 'recado']);
+  assert.deepEqual(Object.keys(AVISOS).sort(), ['atendente_cliente', 'atendente_contatos', 'atendente_global', 'custo_dia', 'fila_cheia', 'pedido', 'recado']);
 });
 
 /* canal de e-mail (dono, 10/11: "Primeiro e mail até termos o APP, depois disso exclua o email"): binding send_email da Cloudflare */
@@ -106,7 +106,7 @@ test('recado: grava, chama o aviso com o tipo fixo (sem o conteúdo) e o aviso s
 /* o pedido: o aviso sai depois de gravar; a recusa por fila cheia/limite avisa com o texto urgente; recusa comum não avisa; o aviso sem canal não muda a resposta */
 import { criarAcoesDoPedido } from '../../api/_vendas/fluxo-pedido.mjs';
 const UUID = '11111111-1111-4111-8111-111111111111';
-const corpoPedido = () => ({ conversa_id: UUID, negocio: 'Clínica Sol', vende: 'Consultas e exames', telefone: '(21) 98765-4321', nome: 'Rita', aceite: true });
+const corpoPedido = () => ({ conversa_id: UUID, negocio: 'Clínica Sol', vende: 'Consultas e exames', telefone: '(21) 98765-4321', nome: 'Rita', aceite: true, aceite_versao: 'a1' });
 /* o aviso vai em segundo plano: aqui o segundo plano é uma lista, e cada chamada espera a lista antes de devolver (para conferir os tipos) */
 function pedidoCom(resposta, avisar) {
   const fundo = [];

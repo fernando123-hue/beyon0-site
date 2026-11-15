@@ -80,7 +80,7 @@ test('confirmar-pacote grava uma vez, com a versão da tabela; versão velha →
   assert.equal(conv.etapa, 'estimativa');
   assert.equal(conv.briefing.negocio.cidade, 'Goiânia');
   assert.equal(conv.turnos, 0);
-  assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Sol', vende: 'Consultas', telefone: '(62) 99999-0000', aceite: true })).status, 200);
+  assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Sol', vende: 'Consultas', telefone: '(62) 99999-0000', aceite: true, aceite_versao: 'a1' })).status, 200);
   assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 409, 'depois do contato o pacote não muda por aqui');
 });
 

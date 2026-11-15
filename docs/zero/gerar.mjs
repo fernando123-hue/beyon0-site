@@ -41,7 +41,7 @@ const RESULTADOS = {
   sugerir_solucao_ia: 'devolve ok. A ideia vai para o briefing.',
   encaminhar_diagnostico: 'devolve só que o botão DEIXAR UM RECADO apareceu na tela e que nada foi enviado a ninguém.',
   ler_caso: 'devolve ok com no_painel (a leitura já está no painel, abaixo do preço); ou ok false com uma lista curta de erros (cinco eixos exatos, sem repetir), para corrigir UMA vez; na segunda falha a leitura que estava na tela fica. Evidência que não é trecho literal de uma fala da pessoa, ou que tem número, preço, prazo, marca ou promessa, o código descarta sozinho e baixa o nível (sem avisar o modelo). Recusa (ok false e o motivo) se já houve uma leitura neste turno ou com o pedido já confirmado.',
-  desenhar_planta: 'devolve ok com na_tela (o desenho já está na tela) e o número de caixas; ou ok false com uma lista curta de erros, para corrigir UMA vez; na segunda falha o código grava o desenho de exemplo do tipo de negócio e devolve ok com exemplo true. Recusa (ok false e o motivo) se já houve um desenho neste turno, antes da estimativa, depois de 4 versões ou com o pedido já confirmado.'
+  desenhar_planta: 'devolve ok com na_tela (o mapa já está na tela) e o número de caixas (os nós e o objetivo); ou ok false com uma lista curta de erros, para corrigir UMA vez; na segunda falha o código grava o mapa de exemplo do caso (o tipo de negócio, as origens e a trava que a pessoa tocou) e devolve ok com exemplo true. Recusa (ok false e o motivo) se já houve um mapa neste turno, antes da estimativa, depois de 6 versões ou com o pedido já confirmado.'
 };
 
 export function montarPromptEfetivo() {
@@ -72,7 +72,7 @@ Por etapa: até o envio dos detalhes do pedido o modelo tem as cinco ferramentas
 ======== 3b. COM A PLANTA LIGADA (BZ_PLANTA=ligada; desligada por padrão: sem a flag tudo acima vale como está) ========
 Nas mesmas etapas de preço aberto (sem pedido confirmado) entra uma SEXTA ferramenta, no fim da lista, e o prompt de sistema NÃO muda. No turno seguinte ao da primeira estimativa, enquanto não há planta gravada, o campo proximo_passo do ESTADO começa por esta frase, e o texto de hoje vem inteiro depois dela:
 "${PREFIXO_PLANTA}"
-O que o modelo lê do briefing não traz a planta nem as frases dela: só uma versão compacta (id, tipo e título de cada caixa) no bloco do briefing, depois que há um desenho.
+O que o modelo lê do briefing não traz o mapa nem as frases dele: só uma versão compacta (a estrutura, as origens, cada nó com id, papel e título, cada seta com de, para e rótulo, e o título do objetivo) no bloco do briefing, depois que há um mapa.
 
 ${planta.name}
 ${planta.description}

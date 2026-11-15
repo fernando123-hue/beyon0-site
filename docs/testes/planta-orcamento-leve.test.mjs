@@ -69,20 +69,23 @@ test('rede: se o js/orcamento.js não abriu as perguntas até o load, a classe s
   assert.ok(com.tem('orc-nova'), 'com as perguntas já abertas pelo script, a classe pode ficar (não muda nada)');
 });
 
-test('o CSS mostra as perguntas só com a classe; o HTML segue com hidden (sem JS nada muda) e o <script> da cabeça marca a página', () => {
-  const css = semComentarios(ler('css/orcamento.css'));
-  assert.match(css, /html\.orc-nova #o-perguntas\[hidden\]\s*\{\s*display:\s*block\s*!important;?\s*\}/);   /* (o [hidden] de css/tokens.css é !important) */
+/* (orçamento como conversa, spec 2026-11-13 §1) a tela de perguntas saiu: a conversa É a página e nasce à vista, sem esperar script (nada pula
+   na 1ª pintura). As perguntas fixas são falas do Zero com opções, dentro da caixa (js/orcamento-toques.js) */
+test('a conversa nasce à vista no HTML (sem hidden) e não há mais tela de perguntas nem "Prefere conversar?"', () => {
   const html = ler('orcamento.html');
-  assert.match(html, /<section class="orc-perguntas" id="o-perguntas"[^>]* hidden>/);
+  assert.match(html, /<section class="orc-conversa" id="o-conversa"[^>]*aria-labelledby="o-conversa-titulo">/);
+  assert.doesNotMatch(html, /<section class="orc-conversa" id="o-conversa"[^>]* hidden>/);
+  assert.doesNotMatch(html, /id="o-perguntas"|id="o-conversar"|id="o-p-ver-preco"/);
+  assert.match(html, /<script src="js\/orcamento-rotulos\.js" defer><\/script>\s*<script src="js\/orcamento-toques\.js" defer><\/script>\s*<script src="js\/orcamento-perguntas\.js" defer><\/script>/, 'os toques antes dos controles e da página');
   assert.match(html, /<script src="js\/ancoras\.js" data-orcamento><\/script>/);
 });
 
 /* 3. A 1ª tela do celular: as etapas numa linha só (os números e o nome da etapa atual); os seis nomes seguem no DOM para o leitor de tela */
-test('etapas: cada uma com o número e o nome em <span> próprios; os seis nomes no HTML', () => {
+test('etapas: cada uma com o número e o nome em <span> próprios; os cinco nomes no HTML (o preço mora na conversa)', () => {
   const html = ler('orcamento.html');
   const ol = html.match(/<ol class="orc-etapas" id="o-etapas"[^>]*>([\s\S]*?)<\/ol>/)[1];
   const itens = [...ol.matchAll(/<li data-passo="(\w+)"[^>]*><span class="orc-etapas__n">(\d\d)<\/span><span class="orc-etapas__nome">([^<]+)<\/span><\/li>/g)].map((m) => m[1] + ':' + m[2] + ':' + m[3]);
-  assert.deepEqual(itens, ['conversa:01:Perguntas', 'estimativa:02:Preço', 'direcoes:03:Modelos', 'ajustes:04:Ajustes', 'escopo:05:Resumo', 'pagamento:06:Entrada']);
+  assert.deepEqual(itens, ['conversa:01:Conversa', 'direcoes:02:Modelos', 'ajustes:03:Ajustes', 'escopo:04:Resumo', 'pagamento:05:Entrada']);
   assert.match(ol, /<li data-passo="conversa" aria-current="step">/, 'a 1ª etapa nasce atual (o E2E do CI lê #o-etapas [aria-current])');
 });
 test('etapas no celular: o nome das outras etapas sai da VISTA, não do leitor de tela (clip, nunca display:none/visibility)', () => {
@@ -143,85 +146,7 @@ test('o js/orcamento.js tira a classe ao assumir, ANTES da guarda dos scripts (s
   assert.ok(tira > 0 && guarda > 0 && tira < guarda, 'remove antes da guarda');
 });
 
-/* 6. "Ver o preço" com o servidor lento: as perguntas saem NO TOQUE (dentro da janela de 500 ms que o navegador perdoa depois de uma ação), e o painel
-   com o radar ("Identificando", pelo bz:calculando) é o que a pessoa vê enquanto a conta voa. Antes elas só saíam com a resposta: com mais de 500 ms, a
-   mesa subia sem toque recente e o CLS ia a 0,32 (base) / 0,43 (com as etapas compactas), medido com 900 ms de atraso. Na FALHA, tudo volta como hoje:
-   as perguntas à vista, a mensagem de sempre no #o-p-erro e o foco no botão. Roda o js/orcamento-perguntas.js REAL numa página de mentira. */
-function paginaDasPerguntas() {
-  const fonte = ler('js/orcamento-perguntas.js');
-  const els = {}, ouvintes = {}, eventos = [];
-  let foco = null;
-  const el = (id) => {
-    const escutas = {};
-    const e = {
-      id, hidden: false, textContent: '', value: '', disabled: false, tabIndex: 0, attrs: {}, children: [], classes: new Set(),
-      classList: { add: (c) => e.classes.add(c), remove: (c) => e.classes.delete(c), contains: (c) => e.classes.has(c) },
-      addEventListener: (t, f) => { (escutas[t] = escutas[t] || []).push(f); },
-      clicar() { return Promise.all((escutas.click || []).map((f) => f.call(e, { preventDefault() {} }))); },
-      setAttribute(k, v) { e.attrs[k] = String(v); }, getAttribute: (k) => (k in e.attrs ? e.attrs[k] : null), removeAttribute(k) { delete e.attrs[k]; }, hasAttribute: (k) => k in e.attrs,
-      focus() { foco = e.id; }, scrollIntoView() {}, appendChild(c) { e.children.push(c); return c; }, remove() {},
-      closest: () => $('o-painel-falso'), querySelector: () => el('h2-falso'), querySelectorAll: () => []
-    };
-    return e;
-  };
-  const $ = (id) => els[id] || (els[id] = el(id));
-  ['o-perguntas', 'o-ajustar', 'o-est-acoes', 'o-diagnostico', 'o-est-inclui-caixa'].forEach((id) => { $(id); });
-  $('o-ajustar').hidden = true; $('o-est-acoes').hidden = true;
-  const telas = [1, 2, 3].map((n) => { const t = el('tela' + n); t.attrs['data-p'] = String(n); t.hidden = n !== 3; return t; });
-  const servidor = { pendente: null };
-  const API = {
-    simular: () => new Promise((ok, falha) => { servidor.pendente = { ok, falha }; }),
-    catalogo: () => Promise.resolve({ formatos: [{ chave: 'institucional', nome: 'Site institucional', a_partir_de: 7900, paginas_incluidas: 5, inclui: ['Até 5 páginas'] }], extras: { principais: [], mais: [] }, urgencia: null })
-  };
-  const doc = {
-    getElementById: $, createElement: () => el('novo'),
-    querySelectorAll: (s) => (s === '#o-perguntas .orc-p' ? telas : []), querySelector: () => null,
-    dispatchEvent: (ev) => { eventos.push(ev.type + (ev.detail && 'ativo' in ev.detail ? ':' + ev.detail.ativo : '')); (ouvintes[ev.type] || []).forEach((f) => f(ev)); return true; },
-    addEventListener: (t, f) => { (ouvintes[t] = ouvintes[t] || []).push(f); }
-  };
-  const painel = { focavel: 0 };
-  const win = { BZOrcamento: API, document: doc, BZPainel: { focavel: () => { painel.focavel++; } } };
-  win.window = win;
-  vm.runInNewContext(fonte, { window: win, document: doc, setTimeout, clearTimeout, console, Object, Number, String, JSON, CustomEvent: function (tipo, o) { this.type = tipo; this.detail = o && o.detail; } });
-  return { $, eventos, servidor, painel, foco: () => foco, assentar: async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r)); } };
-}
-const RESPOSTA = { estimativa: { valor_total: 8350, sinal: 3340, prazo_dias: 9, itens: [] }, recomendacao: { formato: 'institucional', motivo: 'm', assumido: [] }, versao: 1 };
-
-test('"Ver o preço": as perguntas saem NO TOQUE (antes da resposta) e o foco vai para o título do painel, com o radar calculando', async () => {
-  const p = paginaDasPerguntas();
-  const clique = p.$('o-p-ver-preco').clicar();
-  assert.equal(p.$('o-perguntas').hidden, true, 'escondidas antes de o servidor responder');
-  assert.equal(p.foco(), 'o-est-titulo', 'o foco não cai no body: vai ao título do painel');
-  assert.ok(p.eventos.includes('bz:calculando:true'), 'o radar recebe a conta em voo');
-  assert.ok(p.$('o-painel-falso').classList.contains('is-1o-preco') && p.$('o-est').hidden, 'em voo: o painel guarda a altura da tela e o cartão de baixo sai (o preço entra no vão)');
-  p.servidor.pendente.ok(RESPOSTA);
-  await clique; await p.assentar();
-  assert.equal(p.$('o-perguntas').hidden, true);
-  assert.equal(p.$('o-est-acoes').hidden, false, 'o preço chegou: as ações do preço aparecem');
-  assert.ok(!p.$('o-painel-falso').classList.contains('is-1o-preco') && !p.$('o-est').hidden, 'o cartão volta e a reserva de altura sai');
-  assert.ok(p.painel.focavel > 0, 'a altura mudou: o tabindex do painel que rola por dentro é refeito (BZPainel.focavel)');
-  assert.equal(p.$('o-p-ver-preco').textContent, 'Ver o preço');
-});
-
-test('"Ver o preço" que FALHA: as perguntas voltam como hoje, com a mensagem de sempre no lugar de sempre e o foco no botão', async () => {
-  const p = paginaDasPerguntas();
-  /* o #o-p-erro é role="alert": escrito com as perguntas ainda escondidas, o leitor de tela não anuncia. Registra se elas estavam à vista quando a mensagem entrou */
-  const alerta = p.$('o-p-erro'); let texto = '', escritoEscondido = null;
-  Object.defineProperty(alerta, 'textContent', { get: () => texto, set: (v) => { texto = String(v); if (texto) escritoEscondido = p.$('o-perguntas').hidden; } });
-  const clique = p.$('o-p-ver-preco').clicar();
-  assert.equal(p.$('o-perguntas').hidden, true);
-  p.servidor.pendente.falha(Object.assign(new Error('Sem conexão. Confira a internet e tente de novo.'), { status: 0 }));
-  await clique; await p.assentar();
-  assert.equal(p.$('o-perguntas').hidden, false, 'as perguntas voltam');
-  assert.equal(p.$('o-p-erro').textContent, 'Sem conexão. Confira a internet e tente de novo.', 'a mensagem nas perguntas, como hoje');
-  assert.equal(escritoEscondido, false, 'a mensagem entra com as perguntas já à vista (o role="alert" é anunciado)');
-  assert.equal(p.$('o-est-erro').textContent, '', 'nada no cartão (que nem está à vista)');
-  assert.equal(p.foco(), 'o-p-ver-preco', 'o foco volta ao botão');
-  assert.equal(p.$('o-p-ver-preco').getAttribute('aria-disabled'), null, 'o botão volta a funcionar');
-  assert.equal(p.$('o-p-ver-preco').textContent, 'Ver o preço');
-  assert.ok(p.eventos.includes('bz:calculando:false'), 'o radar para de varrer');
-  assert.ok(!p.$('o-painel-falso').classList.contains('is-1o-preco') && !p.$('o-est').hidden, 'o painel volta como era');
-});
+/* 6. ("Ver o preço" saiu com a tela de perguntas, orçamento como conversa 13/11: o 1º preço agora é o turno do valor, dentro da conversa) */
 test('a reserva de altura do 1º preço existe no CSS (sem ela o rodapé sobe e desce de novo)', () => {
   assert.match(semComentarios(ler('css/orcamento.css')), /\.orc-painel\.is-1o-preco \{ min-height: 100vh; \}/);
 });

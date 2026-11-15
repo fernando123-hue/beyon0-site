@@ -56,7 +56,7 @@ test('P1 ledger: cada chamada ao modelo fica registrada com o id do pedido (suce
   const n = await navegar(deps);
   const s = await n('POST', 'sessao', {});
   assert.match(s.id || '', /^[0-9a-f-]{36}$/, 'toda resposta leva o x-request-id');
-  const m = await n('POST', 'mensagem', { conversa_id: s.corpo.conversa_id, texto: 'Tenho uma clínica odontológica em Niterói e quero um site mais profissional porque hoje só tenho Instagram. Quero mais agendamentos.' });
+  const m = await n('POST', 'mensagem', { conversa_id: s.corpo.conversa_id, texto: 'Tenho um estúdio de pilates em Niterói e quero um site mais profissional porque hoje só tenho Instagram. Quero mais agendamentos.' });
   assert.equal(m.status, 200);
   const linhas = (await local.db.query('select * from app.ia_chamadas where request_id = $1', [m.id])).rows;
   assert.ok(linhas.length >= 1, 'o turno deixou registro');
@@ -120,7 +120,7 @@ test('P1 ledger: a geração registra a chamada (papel geracao); o ajuste por op
   const n = await navegar(deps);
   const s = await n('POST', 'sessao', {});
   const c = s.corpo.conversa_id;
-  await n('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+  await n('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
   await n('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
   await detalhesEConfirmar(n, local.rpc, c);
   const g = await n('POST', 'gerar', { conversa_id: c });

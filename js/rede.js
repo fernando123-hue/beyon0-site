@@ -64,7 +64,8 @@
   var ponteiro = { x: -1e4, y: -1e4, ativo: false };
   var rolagem = window.scrollY;
   var sujo = true, parado = !!B.reduced, desenhouParado = false, assinatura = -1, iniciada = false;
-  var faseAntes = 0, folego = 0, rotorAng = 0, giroAntes = null, dtQuadro = 0.016;
+  var faseAntes = 0, folego = 0, rotorAng = 0, estatorAng = 0, giroAntes = null, dtQuadro = 0.016;
+  var ESTATOR_FRACAO = 0.5;
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function suave(x) { x = limitar(x); return x * x * (3 - 2 * x); }
@@ -230,12 +231,19 @@
     /* o rotor do campo acompanha a roda do reator (no plano da tela o ângulo cresce no sentido horário) */
     /* o rotor segue a roda, mas com teto de 0,15 rad/s: o impulso da rolagem
        e da agitação no raio de 700 px virava hélice (crítica rodada 2) */
+    /* o ESTATOR (de fora da 1ª ramificação) gira ao contrário do rotor, a ESTATOR_FRACAO da velocidade dele (dono,
+       14/11: "essa parte deveria estar girando ao contrário das outras"): preso ao mesmo giro, para com o reator,
+       no movimento reduzido e com a aba oculta; mais lento porque o raio dele vai até o canto da tela */
     if (nu && nu.giro !== undefined) {
-      if (giroAntes !== null) { var dg = nu.giro - giroAntes, teto = 0.15 * Math.max(dtQuadro, 0.001); rotorAng -= Math.max(-teto, Math.min(teto, dg)); }
+      if (giroAntes !== null) {
+        var dg = nu.giro - giroAntes, teto = 0.15 * Math.max(dtQuadro, 0.001), passo = Math.max(-teto, Math.min(teto, dg));
+        rotorAng -= passo;
+        estatorAng += passo * ESTATOR_FRACAO;
+      }
       giroAntes = nu.giro;
     }
     var rotor = rotorAng;
-    if (caixaNucleo) campo.origem(caixaNucleo.x - B.S.sx, caixaNucleo.y - rolagem, caixaNucleo.R0, 0, rotor);
+    if (caixaNucleo) campo.origem(caixaNucleo.x - B.S.sx, caixaNucleo.y - rolagem, caixaNucleo.R0, estatorAng, rotor);
     else if (caixaArte) campo.origem(caixaArte.x - B.S.sx, caixaArte.y - rolagem, caixaArte.R0, 0, 0);
     else campo.origem(W / 2, -H * ACIMA - rolagem, R0_SEM_REATOR, 0, 0);
     if (trilho) trilho.origem(rolagem, topoTrilho(), W, H);

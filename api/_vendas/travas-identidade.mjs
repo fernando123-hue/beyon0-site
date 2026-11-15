@@ -72,7 +72,7 @@ export const IDENTIDADE_FIXO = 'Sou uma IA, o Zero da Beyon Zero. Quem toca a em
 /* a resposta já convida ao recado em outra frase: não se repete o convite */
 export const IDENTIDADE_SEM_RECADO = 'Sou uma IA, o Zero da Beyon Zero. Quem toca a empresa é o dono.';
 export const EXPERIENCIA_FIXO = 'Sou uma inteligência artificial, então não tenho experiência própria nem histórico com clientes. O que eu sei está na tabela e nas condições da Beyon Zero.';
-export const EQUIPE_FIXO = 'A Beyon Zero é uma operação pequena, tocada pelo dono, e eu sou a inteligência artificial que atende por aqui.';
+export const EQUIPE_FIXO = 'A Beyon Zero é tocada pelo dono, e eu sou a inteligência artificial que atende por aqui.';
 const FIXO_DA_CLASSE = { identidade: IDENTIDADE_FIXO, experiencia: EXPERIENCIA_FIXO, equipe: EQUIPE_FIXO };
 const ORDEM = ['identidade', 'experiencia', 'equipe'];
 

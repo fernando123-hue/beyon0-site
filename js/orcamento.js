@@ -17,7 +17,8 @@
      módulo, as perguntas (sem botão funcionando) não ficam à vista. Numa visita nova o retomar() abaixo as abre na mesma tarefa: nenhum quadro sem elas */
   document.documentElement.classList.remove('orc-nova');
   /* um script não chegou (rede, bloqueador): sem isso a página ficava morta sem dizer nada (auditoria 2026-10-09, F19) */
-  if (!API || !PV || !window.BZVisor || !window.BZPerguntas || !window.BZDetalhes || !window.BZEspera || !window.BZAjustes) { semScripts(); return; }
+  if (!API || !PV || !window.BZVisor || !window.BZPerguntas || !window.BZToques || !window.BZDetalhes || !window.BZEspera || !window.BZAjustes) { semScripts(); return; }
+  var Toques = window.BZToques;
   function semScripts() {
     var aviso = $('o-aviso');
     if (!aviso) return;
@@ -40,43 +41,104 @@
   var pedindo = {};             /* direção → até quando NÃO pedir de novo (posse de outro pedido) */
   var inicioGeracao = {};
   var assinaturas = {};         /* bloco → o que foi desenhado (não refaz o que não mudou) */
-  var ultimaAcao = null, relogio = null, enviando = false;
+  var ultimaAcao = null, relogio = null, enviando = false, retomando = false;
 
-  /* ---------- orçamento sem IA (spec 2026-10-11): as perguntas são o núcleo; a conversa só existe quando há consultor ----------
-     A conversa aparece se o servidor diz que há consultor E a pessoa abriu "Prefere conversar?" (ou a conversa já tem
-     mensagens). Sem configuração (rede), segue sem consultor: as perguntas bastam */
-  var temConsultor = false, abriuConversa = false, perguntasIniciadas = false;
+  /* ---------- o orçamento como conversa (spec docs/superpowers/specs/2026-11-13-orcamento-conversa-design.md) ----------
+     A conversa É a página: está sempre à vista. Numa conversa nova, os passos fixos (js/orcamento-toques.js) começam quando a configuração
+     diz se há consultor; sem ele (sem chave, ou a configuração não veio), a caixa de texto some e tudo vai por toques */
+  var temConsultor = false, perguntasIniciadas = false;
+  var configPronta = API.sessaoConfig().then(function (cfg) { temConsultor = !!(cfg && cfg.consultor); }, function () { temConsultor = false; })
+    .then(function () { Toques.configurar({ consultor: temConsultor }); verConversa(); });
   function verConversa() {
     var aberta = !E || CONVERSA_ABERTA.indexOf(E.conversa.etapa) >= 0;
-    mostrar('o-conversa', temConsultor && (abriuConversa || (!!E && E.mensagens.length > 0)));
-    mostrar('o-conversar', temConsultor && aberta && $('o-conversa').hidden);
+    mostrar('o-conversa', true);
+    mostrar('o-form', aberta && temConsultor && Toques.comConsultor());
     [].forEach.call(document.querySelectorAll('.orc-perguntar'), function (p) { p.hidden = !temConsultor; });
   }
-  function abrirConversa() { abriuConversa = true; verConversa(); }
-  API.sessaoConfig().then(function (cfg) { temConsultor = !!(cfg && cfg.consultor); verConversa(); })
-    .catch(function () { /* sem configuração: segue sem consultor */ });
-  $('o-conversar').addEventListener('click', function () {
-    abrirConversa();
-    $('o-conversa').scrollIntoView({ block: 'start' });
-    $('o-texto').focus({ preventScroll: true });
-  });
-  /* uma conversa nova (sem mensagens nem preço gravado) começa pelas perguntas, uma vez */
+  /* uma conversa nova (sem mensagens nem preço gravado) começa pelos toques, uma vez */
   function iniciarPerguntas() {
-    if (perguntasIniciadas || !window.BZPerguntas) return;
+    if (perguntasIniciadas) return;
     perguntasIniciadas = true;
-    window.BZPerguntas.iniciar();
+    configPronta.then(function () {
+      window.BZPerguntas.iniciar();
+      Toques.iniciar({ consultor: temConsultor });
+      verConversa();
+      $('o-atalhos').hidden = true;   /* (os atalhos de exemplo dão lugar às opções da conversa) */
+    });
   }
-  /* o preço ao vivo das perguntas (js/orcamento-perguntas.js) usa o mesmo cartão; a voz anuncia o valor novo */
-  var precoNaTela = false;
-  var VAZIO = $('o-est-vazio').textContent, SEM_VALOR = 'Esse pacote precisa de uma conversa.';
-  document.addEventListener('bz:preco', function (ev) {
-    if (ev.detail.estimativa) {
-      var valorNovo = investimento(ev.detail.estimativa, true);
+  /* o preço ao vivo (js/orcamento-perguntas.js) usa o mesmo cartão; a voz anuncia o valor novo. Enquanto o valor espera o caso (Toques.reterValor),
+     a conta só alimenta o radar: o número não aparece */
+  var ultimaSim = null;
+  var SEM_VALOR = 'Esse pacote precisa de uma conversa.';
+  var ESPERA_VALOR_MS = 1200, PLANTA_MAX_MS = 20000, PLANTA_TETO_MS = 90000, PASSO_MS = 500;
+  /* (teste com a IA real, 15/11) o prazo de segurança do valor conta só com o mapa À VISTA: fora da tela o mapa fica parado (de propósito) e o valor
+     passava à frente dele. O teto absoluto garante que o valor nunca fica preso (quem nunca olha o mapa vê o valor em 90 s) */
+  function aVista(el) {
+    if (!el) return false;
+    var r = el.getBoundingClientRect(), topo = 0, base = window.innerHeight, caixa = document.getElementById('o-log-caixa');
+    if (caixa && caixa.contains(el)) { var c = caixa.getBoundingClientRect(); topo = Math.max(topo, c.top); base = Math.min(base, c.bottom); }
+    return r.height > 0 && r.bottom > topo && r.top < base;
+  }
+  /* (revisão) os dois lugares do mapa: o cartão da conversa (celular) e a faixa (computador); um cartão vazio que sobrou não esconde a faixa */
+  function mapaAVista() { return !document.hidden && (aVista(document.querySelector('#o-log .lv-item')) || aVista(document.querySelector('#o-planta:not([hidden])'))); }
+  function mostrarSim(d) {
+    if (d.estimativa) {
+      var valorNovo = investimento(d.estimativa, true);
       if (valorNovo) anunciar('Preço: ' + valorNovo + '.');
-    } else if (ev.detail.diagnostico) semValorAutomatico();
-    mostrar('o-diagnostico', !!ev.detail.diagnostico);
-    precoNaTela = true; etapas();
+    } else if (d.diagnostico) semValorAutomatico();
+    mostrar('o-diagnostico', !!d.diagnostico);
+  }
+  document.addEventListener('bz:preco', function (ev) {
+    ultimaSim = ev.detail;
+    if (Toques.reterValor(E)) { mostrar('o-diagnostico', false); return; }
+    mostrarSim(ev.detail);
   });
+  /* o valor foi liberado: com o consultor, o da estimativa que o Zero gravou; sem ele, o da última conta */
+  document.addEventListener('bz:valor-liberado', function () {
+    if (E && E.estimativa) {
+      var v = investimento(E.estimativa, true);
+      jaVemNoPacote(E.estimativa);
+      if (v) anunciar('Investimento estimado: ' + v + '.');
+    } else if (ultimaSim && !Toques.comConsultor()) mostrarSim(ultimaSim);
+  });
+  /* a coreografia do turno do valor (spec §2): a fala já entrou; com a planta, o valor espera ela consagrar (js/planta-desenho.js avisa); sem ela, um respiro */
+  /* em dois tempos: ESCUTA já (o aviso da planta pode vir durante a releitura do estado) e devolve armar(), que põe o prazo quando o estado novo
+     diz se há planta (com ela, até PLANTA_MAX_MS; sem ela, o respiro) */
+  /* a planta já consagrou nesta página? (o aviso pode chegar antes de alguém escutar: uma releitura do estado desenha a planta, e ela termina antes
+     de a coreografia armar o prazo; revisão do PR 2) */
+  var plantaJaPronta = false;
+  document.addEventListener('bz:planta-pronta', function () { plantaJaPronta = true; });
+  function coreografiaDoValor() {
+    var feito = false, t = null, iv = null;
+    function fim() {
+      if (feito) return;
+      feito = true;
+      document.removeEventListener('bz:planta-pronta', fim);
+      clearTimeout(t);
+      clearInterval(iv);
+      Toques.liberarValor();
+    }
+    document.addEventListener('bz:planta-pronta', fim);
+    return function armar() {
+      if (feito) return;
+      if (E && E.planta && plantaJaPronta) { fim(); return; }
+      clearTimeout(t); clearInterval(iv);
+      if (!(E && E.planta)) { t = setTimeout(fim, ESPERA_VALOR_MS); return; }
+      var visto = 0;
+      t = setTimeout(fim, PLANTA_TETO_MS);
+      iv = setInterval(function () { if (mapaAVista()) visto += PASSO_MS; if (visto >= PLANTA_MAX_MS) fim(); }, PASSO_MS);
+    };
+  }
+  /* "Quero os três modelos" (com o consultor, o pacote é a estimativa do Zero): os passos do pedido abrem na conversa
+     (js/orcamento-pedido.js, PR 3); sem o módulo, o contato de antes */
+  function abrirPedido() {
+    /* só com o preço gravado e sem contato nem pedido (o mesmo que fazia o contato de antes aparecer): um "Quero" que sobrou, um pedir_contato repetido
+       ou o toque entre o envio e a releitura não abrem um segundo pedido */
+    if (!E || !E.estimativa || E.conversa.tem_contato || E.pedido) return;
+    if (window.BZPedido) window.BZPedido.iniciar(); else if (!$('o-contato').hidden) irPara('o-contato');
+  }
+  document.addEventListener('bz:quero-com-zero', abrirPedido);
+  window.BZOrcConversa = { enviar: function (texto) { return enviar(texto); }, anunciar: function (texto) { anunciar(texto); } };
   /* o pacote pede conversa (fora do automático ou acima do limite): nada do preço anterior (valor, prazo, itens) fica
      na tela, e a voz avisa uma vez */
   function semValorAutomatico() {
@@ -87,15 +149,10 @@
     mostrar('o-est-vazio', true);
     if (!jaAvisou) anunciar(SEM_VALOR + ' Deixe um recado para a equipe.');
   }
-  /* "Mudar as respostas": a etapa volta para as perguntas (e o cartão vazio, para o texto de antes do preço) */
-  document.addEventListener('bz:perguntas', function () {
-    $('o-est-vazio').textContent = VAZIO;
-    mostrar('o-diagnostico', false);
-    precoNaTela = false; etapas();
-  });
-  /* o pacote foi gravado: a tela segue o servidor (o contato aparece) e leva a pessoa até ele */
+
+  /* o pacote foi gravado: a tela segue o servidor e os passos do pedido abrem na conversa */
   document.addEventListener('bz:pacote-confirmado', function seguir() {
-    recarregar().then(function () { if (!$('o-contato').hidden) irPara('o-contato'); })
+    recarregar().then(abrirPedido)
       .catch(function (e) { falhou(e, function () { seguir(); }); });
   });
   /* os detalhes viraram pedido (PR 2a): a tela segue o servidor e leva a pessoa até o código do pedido recebido */
@@ -117,12 +174,19 @@
     $('o-aviso-texto').textContent = msg;
     $('o-tentar').textContent = rotulo || 'Tentar de novo';
     $('o-tentar').hidden = !acao;
+    mostrar('o-seguir-tocando', false);
     mostrar('o-aviso', true);
     if (quieto) return;
     $('o-aviso').scrollIntoView({ block: 'center' });
     $('o-aviso').focus({ preventScroll: true });
   }
   function limparAviso() { mostrar('o-aviso', false); ultimaAcao = null; }
+  /* "Seguir tocando nas opções" (spec §4): a IA está fora; a conversa segue só por toques, do ponto em que está, e o texto escrito fica na caixa */
+  $('o-seguir-tocando').addEventListener('click', function () {
+    limparAviso();
+    Toques.semConsultor();
+    verConversa();
+  });
 
   /* ---------- a voz (A2): o leitor de tela ouve só o que importa ("Analisando…", a resposta, o investimento,
      a direção pronta), não a própria fala nem o histórico inteiro na retomada. Limpa e escreve no tique seguinte:
@@ -194,6 +258,8 @@
   $('o-tentar').addEventListener('click', function () { var a = ultimaAcao; limparAviso(); if (a) a(); });
   /* o formulário de detalhes trata a sessão recusada como o contato antigo tratava (PR 2a) */
   window.BZDetalhes.iniciar({ sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao });
+  if (window.BZPedido) window.BZPedido.configurar({ sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao, estado: function () { return E; },
+    reler: function () { recarregar().catch(function (e) { falhou(e, function () { recarregar(); }); }); } });
 
   /* ---------- o código do pedido (F1, F6) ---------- */
   var codigoMostrado = null;
@@ -308,7 +374,7 @@
         return false;
       }
       incerta = null;
-      if (entrouComTexto(velha)) { if ($('o-texto').value === texto) $('o-texto').value = ''; return true; }   /* (o render já redesenhou a conversa com o turno) */
+      if (entrouComTexto(velha)) { Toques.entregues(); if ($('o-texto').value === texto) $('o-texto').value = ''; return true; }   /* (o render já redesenhou a conversa com o turno) */
     }
     var antes = visitantesNoServidor(), totalAntes = E ? E.mensagens.length : 0;
     var minha = msg('visitante', texto);
@@ -316,18 +382,24 @@
     ocupado(true);
     anunciar('Analisando…');
     var r;
-    try { r = await API.mensagem(texto); }
+    try { r = await API.mensagem(texto, Toques.pendentes()); }
     catch (e) { return await falhaNoEnvio(e, texto, minha, antes); }
     ocupado(false);
+    Toques.entregues();   /* (os toques foram junto: as perguntas fixas que faltavam saem de cena) */
     /* a conversa no servidor agora tem +2 mensagens; se uma leitura de fundo já a redesenhou, não repete a resposta */
     var esperado = JSON.stringify(totalAntes + 2);
     if (assinaturas.conversa !== esperado) { assinaturas.conversa = esperado; msg('agente', r.resposta || 'Entendi.'); }
-    var valorNovo = r.estimativa ? investimento(r.estimativa, true) : '';
+    if (window.BZPedido) window.BZPedido.trazerAoFim();   /* (ela escreveu no meio do pedido: o passo aberto segue no fim, logo abaixo da resposta) */
+    var reter = !!r.estimativa && Toques.reterValor(E);
+    var valorNovo = r.estimativa && !reter ? investimento(r.estimativa, true) : '';
     anunciar((r.resposta || 'Entendi.') + (valorNovo ? ' Investimento estimado: ' + valorNovo + '.' : ''));
     if (r.sugestoes_ia && r.sugestoes_ia.length) sugestao(r.sugestoes_ia[0]);
     if (r.diagnostico) mostrar('o-diagnostico', true);
+    /* (a coreografia escuta a planta ANTES da releitura: é o render dela que desenha a planta, e o aviso de pronta não pode passar antes do ouvido) */
+    var armar = reter ? coreografiaDoValor() : null;
     try { await recarregar(); } catch (e) { /* o turno já está gravado; a espera ou a próxima ação atualizam */ }
-    if (r.pedir_contato && !$('o-contato').hidden) $('o-contato').scrollIntoView({ block: 'start' });   /* (sem tirar o foco: a resposta ainda está sendo lida) */
+    if (armar) armar();
+    if (r.pedir_contato) abrirPedido();   /* (o Zero ofereceu os modelos e ela quer: os passos do pedido abrem na conversa) */
     return true;
   }
   /* enviar() devolve se o turno ENTROU (true) ou não (false: a conversa estava ocupada, ou o envio falhou sem gravar): quem manda por fora, como "Está certo" da planta
@@ -348,12 +420,20 @@
       if (!$('o-texto').value) $('o-texto').value = texto;
     }
     if (sessaoTerminou(e)) { anunciar(''); avisarSessao(); return gravada; }
-    if (gravada) { anunciar(ultimaDoAgente()); return gravada; }   /* a resposta já está na conversa: nada a refazer */
+    if (gravada) {
+      /* a resposta já está na conversa: nada a refazer. Os toques foram junto, e um valor que veio nesse turno segue a coreografia */
+      Toques.entregues();
+      if (E && E.estimativa && Toques.reterValor(E)) coreografiaDoValor()();
+      anunciar(ultimaDoAgente());
+      return gravada;
+    }
     /* o sinal caiu enquanto o consultor respondia: a tela já mostra o projeto em produção; um erro ali só assustaria
        (revisões do PR 34) */
     if (E && CONVERSA_ABERTA.indexOf(E.conversa.etapa) < 0) { anunciar(''); return gravada; }
     anunciar('');
     avisar(mensagemDe(e), repetivel(e) || respondendo ? function () { reenviar(texto); } : null);
+    /* a IA está fora (recado, limite do dia, freio por IP): a 3ª saída, seguir só por toques (spec §4) */
+    if (Toques.ativo() && Toques.comConsultor() && ((e.dados && e.dados.recado) || e.status === 429 || e.status === 503)) mostrar('o-seguir-tocando', true);
     return gravada;
   }
   /* "Tentar de novo": o enviar() acima já confere se o turno anterior chegou nesse meio-tempo (senão entraria duas vezes), com uma releitura só */
@@ -382,7 +462,7 @@
   [].forEach.call(document.querySelectorAll('[data-perguntar]'), function (a) {
     a.addEventListener('click', function (ev) {
       ev.preventDefault();
-      abrirConversa();   /* (o link só aparece quando há consultor) */
+      /* (o link só aparece quando há consultor; a conversa está sempre à vista) */
       $('o-form').scrollIntoView({ block: 'center' });
       $('o-texto').focus({ preventScroll: true });
     });
@@ -506,6 +586,9 @@
   /* FILA MANUAL (decisão do dono, 2026-10-08): as direções são feitas pela Beyon Zero em até 24 horas úteis e o aviso
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
+  /* (decisão do dono, 14/11) saúde: a equipe confere antes dos modelos e fala pelo WhatsApp; sem prazo prometido */
+  var saude = function () { return !!E && E.saude_com_a_equipe === true; };
+  var TEXTO_SAUDE = 'Os três modelos saem depois que a equipe conferir o seu pedido.';   /* (o "Pedido recebido" já diz o resto: js/orcamento-detalhes.js) */
   var TEXTOS_MANUAL = {
     direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página por ele.',
     prontas: 'Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio.'
@@ -554,7 +637,7 @@
       } else corpo.appendChild(el('p', 'dir__resumo', 'Os ajustes seguem sobre a direção escolhida.'));
     } else if (manual()) {
       var f = el('div', 'dir__progresso');
-      f.appendChild(el('p', '', 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
+      f.appendChild(el('p', '', saude() ? 'A direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' sai depois que a equipe conferir o pedido.' : 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
       mini.appendChild(f);
       corpo.appendChild(el('p', 'dir__resumo', 'Você pode voltar a esta página neste aparelho quando quiser: o pedido fica salvo aqui.'));
       var conf = botao('btn btn--sm', 'Conferir agora', function () { conferir(conf); });   /* (sem consulta automática: a pessoa confere quando quiser) */
@@ -689,7 +772,7 @@
   function alvoDoPagamento() { return window.BZRestante ? window.BZRestante.alvoDaRetomada(E) : E.conversa.etapa === 'em_producao' ? 'o-pronto' : 'o-pagamento'; }
   function etapas() {
     var atual = E ? passoAtual() : 'conversa', passou = true;
-    if (precoNaTela && atual === 'conversa') atual = 'estimativa';   /* (o preço das perguntas já está na tela, ainda sem gravar) */
+    if (atual === 'estimativa') atual = 'conversa';   /* (o preço mora na conversa: a etapa "Preço" saiu da barra) */
     if (!mudou('etapas', atual)) return;
     [].forEach.call(document.querySelectorAll('#o-etapas li'), function (li) {
       var eh = li.getAttribute('data-passo') === atual;
@@ -703,10 +786,14 @@
   function conversa() {
     var log = $('o-log'), fica = ficaNoFim(), ultima = null;
     /* refaz as falas; a abertura fixa (o 1º item) e o cartão da planta ficam onde estão (tirá-lo do DOM reiniciaria o desenho) */
-    [].slice.call(log.children).forEach(function (c, i) { if (i > 0 && c !== fica) log.removeChild(c); });
+    /* os toques do começo ficam onde estão (antes das falas do servidor); os TARDIOS (nascidos depois de a conversa ir ao servidor: o "Mudar", uma falha)
+       saem e voltam depois das falas, na ordem em que estavam */
+    var tardios = [].slice.call(log.children).filter(function (c) { return c.hasAttribute('data-toque-tardio'); });
+    [].slice.call(log.children).forEach(function (c, i) { if (i > 0 && c !== fica && (!c.hasAttribute('data-toque') || c.hasAttribute('data-toque-tardio'))) log.removeChild(c); });
     E.mensagens.forEach(function (m) { ultima = msg(m.papel === 'agente' ? 'agente' : 'visitante', m.conteudo, true); });
+    tardios.forEach(function (c) { log.insertBefore(c, ficaNoFim()); });
     rolarConversa(ultima);
-    if (E.mensagens.length > 0) esconderAtalhos(); else $('o-atalhos').hidden = false;
+    if (E.mensagens.length > 0) esconderAtalhos(); else $('o-atalhos').hidden = Toques.ativo();
   }
   function direcoes() {
     var et = E.conversa.etapa;
@@ -724,7 +811,7 @@
       else if (E.conversa.tem_contato && podeGerar() && !pendente) ul.appendChild(botaoAcao('btn btn--primary', 'Gerar as três direções', gerarTodas));   /* (F20: só na etapa que gera) */
       devolverFocoNaLista(ul, foco);
     }
-    if (manual()) $('o-dir-lead').textContent = E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
+    if (manual()) $('o-dir-lead').textContent = saude() ? TEXTO_SAUDE : E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
     if (window.BZPreparo) window.BZPreparo.atualizar(E);   /* a espera útil: o prazo e o que separar (js/orcamento-preparo.js); sem o módulo, o resto da tela segue */
     var emGeracao = manual() ? [] : E.direcoes.filter(function (d) { return d.status === 'gerando'; });   /* (fila manual: nada a pedir) */
     relogioDosCartoes(emGeracao.length > 0);
@@ -767,10 +854,13 @@
     if (mudou('conversa', E.mensagens.length)) conversa();
     verConversa();
     /* as perguntas: só numa conversa nova; com o preço gravado (ou a conversa já andando), ficam escondidas */
-    if (!E.estimativa && E.mensagens.length === 0) iniciarPerguntas(); else mostrar('o-perguntas', false);
-    if (E.estimativa) { investimento(E.estimativa, false); jaVemNoPacote(E.estimativa); }
+    Toques.atualizar(E);
+    /* quem volta com o valor já dado o vê na hora, sem coreografia */
+    if (retomando && E.estimativa) Toques.liberarValor();
+    if (!E.estimativa && E.mensagens.length === 0) iniciarPerguntas();
+    if (E.estimativa && !Toques.reterValor(E)) { investimento(E.estimativa, false); jaVemNoPacote(E.estimativa); }
     var aberta = CONVERSA_ABERTA.indexOf(et) >= 0;
-    mostrar('o-form', aberta);
+    mostrar('o-form', aberta && temConsultor && Toques.comConsultor());
     $('o-texto').placeholder = Object.prototype.hasOwnProperty.call(DICA_DUVIDA, et) ? DICA_DUVIDA[et] : dicaPadrao;
     mostrar('o-conversa-fechada', !aberta);
     if (!aberta) $('o-atalhos').hidden = true;
@@ -836,9 +926,13 @@
   async function retomar() {
     /* chegou pelo link do aviso (js/orcamento-retomada.js): primeiro abre o pedido neste aparelho, depois segue daqui */
     if (window.BZRetomada && window.BZRetomada.pendente()) { window.BZRetomada.mostrar(retomar, { mensagemDe: mensagemDe, rolarAte: rolarAte }); return; }
-    if (!API.temSessao()) { iniciarPerguntas(); return; }   /* (primeira visita: as perguntas; a sessão nasce no "Ver o preço") */
+    if (!API.temSessao()) { iniciarPerguntas(); return; }   /* (primeira visita: os toques; a sessão nasce no 1º toque) */
     try {
-      await recarregar();   /* (o render desenha a conversa salva) */
+      retomando = true;
+      try { await recarregar(); } finally { retomando = false; }   /* (o render desenha a conversa salva) */
+      /* o pacote já gravado (a estimativa no servidor) e o pedido por fazer: os passos do pedido reabrem, como o formulário de antes aparecia
+         (nada digitado ficou guardado; sem consultor o "Quero" já saiu de cena) */
+      if (passoAtual() === 'estimativa' && CONVERSA_ABERTA.indexOf(E.conversa.etapa) >= 0 && !E.pedido && !E.fila_cheia) abrirPedido();
       var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: alvoDoPagamento() };
       var alvo = BLOCOS[passoAtual()];
       if (alvo && !$(alvo).hidden) { rolarAte($(alvo)); if (window.BZRetomada) window.BZRetomada.focar($(alvo)); }   /* quem volta cai na etapa em que parou */

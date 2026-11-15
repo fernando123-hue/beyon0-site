@@ -17,11 +17,11 @@
 })(typeof window !== 'undefined' ? window : null, function () {
   'use strict';
 
-  /* na ordem em que se leem: o esboço precisa dos quatro antes dele */
-  var MODULOS = ['js/planta-pecas.js', 'js/planta-cresce.js', 'js/planta-relogio.js', 'js/planta-som.js', 'js/planta-esboco.js'];
+  /* na ordem em que se leem: o esboço precisa dos outros antes dele; as origens (js/mapa-saber.js, PR 5) vêm antes do crescimento, que as lê */
+  var MODULOS = ['js/planta-pecas.js', 'js/mapa-saber.js', 'js/planta-cresce.js', 'js/planta-relogio.js', 'js/planta-som.js', 'js/planta-esboco.js'];
   var CSS = 'css/planta-esboco.css';
   /* o global que cada módulo publica: o que já está na página (o planta-pecas.js, se a faixa veio antes) não é baixado de novo */
-  var GLOBAIS = { 'js/planta-pecas.js': 'BZPlantaPecas', 'js/planta-cresce.js': 'BZPlantaCresce', 'js/planta-relogio.js': 'BZPlantaRelogio', 'js/planta-som.js': 'BZPlantaSom', 'js/planta-esboco.js': 'BZPlantaEsboco' };
+  var GLOBAIS = { 'js/planta-pecas.js': 'BZPlantaPecas', 'js/mapa-saber.js': 'BZMapaSaber', 'js/planta-cresce.js': 'BZPlantaCresce', 'js/planta-relogio.js': 'BZPlantaRelogio', 'js/planta-som.js': 'BZPlantaSom', 'js/planta-esboco.js': 'BZPlantaEsboco' };
   var ESPERA_RESIZE = 160, TOLERANCIA_LARGURA = 6, FOLGA_FALA = 8;
   /* a consagração: a metade do núcleo/LED e a do chip no esboço (js/planta-esboco.js), e quanto do esboço precisa estar à vista para o voo sair dele */
   var PONTA = 20, CHIP = 24, FRACAO_VOO = 0.35;
@@ -116,7 +116,9 @@
     function pontosDoEsboco(plano, ref) {
       var I = st.esb && st.esb.interno, Cresce = win.BZPlantaCresce;
       if (!I || !I.esboco || !Cresce) return null;
-      var q = I.quadro.getBoundingClientRect(), dx = q.left - ref.left, dy = q.top - ref.top, mapa = Cresce.casar(I.esboco, plano), o = Object.create(null);
+      var q = I.quadro.getBoundingClientRect(), dx = q.left - ref.left, dy = q.top - ref.top, o = Object.create(null);
+      /* (PR 5b) o mapa do caso (v3) casa pelo papel; a estação sem par some na luz */
+      var mapa = typeof plano.estrutura === 'string' ? Cresce.casarMapa(I.esboco, plano) : Cresce.casar(I.esboco, plano);
       var ponto = function (cx, cy, s, li) { return { x: dx + cx, y: dy + cy, s: s, tx: dx + li.offsetLeft, ty: dy + li.offsetTop }; };
       o.nucleo = ponto(I.nucleo.cx, I.nucleo.cy, PONTA, I.nucleo.li);
       I.est.forEach(function (x, k) { var id = mapa[Cresce.LUGARES[k]]; if (id && x.est) o[id] = ponto(x.cx, x.cy, CHIP, x.li); });
