@@ -37,9 +37,15 @@ const ehQueda = e => e instanceof Anthropic.InternalServerError
 /* o mesmo pedido no reserva; o parâmetro do fallback do servidor só vai se o reserva também o tiver */
 function noReserva(pedido, reserva) {
   const { betas, fallbacks, ...resto } = pedido;
-  return COM_FALLBACK.has(reserva) ? { ...resto, model: reserva, betas, fallbacks } : { ...resto, model: reserva };
+  return { ...resto, model: reserva, ...(COM_FALLBACK.has(reserva) ? { betas, fallbacks } : {}) };
 }
-const logReserva = e => console.error(JSON.stringify({ origem: 'ia', nivel: 'erro', evento: 'o modelo reserva também falhou', status: e?.status ?? null }));
+/* o ORÇAMENTO DE TEMPO do reserva (revisões do PR #170): as tentativas do modelo principal podem ter levado até 3 × o tempo
+   máximo do papel; o reserva só entra se a queda veio cedo (até 30 s) e tem no máximo 25 s, para a resposta caber em ~1 min */
+const RESERVA_SO_ATE_MS = 30000;
+const RESERVA_TEMPO_MS = 25000;
+/* sem texto do visitante: o evento, o status, o tipo e o id do pedido (o mesmo formato de logErroProvedor) */
+const logIA = (evento, e) => console.error(JSON.stringify({ origem: 'ia', nivel: 'erro', evento, status: e?.status ?? null,
+  tipo: String(e?.error?.error?.type || '').slice(0, 40) || null, request_id_provedor: String(e?.requestID || '').slice(0, 80) || null }));
 
 /* o erro do SDK vira ErroIA (o motivo decide o disjuntor e o alerta do vigia) */
 function erroIA(e, cfg, tentativas) {
@@ -62,7 +68,8 @@ function erroIA(e, cfg, tentativas) {
 }
 
 /* ajustes: { papel: { esforco } } só para a AVALIAÇÃO comparar níveis (docs/avaliacao/consultor.mjs); o site não passa */
-export function criarAnthropic(env = process.env, cliente, ajustes = {}) {
+/* deps.agora: o relógio do orçamento de tempo do reserva (testes) */
+export function criarAnthropic(env = process.env, cliente, ajustes = {}, { agora = Date.now } = {}) {
   const client = cliente || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: TENTATIVAS_PADRAO });
 
   async function mensagem({ papel, sistema, contexto, mensagens, ferramentas, esquema }) {
@@ -84,18 +91,27 @@ export function criarAnthropic(env = process.env, cliente, ajustes = {}) {
       ? client.beta.messages.stream(p, o).finalMessage()   /* (saída longa: streaming evita o tempo esgotado do HTTP) */
       : client.beta.messages.create(p, o));
     let r, feito = pedido;
+    const inicio = agora();
     try {
       r = await chamar(pedido, opcoes);
     } catch (e) {
-      /* o MODELO RESERVA (config.MODELO_RESERVA): só na queda do provedor, depois das repetições do SDK, uma vez, sem repetir.
-         O pensamento assinado de uma rodada anterior do mesmo turno vai junto: a API descarta, sem cobrar, o bloco que o
-         modelo novo não lê (referência da API). Se o reserva também falhar, vale o erro da queda original (o disjuntor
-         conta a queda; um 4xx do reserva não pode virar "entrada" e esconder o provedor fora do ar) */
+      /* o MODELO RESERVA (config.MODELO_RESERVA): só na queda do provedor, depois das repetições do SDK, uma vez, sem repetir,
+         e só dentro do orçamento de tempo. O pensamento assinado de uma rodada anterior do mesmo turno vai junto: a API
+         descarta, sem cobrar, o bloco que o modelo novo não lê (referência da API). Se o reserva também falhar, vale o erro
+         da queda original (o disjuntor conta a queda; um 4xx do reserva não pode virar "entrada" e esconder o provedor
+         fora do ar). Só chamadas sem streaming: hoje o único papel com reserva (a conversa) não usa streaming */
       const reserva = MODELO_RESERVA[cfg.modelo];
-      if (!reserva || !ehQueda(e)) throw erroIA(e, cfg, tentativas);
+      if (!reserva || !ehQueda(e) || agora() - inicio > RESERVA_SO_ATE_MS) throw erroIA(e, cfg, tentativas);
+      logIA('queda coberta pelo modelo reserva', e);   /* (a queda coberta não some: fica no log com o status) */
       feito = noReserva(pedido, reserva);
-      try { r = await chamar(feito, { ...opcoes, maxRetries: 0 }); }
-      catch (e2) { logReserva(e2); throw erroIA(e, cfg, tentativas); }
+      try { r = await chamar(feito, { ...opcoes, timeout: Math.min(cfg.timeout_ms, RESERVA_TEMPO_MS), maxRetries: 0 }); }
+      catch (e2) {
+        logIA('o modelo reserva também falhou', e2);
+        const erro = erroIA(e, cfg, tentativas);
+        /* o reserva esgotou o tempo: pode ter gerado e cobrado; conta o pior caso dele, para o teto não ficar cego */
+        if (e2 instanceof Anthropic.APIConnectionTimeoutError) erro.custo_usd += custoUsd(reserva, { saida: cfg.max_tokens });
+        throw erro;
+      }
     }
 
     /* sem uso na resposta: o pior caso do papel (a saída máxima), nunca zero — o teto não fica cego */

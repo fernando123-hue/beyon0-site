@@ -720,7 +720,11 @@ export const SABOTAGENS = [
   { nome: 'reserva: o tempo esgotado também chama o reserva (dobra a espera)', fonte: 'api/_ia/anthropic.mjs', testes: ['docs/testes/ia-reserva.test.mjs'],
     de: '&& !(e instanceof Anthropic.APIConnectionTimeoutError));', para: ');' + ' /* sabotado */' },
   { nome: 'reserva: o erro do reserva troca o da queda (um 4xx esconde o provedor fora do ar)', fonte: 'api/_ia/anthropic.mjs', testes: ['docs/testes/ia-reserva.test.mjs'],
-    de: 'catch (e2) { logReserva(e2); throw erroIA(e, cfg, tentativas); }', para: 'catch (e2) { logReserva(e2); throw erroIA(e2, cfg, tentativas); }' },
+    de: 'const erro = erroIA(e, cfg, tentativas);', para: 'const erro = erroIA(e2, cfg, tentativas);' },
+  { nome: 'reserva: sem o orçamento de tempo (a resposta passa de 2 min)', fonte: 'api/_ia/anthropic.mjs', testes: ['docs/testes/ia-reserva.test.mjs'],
+    de: '|| agora() - inicio > RESERVA_SO_ATE_MS)', para: '|| agora() - inicio > Infinity)' },
+  { nome: 'reserva: o custo pela tabela do principal (sufixo de data vira o mais caro)', fonte: 'api/_ia/anthropic.mjs', testes: ['docs/testes/ia-reserva.test.mjs'],
+    de: "modelo.startsWith(feito.model + '-') ? feito.model : modelo", para: "modelo.startsWith(cfg.modelo + '-') ? cfg.modelo : modelo" },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não

@@ -30,7 +30,10 @@ function cliente(...fila) {
   const proximo = async (p, o) => { pedidos.push({ p, o }); const f = fila.shift(); if (typeof f === 'function') throw f(); return f; };
   return { pedidos, beta: { messages: { create: proximo, stream: (p, o) => ({ finalMessage: () => proximo(p, o) }) } } };
 }
-const conversa = ia => ia.mensagem({ papel: 'conversa', sistema: 'S', mensagens: [{ role: 'user', content: 'oi' }] });
+/* (revisões do PR #170) o histórico do turno leva um bloco de pensamento assinado de uma rodada anterior: vai igual ao reserva */
+const HISTORICO = [{ role: 'user', content: 'oi' }, { role: 'assistant', content: [{ type: 'thinking', thinking: '', signature: 'assinado' }, { type: 'tool_use', id: 't1', name: 'x', input: {} }] },
+  { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: 'ok' }] }];
+const conversa = ia => ia.mensagem({ papel: 'conversa', sistema: 'S', mensagens: HISTORICO });
 
 test('reserva: só o Sonnet 5.5 tem reserva, e é o Sonnet 5, com preço na tabela igual ao dele por token', () => {
   assert.deepEqual(MODELO_RESERVA, { 'claude-sonnet-5-5': 'claude-sonnet-5' });
@@ -50,6 +53,8 @@ for (const [nome, erro] of Object.entries(queda)) {
     assert.equal(p2.p.betas, undefined);
     assert.deepEqual({ ...p2.p, model: 'x' }, (({ fallbacks, betas, ...resto }) => ({ ...resto, model: 'x' }))(p1.p), 'o resto do pedido é o mesmo (sistema, mensagens, esforço)');
     assert.equal(p2.o.maxRetries, 0, 'a reserva tenta uma vez só');
+    assert.equal(p2.o.timeout, 25000, 'com no máximo 25 s');
+    assert.deepEqual(p2.p.messages, HISTORICO, 'o pensamento assinado da rodada anterior vai igual');
     assert.equal(r.modelo, 'claude-sonnet-5');
     assert.equal(r.custo_usd, custoUsd('claude-sonnet-5', { entrada: 3000, saida: 400, cache_leitura: 5000, cache_escrita: 0 }));
     assert.equal(r.texto, 'oi');
@@ -78,4 +83,26 @@ test('reserva: Haiku (extração, atendente) e Opus (geração) não têm reserv
     await assert.rejects(criarAnthropic({}, c).mensagem({ papel, sistema: 'S', mensagens: [{ role: 'user', content: 'oi' }] }), e => e.motivo === 'falha');
     assert.equal(c.pedidos.length, 1, papel);
   }
+});
+
+/* ---- revisões do PR #170 ---- */
+const relogio = (...marcas) => () => marcas.length > 1 ? marcas.shift() : marcas[0];
+
+test('reserva: a queda que chega depois de 30 s não chama o reserva (as tentativas do principal já gastaram o tempo)', async () => {
+  const tarde = cliente(queda['529 sobrecarga'], boa('claude-sonnet-5'));
+  await assert.rejects(conversa(criarAnthropic({}, tarde, {}, { agora: relogio(0, 31000) })), e => e.motivo === 'falha');
+  assert.equal(tarde.pedidos.length, 1);
+  const cedo = cliente(queda['529 sobrecarga'], boa('claude-sonnet-5'));
+  assert.equal((await conversa(criarAnthropic({}, cedo, {}, { agora: relogio(0, 29000) }))).modelo, 'claude-sonnet-5');
+});
+
+test('reserva: o custo é pelo modelo que respondeu, mesmo com sufixo de data (nunca pela tabela do principal nem como o mais caro)', async () => {
+  const c = cliente(queda['500'], boa('claude-sonnet-5-20260701'));
+  const r = await conversa(criarAnthropic({}, c));
+  assert.equal(r.custo_usd, custoUsd('claude-sonnet-5', { entrada: 3000, saida: 400, cache_leitura: 5000, cache_escrita: 0 }));
+});
+
+test('reserva: o reserva esgotou o tempo → o erro da queda original, com o pior caso do reserva somado ao custo (o teto não fica cego)', async () => {
+  const c = cliente(queda['529 sobrecarga'], naoQueda['tempo esgotado']);
+  await assert.rejects(conversa(criarAnthropic({}, c)), e => e.motivo === 'falha' && e.custo_usd === custoUsd('claude-sonnet-5', { saida: 4000 }));
 });
