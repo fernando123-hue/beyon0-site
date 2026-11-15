@@ -70,7 +70,17 @@
      a conta só alimenta o radar: o número não aparece */
   var ultimaSim = null;
   var SEM_VALOR = 'Esse pacote precisa de uma conversa.';
-  var ESPERA_VALOR_MS = 1200, PLANTA_MAX_MS = 20000;
+  var ESPERA_VALOR_MS = 1200, PLANTA_MAX_MS = 20000, PLANTA_TETO_MS = 90000, PASSO_MS = 500;
+  /* (teste com a IA real, 15/11) o prazo de segurança do valor conta só com o mapa À VISTA: fora da tela o mapa fica parado (de propósito) e o valor
+     passava à frente dele. O teto absoluto garante que o valor nunca fica preso (quem nunca olha o mapa vê o valor em 90 s) */
+  function aVista(el) {
+    if (!el) return false;
+    var r = el.getBoundingClientRect(), topo = 0, base = window.innerHeight, caixa = document.getElementById('o-log-caixa');
+    if (caixa && caixa.contains(el)) { var c = caixa.getBoundingClientRect(); topo = Math.max(topo, c.top); base = Math.min(base, c.bottom); }
+    return r.height > 0 && r.bottom > topo && r.top < base;
+  }
+  /* (revisão) os dois lugares do mapa: o cartão da conversa (celular) e a faixa (computador); um cartão vazio que sobrou não esconde a faixa */
+  function mapaAVista() { return !document.hidden && (aVista(document.querySelector('#o-log .lv-item')) || aVista(document.querySelector('#o-planta:not([hidden])'))); }
   function mostrarSim(d) {
     if (d.estimativa) {
       var valorNovo = investimento(d.estimativa, true);
@@ -99,19 +109,24 @@
   var plantaJaPronta = false;
   document.addEventListener('bz:planta-pronta', function () { plantaJaPronta = true; });
   function coreografiaDoValor() {
-    var feito = false, t = null;
+    var feito = false, t = null, iv = null;
     function fim() {
       if (feito) return;
       feito = true;
       document.removeEventListener('bz:planta-pronta', fim);
       clearTimeout(t);
+      clearInterval(iv);
       Toques.liberarValor();
     }
     document.addEventListener('bz:planta-pronta', fim);
     return function armar() {
       if (feito) return;
       if (E && E.planta && plantaJaPronta) { fim(); return; }
-      t = setTimeout(fim, E && E.planta ? PLANTA_MAX_MS : ESPERA_VALOR_MS);
+      clearTimeout(t); clearInterval(iv);
+      if (!(E && E.planta)) { t = setTimeout(fim, ESPERA_VALOR_MS); return; }
+      var visto = 0;
+      t = setTimeout(fim, PLANTA_TETO_MS);
+      iv = setInterval(function () { if (mapaAVista()) visto += PASSO_MS; if (visto >= PLANTA_MAX_MS) fim(); }, PASSO_MS);
     };
   }
   /* "Quero os três modelos" (com o consultor, o pacote é a estimativa do Zero): os passos do pedido abrem na conversa

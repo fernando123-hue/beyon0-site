@@ -92,7 +92,7 @@
     /* ---- a faixa ---- */
     function opcoes(E, p, comFala) {
       var nome = E.conversa && E.conversa.briefing && E.conversa.briefing.negocio ? limpo(E.conversa.briefing.negocio.nome, NOME_MAX) : '';
-      var o = { origem: p.origem, editavel: E.planta_editavel === true, aoCerto: aoCerto, aoAjustar: aoAjustar, notaEmbaixo: true, som: tocar };
+      var o = { origem: p.origem, editavel: E.planta_editavel === true, aoCerto: aoCerto, aoAjustar: aoAjustar, aoPronta: rolarCaixaAPergunta, notaEmbaixo: true, som: tocar };
       if (nome) o.nome = nome;
       if (comFala && Array.isArray(E.mensagens)) {
         var m = E.mensagens[p.n_mensagens - 1];
@@ -159,6 +159,16 @@
       var caixa = $('o-log-caixa'), raiz = st.raiz;
       if (!caixa || !raiz) return;
       caixa.scrollTop = Math.max(0, caixa.scrollTop + raiz.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA);
+    }
+    /* (teste com a IA real, 15/11) mapa pronto: num mapa mais alto que a caixa, a pergunta "Ficou certo?" ficava abaixo, fora da vista. A caixa desce
+       só o que falta para ela aparecer (nunca a página; a mesma regra da mão: quem mexeu na caixa nos últimos 3 s não é puxado) */
+    function rolarCaixaAPergunta() {
+      var caixa = $('o-log-caixa'), a = st.raiz && st.raiz.querySelector('.mpc-acoes');
+      /* (revisão) uma vez por versão do mapa: refazer ao girar a tela não puxa de novo quem subiu a caixa para reler */
+      if (!caixa || !a || st.lugar !== 'cartao' || st.perguntaVista === st.versao || Date.now() - st.maoNaCaixa < MAO_NA_CAIXA) return;
+      st.perguntaVista = st.versao;
+      var falta = a.getBoundingClientRect().bottom - caixa.getBoundingClientRect().bottom + FOLGA;
+      if (falta > 0) caixa.scrollTop += falta;
     }
     /* depois de a fala aparecer: se a pessoa não mexeu na caixa à mão nos últimos 3 s, mostra o desenho; se mexeu, a entrada espera a vista */
     function talvezRolarAoCartao() {

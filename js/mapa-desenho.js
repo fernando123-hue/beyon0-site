@@ -199,6 +199,8 @@
     if (i.acoes) i.acoes.classList.remove('is-espera');
     i.status.textContent = 'O mapa do seu caso está pronto.';
     if (win.CustomEvent && doc.dispatchEvent) doc.dispatchEvent(new win.CustomEvent('bz:planta-pronta'));
+    /* (teste com a IA real, 15/11) a cola mostra o "Ficou certo?" num mapa mais alto que a caixa da conversa */
+    if (typeof i.opcoes.aoPronta === 'function') { try { i.opcoes.aoPronta(); } catch (e) { aviso(e); } }
   }
   function final(i) {
     i.quadro.classList.add('is-aceso', 'is-ouro');
