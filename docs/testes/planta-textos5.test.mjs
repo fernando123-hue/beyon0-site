@@ -10,14 +10,18 @@ import { motivoDaTroca, semPromessaDePagamento, RESPOSTAS_PAGAMENTO } from '../.
 const motivo = (t) => { const r = textoDoPlanoPermitido(t, { nomeDoNegocio: '' }); return r.ok ? 'ok' : r.motivo; };
 
 test('no mapa, o canal por onde o cliente chega passa (os textos reais do modelo no teste C)', () => {
-  for (const t of ['Chama no direct', 'A cliente chama no direct e pergunta o tamanho', 'Manda mensagem no direct', 'Fala no direct do perfil']) {
+  for (const t of ['Chama no direct', 'A cliente chama no direct e pergunta o tamanho', 'Manda mensagem no direct', 'Fala no direct do perfil',
+    'Chama no direct para marcar o horário', 'Chama no direct para saber se tem horário']) {
     assert.equal(motivo(t), 'ok', t);
   }
 });
 
 test('no mapa, pagar fora da tela, link, conta e número continuam recusados', () => {
   for (const t of ['Paga no pix direto pra mim', 'Manda o pix no direct', 'Transfere direto para a conta', 'Pagamento por boleto ou depósito',
-    'Chama no Telegram para pagar', 'Link de pagamento no direct']) {
+    'Chama no Telegram para pagar', 'Link de pagamento no direct',
+    /* (revisões do PR) o canal com objeto, e o canal de chegada junto de pagar */
+    'Manda a chave no direct', 'Manda o recibo no direct', 'Manda o código no direct', 'Chama no direct e manda a chave',
+    'Chama no direct que eu passo a chave', 'Chama no direct e manda o comprovante', 'Manda os dados bancários no direct']) {
     assert.notEqual(motivo(t), 'ok', t);
   }
 });
