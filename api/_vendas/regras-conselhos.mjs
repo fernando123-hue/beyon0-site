@@ -33,12 +33,23 @@ export const CONSELHOS = Object.freeze({
 export const MARCADOR_REGISTRO = '[número do registro]';
 /* o registro que a pessoa deu: a sigla da lista, a região (UF ou número do CREFITO/CRP/CRN) e o número. Normalizado; fora do formato, null */
 const SIGLAS = ['CREFITO', 'CRBM', 'COREN', 'CRFA', 'CRO', 'CRM', 'CRP', 'CRN', 'OAB'];
-const FORMATO_REGISTRO = new RegExp('^(' + SIGLAS.join('|') + ')[\\s\\-/]*(?:([A-Z]{2}|\\d{1,2})[\\s\\-/]+)?(?:N[º°O]?\\.?\\s*)?([\\d][\\d.\\-/]{0,12}[A-Z]{0,2})$');
+/* (revisão) o sufixo de até 3 letras (COREN-SP 123456-ENF) e a UF depois do número ("CRM 12345 RJ") */
+const FORMATO_REGISTRO = new RegExp('^(' + SIGLAS.join('|') + ')[\\s\\-/]*(?:([A-Z]{2}|\\d{1,2})[\\s\\-/]+)?(?:N[º°O]?\\.?\\s*)?([\\d][\\d.\\-/]{0,12}[A-Z]{0,3})$');
+const FORMATO_UF_NO_FIM = new RegExp('^(' + SIGLAS.join('|') + ')[\\s\\-/]*(?:N[º°O]?\\.?\\s*)?([\\d][\\d.\\-/]{0,12})[\\s\\-/]+([A-Z]{2})$');
+/* o registro serve a este nicho? (a sigla do conselho dele; saúde genérica e estética aceitam qualquer sigla de saúde, nunca a OAB) */
+export function registroDoNicho(registro, chave) {
+  const r = registroValido(registro), c = Object.hasOwn(CONSELHOS, String(chave)) ? CONSELHOS[chave] : null;
+  if (!r || !c) return null;
+  const sigla = r.split(/[-\s]/)[0].toUpperCase();
+  if (c.registro === 'registro') return sigla === 'OAB' ? null : r;
+  return sigla === c.registro.toUpperCase() ? r : null;
+}
 export function registroValido(bruto) {
   if (typeof bruto !== 'string') return null;
   const s = bruto.normalize('NFKC').replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
   if (!s || s.length > 30) return null;
-  const m = s.match(FORMATO_REGISTRO);
+  const fim = s.match(FORMATO_UF_NO_FIM);
+  const m = fim ? [fim[0], fim[1], fim[3], fim[2]] : s.match(FORMATO_REGISTRO);
   if (!m) return null;
   const sigla = m[1] === 'CRFA' ? 'CRFa' : m[1];
   return sigla + (m[2] ? '-' + m[2] : '') + ' ' + m[3];

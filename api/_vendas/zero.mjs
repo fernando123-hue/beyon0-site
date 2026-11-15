@@ -18,6 +18,7 @@
      pelo modelo já foi apagado antes). É uma lista: nunca fecha. É uma camada a
      mais; a tela e o motor continuam sendo a verdade.
    ========================================================================== */
+import { CONSELHOS } from './regras-conselhos.mjs';
 import { normalizar } from './promessa.mjs';
 
 /* ---------- textos fixos ---------- */
@@ -208,7 +209,6 @@ export function briefingSemProibidos(briefing) {
 }
 
 /* o aviso do código ao modelo no estado ATUAL (o prompt já manda; isto faz o nicho valer a sessão toda) */
-import { CONSELHOS } from './regras-conselhos.mjs';
 /* os nichos de SAÚDE humana (a advocacia é regulada, mas não é saúde: segue fechando pelo site até o dono decidir) */
 export const CHAVES_DE_SAUDE = new Set(['odontologia', 'psicologia', 'nutricao', 'fisioterapia', 'medicina', 'fonoaudiologia', 'enfermagem', 'biomedicina', 'estetica']);
 /* (decisão do dono, 14/11) saúde atende, mas não fecha pelo site até o modelo de saúde ficar pronto: o pedido vai à equipe. Nunca o nome de ninguém */

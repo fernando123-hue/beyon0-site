@@ -7,8 +7,8 @@
    Dado de contato (nome da pessoa, telefone, e-mail) NÃO entra aqui: vem pelo
    formulário de contato e vai para app.leads, longe do modelo.
    ========================================================================== */
-import { FORMATOS } from './precos.mjs';
-import { registroValido } from './regras-conselhos.mjs';   /* (os formatos que o briefing aceita são os do motor) */
+import { FORMATOS } from './precos.mjs';   /* (os formatos que o briefing aceita são os do motor) */
+import { registroValido } from './regras-conselhos.mjs';   /* (o registro profissional de saúde e advocacia) */
 
 export const FUNCIONALIDADES = ['whatsapp', 'formulario', 'agendamento', 'mapa', 'blog', 'integracao', 'ia', 'area_restrita', 'automacao', 'catalogo', 'loja', 'idioma', 'galeria', 'depoimentos'];
 export const OBJETIVOS = ['gerar_leads', 'apresentar_empresa', 'vender', 'agendamentos', 'autoridade', 'captar_contatos', 'lancar_produto', 'outro'];

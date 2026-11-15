@@ -84,6 +84,24 @@ test('advocacia (Provimento 205/2021): honorários, resultado, clientes, incita�
   assert.ok(regras(conferirDirecao(base('Escritório Souza'), 'advocacia')).includes('identificacao'));
 });
 
+test('revisão: a UF RS na linha do registro não é preço (OAB/RS, CRO-RS)', () => {
+  assert.deepEqual(regras(conferirDirecao(base('Dra. Ana · OAB/RS 123456'), 'advocacia')), []);
+  assert.deepEqual(regras(conferirDirecao(base('Dr. Rui · CRO-RS 12345'), 'odontologia')), []);
+});
+
+test('revisão: "sigilo garantido" passa; "cura garantida" e letras separadas por pontuação falham', () => {
+  assert.deepEqual(regras(conferirDirecao(comTexto(base('CRP 07/1'), 'Atendimento com sigilo garantido'), 'psicologia')), []);
+  assert.deepEqual(regras(conferirDirecao(comTexto(base('OAB/RJ 1'), 'Garantimos sigilo em cada conversa'), 'advocacia')), []);
+  assert.ok(regras(conferirDirecao(comTexto(base('CRM-RJ 1'), 'Cura garantida'), 'medicina')).includes('promessa'));
+  assert.ok(regras(conferirDirecao(comTexto(base('CRO-RJ 1'), 'Resultado g.a.r.a.n.t.i.d.o'), 'odontologia')).includes('promessa'));
+  assert.ok(regras(conferirDirecao(comTexto(base('CRO-RJ 1'), 'Avaliação g-r-á-t-i-s'), 'odontologia')).includes('gratis_sorteio'));
+});
+
+test('revisão: na saúde genérica a identificação exige uma sigla de verdade ("criamos", "crianças" não contam)', () => {
+  assert.ok(regras(conferirDirecao(base('Criamos um espaço para crianças'), 'saude_generica')).includes('identificacao'));
+  assert.ok(!regras(conferirDirecao(base('Dra. Ana · CRN-4 12345'), 'saude_generica')).includes('identificacao'));
+});
+
 test('falsos positivos comuns passam: "nossos valores", "a partir de hoje", "como agendar", "atendemos convênios"', () => {
   assert.deepEqual(regras(conferirDirecao(base('CRO-RJ 1'), 'odontologia')), []);
 });

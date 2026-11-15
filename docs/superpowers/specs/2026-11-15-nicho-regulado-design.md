@@ -9,7 +9,7 @@
   - o modelo de IA mais forte (Opus) entra **só onde a medição mostrar que ele acerta claramente mais**.
 - **Trava na publicação, não na venda.** O site só vai ao ar com o registro profissional conferido e o texto passando na checagem (§8).
 - **Ciência do dono.** O pedido chega marcado no painel e com aviso por e-mail. É aviso, não aprovação.
-- **Em aberto:** o que acontece quando o registro não bate (não publicar, cancelar, reter parte da entrada) e a cláusula nas condições de venda **aguardam a pesquisa jurídica** pedida pelo dono. Nenhuma das duas é implementada antes dela (§8.2 e §8.3).
+- **A pesquisa jurídica de 15/11** liberou o caminho de quando o registro não bate (§8.2). O texto da cláusula das condições ainda espera o dono (§8.3).
 
 ## 2. Quais nichos
 
@@ -92,44 +92,64 @@ Função nova: `nichoReguladoDaSessao({ briefing, mensagens })` devolve `{ chave
 
 ## 7. Qual modelo, medido (dono: "Opus não em tudo; medir antes")
 
-**O teste pequeno**, dentro dos ~US$ 1,30 que sobram do teto local de US$ 3:
-- 1 caso de saúde (odontologia) e 1 de advocacia;
-- em cada um, Sonnet 5.5 + conferência × Opus 5.5 + a mesma conferência;
+**A verba:** o dono aprovou em 15/11 subir o teto do teste com IA real de US$ 3 para **US$ 10** no total ("para testes completos e diminuirmos a nossa taxa de erro ao máximo"). Já tinham sido gastos US$ 1,70, então sobram ~US$ 8,30. O teto local (`BZ_IA_TETO_USD`, livro `~/.beyon-gasto-ia.json`) passa a 10. O gasto vai no relatório **por etapa**.
+
+**A medição completa:**
+- 2 casos de saúde (odontologia e fisioterapia) e 1 de advocacia;
+- em cada um, **Sonnet 5.5 × Opus 5.5**, com a mesma conferência e o refazer reais;
 - nos dois pontos:
-  - **conversa:** respeita as regras na fala, pede o registro, custo e tempo por turno;
-  - **geração:** **um** modelo por caso e por modelo de IA, não os três, para caber. O que se mede é a taxa de passar na conferência na 1ª tentativa e o custo.
+  - **conversa:** respeita as regras na fala, pede o registro uma vez, custo e tempo por turno;
+  - **geração dos 3 modelos:** a taxa de passar na conferência na 1ª tentativa, depois do refazer e o que falhou de vez, o custo e o tempo.
+- O objetivo é a **taxa de erro mínima**: nenhum modelo fora da regra aparece, e o menor número possível de "falhou".
 
 **A decisão:**
-- o Opus fica só onde passar claramente mais na 1ª tentativa sem custar mais que o refazer do Sonnet;
-- o palpite é Opus só na geração, que já é Opus hoje.
+- o Opus fica onde errar claramente menos;
+- onde empatar, o Sonnet, que custa a metade;
+- o palpite é Opus na geração (que já é Opus hoje) e Sonnet na conversa.
 
-O papel novo `conversa_regulada` (em `api/_ia/config.mjs`) existe só se a medição mandar. Os tetos de custo existentes (`TETOS`) valem e são revistos com o custo medido. Se o teste não couber nos US$ 1,30, o valor exato vai à sessão principal antes.
+O papel novo `conversa_regulada` (em `api/_ia/config.mjs`) existe só se a medição mandar. Os tetos de custo existentes (`TETOS`) valem e são revistos com o custo medido.
 
-## 8. A publicação (etapa da entrega, PR posterior)
+## 8. A conferência do registro e a publicação (pesquisa jurídica de 15/11: `01 Empresa/Pesquisas/reports/Riscos legais saúde e advocacia.md`)
 
-### 8.1 Conferir o registro (v1)
+### 8.1 Conferir o registro: logo depois do Pix, antes de produzir
 
-- **Antes de publicar**, o painel do dono ganha a tarefa **"Conferir registro"**, com:
-  - os dados do briefing: nome, sigla, UF e número;
-  - o **link pronto da consulta pública** do conselho certo (CNA da OAB em cna.oab.org.br, busca de médicos do CFM, sites dos CROs e CREFITOs regionais; os endereços são conferidos no PR desse passo).
-- **Um clique e uns 30 s.** O site só publica com a tarefa marcada **e** o texto do site passando na conferência (§6).
-- **Não automatizar** captcha nem raspagem de site de conselho. A consulta automática por API fica para a v2, com custo a aprovar pelo dono:
-  - CFM: webservice oficial pago;
-  - OAB e CROs: terceiros.
+- **Quando:** logo **depois da entrada paga e antes de produzir**. Isso resolve o arrependimento de 7 dias, a retenção e a prova de boa-fé.
+- **Onde:** o painel do dono ganha a tarefa **"Conferir registro"**, com:
+  - os dados: nome, conselho, UF ou seccional e número;
+  - o **link pronto da consulta pública** do conselho certo (o CNA da OAB, a busca de médicos do CFM, os sites dos CROs e CREFITOs; os endereços são conferidos no PR deste passo).
+- **O que se confere é a SITUAÇÃO do registro, não só o número.** Atuar com registro suspenso ou cancelado também é crime (Lei 15.425/2026).
+- **A prova da consulta fica guardada na tarefa:** a data, a fonte (o link), o resultado (ativo, suspenso, cancelado ou não encontrado) e, se houver, o print. É a prova de boa-fé.
+- **Dados:** só nome, número, UF ou seccional e conselho. **Nunca CPF nem data de nascimento** (LGPD, necessidade).
+- **Fica fora:**
+  - robô, captcha ou raspagem de site de conselho;
+  - APIs de terceiros para a OAB (Provimento 95/2000);
+  - o webservice do CFM, que só aceita CNPJ.
+  - A consulta é manual: um clique e uns 30 s.
 - **A OAB proíbe repassar o cadastro:** só consultar, sem guardar além do necessário.
 
-### 8.2 Quando o registro não bate: AGUARDA PESQUISA JURÍDICA
+### 8.2 Quando o registro não bate (liberado pela pesquisa jurídica)
 
-- **A direção decidida pelo dono em 15/11:**
-  - não bate → site pronto e não publicado, e aviso ao cliente para conferir ou corrigir;
-  - corrigiu → publica;
-  - falso ou cassado confirmado → não publica e a venda é cancelada, retendo o valor do trabalho já feito e devolvendo o resto (a retenção integral é abusiva no STJ).
-- **O dono pediu pesquisa jurídica completa antes de fechar** (riscos de multa com conselhos e OAB). Nada desta parte é implementado até ela.
+- **Não bate, ou não foi achado:** aviso ao cliente com **prazo para corrigir**. A produção espera.
+  - Corrigiu e confere: segue.
+- **Confirmado falso, suspenso ou cancelado:** não produz, não publica e cancela a venda.
+- **O valor:**
+  - se ainda nada foi produzido (o caso comum, porque a conferência vem antes da produção e dentro dos 7 dias), **devolve a entrada inteira**;
+  - se já houve trabalho, retém só o valor do trabalho feito, **documentado por etapa**;
+  - **nunca** multa somada à entrada.
+- **Também na publicação:** o texto final do site passa pela conferência (§6) antes de ir ao ar.
 
-### 8.3 A cláusula nas condições de venda: AGUARDA PESQUISA JURÍDICA
+### 8.3 A cláusula nas condições de venda: o TEXTO aguarda o dono
 
-- Lugar reservado: o cliente declara que os dados do registro são verdadeiros e responde pelo conteúdo.
-- O texto é do dono, depois da pesquisa.
+- **O que diz:** o cliente declara que os dados do registro são verdadeiros e estão em dia, e responde pelo conteúdo. A lista de cláusulas está no relatório da pesquisa.
+- **Onde aparece:** num **resumo em destaque antes do Pix** (Decreto 7.962/2013, art. 4º).
+- **O que espera:** o texto é do dono. O lugar no resumo pode ser preparado; o texto, não.
+
+### 8.4 Outras regras da pesquisa jurídica
+
+- **Advocacia:** o chatbot no site do advogado serve só para "primeiras dúvidas", sem consulta jurídica (Provimento 205/2021). Vale para o atendente vendido ao cliente advogado, fora deste trabalho.
+- **Saúde:**
+  - nada de imagem gerada por IA como "resultado";
+  - nunca "cura garantida" nem "infalível", mesmo com registro válido (charlatanismo, art. 283 do Código Penal). A conferência (§6) já recusa; "cura garantida" entra na lista de promessas.
 
 ## 9. A ciência do dono
 
@@ -149,7 +169,7 @@ O papel novo `conversa_regulada` (em `api/_ia/config.mjs`) existe só se a medi�
    - o selo e o aviso (§9).
 
    Entra depois do 1, para a saúde nunca vender sem a conferência.
-4. **A publicação:** a tarefa "Conferir registro" (§8.1). As partes §8.2 e §8.3 entram só depois da pesquisa jurídica.
+4. **A conferência do registro depois do Pix:** a tarefa "Conferir registro", com a prova da consulta (§8.1), e o que acontece quando não bate (§8.2). O texto da cláusula (§8.3) entra quando o dono aprovar.
 
 ## 11. Testes e evidência (nível 3)
 

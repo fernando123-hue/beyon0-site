@@ -16,7 +16,7 @@ const CFN_PRECO_DESDE = '2027-01-23';
 
 const re = (...partes) => new RegExp('\\b(?:' + partes.join('|') + ')\\b');
 /* SAÚDE: as regras comuns (CFO, CFM, COFFITO, CFP, CFN, CFBM; spec §3) */
-const PROMESSA = re('garantid[oa]s?', 'garantimos', 'garantia de resultado', 'resultado garantido', 'infalivel', 'sem dor', 'milagros[oa]s?', 'milagre', 'revolucionari[oa]s?', 'cura definitiva');
+const PROMESSA = re('(?<!(?:sigilo|privacidade|confidencialidade|discricao) )garantid[oa]s?', 'garantimos(?! (?:o |a |seu |sua )?(?:sigilo|privacidade|confidencialidade|discricao))', 'garante a cura', 'cura garantida', 'garantia de resultado', 'resultado garantido', 'infalivel', 'sem dor', 'milagros[oa]s?', 'milagre', 'revolucionari[oa]s?', 'cura definitiva');
 /* (o "%" não é letra: o \b não cabe depois dele) */
 const CEM_POR_CENTO = /\b100 ?%/;
 const SUPERLATIVO = re('[oa]s? melhor(?:es)?', 'o unico', 'a unica', 'numero 1', 'n 1', 'top 1', 'referencia (?:em|no|na|da|do)', 'lider(?:es)? (?:em|no|na)', 'mais experiente');
@@ -26,12 +26,13 @@ const ANTES_DEPOIS = re('antes e depois', 'antes depois', 'depoimentos?', 'relat
 /* preço, valor e forma de pagamento (no texto busca o "R$" some: ele é conferido no texto cru) */
 /* ("nossos valores", "a partir de hoje" e "valor" solto ficam de fora: são falso positivo comum; o "R$" e os números com reais vão pelo texto cru) */
 const PRECO = re('precos?', 'valor(?:es)? (?:da|das|do|dos|de) (?:consulta|sessao|sessoes|procedimento|tratamento|avaliacao|atendimento)', 'tabela de valores', 'parcel\\w*', 'pix', 'cartao de credito', 'formas? de pagamento', 'honorarios?', 'investimento de', 'custa(?:m)?');
-const DINHEIRO_CRU = /R\$|\bRS\s?\d|\d+\s?reais\b/i;
+/* (revisão: "RS" sem o cifrão era a UF do Rio Grande do Sul na própria linha do registro, OAB/RS e CRO-RS; só o "R$" e "reais") */
+const DINHEIRO_CRU = /R\$|\d+\s?reais\b/i;
 const DESCONTO = re('descontos?', 'promoc(?:ao|oes)', 'promocional', 'oferta especial', 'pacote promocional');
 const POPULAR = re('popular(?:es)?');
 const CFP_VALOR = re('preco social', 'valor acessivel', 'valores acessiveis', 'pacotes?');
 /* ADVOCACIA (Prov. 205/2021; CED arts. 39 a 47) */
-const OAB_RESULTADO = re('ganhamos', 'causas? ganhas?', 'vitorias?', 'sentencas? favorave(?:l|is)', 'garantimos', 'garantid[oa]s?', 'indenizac(?:ao|oes) de', 'exito garantido', 'sucesso garantido', 'resultados? (?:garantid|comprovad|expressiv)\\w*');
+const OAB_RESULTADO = re('ganhamos', 'causas? ganhas?', 'vitorias?', 'sentencas? favorave(?:l|is)', 'garantimos(?! (?:o |a |seu |sua )?(?:sigilo|privacidade|confidencialidade|discricao))', '(?<!(?:sigilo|privacidade|confidencialidade|discricao) )garantid[oa]s?', 'indenizac(?:ao|oes) de', 'exito garantido', 'sucesso garantido', 'resultados? (?:garantid|comprovad|expressiv)\\w*');
 const OAB_CLIENTES = re('nossos clientes', 'clientes atendidos', 'clientes satisfeitos', 'depoimentos?', 'casos de sucesso');
 const OAB_INCITA = re('entre com (?:sua|a) acao', 'nao perca (?:seu|o seu) direito', 'ultimo dia', 'processe', 'acione (?:agora|ja)', 'corra');
 const OAB_GRATIS = re('consulta gratuita', 'consulta gratis', 'parcelamos', 'descontos?', 'gratis', 'gratuit[oa]s?');
@@ -51,7 +52,7 @@ function temIdentificacao(direcao, nicho) {
     const s = String(t || '');
     if (s.includes(MARCADOR_REGISTRO)) return true;
     const b = paraBusca(s);
-    return (sigla === 'registro' || sigla === 'conselho') ? /\b(?:cr[a-z]{1,5}|coren|crefito|registro)\b/.test(b) : new RegExp('\\b' + sigla + '\\b').test(b);
+    return (sigla === 'registro' || sigla === 'conselho') ? /\b(?:cro|crm|crefito|crp|crn|crbm|crfa|coren)\b/.test(b) : new RegExp('\\b' + sigla + '\\b').test(b);
   });
 }
 
@@ -66,7 +67,7 @@ export function conferirDirecao(direcao, nichoOuChave, { hoje = '' } = {}) {
   const saude = nicho.tipo === 'saude', oab = nicho.tipo === 'advocacia';
   for (const { caminho, texto } of textosDe({ nome_conceito: direcao?.nome_conceito, resumo: direcao?.resumo, navegacao: direcao?.navegacao, secoes: direcao?.secoes, rodape: direcao?.rodape })) {
     if (/\.tipo$|\.variante$/.test(caminho)) continue;
-    const b = paraBusca(texto);
+    const b = paraBusca(String(texto).replace(/(?<=(?:^|[^\p{L}])\p{L})[.\-_*·•|/](?=\p{L}(?:[^\p{L}]|$))/gu, ' '));
     if (!b) continue;
     if (saude) {
       if (PROMESSA.test(b) || CEM_POR_CENTO.test(b)) falha('promessa', caminho);
