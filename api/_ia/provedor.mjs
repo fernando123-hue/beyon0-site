@@ -28,6 +28,10 @@ export class ErroIA extends Error {
 
 /* qual implementação: a chave na Vercel liga a real; o servidor local e os testes usam a simulada */
 export async function criarIA(env = process.env) {
+  /* o servidor local (docs/servidor.mjs) instala a SUA IA (docs/ia-local.mjs: teto do gasto que sobrevive aos servidores,
+     livro, fita). Só no local, como o banco e o armazém locais: na Cloudflare e na Vercel o gancho é ignorado mesmo que exista */
+  const local = globalThis.__BZ_LOCAL;
+  if (local && typeof local.ia === 'function' && ambienteDe(env) === 'local') return local.ia(env);
   if (env.ANTHROPIC_API_KEY) {
     const { criarAnthropic } = await import('./anthropic.mjs');
     return criarAnthropic(env);
