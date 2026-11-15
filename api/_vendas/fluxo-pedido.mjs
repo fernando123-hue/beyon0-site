@@ -43,7 +43,7 @@ export function recusaDoMotivo(r, requestId) {
 /* o aviso ao dono vai em segundo plano (waitUntil no Worker): a pessoa não espera o e-mail sair. A promessa nunca rejeita */
 const soltarAviso = p => { Promise.resolve(p).catch(() => {}); };
 
-export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites = PEDIDOS, requestId, avisar = avisarDono, segundoPlano = soltarAviso }) {
+export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites = PEDIDOS, requestId, avisar = avisarDono, segundoPlano = soltarAviso, regulado = null }) {
   const avisarAoFundo = tipo => segundoPlano(Promise.resolve().then(() => avisar(env, tipo)).catch(() => false));
   const local = !!env && ambienteDe(env) === 'local';   /* sem o ambiente: fecha */
   /* um freio do pedido faltando: nada é gravado, a pessoa recebe a saída pelo recado e o log diz qual */
@@ -94,7 +94,9 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limite
         throw recusaDoMotivo(r, requestId);
       }
       /* (o pedido já está no banco e no painel; o aviso é texto fixo, sem dado do cliente, e hoje não tem canal; a última vaga vira o aviso urgente) */
-      avisarAoFundo(r.fila_cheia ? 'fila_cheia' : 'pedido');
+      /* (spec 2026-11-15 §9) saúde e advocacia: o aviso diz o ramo; uma falha na leitura não segura o pedido (vai o aviso comum) */
+      const ramo = !r.fila_cheia && typeof regulado === 'function' ? await regulado(vid, corpo.conversa_id).catch(() => false) : false;
+      avisarAoFundo(r.fila_cheia ? 'fila_cheia' : ramo ? 'pedido_regulado' : 'pedido');
       return { codigo: r.codigo, status: 'confirmado' };
     }
   };

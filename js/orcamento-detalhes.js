@@ -135,9 +135,6 @@
     var recebido = !!pedido && pedido.status === 'confirmado' && CODIGO.test(pedido.codigo) && (E.conversa.etapa === 'contato' || E.conversa.etapa === 'gerando');
     $('o-confirmar').hidden = !recebido;
     if (recebido) $('o-confirmar-codigo').textContent = pedido.codigo;
-    /* (decisão do dono, 14/11) saúde: sem "fila" de modelos automáticos */
-    var leadRecebido = document.querySelector('#o-confirmar .orc-bloco__lead');
-    if (leadRecebido) leadRecebido.textContent = E.saude_com_a_equipe === true ? 'Recebemos o seu pedido. Na área da saúde a gente confere tudo antes de mandar os modelos, então falamos com você pelo WhatsApp.' : 'O seu pedido já está na fila. Não precisa mandar mensagem nem confirmar nada.';
     var fim = !!pedido && Object.prototype.hasOwnProperty.call(FIM, pedido.status);
     $('o-pedido-fim').hidden = !fim;
     if (fim) $('o-pedido-fim-texto').textContent = FIM[pedido.status];

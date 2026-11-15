@@ -55,7 +55,8 @@ import { criarArmazem } from './_material/armazem.mjs';
 import { criarAcoesDoDono } from './_entrega/painel-entrega.mjs';
 import { criarAcoesAtendente } from './_atendente/painel.mjs';
 import { ambienteDe } from './_ambiente.mjs';
-import { saudeDaSessao } from './_vendas/agente.mjs';
+import { nichoReguladoDaSessao } from './_vendas/agente.mjs';
+import { CONSELHOS, registroDoNicho } from './_vendas/regras-conselhos.mjs';
 
 const CHAVE_MINIMA = 32;
 export const CORPO_MAX = 200000;          /* caracteres do POST do painel */
@@ -193,8 +194,13 @@ async function filaDirecoes(env) {
   if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
   try {
     const r = await rpc('vendas_fila_direcoes', { org_slug: ORG });
-    /* (decisão do dono, 14/11) o pedido de saúde vem com o selo: não fecha pelo site, a equipe fala pelo WhatsApp */
-    const fila = (r && Array.isArray(r.itens) ? r.itens : []).map((p) => (p && typeof p === 'object' && saudeDaSessao({ briefing: p.briefing, mensagens: [] }) ? { ...p, saude: true } : p));
+    /* (spec 2026-11-15 §9) o pedido de saúde ou advocacia vem com o selo: o ramo, o conselho e o registro (ou a falta dele). Ciência, não aprovação */
+    const fila = (r && Array.isArray(r.itens) ? r.itens : []).map((p) => {
+      const n = p && typeof p === 'object' ? nichoReguladoDaSessao({ briefing: p.briefing, mensagens: [] }) : null;
+      if (!n || !Object.hasOwn(CONSELHOS, n.chave)) return p;
+      const c = CONSELHOS[n.chave];
+      return { ...p, regulado: { tipo: c.tipo, conselho: c.conselho, registro: registroDoNicho(p.briefing?.negocio?.registro, n.chave) } };
+    });
     const total = r && Number.isInteger(r.total) ? r.total : fila.length;
     /* (PR 2a: só confirmados, sem corte; o alarme diz quando a fila chegou ao teto e o orçamento oferece o WhatsApp) */
     return json({ fila, total, alarme: total >= PEDIDOS.fila_confirmados });

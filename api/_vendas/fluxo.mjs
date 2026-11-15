@@ -8,7 +8,7 @@
    Falha de IA: nada é inventado; a resposta é a recuperação elegante pedida
    na especificação, e o que a pessoa já contou continua no banco.
    ========================================================================== */
-import { executarTurno, nichoDaSessao, saudeDaSessao, nichoReguladoDaSessao } from './agente.mjs';
+import { executarTurno, nichoDaSessao, nichoReguladoDaSessao } from './agente.mjs';
 import { estimar, LANDING_GRANDE, CHAVE as CHAVE_EXTRA } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
 import { montarEscopo } from './escopo.mjs';
@@ -161,12 +161,6 @@ const NAO_GERA = {
   descartado: [PEDIDO_ENCERRADO, { recado: true }],
   arquivado: ['Este pedido segue com a equipe da Beyon Zero. Se precisar, deixe um recado.', { recado: true }]
 };
-/* (decisão do dono, 14/11) saúde atende, mas não fecha pelo site: sem modelos automáticos e sem pagamento; a equipe fala pelo WhatsApp */
-export const SAUDE_COM_A_EQUIPE = 'Na área da saúde a gente confere tudo antes de seguir, então o pagamento não é feito por aqui: falamos com você pelo WhatsApp.';
-/* só ANTES da entrada: o restante de um site já em produção segue pelo site (revisão do PR: um cliente comum que fala "dentista" depois não trava) */
-const DEPOIS_DA_ENTRADA = new Set(['em_producao', 'encerrada']);
-const comAEquipe = (est) => !DEPOIS_DA_ENTRADA.has(est && est.conversa && est.conversa.etapa) &&
-  saudeDaSessao({ briefing: est && est.conversa && est.conversa.briefing, mensagens: (est && est.mensagens) || [] });
 /* sem pedido (o fluxo antigo, contato direto) ou em situação desconhecida: a frase de sempre */
 const SEM_CONFIRMACAO = ['O pedido ainda não foi confirmado.', undefined];
 function exigirNaoDescartado(est) {
@@ -404,7 +398,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   }
 
   /* os detalhes e o pedido (PR 2a): api/_vendas/fluxo-pedido.mjs */
-  const acoesDoPedido = criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites: limitesPedido, requestId, segundoPlano });
+  /* (spec 2026-11-15 §9) o pedido de saúde ou advocacia: o aviso ao dono diz o ramo (ciência, não aprovação: nada espera o dono) */
+  const regulado = async (vid, conversaId) => { const est = await estado(vid, conversaId); return !!nichoReguladoDaSessao({ briefing: est.conversa?.briefing, mensagens: est.mensagens }); };
+  const acoesDoPedido = criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites: limitesPedido, requestId, segundoPlano, regulado });
 
   return {
     ...acoesDoPedido,
@@ -449,10 +445,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
          e planta_editavel (o preço ainda aberto). Sem nenhuma das chaves no briefing, o objeto é o mesmo de antes: a resposta é byte a byte a de hoje */
       const briefingBruto = e.conversa?.briefing;
       const briefingLimpo = semChavesDaPlanta(briefingBruto);
-      const saudeAqui = saudeDaSessao({ briefing: briefingBruto, mensagens: e.mensagens });
       if (e.conversa && briefingLimpo !== briefingBruto) e.conversa = { ...e.conversa, briefing: briefingLimpo };
       const planta = plantaLigada(env) ? ((regulado) => ({ planta: montarPlanta(briefingBruto, { regulado, turnos: e.conversa?.turnos, mensagensNaJanela: (e.mensagens || []).length }), leitura: leituraParaTela(briefingBruto, { regulado }), planta_editavel: precoAberto(e.conversa?.etapa, e.pedido?.status) }))(!!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens })) : null;
-      return { ...e, painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: saudeAqui ? 'manual' : modo, ...(saudeAqui ? { saude_com_a_equipe: true } : {}), entrega_ligada: entregaLigada(env),
+      return { ...e, painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env),
         ...(planta ? { ...(planta.planta ? { planta: planta.planta } : {}), ...(planta.leitura ? { leitura: planta.leitura } : {}), planta_editavel: planta.planta_editavel } : {}),
         /* (fluxo novo, spec §2) a tela segura o valor até o caso ser entendido; fora do fluxo novo a chave não existe (a resposta é a de hoje) */
         ...(fluxoConversa(briefingBruto) ? { valor_liberado: valorLiberado({ briefing: briefingBruto, estimativa: e.estimativa, mensagens: e.mensagens }) } : {}) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
@@ -562,11 +557,10 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const est = await estado(vid, corpo.conversa_id);
       const semConfirmacao = recusaDoGerar(est.pedido);
       if (semConfirmacao) throw semConfirmacao;
-      /* (fila manual: não há gasto de API; o disjuntor ou o teto da IA não barram quem acabou de deixar o WhatsApp). Saúde segue como a fila manual */
-      const manualAqui = modo === 'manual' || comAEquipe(est);
-      if (!manualAqui) await dentroDoCusto(est);
+      /* (fila manual: não há gasto de API; o disjuntor ou o teto da IA não barram quem acabou de deixar o WhatsApp) */
+      if (modo !== 'manual') await dentroDoCusto(est);
       /* no modo manual, uma geração por conversa: a 2ª só por pedido explícito ao dono (spec §0) */
-      return banco('vendas_iniciar_geracao', { conversa_id: corpo.conversa_id, visitante_id: vid, max_geracoes: manualAqui ? 1 : TETOS.geracoes_por_conversa });
+      return banco('vendas_iniciar_geracao', { conversa_id: corpo.conversa_id, visitante_id: vid, max_geracoes: modo === 'manual' ? 1 : TETOS.geracoes_por_conversa });
     },
 
     /* gerar UMA direção (cabe nos 300 s da função) */
@@ -580,8 +574,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const atual = (est.direcoes || []).find(d => d.id === corpo.direcao_id);
       exigir(atual, 404, 'Não encontrado.');
       if (atual.status !== 'gerando') return { status: atual.status };
-      /* fila manual: nada a gerar aqui, o dono entrega pelo painel (vendas_concluir_direcao). Saúde também: nenhum modelo automático */
-      if (modo === 'manual' || comAEquipe(est)) return { status: 'na_fila' };
+      /* fila manual: nada a gerar aqui, o dono entrega pelo painel (vendas_concluir_direcao) */
+      if (modo === 'manual') return { status: 'na_fila' };
       /* em geração por outro pedido (o navegador repede a cada 60 s): responde sem entrar na trava da organização
          (revisão de segurança do PR 16). Só a consulta ainda inexistente (migration a aplicar) segue para reivindicar */
       const andamento = await banco('vendas_direcao_em_andamento', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id })
@@ -621,7 +615,6 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
       const est = await estado(vid, corpo.conversa_id);
       exigirNaoDescartado(est);
-      if (comAEquipe(est)) throw new Recusa(409, SAUDE_COM_A_EQUIPE, { recado: true });
       exigir(est.escolha && est.estimativa, 409, 'Escolha uma direção antes.');
       const direcao = est.versao_final || est.direcoes.find(d => d.id === est.escolha.direcao_id)?.conteudo;
       exigir(direcao, 409, 'Escolha uma direção antes.');
@@ -642,7 +635,6 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id) && ehUuid(corpo?.proposta_id), 400, 'Dados inválidos.');
       exigir(corpo?.confirmo === true, 400, 'É preciso confirmar o escopo.');
-      if (comAEquipe(await estado(vid, corpo.conversa_id))) throw new Recusa(409, SAUDE_COM_A_EQUIPE, { recado: true });
       return banco('vendas_confirmar_escopo', { conversa_id: corpo.conversa_id, visitante_id: vid, proposta_id: corpo.proposta_id, confirmo: true, inicio_imediato: corpo.inicio_imediato === true });
     },
 
@@ -655,7 +647,6 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* sem contato (ou com o contato anonimizado pela retenção de 12 meses), o cliente nasceria sem nome nem telefone */
       const est = await estado(vid, corpo.conversa_id);
       exigirNaoDescartado(est);
-      if (comAEquipe(est)) throw new Recusa(409, SAUDE_COM_A_EQUIPE, { recado: true });
       exigirRestanteAberto(est, corpo, env);
       if (!est.conversa.tem_contato) throw new Recusa(409, 'Antes de pagar, precisamos do seu contato de novo: deixe um recado para a equipe citando o código do pedido.', { recado: true });
       try {
