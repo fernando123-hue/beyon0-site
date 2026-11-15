@@ -55,6 +55,7 @@ import { criarArmazem } from './_material/armazem.mjs';
 import { criarAcoesDoDono } from './_entrega/painel-entrega.mjs';
 import { criarAcoesAtendente } from './_atendente/painel.mjs';
 import { ambienteDe } from './_ambiente.mjs';
+import { saudeDaSessao } from './_vendas/agente.mjs';
 
 const CHAVE_MINIMA = 32;
 export const CORPO_MAX = 200000;          /* caracteres do POST do painel */
@@ -192,7 +193,8 @@ async function filaDirecoes(env) {
   if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
   try {
     const r = await rpc('vendas_fila_direcoes', { org_slug: ORG });
-    const fila = r && Array.isArray(r.itens) ? r.itens : [];
+    /* (decisão do dono, 14/11) o pedido de saúde vem com o selo: não fecha pelo site, a equipe fala pelo WhatsApp */
+    const fila = (r && Array.isArray(r.itens) ? r.itens : []).map((p) => (p && typeof p === 'object' && saudeDaSessao({ briefing: p.briefing, mensagens: [] }) ? { ...p, saude: true } : p));
     const total = r && Number.isInteger(r.total) ? r.total : fila.length;
     /* (PR 2a: só confirmados, sem corte; o alarme diz quando a fila chegou ao teto e o orçamento oferece o WhatsApp) */
     return json({ fila, total, alarme: total >= PEDIDOS.fila_confirmados });

@@ -54,6 +54,15 @@ export const SABOTAGENS = [
      com a frase genérica da etapa: o teste da frase "ainda não foi confirmado pelo WhatsApp" é o que pega) ---- */
   { nome: 'gerar sem o pedido confirmado pelo WhatsApp (freio do JS)', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/fluxo-api.test.mjs'],
     de: 'if (semConfirmacao) throw semConfirmacao;', para: 'if (false) throw semConfirmacao;' },
+  /* ---- saúde atende, mas não fecha pelo site (decisão do dono, 14/11) ---- */
+  { nome: 'saúde: o pagamento não confere a saúde', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
+    de: '      if (comAEquipe(est)) throw new Recusa(409, SAUDE_COM_A_EQUIPE, { recado: true });\n', para: '\n' },
+  { nome: 'saúde: o modelo sai na hora', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
+    de: "if (modo === 'manual' || comAEquipe(est)) return { status: 'na_fila' };", para: "if (modo === 'manual') return { status: 'na_fila' };" },
+  { nome: 'saúde: o estado não avisa a página', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
+    de: "modo_direcoes: saudeAqui ? 'manual' : modo,", para: 'modo_direcoes: modo,' },
+  { nome: 'saúde: a advocacia também deixa de fechar', fonte: 'api/_vendas/agente.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
+    de: 'return !!n && CHAVES_DE_SAUDE.has(n.chave);', para: 'return !!n;' },
   /* ---- o mapa e a trava de pagamento: o canal ("Chama no direct") passa só no mapa (teste C, 14/11) ---- */
   { nome: 'mapa: o canal volta a recusar o mapa', fonte: 'api/_vendas/planta-textos.mjs', testes: ['docs/testes/planta-textos5.test.mjs'],
     de: 'semPromessaDePagamento(t, { canal: false })', para: 'semPromessaDePagamento(t)' },

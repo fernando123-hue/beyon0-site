@@ -5,7 +5,7 @@
    modo sombra do site (sombra.mjs, com o nicho real da sessão), para comparar
    código × modelo. Só regex: custo zero, nada de rede.
    ========================================================================== */
-import { semPromessaDeDesconto, semPromessaDeRecado, garantirRegulado, nichoRegulado } from '../_vendas/zero.mjs';
+import { semPromessaDeDesconto, semPromessaDeRecado, garantirRegulado, nichoRegulado, CHAVES_DE_SAUDE } from '../_vendas/zero.mjs';
 import { semPromessaDeResultado } from '../_vendas/travas-resultado.mjs';
 import { semPrecoNoTexto, pareceInjecao } from '../_vendas/seguranca.mjs';
 import { pedePessoa, negaSerIA } from '../_atendente/regras.mjs';
@@ -13,7 +13,7 @@ import { pedePessoa, negaSerIA } from '../_atendente/regras.mjs';
 /* nicho_saude tem 7 rótulos; o código devolve o nicho regulado ou null (que é "nenhum", "veterinária" ou "ambíguo").
    A comparação justa é binária: é saúde humana regulada (medicina, odontologia, psicologia, estética)? */
 export const SAUDE_HUMANA = new Set(['medicina', 'odontologia', 'psicologia', 'estetica']);
-export const CHAVES_DE_SAUDE = new Set(['odontologia', 'psicologia', 'nutricao', 'fisioterapia', 'medicina', 'fonoaudiologia', 'enfermagem', 'biomedicina', 'estetica']);
+export { CHAVES_DE_SAUDE };   /* (o conjunto mora em api/_vendas/zero.mjs: o fluxo do pedido também o usa) */
 
 /* cada detector devolve 'sim' ou 'nao' (ou, no nicho, 'regulado' ou 'livre'); null = sem detector.
    nicho: o da sessão (nichoRegulado); a trava de saúde só atua em nicho regulado, então sem nicho ela diz 'nao' */

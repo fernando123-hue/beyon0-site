@@ -571,6 +571,9 @@
   /* FILA MANUAL (decisão do dono, 2026-10-08): as direções são feitas pela Beyon Zero em até 24 horas úteis e o aviso
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
+  /* (decisão do dono, 14/11) saúde: a equipe confere antes dos modelos e fala pelo WhatsApp; sem prazo prometido */
+  var saude = function () { return !!E && E.saude_com_a_equipe === true; };
+  var TEXTO_SAUDE = 'Recebemos o seu pedido. Na área da saúde a gente confere tudo antes de mandar os modelos, então falamos com você pelo WhatsApp.';
   var TEXTOS_MANUAL = {
     direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página por ele.',
     prontas: 'Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio.'
@@ -619,7 +622,7 @@
       } else corpo.appendChild(el('p', 'dir__resumo', 'Os ajustes seguem sobre a direção escolhida.'));
     } else if (manual()) {
       var f = el('div', 'dir__progresso');
-      f.appendChild(el('p', '', 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
+      f.appendChild(el('p', '', saude() ? 'A equipe confere o pedido antes de fazer esta direção.' : 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
       mini.appendChild(f);
       corpo.appendChild(el('p', 'dir__resumo', 'Você pode voltar a esta página neste aparelho quando quiser: o pedido fica salvo aqui.'));
       var conf = botao('btn btn--sm', 'Conferir agora', function () { conferir(conf); });   /* (sem consulta automática: a pessoa confere quando quiser) */
@@ -793,7 +796,7 @@
       else if (E.conversa.tem_contato && podeGerar() && !pendente) ul.appendChild(botaoAcao('btn btn--primary', 'Gerar as três direções', gerarTodas));   /* (F20: só na etapa que gera) */
       devolverFocoNaLista(ul, foco);
     }
-    if (manual()) $('o-dir-lead').textContent = E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
+    if (manual()) $('o-dir-lead').textContent = saude() ? TEXTO_SAUDE : E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
     if (window.BZPreparo) window.BZPreparo.atualizar(E);   /* a espera útil: o prazo e o que separar (js/orcamento-preparo.js); sem o módulo, o resto da tela segue */
     var emGeracao = manual() ? [] : E.direcoes.filter(function (d) { return d.status === 'gerando'; });   /* (fila manual: nada a pedir) */
     relogioDosCartoes(emGeracao.length > 0);
