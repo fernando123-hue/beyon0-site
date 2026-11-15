@@ -108,25 +108,29 @@ const MEIO = new RegExp([
   'chave (?:aleatoria|do pix|pix)|(?:nosso|nossa|da empresa) (?:cnpj|chave|conta|pix)|(?<!cpf ou )\\bcnpj\\b|conta (?:corrente|poupanca|bancaria)',
   '(?:pag\\w*|pix|transfer\\w*|mand\\w*|deposit\\w*) (?:\\w+ ){0,3}direto (?:pro|pra|para|ao|a|na|no) ',
   '\\bpix (?:do|da|de|pro|pra|para) (?!tela\\b|site\\b|bloco\\b|mercado\\b)\\w+|\\bmeu pix\\b|pix pessoal|celular do',
-  'qr ?code (?:\\w+ ){0,3}(?:enviad|mandad)|link (?:\\w+ ){0,3}(?:enviar|mandar|envio|mando|enviarei|mandarei)|link de pagamento',
-  '(?:fale|fala|chame|chama|mande|manda)\\s+(?:\\w+\\s+){0,3}(?:telegram|insta\\w*|dm|direct)\\b|\\btelegram\\b'
+  'qr ?code (?:\\w+ ){0,3}(?:enviad|mandad)|link (?:\\w+ ){0,3}(?:enviar|mandar|envio|mando|enviarei|mandarei)|link de pagamento'
 ].join('|'));
+/* outro CANAL de conversa ("me chama no direct", "fala no Telegram"): na conversa do Zero é desvio para pagar fora da tela. No mapa do caso
+   (api/_vendas/planta-textos.mjs) o canal é como o cliente chega ("Chama no direct", teste C com a IA real, 14/11): lá ele só conta junto de
+   uma palavra de PAGAR ("Manda o pix no direct" segue recusado). "Preço" e "valor" não são pagar: "pergunta o preço no direct" descreve o cliente */
+const CANAL = /(?:fale|fala|chame|chama|mande|manda)\s+(?:\w+\s+){0,3}(?:telegram|insta\w*|dm|direct)\b|\btelegram\b/;
+const PAGAR = /\b(?:pag\w*|pix|sinal|transfer\w*|deposit\w*|boleto|comprovante|cobr\w*)\b/;
 const NUMERO = /\d{6,}|\d{3,}[\s.-]\d{3,}|(?:\d\s){6,}\d/;
 
-/* o motivo da troca da RESPOSTA do modelo, ou null quando ela pode sair como está */
-export function motivoDaTroca(texto) {
+/* o motivo da troca da RESPOSTA do modelo, ou null quando ela pode sair como está. canal: false só no mapa: o canal conta só junto de PAGAR */
+export function motivoDaTroca(texto, { canal = true } = {}) {
   const t = normalizar(texto);
   const frases = frasesDe(t);
   /* ("Seu pagamento. Confirmado.": o sujeito e o particípio em frases vizinhas) */
   const vizinhas = frases.slice(1).map((f, i) => frases[i] + ' ' + f).filter(f => AFIRMACOES[1].test(f));
   if (frases.some(afirmaPagamento) || vizinhas.length || EMOJI_DE_PAGO.test(t)) return 'pagamento';
   const palavras = paraPalavras(t);
-  if (LINK.test(t) || MEIO.test(palavras) || NUMERO.test(t)) return 'meio';
+  if (LINK.test(t) || MEIO.test(palavras) || (CANAL.test(palavras) && (canal || PAGAR.test(palavras))) || NUMERO.test(t)) return 'meio';
   if (CONDICAO.test(palavras) || VALOR.test(t) ||VALOR_PEQUENO.test(palavras) || frases.some(f => CONCESSAO.test(f) && DE_VALOR.test(f))) return 'condicao';
   return null;
 }
-export function semPromessaDePagamento(texto) {
-  const motivo = motivoDaTroca(texto);
+export function semPromessaDePagamento(texto, opcoes) {
+  const motivo = motivoDaTroca(texto, opcoes);
   return motivo ? RESPOSTAS_PAGAMENTO[motivo] : String(texto);
 }
 

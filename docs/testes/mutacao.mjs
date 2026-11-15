@@ -54,6 +54,13 @@ export const SABOTAGENS = [
      com a frase genérica da etapa: o teste da frase "ainda não foi confirmado pelo WhatsApp" é o que pega) ---- */
   { nome: 'gerar sem o pedido confirmado pelo WhatsApp (freio do JS)', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/fluxo-api.test.mjs'],
     de: 'if (semConfirmacao) throw semConfirmacao;', para: 'if (false) throw semConfirmacao;' },
+  /* ---- o mapa e a trava de pagamento: o canal ("Chama no direct") passa só no mapa (teste C, 14/11) ---- */
+  { nome: 'mapa: o canal volta a recusar o mapa', fonte: 'api/_vendas/planta-textos.mjs', testes: ['docs/testes/planta-textos5.test.mjs'],
+    de: 'semPromessaDePagamento(t, { canal: false })', para: 'semPromessaDePagamento(t)' },
+  { nome: 'conversa: o canal deixa de ser desvio para pagar', fonte: 'api/_vendas/promessa.mjs', testes: ['docs/testes/planta-textos5.test.mjs'],
+    de: '{ canal = true } = {}', para: '{ canal = false } = {}' },
+  { nome: 'mapa: o canal com pagar passa no mapa', fonte: 'api/_vendas/promessa.mjs', testes: ['docs/testes/planta-textos5.test.mjs'],
+    de: '(canal || PAGAR.test(palavras))', para: '(canal)' },
   /* ---- a IA real no servidor local: o teto do gasto, o que já foi pago e o gancho só no local ---- */
   { nome: 'ia-local: teto ignora o que está em voo', fonte: 'docs/ia-local.mjs', testes: ['docs/testes/ia-local.test.mjs'],
     de: 'if (gasto + emVoo + reserva > teto) {', para: 'if (gasto + reserva > teto) {' },

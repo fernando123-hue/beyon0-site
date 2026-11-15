@@ -39,7 +39,8 @@ export const TRAVAS = Object.freeze([
   { nome: 'recado', rodar: t => semPromessaDeRecado(t).texto },
   { nome: 'precoNoTexto', rodar: t => semPrecoNoTexto(t) },
   { nome: 'precoComMarca', rodar: t => semPrecoComMarca(t) },
-  { nome: 'pagamento', rodar: t => semPromessaDePagamento(t) }
+  /* (teste C, 14/11) sem o CANAL: no mapa "Chama no direct" é como o cliente chega, não desvio para pagar; pagar fora, link e conta seguem fechados */
+  { nome: 'pagamento', rodar: t => semPromessaDePagamento(t, { canal: false }) }
 ]);
 
 /* ---------- a normalização ---------- */
