@@ -11,6 +11,8 @@ import Pecas from '../../js/planta-pecas.js';
 import Layout from '../../js/planta-layout.js';
 import Desenho from '../../js/planta-desenho.js';
 import Ligacao from '../../js/orcamento-planta.js';
+import FormaMapa from '../../js/orcamento-mapa-forma.js';
+import { planoDoCaso } from '../../api/_vendas/mapa-padrao.mjs';
 import { criarJanela } from './planta-dom-falso.mjs';
 
 const fx = (n) => JSON.parse(fs.readFileSync(new URL('./fixtures/planta/' + n + '.json', import.meta.url), 'utf8'));
@@ -24,7 +26,7 @@ const TEXTO_CERTO = 'A planta está certa.';
 function espia() {
   const e = { montar: [], atualizar: [], parar: 0, falha: false, recusar: false };
   e.api = {
-    montar(raiz, plano, op) { e.montar.push({ raiz, plano, op }); if (e.falha) throw new Error('boom'); if (e.recusar) return { ok: false, motivos: ['sem_largura'] }; return { ok: true, etapas: plano.etapas.length + 1 }; },
+    montar(raiz, plano, op) { e.montar.push({ raiz, plano, op }); if (e.falha) throw new Error('boom'); if (e.recusar) return { ok: false, motivos: ['sem_largura'] }; return { ok: true, etapas: (plano.etapas || plano.nos || []).length + 1 }; },
     atualizar(plano, op) { e.atualizar.push({ plano, op }); return { ok: true }; },
     parar() { e.parar++; }
   };
@@ -32,7 +34,7 @@ function espia() {
 }
 
 /* A página de mentira: só o que a ligação toca. Mesa com a base onde o teste mandar; a lista de mensagens (a abertura fixa + as do estado) */
-function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false, falhaPrimeiraVez = false, semModulos = false } = {}) {
+function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false, falhaPrimeiraVez = false, semModulos = false, falhaV3 = false } = {}) {
   let jaFalhou = false;
   const w = criarJanela({ reduzido: true, largura: 390, beyon: true });
   const doc = w.document;
@@ -57,7 +59,10 @@ function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false, falha
   /* o carregador: cada <script> anexado ao <head> "baixa" e roda no próximo tick; o teste escolhe o que cada URL entrega */
   const baixados = [];
   const fonte = { 'js/orcamento-planta-forma.js': () => { if (!semModulos) w.BZPlantaForma = Forma; }, 'js/planta-pecas.js': () => { w.BZPlantaPecas = Pecas; }, 'js/planta-layout.js': () => { w.BZPlantaLayout = Layout; },
-    'js/planta-desenho.js': () => { w.BZPlanta = desenho === 'real' ? Desenho.criar(w) : espia.atual.api; } };
+    'js/planta-desenho.js': () => { w.BZPlanta = desenho === 'real' ? Desenho.criar(w) : espia.atual.api; },
+    /* (PR 5b) o conjunto do mapa do caso v3: a forma real, o resto de mentira (o desenho v3 é um espião próprio) */
+    'js/orcamento-mapa-forma.js': () => { if (!semModulos) w.BZMapaForma = FormaMapa; }, 'js/planta-relogio.js': () => { w.BZPlantaRelogio = {}; },
+    'js/mapa-saber.js': () => { w.BZMapaSaber = {}; }, 'js/mapa-layout.js': () => { w.BZMapaLayout = {}; }, 'js/mapa-desenho.js': () => { w.BZMapa = espia.mapa.api; } };
   const anexar = doc.head.appendChild.bind(doc.head);
   doc.head.appendChild = (s) => {
     anexar(s);
@@ -70,6 +75,7 @@ function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false, falha
     baixados.push(s.src);
     w.setTimeout(() => {
       if ((falhaDeCarga || (falhaPrimeiraVez && !jaFalhou)) && s.src === 'js/planta-layout.js') { jaFalhou = true; s.disparar('error'); return; }
+      if (falhaV3 && s.src === 'js/mapa-layout.js') { s.disparar('error'); return; }
       fonte[s.src]();
       s.disparar('load');
     }, 0);
@@ -77,13 +83,15 @@ function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false, falha
   };
   const espiao = desenho === 'espia' ? espia() : null;
   espia.atual = espiao;
+  const espiaoMapa = espia();
+  espia.mapa = espiaoMapa;
   const avisos = [];
   w.console = { warn: (...a) => avisos.push(a.join(' ')), log() {}, error: (...a) => avisos.push(a.join(' ')) };
   w.innerHeight = 800;
   const L = Ligacao.criar(w);
   const rolou = [], enviou = [];
   const deps = { rolarAte: (el) => rolou.push(el), enviar: (t) => { enviou.push(t); return Promise.resolve(); } };
-  return { w, doc, L, faixa, mesa, contato, main, log, caixa, texto, form, abertura, espiao, baixados, avisos, rolou, enviou, deps, ids };
+  return { w, doc, L, faixa, mesa, contato, main, log, caixa, texto, form, abertura, espiao, espiaoMapa, baixados, avisos, rolou, enviou, deps, ids };
 }
 
 /* o estado do servidor com uma planta; mensagens: visitante, Zero, visitante, Zero... (a planta chegou na fala de índice n_mensagens) */
@@ -472,17 +480,20 @@ test('fonte: nada de innerHTML, eval, estilo inline, rAF, escrita de HTML; src s
   assert.match(srcs[0], /\.src\s*=\s*url$/, 'vinda do argumento de anexar()');
   const hrefs = semComentarios.match(/\.href\s*=[^=][^;]*/g) || [];
   assert.equal(hrefs.length, 1, 'uma atribuição de href só');
-  assert.match(hrefs[0], /\.href\s*=\s*CSS_DA_FAIXA/, 'vinda da constante');
-  assert.match(semComentarios, /var CSS_DA_FAIXA = 'css\/orcamento-planta\.css';/);
-  /* o argumento url só nasce de duas chamadas: a lista constante de módulos e a constante do CSS */
+  assert.match(hrefs[0], /\.href\s*=\s*url$/, 'vinda do argumento de anexar() (PR 5b: o CSS do conjunto)');
+  /* o argumento url só nasce de uma chamada, com a lista feita SÓ das constantes do conjunto (os módulos e o CSS) */
   assert.equal((semComentarios.match(/\banexar\(/g) || []).length, 2, 'a definição e uma chamada');
   assert.match(semComentarios, /anexar\(lista\[i\]\[0\], lista\[i\]\[1\], fim\)/);
-  assert.match(semComentarios, /lista\.push\(\[CSS_DA_FAIXA, 'link'\]\)/);
-  assert.match(semComentarios, /lista\.push\(\[MODULOS\[i\], 'script'\]\)/);
+  assert.match(semComentarios, /lista\.push\(\[C\.css, 'link'\]\)/);
+  assert.match(semComentarios, /lista\.push\(\[M\[i\], 'script'\]\)/);
+  assert.match(semComentarios, /var C = CONJUNTOS\[v\], M = C.modulos[,;]/);
   assert.equal((semComentarios.match(/lista\.push\(/g) || []).length, 2, 'só essas duas entradas');
-  const lista = semComentarios.match(/var MODULOS = \[([^\]]*)\]/);
-  assert.ok(lista, 'a lista constante existe');
-  assert.deepEqual(lista[1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')), MODULOS);
+  /* os conjuntos são literais constantes, e nada mais os altera */
+  assert.deepEqual(Ligacao.CONJUNTOS.v2.modulos, MODULOS);
+  assert.equal(Ligacao.CONJUNTOS.v2.css, CSS);
+  assert.match(semComentarios, /v2: \{ modulos: \['js\/orcamento-planta-forma\.js', 'js\/planta-pecas\.js', 'js\/planta-layout\.js', 'js\/planta-desenho\.js'\], css: 'css\/orcamento-planta\.css'/);
+  assert.match(semComentarios, /v3: \{ modulos: \['js\/planta-pecas\.js', 'js\/planta-relogio\.js', 'js\/mapa-saber\.js', 'js\/orcamento-mapa-forma\.js', 'js\/mapa-layout\.js', 'js\/mapa-desenho\.js'\], css: 'css\/orcamento-mapa\.css'/);
+  assert.doesNotMatch(semComentarios, /CONJUNTOS\[[^\]]+\]\s*=|\.modulos\s*=|\.css\s*=/, 'nada reatribui os conjuntos');
 });
 
 test('fonte: ES5 sintático (sem =>, const, let, crase, classe, async)', () => {
@@ -1110,30 +1121,115 @@ test('pós-radar (fonte): o envio incerto de js/orcamento.js (comportamento real
    PR 4 (mapa do caso v3, plano §3 e passo 7): até o PR 5, esta tela só desenha o v2. Um plano sem topologia (o v3) é versão desconhecida: nada é
    baixado, nada é avisado no console, a faixa some calada e bz:planta-pronta sai UMA vez por versão (o valor não espera os 20 s de PLANTA_MAX_MS).
    ====================================================================================================================================================== */
-test('mapa v3 (versão que a tela não desenha): nada baixado, nenhum [beyon], bz:planta-pronta uma vez por versão; o v2 segue desenhando', () => {
-  const amb = ambiente();
+/* ---------- PR 5b: a cola escolhe o conjunto de módulos pela versão do plano (v2: topologia; v3: estrutura) ---------- */
+const MODULOS_V3 = ['js/planta-pecas.js', 'js/planta-relogio.js', 'js/mapa-saber.js', 'js/orcamento-mapa-forma.js', 'js/mapa-layout.js', 'js/mapa-desenho.js'];
+const CSS_V3 = 'css/orcamento-mapa.css';
+const PLANO_V3 = planoDoCaso('saude_agenda', { origens: ['instagram'] });
+const estadoV3 = (versao = 1, plano = PLANO_V3) => estado({ planta: { versao, origem: 'modelo', n_mensagens: 3, plano } });
+function prontasDe(amb) {
   const prontas = [];
   amb.w.CustomEvent = function (t) { this.type = t; };
   amb.doc.dispatchEvent = (ev) => { prontas.push(ev.type); return true; };
-  const v3 = { estrutura: 'caminho', nos: [{ id: 'a', papel: 'site', icone: 'pagina', titulo: 'Página', frase: 'Uma frase com tamanho bom' }], setas: [], objetivo: { titulo: 'Fim', frase: 'Uma frase com tamanho bom' }, fecho: 'Um fecho com tamanho suficiente' };
-  const E1 = estado({ planta: { versao: 1, origem: 'modelo', n_mensagens: 3, plano: v3 } });
+  return prontas;
+}
+
+test('v3: baixa o CSS e os módulos do mapa do caso, na ordem, UMA vez, sem async; monta o BZMapa (não o BZPlanta) uma vez', () => {
+  const amb = ambiente();
+  const E = estadoV3();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); amb.L.atualizar(E, amb.deps);
+  prontos(amb);
+  assert.deepEqual(amb.baixados, [CSS_V3, ...MODULOS_V3]);
+  assert.deepEqual(scripts(amb).map((x) => x.async), MODULOS_V3.map(() => false));
+  assert.equal(amb.espiaoMapa.montar.length, 1, 'o desenho v3 monta uma vez');
+  assert.equal(amb.espiao.montar.length, 0, 'o desenho v2 não é chamado');
+  assert.equal(amb.espiaoMapa.montar[0].raiz, amb.faixa);
+  assert.equal(botoes(amb).length, 1, 'o botão do chat aparece');
+  assert.equal(amb.avisos.length, 0, amb.avisos.join('|'));
+  assert.deepEqual(Ligacao.CONJUNTOS.v3.modulos, MODULOS_V3);
+  assert.equal(Ligacao.CONJUNTOS.v3.css, CSS_V3);
+});
+
+test('v3 que a forma do mapa recusa: nada aparece, um aviso só, nada é montado', () => {
+  const amb = ambiente();
+  const ruim = clone(PLANO_V3); ruim.nos[0].papel = 'constructor';
+  const E = estadoV3(1, ruim);
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb); amb.L.atualizar(E, amb.deps);
+  assert.equal(amb.espiaoMapa.montar.length, 0);
+  assert.equal(amb.faixa.hidden, true);
+  assert.equal(amb.avisos.filter((a) => /recusada/.test(a)).length, 1, amb.avisos.join('|'));
+});
+
+test('plano de versão que a tela não conhece (sem topologia nem estrutura): nada baixado, nenhum [beyon], bz:planta-pronta uma vez por versão', () => {
+  const amb = ambiente();
+  const prontas = prontasDe(amb);
+  const estranho = { formato: 'outro', nos: [] };
+  const E1 = estado({ planta: { versao: 1, origem: 'modelo', n_mensagens: 3, plano: estranho } });
   redesenharLista(amb, E1);
   amb.L.atualizar(E1, amb.deps); amb.L.atualizar(E1, amb.deps);
   prontos(amb);
-  assert.equal(amb.baixados.length, 0, 'nenhum módulo da planta baixado');
-  assert.equal(amb.faixa.hidden, true);
+  assert.equal(amb.baixados.length, 0);
   assert.equal(botoes(amb).length, 0);
   assert.equal(amb.avisos.length, 0, amb.avisos.join('|'));
-  assert.deepEqual(prontas, ['bz:planta-pronta'], 'uma vez para a versão 1, mesmo relendo o estado');
-  amb.L.atualizar(estado({ planta: { versao: 2, origem: 'modelo', n_mensagens: 3, plano: v3 } }), amb.deps);
-  assert.deepEqual(prontas, ['bz:planta-pronta', 'bz:planta-pronta'], 'a versão 2 também libera o valor');
-  /* o v2 continua igual: baixa os módulos e não dispara por aqui (quem dispara é o desenho, ao terminar) */
-  const outro = ambiente();
-  const prontas2 = [];
-  outro.w.CustomEvent = function (t) { this.type = t; };
-  outro.doc.dispatchEvent = (ev) => { prontas2.push(ev.type); return true; };
-  redesenharLista(outro, estado());
-  outro.L.atualizar(estado(), outro.deps);
-  assert.ok(outro.baixados.length > 0, 'o v2 baixa os módulos');
-  assert.deepEqual(prontas2, []);
+  assert.deepEqual(prontas, ['bz:planta-pronta']);
+  amb.L.atualizar(estado({ planta: { versao: 2, origem: 'modelo', n_mensagens: 3, plano: estranho } }), amb.deps);
+  assert.deepEqual(prontas, ['bz:planta-pronta', 'bz:planta-pronta']);
+});
+
+test('troca no meio da conversa: v2 montado, chega um v3 (o ajuste de um v2 gera um v3): o BZPlanta para uma vez e o BZMapa monta na mesma faixa', () => {
+  const amb = ambiente();
+  const E1 = estado();
+  redesenharLista(amb, E1);
+  amb.L.atualizar(E1, amb.deps); prontos(amb);
+  assert.equal(amb.espiao.montar.length, 1, 'o v2 montou');
+  const E2 = estadoV3(2);
+  redesenharLista(amb, E2);
+  amb.L.atualizar(E2, amb.deps); prontos(amb);
+  assert.equal(amb.espiao.parar, 1, 'o desenho v2 parou');
+  assert.equal(amb.espiaoMapa.montar.length, 1, 'o desenho v3 montou');
+  assert.equal(amb.espiaoMapa.montar[0].raiz, amb.faixa, 'na mesma faixa');
+  assert.ok(amb.baixados.includes(CSS_V3) && MODULOS_V3.every((m) => amb.baixados.includes(m)));
+  assert.equal(amb.baixados.filter((u) => u === 'js/planta-pecas.js').length, 1, 'o que já estava na página não é baixado de novo');
+  /* o mesmo v3 relido não monta nem atualiza de novo */
+  amb.L.atualizar(E2, amb.deps); prontos(amb);
+  assert.equal(amb.espiaoMapa.montar.length, 1);
+  assert.equal(amb.espiaoMapa.atualizar.length, 0);
+  assert.equal(amb.avisos.length, 0, amb.avisos.join('|'));
+});
+
+test('falha ao baixar o v3: nada aparece, um [beyon]; o v2 baixado antes segue valendo para um v2 que chegue depois', () => {
+  const amb = ambiente({ falhaV3: true });
+  const E1 = estado();
+  redesenharLista(amb, E1);
+  amb.L.atualizar(E1, amb.deps); prontos(amb);
+  const E2 = estadoV3(2);
+  redesenharLista(amb, E2);
+  amb.L.atualizar(E2, amb.deps); prontos(amb);
+  assert.equal(amb.espiaoMapa.montar.length, 0);
+  assert.equal(amb.faixa.hidden, true, 'a faixa recolhe');
+  assert.ok(amb.avisos.some((a) => /\[beyon\] planta/.test(a)), amb.avisos.join('|'));
+  const antes = amb.baixados.length;
+  const E3 = estado({ planta: { versao: 3, origem: 'modelo', n_mensagens: 3, plano: fx('clinica') } });
+  redesenharLista(amb, E3);
+  amb.L.atualizar(E3, amb.deps); prontos(amb);
+  assert.equal(amb.baixados.length, antes, 'o v2 não baixa de novo');
+  assert.equal(amb.faixa.hidden, false, 'o v2 volta a aparecer');
+});
+
+/* (revisão do 5b) a falha de um conjunto que já não é o da vez não esconde o outro; o módulo comum que ainda está a caminho não é baixado de novo */
+test('v2 baixando (e falhando) quando chega um v3: o v3 monta e fica; o planta-pecas a caminho é esperado, não recriado', () => {
+  const amb = ambiente({ falhaDeCarga: true });
+  const E1 = estado();
+  redesenharLista(amb, E1);
+  amb.L.atualizar(E1, amb.deps);           /* o v2 começa a baixar (o planta-layout vai falhar) */
+  const E2 = estadoV3(2);
+  redesenharLista(amb, E2);
+  amb.L.atualizar(E2, amb.deps);           /* o v3 chega antes de o v2 terminar */
+  prontos(amb);
+  assert.equal(amb.baixados.filter((u) => u === 'js/planta-pecas.js').length, 1, 'o planta-pecas a caminho não desce de novo: ' + amb.baixados.join(','));
+  assert.equal(scripts(amb).filter((x) => x.src === 'js/planta-pecas.js').length, 1);
+  assert.equal(amb.espiaoMapa.montar.length, 1, 'o v3 montou');
+  assert.equal(amb.faixa.hidden, false, 'a falha do v2 (que já não é o da vez) não esconde o v3');
+  assert.equal(amb.espiao.montar.length, 0, 'o v2 nunca montou');
 });

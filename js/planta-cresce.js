@@ -139,5 +139,26 @@
     return mapa;
   }
 
-  return Object.freeze({ LUGARES: LUGARES, derivar: derivar, diferenca: diferenca, origensDe: origensDe, casar: casar });
+  /* (PR 5b) a consagração no MAPA DO CASO (v3): cada lugar do esboço vai ao nó que conta a mesma parte da história, pelo PAPEL. A ordem de
+     preferência de cada lugar está em PAPEIS_DO_LUGAR; um nó recebe uma estação só. Diferente do v2, a estação sem par não voa: some na luz
+     (desenho do PR 5 §9). O objetivo voa pelo LED, à parte. Ids do plano só como VALOR de um objeto sem protótipo */
+  var PAPEIS_DO_LUGAR = { chegada: ['origem'], conversa: ['trava', 'conversa'], pagina: ['site'], acao: ['acao'], volta: ['conversa', 'volta'] };
+  function casarMapa(esboco, plano) {
+    var usados = Object.create(null), mapa = Object.create(null);
+    var nos = plano && Array.isArray(plano.nos) ? plano.nos : [];
+    var estacoes = esboco && Array.isArray(esboco.estacoes) ? esboco.estacoes : [];
+    estacoes.forEach(function (e) {
+      if (!e || !e.conhecido || !Object.prototype.hasOwnProperty.call(PAPEIS_DO_LUGAR, e.lugar)) return;
+      var papeis = PAPEIS_DO_LUGAR[e.lugar], i, j;
+      for (i = 0; i < papeis.length; i++) {
+        for (j = 0; j < nos.length; j++) {
+          var n = nos[j];
+          if (n && typeof n.id === 'string' && n.papel === papeis[i] && !usados[n.id]) { usados[n.id] = true; mapa[e.lugar] = n.id; return; }
+        }
+      }
+    });
+    return mapa;
+  }
+
+  return Object.freeze({ LUGARES: LUGARES, derivar: derivar, casarMapa: casarMapa, diferenca: diferenca, origensDe: origensDe, casar: casar });
 });

@@ -8,15 +8,21 @@
   <link rel="preload" href="/assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/css/tokens.css" />
+  <link rel="stylesheet" href="/css/orcamento-mapa.css" />
   <link rel="stylesheet" href="/docs/lab-estruturas.css" />
   <script src="/js/planta-pecas.js" defer></script>
+  <script src="/js/planta-relogio.js" defer></script>
+  <script src="/js/mapa-saber.js" defer></script>
+  <script src="/js/orcamento-mapa-forma.js" defer></script>
+  <script src="/js/mapa-layout.js" defer></script>
+  <script src="/js/mapa-desenho.js" defer></script>
   <script src="/docs/lab-estruturas-casos.js" defer></script>
   <script src="/docs/lab-estruturas.js" defer></script>
 </head>
 <body>
   <!-- Laboratório do PR 5 (spec 2026-11-13, §7.5): as 5 estruturas do mapa do caso com 3 casos, para o dono ver ANTES de o desenho ir para
        js/planta-*. Fora do deploy (docs/ não entra em cloudflare/montar-publico.mjs). Os casos são EXEMPLOS de laboratório, escritos aqui, sem dado
-       de cliente real. Parâmetros: ?caso=clinica|embalagens|loja  &estatico=1 (quadro final, sem animação)  &captura=1 (sem os botões, para as fotos).
+       de cliente real. Parâmetros: ?caso=clinica|embalagens|loja|limites  &estatico=1 (quadro final)  &captura=1 (sem os botões).
        Fotos e conferência de geometria: node docs/lab-estruturas-fotos.mjs -->
   <main class="lab">
     <header class="lab-topo">
