@@ -400,6 +400,31 @@ test('pedido arquivado (resolvido por fora) com as prontas: a escolha continua v
   assert.equal(r.status, 200, JSON.stringify(r.corpo));
 });
 
+/* (dono, 15/11) com os modelos saindo pela API, cada conversa gera no máximo 2 vezes: a 1ª e um "gerar de novo". Além disso, o
+   caminho é escolher o que chegou mais perto e pedir as mudanças nos ajustes, ou deixar um recado (nada a escolher) */
+test('modo api: as três direções saem no máximo 2 vezes por conversa; a 3ª recusa com o caminho dos ajustes e o recado', async () => {
+  const { TETOS } = await import('../../api/_ia/config.mjs');
+  const { GERACOES_ESGOTADAS } = await import('../../api/_vendas/fluxo.mjs');
+  assert.equal(TETOS.geracoes_por_conversa, 2, 'decisão do dono, 15/11');
+  const quebrada = { ...deps, ia: { mensagem: async () => { throw new ErroIA('tempo'); } } };
+  const n = navegador();
+  const c = (await n.iniciar()).conversa_id;
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
+  await detalhesEConfirmar(n.chamar, local.rpc, c);
+  for (let i = 0; i < TETOS.geracoes_por_conversa; i++) {
+    const g = await n.chamar('POST', 'gerar', { conversa_id: c });
+    assert.equal(g.status, 200, 'geração ' + (i + 1) + ': ' + JSON.stringify(g.corpo));
+    for (const d of g.corpo.direcoes) assert.equal((await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id }, { deps: quebrada })).corpo.status, 'falhou');
+  }
+  const terceira = await n.chamar('POST', 'gerar', { conversa_id: c });
+  assert.equal(terceira.status, 409, JSON.stringify(terceira.corpo));
+  assert.equal(terceira.corpo.erro, GERACOES_ESGOTADAS);
+  assert.equal(terceira.corpo.recado, true, 'sem modelo para escolher, o recado fica à mão');
+  assert.match(GERACOES_ESGOTADAS, /ajustes/);
+  assert.equal(Number((await local.db.query('select max(geracao) n from app.direcoes where conversa_id = $1', [c])).rows[0].n), 2, 'nenhuma 3ª geração gravada');
+});
+
 test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com a conversa perto do teto, não passam juntas (revisão do PR 1, segurança B6)', async () => {
   /* o modelo "lento": as 3 chamadas ficam em voo ao mesmo tempo, como no navegador */
   let emVoo = 0, picoEmVoo = 0, chamadas = 0;

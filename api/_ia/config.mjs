@@ -26,10 +26,11 @@ export const PAPEIS = {
 export const TENTATIVAS_PADRAO = 2;
 
 /* as três direções: geradas pela API na hora ("api") ou produzidas pelo dono no Claude Code, em até 24 horas úteis
-   ("manual", decisão do dono 2026-10-08, enquanto não há verba para a API). BZ_DIRECOES na Vercel; lido a cada uso.
-   Sem chave da Anthropic os modelos saem SEMPRE pela fila manual (spec do orçamento sem IA §7); o simulador local
+   ("manual", a fila do dono). BZ_DIRECOES nas vars do wrangler.jsonc; lido a cada uso. A produção gera pela API desde a
+   decisão do dono de 2026-11-15 (de 2026-10-08 até ali era "manual", sem verba para a API); o staging e as prévias seguem
+   "manual". Sem chave da Anthropic os modelos saem SEMPRE pela fila manual (spec do orçamento sem IA §7); o simulador local
    (BZ_IA=simulada / BZ_LOCAL=1) continua gerando para os testes e o servidor local. A mesma condição de criarIA
-   (api/_ia/provedor.mjs): na produção da Vercel o simulador nunca liga, então lá "simulada" sem chave também é fila
+   (api/_ia/provedor.mjs): na produção o simulador nunca liga, então lá "simulada" sem chave também é fila
    manual (senão as direções ficariam presas em "gerando", sem modelo para gerá-las) */
 export const modoDirecoes = (env = process.env) => {
   if (String(env.BZ_DIRECOES || '').trim().toLowerCase() === 'manual') return 'manual';
@@ -60,7 +61,9 @@ export const TETOS = {
   conversa_usd: 2,
   dia_usd: 25,                // somando todas as conversas do dia
   turnos_por_conversa: 40,
-  geracoes_por_conversa: 3,   // = app.vendas_iniciar_geracao (max_geracoes)
+  /* = app.vendas_iniciar_geracao (max_geracoes; o código sempre passa, o 3 do banco é só o padrão de quem não passa).
+     Dono, 15/11: a 1ª geração e um "gerar de novo"; mudar além disso é pela etapa de ajustes (era 3). A fila manual: 1 */
+  geracoes_por_conversa: 2,
   /* conversas que USAM a IA, por IP por dia, contadas no banco (o teto do dia é global: sem isto, um IP o esgotava).
      8 × conversa_usd (2) = US$ 16 < dia_usd: um IP sozinho não derruba o agente para todos */
   conversas_por_ip_dia: 8,

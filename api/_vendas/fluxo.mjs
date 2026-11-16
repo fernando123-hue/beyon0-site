@@ -167,6 +167,10 @@ export const SAUDE_COM_A_EQUIPE = 'Na área da saúde a gente confere tudo antes
 const DEPOIS_DA_ENTRADA = new Set(['em_producao', 'encerrada']);
 const comAEquipe = (est) => !DEPOIS_DA_ENTRADA.has(est && est.conversa && est.conversa.etapa) &&
   saudeDaSessao({ briefing: est && est.conversa && est.conversa.briefing, mensagens: (est && est.mensagens) || [] });
+/* (dono, 15/11) passou do teto de gerações (TETOS.geracoes_por_conversa; 1 na fila manual): mudar o modelo é nos ajustes. Sem
+   contar as vezes na frase (o teto muda com o modo); o recado fica à mão para quem não tem nenhum modelo pronto */
+export const GERACOES_ESGOTADAS = 'Por aqui não dá para fazer os modelos de novo. Escolha o que chegou mais perto e peça as mudanças nos ajustes; se nenhum ficou pronto, deixe um recado que a equipe resolve com você.';
+const semMaisGeracoes = (e) => { if (e instanceof ErroBanco && e.codigo === '23514') throw new Recusa(409, GERACOES_ESGOTADAS, { recado: true }); throw e; };
 /* sem pedido (o fluxo antigo, contato direto) ou em situação desconhecida: a frase de sempre */
 const SEM_CONFIRMACAO = ['O pedido ainda não foi confirmado.', undefined];
 function exigirNaoDescartado(est) {
@@ -216,8 +220,8 @@ const publicaRec = rec => ({ formato: rec.formato, alternativa: rec.alternativa,
 const soltar = p => { Promise.resolve(p).catch(() => {}); };
 
 export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId, direcoes, env, limitesPedido = PEDIDOS, armazem, sombra = null, segundoPlano = soltar, avisar = avisarDono }) {
-  /* as direções: geradas pela API na hora, ou na FILA MANUAL (o dono produz no Claude Code, em até 24 horas úteis;
-     decisão do dono 2026-10-08). Os testes passam o modo; o site lê BZ_DIRECOES */
+  /* as direções: geradas pela API na hora (a produção desde 2026-11-15), ou na FILA MANUAL (o dono produz no Claude Code,
+     em até 24 horas úteis; a produção de 2026-10-08 a 2026-11-15, e hoje o staging). Os testes passam o modo; o site lê BZ_DIRECOES */
   const modo = direcoes === 'manual' || direcoes === 'api' ? direcoes : 'manual';
   /* o REGISTRO das chamadas de IA (app.ia_chamadas): cada chamada ao modelo vira uma linha — papel, modelo,
      tokens, custo, ferramentas pedidas, tempo, erro — sem o texto de ninguém; gravado no fim da ação, dê certo ou não */
@@ -566,7 +570,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const manualAqui = modo === 'manual' || comAEquipe(est);
       if (!manualAqui) await dentroDoCusto(est);
       /* no modo manual, uma geração por conversa: a 2ª só por pedido explícito ao dono (spec §0) */
-      return banco('vendas_iniciar_geracao', { conversa_id: corpo.conversa_id, visitante_id: vid, max_geracoes: manualAqui ? 1 : TETOS.geracoes_por_conversa });
+      return banco('vendas_iniciar_geracao', { conversa_id: corpo.conversa_id, visitante_id: vid, max_geracoes: manualAqui ? 1 : TETOS.geracoes_por_conversa })
+        .catch(semMaisGeracoes);
     },
 
     /* gerar UMA direção (cabe nos 300 s da função) */

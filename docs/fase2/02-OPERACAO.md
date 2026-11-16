@@ -42,7 +42,7 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
 
 ## 1b. Fila manual das direções (modo econômico, decisão do dono 2026-10-08)
 
-Enquanto não há verba para a API, as três direções não são geradas pelo modelo: o dono as produz no Claude Code e o dono avisa o cliente à mão, pelo WhatsApp dele (o painel monta a mensagem). O prazo prometido na tela é de até 24 horas úteis.
+**Desde 15/11 (decisão do dono) a produção gera pela API** (`BZ_DIRECOES=api` no `wrangler.jsonc`; até 2 gerações por conversa, `TETOS.geracoes_por_conversa`; além disso, os ajustes). A fila manual segue no staging, nas prévias, na produção sem a chave da Anthropic e nos pedidos de saúde enquanto a trava de saúde existir. Nela, as três direções não são geradas pelo modelo: o dono as produz no Claude Code e o dono avisa o cliente à mão, pelo WhatsApp dele (o painel monta a mensagem). O prazo prometido na tela é de até 24 horas úteis.
 
 **Desde 30/10 todo pedido entra direto na fila (sem WhatsApp e sem confirmação).** A pessoa preenche os detalhes (nome do negócio, o que vende, telefone) e recebe um código **`BZ-XXXXX`**; o pedido nasce confirmado e as três direções entram na fila na mesma hora. As travas que sobraram: anti-robô, limite por IP, por /48, por telefone e por conversa, o teto de 10 pedidos na fila e o limite global de 5 pedidos por hora (ao passar, a página oferece o recado). Aviso no celular: ainda sem canal (app próprio em desenvolvimento); por ora o dono vê pedido novo, recado novo e fila cheia no painel. Curioso ou pedido sem sentido: **Descartar** no painel antes de produzir. Pedidos que estavam "aguardando" na hora da migration 20261030120000 foram promovidos a confirmados.
 
@@ -50,7 +50,7 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
 
 **Ligar, na ordem:**
 1. Aplicar no banco a migration `20261009120000_fila_direcoes.sql`. Ela só acrescenta: a coluna `app.direcoes.avisada_em` e as funções `vendas_fila_direcoes`, `vendas_direcao_info` e `vendas_marcar_avisado`.
-2. Definir `BZ_DIRECOES=manual` (já é o valor do `wrangler.jsonc` nos dois Workers) e publicar. A tela troca "alguns minutos" por "até 24 horas úteis, avisamos pelo seu WhatsApp", o WhatsApp vira obrigatório no contato, e `gerar-direcao` responde `na_fila` sem chamar o modelo. O consultor diz o mesmo, porque `api/_vendas/consultor.mjs` lê `modoDirecoes()`.
+2. Definir `BZ_DIRECOES=manual` (é o valor do `wrangler.jsonc` no staging e nas prévias; a produção está em `api` desde 15/11) e publicar. A tela troca "alguns minutos" por "até 24 horas úteis, avisamos pelo seu WhatsApp", o WhatsApp vira obrigatório no contato, e `gerar-direcao` responde `na_fila` sem chamar o modelo. O consultor diz o mesmo, porque `api/_vendas/consultor.mjs` lê `modoDirecoes()`.
 
 **Como o dono atende** (precisa de `PAINEL_CHAVE`):
 - `GET /api/painel?fila=direcoes` lista a fila, só com pedidos confirmados. Cada pedido traz o código `BZ-XXXXX`, a hora do pedido, o contato, o briefing, o escopo (`fatores`), as redes que a pessoa autorizou olhar e as 3 direções com a estratégia de cada uma.
@@ -82,7 +82,7 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
   - **O Claude Code (sessão isolada) não roda comando nenhum.** Quem confere é o dono, se quiser olhar antes de entregar:
     - `conferir <arquivo> <estrategia>` (`node "<repo>/scripts/direcoes.mjs" conferir "<pasta do pedido>/<estrategia>.json" <estrategia>`): o mesmo filtro e a mesma varredura do servidor; só abre `conversao.json`, `autoridade.json` ou `experiencia.json` dentro da pasta de um pedido.
 
-**Voltar para a API:** apagar `BZ_DIRECOES`. Direções que estiverem na fila nesse momento são geradas pela API quando o cliente voltar à página.
+**Voltar para a API** (o que a produção fez em 15/11): `BZ_DIRECOES=api` no `wrangler.jsonc` (ou sem a variável). Direções que estiverem na fila nesse momento são geradas pela API quando o cliente voltar à página.
 - A confirmação pelo WhatsApp continua valendo no modo API (decisão D2): sem ela, nada é gerado.
 - No modo API, cada pedido confirmado ainda passa pela fila do painel: com as três prontas, ele fica **"Pronto para avisar"** e **ocupa o teto de 10** até o dono tocar **"Já avisei"** ou o cliente escolher um modelo. Com a fila cheia, os detalhes de quem chega recebem o WhatsApp no lugar do pedido.
 - Então, também no modo API, o dono avisa o cliente pelo WhatsApp e toca **"Já avisei"** para liberar o lugar na fila.
