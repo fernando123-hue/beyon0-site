@@ -31,6 +31,10 @@
 > 7. `ccd_pr get_status`, e mandar o número à principal quando o CI ficar verde. A principal mescla.
 > 8. Depois, o PR 4: `git switch conferir-registro`, juntar a main, suíte e E2E, push e PR com `scratchpad/pr-registro4.md` (preencher __VISTO__ com `scratchpad/ver-registros.tmp.mjs`, que tira a foto do bloco do painel com a lista fixa).
 >
+> 9. **NOVO, da principal (achado da revisão de segurança do #173, geração automática em produção):** a conferência regulada só roda se o nicho for detectado por palavra. "Clínica", "consultório" ou "escritório" SEM a profissão passam sem o bloco regulado e sem a conferência. Ver `nichoDaSessao` (`api/_vendas/agente.mjs`) e `nichoReguladoDaSessao`.
+>    - PROPOR à principal o ajuste mínimo ANTES de mexer em `api/_vendas/fluxo.mjs`/`gerador.mjs` (outro agente está no #173 neles). Opções: (a) essas palavras contam como "saúde genérica"/regulado até a pessoa dizer a profissão; (b) o Zero pergunta a profissão antes de gerar.
+>    - PR separado e pequeno, DEPOIS do #173; antes do lançamento, se for pequeno. Fica depois do PR dos modelos.
+>
 > **Pendências e decisões em aberto:**
 > - O escopo (o contrato) ainda diz "DIREÇÃO ESCOLHIDA: nome (Autoridade)": follow-up, se o dono quiser.
 > - `js/painel-entregas.js`: os textos ao cliente começam com "Aqui é o Fernando", contra o anonimato. Avisar a principal; o ramo é outro.
