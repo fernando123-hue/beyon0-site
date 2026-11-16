@@ -611,8 +611,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const est = await estado(vid, corpo.conversa_id);
       exigirNaoDescartado(est);
       /* (medição, dono 15/11) o funil registra se a escolha foi a recomendada; o cálculo é o mesmo da tela, feito aqui (nunca o que a página diz) */
-      const recomendada = recomendar(est.conversa?.briefing, est.direcoes)?.direcao_id === corpo.direcao_id;
-      return banco('vendas_escolher', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id, recomendada });
+      const rec = recomendar(est.conversa?.briefing, est.direcoes);
+      return banco('vendas_escolher', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id, ...(rec ? { recomendada: rec.direcao_id === corpo.direcao_id } : {}) });
     },
 
     /* o escopo final (montado pelo código; o preço é o da última estimativa, conferido pelo banco) */

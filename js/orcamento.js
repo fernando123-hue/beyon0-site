@@ -588,7 +588,7 @@
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
   /* (dono, 15/11) a regra dos ajustes, clara antes de escolher: um modelo só, e trazer algo de outro conta como um ajuste */
-  var REGRA_DOS_MODELOS = 'Os três partem do que você contou, cada um com um objetivo. Abra, compare e escolha um: os ajustes são feitos dentro dele, e trazer algo de outro modelo, como as cores ou uma seção, conta como um ajuste.';
+  var REGRA_DOS_MODELOS = 'Os três partem do que você contou, cada um com um objetivo. Abra, compare e escolha um: os ajustes são feitos dentro dele, e trazer algo de outro modelo, como as cores ou uma seção, conta como um pedido de ajuste.';
   var TEXTOS_MANUAL = {
     direcoes: 'Os três partem do que você contou, cada um com um objetivo. Ficam prontos em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página por ele.',
     prontas: REGRA_DOS_MODELOS
@@ -626,18 +626,18 @@
       abrir.setAttribute('data-abrir', d.id);
       acoes.appendChild(abrir);
       if (escolhida) acoes.appendChild(el('span', 'dir__selo', 'Escolhida'));
-      else if (podeEscolher()) acoes.appendChild(botaoAcao('btn btn--sm btn--primary', 'Escolher esta', function () { escolher(d.id); }));
+      else if (podeEscolher()) acoes.appendChild(botaoAcao('btn btn--sm btn--primary', 'Escolher este', function () { escolher(d.id); }));
       corpo.appendChild(acoes);
     } else if (d.status === 'falhou') {
       var p = el('div', 'dir__progresso');
-      p.appendChild(el('p', '', 'Esta direção não saiu desta vez.'));
+      p.appendChild(el('p', '', 'Este modelo não saiu desta vez.'));
       mini.appendChild(p);
       /* (PR 2a) só com o pedido confirmado: arquivado ou descartado, a geração parou de propósito e o servidor recusaria */
       if (window.BZDetalhes.pendente(E)) corpo.appendChild(el('p', 'dir__resumo', 'Este pedido segue com a equipe da Beyon Zero.'));
       else if (podeGerar()) {
         corpo.appendChild(el('p', 'dir__resumo', 'Você pode gerar as três de novo ou seguir com as que ficaram prontas.'));
         corpo.appendChild(botaoAcao('btn btn--sm', 'Gerar de novo', gerarTodas));
-      } else corpo.appendChild(el('p', 'dir__resumo', 'Os ajustes seguem sobre a direção escolhida.'));
+      } else corpo.appendChild(el('p', 'dir__resumo', 'Os ajustes seguem sobre o modelo escolhido.'));
     } else if (manual()) {
       var f = el('div', 'dir__progresso');
       f.appendChild(el('p', '', 'Na fila: o modelo ' + d.numero + ' (' + (NOMES[d.estrategia] || '').toLowerCase() + ') fica pronto em até 24 horas úteis.'));
@@ -812,7 +812,7 @@
       var foco = focoNaLista(ul);
       ul.textContent = '';
       if (temDirecoes) { E.direcoes.forEach(function (d) { ul.appendChild(cartaoDirecao(d)); }); encaixarMinis(); }
-      else if (E.conversa.tem_contato && podeGerar() && !pendente) ul.appendChild(botaoAcao('btn btn--primary', 'Gerar as três direções', gerarTodas));   /* (F20: só na etapa que gera) */
+      else if (E.conversa.tem_contato && podeGerar() && !pendente) ul.appendChild(botaoAcao('btn btn--primary', 'Gerar os três modelos', gerarTodas));   /* (F20: só na etapa que gera) */
       devolverFocoNaLista(ul, foco);
     }
     if (manual()) $('o-dir-lead').textContent = E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
@@ -858,7 +858,7 @@
     var agora = {}, prontas = [];
     E.direcoes.forEach(function (d) {
       agora[d.id] = d.status;
-      if (statusVisto && statusVisto[d.id] && statusVisto[d.id] !== 'pronta' && d.status === 'pronta') prontas.push('Direção ' + d.numero + ' pronta.');
+      if (statusVisto && statusVisto[d.id] && statusVisto[d.id] !== 'pronta' && d.status === 'pronta') prontas.push('Modelo ' + d.numero + ' pronto.');
     });
     statusVisto = agora;
     if (prontas.length) anunciar(prontas.join(' '));

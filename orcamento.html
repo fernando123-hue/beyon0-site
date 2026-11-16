@@ -305,10 +305,10 @@
 
     <!-- AS TRÊS DIREÇÕES -->
     <section class="orc-bloco" id="o-direcoes" aria-labelledby="o-dir-titulo" hidden>
-      <h2 id="o-dir-titulo">Três direções para o seu site</h2>
-      <p class="orc-bloco__lead" id="o-dir-lead">Os três partem do que você contou, cada um com um objetivo. Abra, compare e escolha um: os ajustes são feitos dentro dele, e trazer algo de outro modelo, como as cores ou uma seção, conta como um ajuste. Isso pode levar alguns minutos; o progresso fica salvo se você sair.</p>
+      <h2 id="o-dir-titulo">Três modelos para o seu site</h2>
+      <p class="orc-bloco__lead" id="o-dir-lead">Os três partem do que você contou, cada um com um objetivo. Abra, compare e escolha um: os ajustes são feitos dentro dele, e trazer algo de outro modelo, como as cores ou uma seção, conta como um pedido de ajuste. Isso pode levar alguns minutos; o progresso fica salvo se você sair.</p>
       <div class="orc-preparo" id="o-preparo" hidden></div>
-      <div class="orc-recomenda" id="o-recomenda" role="note" hidden></div>
+      <div class="orc-recomenda" id="o-recomenda" role="status" hidden></div>
       <ol class="orc-dirs" id="o-dirs"></ol>
     </section>
 
@@ -326,7 +326,7 @@
           <label for="o-livre-texto">Quer outra mudança? Escreva aqui</label>
           <p class="orc-nota" id="o-livre-aviso">Não escreva seu nome, telefone, e-mail, CPF nem dados de outras pessoas.</p>
           <textarea id="o-livre-texto" rows="3" maxlength="300" aria-describedby="o-livre-aviso o-livre-conta"></textarea>
-          <label class="orc-livre__mistura"><input type="checkbox" id="o-livre-mistura" /> Quero trazer algo de outro modelo (as cores, uma seção). Conta como um pedido.</label>
+          <label class="orc-livre__mistura"><input type="checkbox" id="o-livre-mistura" /> Quero trazer algo de outro modelo (as cores, uma seção). Conta como um pedido de ajuste.</label>
           <button class="btn" type="submit" data-acao>Enviar pedido</button>
           <p class="orc-nota">Seu pedido entra junto; não atrasa o início.</p>
         </div>
@@ -649,7 +649,7 @@
   <div class="visor" id="o-visor" role="dialog" aria-modal="true" aria-labelledby="o-visor-titulo" hidden>
     <div class="visor__barra">
       <h2 class="visor__titulo" id="o-visor-titulo"></h2>
-      <div class="visor__abas" role="group" aria-label="Direções" id="o-visor-abas"></div>
+      <div class="visor__abas" role="group" aria-label="Modelos" id="o-visor-abas"></div>
       <div class="visor__aparelho" role="group" aria-label="Tamanho da tela">
         <button type="button" class="chip" data-aparelho="390" aria-pressed="true">Celular</button>
         <button type="button" class="chip" data-aparelho="1280" aria-pressed="false">Computador</button>
@@ -660,8 +660,8 @@
     <p class="sr-only" id="o-visor-voz" role="status"></p>
     <div class="visor__palco" id="o-visor-palco" tabindex="0" role="region" aria-label="Prévia do site"></div>
     <div class="visor__rodape">
-      <p class="visor__aviso">Prévia de direção: textos entre colchetes são espaços para os seus dados reais.</p>
-      <button type="button" class="btn btn--primary" id="o-visor-escolher" data-acao>Escolher esta direção</button>
+      <p class="visor__aviso">Prévia do modelo: textos entre colchetes são espaços para os seus dados reais.</p>
+      <button type="button" class="btn btn--primary" id="o-visor-escolher" data-acao>Escolher este modelo</button>
     </div>
   </div>
 
