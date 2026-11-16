@@ -84,8 +84,7 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
 
 **Voltar para a API** (o que a produção fez em 15/11): `BZ_DIRECOES=api` no `wrangler.jsonc` (ou sem a variável). Direções que estiverem na fila nesse momento são geradas pela API quando o cliente voltar à página.
 - A confirmação pelo WhatsApp continua valendo no modo API (decisão D2): sem ela, nada é gerado.
-- No modo API, cada pedido confirmado ainda passa pela fila do painel: com as três prontas, ele fica **"Pronto para avisar"** e **ocupa o teto de 10** até o dono tocar **"Já avisei"** ou o cliente escolher um modelo. Com a fila cheia, os detalhes de quem chega recebem o WhatsApp no lugar do pedido.
-- Então, também no modo API, o dono avisa o cliente pelo WhatsApp e toca **"Já avisei"** para liberar o lugar na fila.
+- No modo API, o pedido ocupa uma vaga do teto de 10 só enquanto as direções estão sendo geradas. Quando nenhuma está mais em geração (prontas ou falhas), o código o tira da fila sozinho (a mesma marca do "Já avisei": as prontas ficam entregues e o lembrete de 2 dias segue valendo). Quem viu os modelos e sumiu não segura vaga de cliente novo, e o dono não precisa tocar em nada. Se o cliente voltar depois, o pedido continua dele.
 
 ## 2. Desligar ou conter
 

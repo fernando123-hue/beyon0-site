@@ -47,7 +47,7 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   const n = navegador();
   const s = await n.iniciar({ meio: 'anuncio', fonte: 'google', campanha: 'sites-rj', codigo: 'K7Q4M' });
   const c = s.conversa_id;
-  const m1 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates em Niterói e quero um site mais profissional porque hoje só tenho Instagram. Quero mais agendamentos.' });   /* (saúde não fecha pelo site: o fluxo inteiro até o pagamento é de um nicho comum; a saúde em saude-pedido.test.mjs) */
+  const m1 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates em Niterói e quero um site mais profissional porque hoje só tenho Instagram. Quero mais agendamentos.' });   /* (o fluxo inteiro até o pagamento num nicho comum; a saúde em saude-pedido.test.mjs) */
   assert.equal(m1.status, 200);
   assert.equal(m1.corpo.estimativa.valor_total, 8350, 'o cartão vem do motor de preço: institucional 7900 + agendamento 450');
   assert.ok(!/R\$/.test(m1.corpo.resposta));
@@ -423,6 +423,46 @@ test('modo api: as três direções saem no máximo 2 vezes por conversa; a 3ª 
   assert.equal(terceira.corpo.recado, true, 'sem modelo para escolher, o recado fica à mão');
   assert.match(GERACOES_ESGOTADAS, /ajustes/);
   assert.equal(Number((await local.db.query('select max(geracao) n from app.direcoes where conversa_id = $1', [c])).rows[0].n), 2, 'nenhuma 3ª geração gravada');
+});
+
+/* (dono, 15/11) a fila "cheia" conta só o que ainda precisa do dono. No modo api o dono não produz nada: quem recebeu as três direções,
+   viu e sumiu NÃO segura uma das vagas (senão dez curiosos davam "fila cheia" ao cliente novo). Em geração conta; pronto, não */
+test('modo api: pedido com as três direções prontas sai da fila, e a fila cheia só conta quem ainda está sendo atendido', async () => {
+  const naFila = async () => Number((await local.db.query('select count(*)::int n from app.pedidos pd where privado.pedido_na_fila(pd)')).rows[0].n);
+  const base = await naFila();
+  const d2 = { ...deps, limitesPedido: { ...LIMITES_DE_TESTE, fila_confirmados: base + 2 } };
+  const ateGerar = async (n) => {
+    const c = (await n.iniciar()).conversa_id;
+    await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
+    await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
+    await detalhesEConfirmar(n.chamar, local.rpc, c);
+    const g = await n.chamar('POST', 'gerar', { conversa_id: c });
+    assert.equal(g.status, 200, JSON.stringify(g.corpo));
+    return { c, dirs: g.corpo.direcoes };
+  };
+  const gerarUma = (n, c, d) => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id });
+  /* dois pedidos em geração ocupam as duas vagas: o cliente novo recebe "fila cheia" */
+  const na = navegador(d2), nb = navegador(d2);
+  const A = await ateGerar(na), B = await ateGerar(nb);
+  assert.equal(await naFila(), base + 2, 'em geração, conta');
+  const ne = navegador(d2);
+  const ce = (await ne.iniciar()).conversa_id;
+  assert.equal((await ne.chamar('GET', 'estado', undefined, { query: '&conversa=' + ce })).corpo.fila_cheia, true, 'duas em geração: cheia');
+  /* com 2 das 3 prontas, o pedido ainda é do sistema: continua contando */
+  for (const d of A.dirs.slice(0, 2)) assert.equal((await gerarUma(na, A.c, d)).corpo.status, 'pronta');
+  assert.equal(await naFila(), base + 2, 'faltando uma direção, ainda conta');
+  /* a última pronta: o pedido sai da fila sem o dono tocar em nada, e a vaga volta */
+  assert.equal((await gerarUma(na, A.c, A.dirs[2])).corpo.status, 'pronta');
+  assert.equal(await naFila(), base + 1, 'as três prontas: sai da fila');
+  assert.equal((await ne.chamar('GET', 'estado', undefined, { query: '&conversa=' + ce })).corpo.fila_cheia, false, 'a vaga voltou para o cliente novo');
+  assert.equal(Number((await local.db.query('select count(*)::int n from app.direcoes where conversa_id = $1 and avisada_em is not null', [A.c])).rows[0].n), 3, 'marcadas como entregues: o lembrete de 2 dias segue valendo');
+  /* o pedido não se perde: o cliente ainda escolhe, e o lembrete (2 dias) enxerga quem só viu */
+  const e = (await na.chamar('GET', 'estado', undefined, { query: '&conversa=' + A.c })).corpo;
+  assert.equal(e.conversa.etapa, 'direcoes');
+  assert.equal(e.pedido.status, 'confirmado');
+  /* o outro pedido termina: a fila volta ao que era */
+  for (const d of B.dirs) await gerarUma(nb, B.c, d);
+  assert.equal(await naFila(), base, 'nenhum pedido pronto fica na fila');
 });
 
 test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com a conversa perto do teto, não passam juntas (revisão do PR 1, segurança B6)', async () => {
