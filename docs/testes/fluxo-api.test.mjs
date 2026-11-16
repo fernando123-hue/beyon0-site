@@ -47,7 +47,7 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   const n = navegador();
   const s = await n.iniciar({ meio: 'anuncio', fonte: 'google', campanha: 'sites-rj', codigo: 'K7Q4M' });
   const c = s.conversa_id;
-  const m1 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates em Niterói e quero um site mais profissional porque hoje só tenho Instagram. Quero mais agendamentos.' });   /* (saúde não fecha pelo site: o fluxo inteiro até o pagamento é de um nicho comum; a saúde em saude-pedido.test.mjs) */
+  const m1 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates em Niterói e quero um site mais profissional porque hoje só tenho Instagram. Quero mais agendamentos.' });   /* (o fluxo inteiro até o pagamento num nicho comum; a saúde em saude-pedido.test.mjs) */
   assert.equal(m1.status, 200);
   assert.equal(m1.corpo.estimativa.valor_total, 8350, 'o cartão vem do motor de preço: institucional 7900 + agendamento 450');
   assert.ok(!/R\$/.test(m1.corpo.resposta));

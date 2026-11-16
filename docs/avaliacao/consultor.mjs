@@ -72,7 +72,7 @@ export async function avaliarCenario({ ia, regras, cenario }) {
   const esperas = cenario.espera.map(e => ({ ...e, padrao: e.padrao ? String(e.padrao) : undefined, ok: conferirEspera(e, s) }));
   const falhasGerais = s.turnos.reduce((n, t) => n + t.falhas.length, 0);
   const obrigatorias = esperas.filter(e => !e.opcional);
-  return { id: cenario.id, sobre: cenario.sobre, passou: falhasGerais === 0 && obrigatorias.every(e => e.ok), esperas, turnos: s.turnos, custo_usd: s.custo };
+  return { id: cenario.id, sobre: cenario.sobre, passou: falhasGerais === 0 && obrigatorias.every(e => e.ok), esperas, turnos: s.turnos, custo_usd: s.custo, briefing: s.briefing };   /* (o briefing: a medição de saúde e advocacia gera os modelos a partir dele) */
 }
 
 const arg = (nome, padrao) => { const i = process.argv.indexOf('--' + nome); return i > 0 ? process.argv[i + 1] : padrao; };

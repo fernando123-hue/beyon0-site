@@ -9,6 +9,7 @@
    ========================================================================== */
 export const AVISOS = Object.freeze({
   pedido: 'Pedido novo na fila. Detalhes no painel.',
+  pedido_regulado: 'Pedido novo de saúde ou advocacia na fila. Detalhes no painel.',
   recado: 'Recado novo. Leia no painel.',
   fila_cheia: 'URGENTE: a fila de pedidos encheu ou o limite por hora foi atingido. Veja o painel.',
   atendente_cliente: 'O atendente de um cliente bateu o teto de gasto do dia e passou a mandar as pessoas para a equipe. Veja o painel.',

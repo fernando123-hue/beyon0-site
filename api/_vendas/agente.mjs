@@ -95,16 +95,8 @@ export function nichoDaSessao({ briefing, mensagens, mensagem }) {
   for (const f of fontes) { const n = f ? nichoRegulado(f) : null; if (n) return n; }
   return null;
 }
-/* a sessão é de SAÚDE (o pedido vai à equipe, sem modelos automáticos e sem pagamento pelo site; decisão do dono, 14/11). Revisões do PR:
-   - TODAS as fontes (o nichoDaSessao para no 1º nicho: "advogado" antes de "dentista" escondia a saúde);
-   - o ramo "Saúde" tocado (segmento 'saúde'): o caminho só de toques nunca escreve a profissão */
+/* o ramo "Saúde" tocado (segmento 'saúde'): o caminho só de toques nunca escreve a profissão */
 const RAMO_SAUDE = /^\s*sa[uú]de\s*$/i;
-export function saudeDaSessao({ briefing, mensagens, mensagem }) {
-  const b = briefing || {};
-  if (typeof b.negocio?.segmento === 'string' && RAMO_SAUDE.test(b.negocio.segmento)) return true;
-  const fontes = [b.negocio?.segmento, b.negocio?.descricao, ...(Array.isArray(b.servicos) ? b.servicos : []), ...doVisitante(mensagens), mensagem];
-  return fontes.some((f) => { const n = f ? nichoRegulado(f) : null; return !!n && CHAVES_DE_SAUDE.has(n.chave); });
-}
 /* QUAL nicho regulado (saúde ou advocacia), para a geração e a conferência dos modelos (spec 2026-11-15 §2): a profissão de qualquer fonte
    vence; sem ela, a advocacia; sem as duas, o ramo "Saúde" tocado é a saúde genérica */
 export function nichoReguladoDaSessao({ briefing, mensagens, mensagem }) {
