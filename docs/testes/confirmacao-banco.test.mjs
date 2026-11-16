@@ -12,6 +12,10 @@ let db, rpc;
 const um = async (sql, p) => (await db.query(sql, p)).rows[0];
 before(async () => { db = await novoBanco(); rpc = rpcDe(db); await prepararOrg(db); });
 
+/* (revisão de segurança do #172) o e-mail só com caracteres PERMITIDOS: nada de <, >, aspas, vírgula, espaço, quebra de linha */
+const EMAILS_RUINS = ['a<b@x.com', 'a>b@x.com', '"a"@x.com', 'a,b@x.com', 'a b@x.com', 'a@b.com\n', 'a@b.com\r\nBcc: c@d.com', 'a@x.com,b@y.com',
+  "o'a@x.com", 'a..b@x.com', '.a@x.com', 'a@-x.com', 'a@x', 'a@x.c', 'á@x.com', 'a@x.com>', 'a@[1.2.3.4]'];
+const EMAILS_BONS = ['ana@exemplo.com', 'ana.souza+site@empresa.com.br', 'a_b-c%d@sub.dominio-x.com.br'];
 const ATIVAS = "('criada', 'processando', 'aguardando', 'requer_acao')";
 const ultimaAtiva = () => um(`select id from app.tentativas_pagamento where status in ${ATIVAS} order by created_at desc limit 1`);
 const tentativaDe = id => um('select * from app.tentativas_pagamento where id = $1', [id]);
@@ -35,6 +39,13 @@ test('guardar: só e-mail válido (vai minúsculo), só em tentativa aberta, só
   assert.equal((await erroDe(guardar(c.t.id, 'sem-arroba'))).codigo, '22023');
   assert.equal((await erroDe(guardar(c.t.id, 'a@b.com\r\nBcc: x@y.com'))).codigo, '22023', 'quebra de linha no e-mail');
   assert.equal((await erroDe(guardar(c.t.id, 'a'.repeat(250) + '@b.com'))).codigo, '22023', 'longo demais');
+  assert.equal((await erroDe(guardar(c.t.id, 'a'.repeat(65) + '@b.com'))).codigo, '22023', 'parte local acima de 64');
+  for (const ruim of EMAILS_RUINS) assert.equal((await erroDe(guardar(c.t.id, ruim)))?.codigo, '22023', 'guardar: ' + JSON.stringify(ruim));
+  for (const ruim of EMAILS_RUINS) {
+    const e = await erroDe(db.query('update app.tentativas_pagamento set pagador_email = $1 where id = $2', [ruim.toLowerCase(), c.t.id]));
+    assert.equal(e?.codigo, '23514', 'a coluna também barra: ' + JSON.stringify(ruim));
+  }
+  for (const bom of EMAILS_BONS) assert.deepEqual(await guardar(c.t.id, bom), { guardado: true }, bom);
   assert.deepEqual(await guardar(c.t.id, '  Cliente@Empresa.COM.br '), { guardado: true });
   assert.equal((await tentativaDe(c.t.id)).pagador_email, 'cliente@empresa.com.br');
   const paga = await entrada({ email: null });

@@ -18,9 +18,11 @@
 -- ==========================================================================
 
 alter table app.tentativas_pagamento
+  -- (lista PERMITIDA, revisão de segurança do #172: nada de <, >, aspas, vírgula, espaço ou quebra de linha; a mesma regra do
+  -- JS em api/_pagamentos/confirmacao.mjs, EMAIL_PERMITIDO)
   add column pagador_email text check (pagador_email is null or (
-    char_length(pagador_email) <= 254 and pagador_email = lower(pagador_email)
-    and pagador_email ~ '^[^@[:space:]]{1,64}@[^@[:space:]]+\.[^@[:space:]]{2,}$')),
+    char_length(pagador_email) <= 254 and char_length(split_part(pagador_email, '@', 1)) <= 64
+    and pagador_email ~ '^[a-z0-9_%+-]+(\.[a-z0-9_%+-]+)*@([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$')),
   add column confirmacao_email_em timestamptz;
 
 create index tentativas_confirmacao_pendente on app.tentativas_pagamento (aprovada_em)
@@ -31,7 +33,7 @@ create function app.pagamentos_guardar_pagador(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare v_email text := lower(btrim(coalesce(p ->> 'email', '')));
 begin
-  if char_length(v_email) > 254 or v_email !~ '^[^@[:space:]]{1,64}@[^@[:space:]]+\.[^@[:space:]]{2,}$' then
+  if char_length(v_email) > 254 or char_length(split_part(v_email, '@', 1)) > 64 or v_email !~ '^[a-z0-9_%+-]+(\.[a-z0-9_%+-]+)*@([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$' then
     raise exception 'e-mail inválido' using errcode = '22023';
   end if;
   update app.tentativas_pagamento set pagador_email = v_email

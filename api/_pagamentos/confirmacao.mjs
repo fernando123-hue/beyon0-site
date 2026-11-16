@@ -19,7 +19,12 @@ export const RESPONDER_PARA = 'contato.beyon.zero@gmail.com';
 export const TEMPO_MAXIMO_MS = 5000;   /* o pagamento já está gravado; isto só segura a resposta do aviso */
 const PRAZO_DIAS_MAX = 60;             /* (o check de app.propostas.prazo_dias) */
 const CHAVE_VALIDA = /^[A-Za-z0-9_-]{8,200}$/;
-const EMAIL = /^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$/;
+/* o e-mail por LISTA PERMITIDA (revisão de segurança do #172): letras minúsculas sem acento, dígitos e _ % + - na parte local, pontos só
+   entre pedaços; domínio com rótulos de letra e dígito (hífen só no meio) e terminação de 2 a 24 letras. Fica de fora tudo o que
+   poderia virar cabeçalho ou lista de destinatários: <, >, aspas, vírgula, espaço e quebra de linha. A MESMA regra do banco
+   (20261115130000_confirmacao_entrada.sql) e de quem paga (servico.mjs, validarPagador, que usa esta função) */
+export const EMAIL_PERMITIDO = /^[a-z0-9_%+-]+(\.[a-z0-9_%+-]+)*@([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/;
+export const emailPermitido = e => typeof e === 'string' && e.length <= 254 && e.split('@')[0].length <= 64 && EMAIL_PERMITIDO.test(e);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const COMO_PAGOU = { pix: 'pelo Pix', cartao: 'no cartão' };
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -66,7 +71,7 @@ export function criarConfirmacao({ chave, fetch: buscar = globalThis.fetch, entr
     /* envia UM e-mail. Devolve { enviado: true, id } ou { enviado: false, motivo }; nunca lança (só SemOrcamento) */
     async enviar({ tentativa_id, email, valor, metodo, prazo_dias }) {
       if (!ligada) return { enviado: false, motivo: 'sem chave' };
-      if (!UUID.test(String(tentativa_id || '')) || typeof email !== 'string' || email.length > 254 || !EMAIL.test(email) || !valorValido(valor)) {
+      if (!UUID.test(String(tentativa_id || '')) || !emailPermitido(email) || !valorValido(valor)) {
         return { enviado: false, motivo: 'dado inválido' };
       }
       const t = textoDaConfirmacao({ valor, metodo, prazoDias: Number(prazo_dias), entrega });
@@ -110,7 +115,10 @@ export async function confirmarEntradas({ banco, confirmacao, provedor, filtro }
     const r = await confirmacao.enviar(item);
     if (r.enviado) { resumo.enviadas++; continue; }
     resumo.falhas++;
-    console.error('[pagamentos] confirmação da entrada não saiu:', r.motivo, 'tentativa', String(item && item.tentativa_id).slice(0, 36));
+    /* uma linha estruturada, fácil de achar no log do Worker (o dono e o vigia procuram "origem":"confirmacao" com "falha":true);
+       só o motivo (texto fixo deste módulo) e o id da tentativa: nunca o e-mail, a chave ou o valor */
+    console.error(JSON.stringify({ origem: 'confirmacao', nivel: 'erro', evento: 'confirmação da entrada não saiu', falha: true, motivo: r.motivo,
+      tentativa_id: UUID.test(String(item && item.tentativa_id)) ? item.tentativa_id : null }));
   }
   return resumo;
 }

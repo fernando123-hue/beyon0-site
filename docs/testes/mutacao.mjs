@@ -737,9 +737,16 @@ export const SABOTAGENS = [
   { nome: 'confirmação: a falha da reserva derruba o aviso do Mercado Pago', fonte: 'api/_pagamentos/confirmacao.mjs', testes: ['docs/testes/confirmacao-email.test.mjs'],
     de: "    if (e instanceof SemOrcamento) throw e;\n    console.error('[pagamentos] confirmação da entrada: a reserva falhou:'", para: "    throw e;\n    console.error('[pagamentos] confirmação da entrada: a reserva falhou:'" },
   { nome: 'confirmação: envia sem a chave do Resend', fonte: 'api/_pagamentos/confirmacao.mjs', testes: ['docs/testes/confirmacao-email.test.mjs'],
-    de: "      if (!ligada) return { enviado: false, motivo: 'sem chave' };\n", para: '' },
+    de: "      if (!ligada) return { enviado: false, motivo: 'sem chave' };\n", para: '      /* sem a trava da chave */\n' },
   { nome: 'confirmação: a reconciliação reserva sem folga no orçamento de subpedidos', fonte: 'api/_pagamentos/servico.mjs', testes: ['docs/testes/confirmacao-email.test.mjs'],
     de: 'const folga = Math.min(CONFIRMACOES_POR_VEZ, gasto.restantes() - 1);', para: 'const folga = CONFIRMACOES_POR_VEZ;' },
+  /* (revisão de segurança do #172) o e-mail por lista permitida, no banco e no JS, e a linha estruturada da falha */
+  { nome: 'confirmação: a coluna do banco aceita e-mail com < e vírgula', arquivo: '20261115130000_confirmacao_entrada.sql', testes: ['docs/testes/confirmacao-banco.test.mjs'],
+    de: '    and pagador_email ~ ', para: "    and pagador_email ~ '@' or pagador_email ~ " },
+  { nome: 'confirmação: o JS aceita e-mail com < e vírgula', fonte: 'api/_pagamentos/confirmacao.mjs', testes: ['docs/testes/confirmacao-email.test.mjs'],
+    de: "export const emailPermitido = e => typeof e === 'string' && e.length <= 254 && e.split('@')[0].length <= 64 && EMAIL_PERMITIDO.test(e);", para: "export const emailPermitido = e => typeof e === 'string' && e.includes('@');" },
+  { nome: 'confirmação: a falha do Resend sem a linha estruturada no log', fonte: 'api/_pagamentos/confirmacao.mjs', testes: ['docs/testes/confirmacao-email.test.mjs'],
+    de: 'falha: true, motivo: r.motivo,', para: 'motivo: r.motivo,' },
   /* ---- o vigia (auto-reparo, 15/11): não repetir, não marcar avisado sem e-mail, só service_role ---- */
   { nome: 'vigia: anon pode gravar o estado do vigia', arquivo: '20261115120000_vigia.sql', testes: ['docs/testes/vigia-banco.test.mjs'],
     de: 'revoke all on function app.rotinas_vigia_gravar(jsonb) from public, anon, authenticated;', para: 'grant execute on function app.rotinas_vigia_gravar(jsonb) to anon, authenticated;' },

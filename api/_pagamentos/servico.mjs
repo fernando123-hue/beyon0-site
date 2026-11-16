@@ -14,7 +14,7 @@
 import { criarMercadoPago, retratoDe, ErroProvedor } from './mercadopago.mjs';
 import { ATIVOS } from './estados.mjs';
 import { orcamentoDe, SemOrcamento, ORCAMENTO_SUBPEDIDOS } from '../_orcamento.mjs';
-import { confirmarEntradas } from './confirmacao.mjs';
+import { confirmarEntradas, emailPermitido } from './confirmacao.mjs';
 
 /* fins SEM dinheiro: só depois deles uma nova tentativa pode começar (aprovada, duplicada, estornada etc. mostram o estado) */
 const LIVRES = new Set(['recusada', 'cancelada', 'expirada']);
@@ -49,13 +49,12 @@ function cnpjValido(c) {
   return dv(12) === Number(c[12]) && dv(13) === Number(c[13]);
 }
 const NOME = /^[\p{L}][\p{L}' .-]{0,59}$/u;
-const EMAIL = /^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$/;
 export function validarPagador(p) {
   const nome = String(p?.nome || '').trim(), sobrenome = String(p?.sobrenome || '').trim(), email = String(p?.email || '').trim().toLowerCase();
   const documento = soDigitos(p?.documento);
   if (!NOME.test(nome)) return { erro: 'Informe o nome.' };
   if (!NOME.test(sobrenome)) return { erro: 'Informe o sobrenome.' };
-  if (email.length > 254 || !EMAIL.test(email)) return { erro: 'Informe um e-mail válido.' };
+  if (!emailPermitido(email)) return { erro: 'Informe um e-mail válido.' };   /* (lista permitida, a mesma do envio e do banco: confirmacao.mjs) */
   if (documento.length === 11 ? !cpfValido(documento) : documento.length === 14 ? !cnpjValido(documento) : true) return { erro: 'CPF ou CNPJ inválido.' };
   return { dados: { nome, sobrenome, email, documento, documentoTipo: documento.length === 11 ? 'CPF' : 'CNPJ' } };
 }

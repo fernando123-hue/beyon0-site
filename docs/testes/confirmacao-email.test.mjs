@@ -10,7 +10,7 @@ import { atender } from '../../api/vendas.mjs';
 import { receber } from '../../api/pagamentos.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { configPagamentos } from '../../api/_pagamentos/config.mjs';
-import { criarServicoPagamentos } from '../../api/_pagamentos/servico.mjs';
+import { criarServicoPagamentos, validarPagador } from '../../api/_pagamentos/servico.mjs';
 import { criarConfirmacao, confirmacaoDoAmbiente, textoDaConfirmacao, escaparHtml, htmlDe, RESEND_URL, REMETENTE, RESPONDER_PARA }
   from '../../api/_pagamentos/confirmacao.mjs';
 import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
@@ -18,6 +18,10 @@ import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
 const BASE = 'http://127.0.0.1:8899';
 const CHAVE = 're_teste_0123456789abcdef';
 const PAGADOR = { nome: 'Ana', sobrenome: 'Souza', email: 'Ana@Exemplo.com', documento: '529.982.247-25' };
+/* (revisão de segurança do #172) o e-mail só com caracteres PERMITIDOS: nada de <, >, aspas, vírgula, espaço, quebra de linha */
+const EMAILS_RUINS = ['a<b@x.com', 'a>b@x.com', '"a"@x.com', 'a,b@x.com', 'a b@x.com', 'a@b.com\n', 'a@b.com\r\nBcc: c@d.com', 'a@x.com,b@y.com',
+  "o'a@x.com", 'a..b@x.com', '.a@x.com', 'a@-x.com', 'a@x', 'a@x.c', 'á@x.com', 'a@x.com>', 'a@[1.2.3.4]'];
+const EMAILS_BONS = ['ana@exemplo.com', 'ana.souza+site@empresa.com.br', 'a_b-c%d@sub.dominio-x.com.br'];
 const ITEM = { tentativa_id: '5c3803cf-5129-4e83-bb3c-a98590a7e704', email: 'cliente@empresa.com.br', valor: 1200, metodo: 'pix', prazo_dias: 10 };
 
 /* o Resend de mentira: guarda cada chamada e responde como o de verdade (200 com id), ou com a falha pedida */
@@ -94,6 +98,21 @@ test('falha do Resend (recusa, rede, tempo): nunca lança, devolve o motivo, e n
   for (const ruim of [{ ...ITEM, email: 'sem-arroba' }, { ...ITEM, email: 'a@b.com\r\nBcc: x@y.com' }, { ...ITEM, valor: 'abc' }, { ...ITEM, valor: -5 }, { ...ITEM, tentativa_id: 'x' }]) {
     assert.equal((await c.enviar(ruim)).enviado, false, 'dado ruim não sai: ' + JSON.stringify(ruim));
   }
+});
+
+test('o e-mail só passa com caracteres permitidos, igual na página (validarPagador) e no envio', async () => {
+  const c = criarConfirmacao({ chave: CHAVE, fetch: resendFalso().buscar });
+  /* (a página apara as pontas: "a@b.com\n" chega como "a@b.com"; a quebra de linha não sobra) */
+  assert.equal(validarPagador({ nome: 'Ana', sobrenome: 'Souza', email: 'a@b.com\n', documento: '529.982.247-25' }).dados.email, 'a@b.com');
+  for (const ruim of EMAILS_RUINS) {
+    if (ruim.trim() === ruim) assert.equal(validarPagador({ nome: 'Ana', sobrenome: 'Souza', email: ruim, documento: '529.982.247-25' }).erro, 'Informe um e-mail válido.', 'pagar: ' + JSON.stringify(ruim));
+    assert.deepEqual(await c.enviar({ ...ITEM, email: ruim }), { enviado: false, motivo: 'dado inválido' }, 'enviar: ' + JSON.stringify(ruim));
+  }
+  for (const bom of EMAILS_BONS) {
+    assert.equal(validarPagador({ nome: 'Ana', sobrenome: 'Souza', email: bom, documento: '529.982.247-25' }).erro, undefined, bom);
+    assert.equal((await c.enviar({ ...ITEM, email: bom })).enviado, true, bom);
+  }
+  assert.equal(validarPagador({ nome: 'Ana', sobrenome: 'Souza', email: 'a'.repeat(65) + '@x.com', documento: '529.982.247-25' }).erro, 'Informe um e-mail válido.', 'parte local acima de 64');
 });
 
 test('escape de HTML em tudo o que entra no corpo; método e prazo fora do esperado somem em vez de entrar crus', () => {
@@ -193,6 +212,12 @@ test('falha do Resend não desfaz nem segura o pagamento: o aviso responde 200, 
   assert.equal((await pagamentoDe(c)).status, 'pago');
   assert.equal((await tentativaDe(c)).status, 'aprovada');
   assert.ok(linhas.some(l => /confirmação/.test(l)), 'o erro vai para o log: ' + linhas.join(' | '));
+  /* (revisão de segurança do #172) uma linha estruturada fácil de achar pelo dono e pelo vigia: origem, falha, o motivo e o id da tentativa */
+  const estruturadas = linhas.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(o => o && o.origem === 'confirmacao' && o.falha === true);
+  assert.equal(estruturadas.length, 1, 'uma linha estruturada: ' + linhas.join(' | '));
+  assert.equal(estruturadas[0].tentativa_id, t.id);
+  assert.equal(estruturadas[0].motivo, 'http 500');
+  assert.deepEqual(Object.keys(estruturadas[0]).sort(), ['evento', 'falha', 'motivo', 'nivel', 'origem', 'tentativa_id'], 'só isto: nada de e-mail, chave ou valor');
   assert.ok(!linhas.some(l => l.includes(CHAVE) || /ana@exemplo/i.test(l)), 'sem a chave nem o e-mail no log');
   await aviso(servico, t.provedor_order_id);
   await servico.reconciliar({});
