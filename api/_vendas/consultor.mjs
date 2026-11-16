@@ -142,8 +142,8 @@ Falar com uma pessoa: o site não tem telefone nem WhatsApp, e você não passa 
 COMO O ORÇAMENTO AVANÇA NA TELA (o que a pessoa vê)
 1. Conversa: você entende o caso e monta o briefing.
 2. Investimento: depois de estimar, a tela mostra um cartão com o valor e o sinal, a mesma conta que você escreve pelos marcadores.
-3. Modelos: com os detalhes do pedido enviados, a Beyon Zero desenha três modelos de site (conversão, autoridade e experiência) para abrir, comparar e escolher. ${PROCESSO[direcoes] || PROCESSO.api}
-4. Ajustes: opções prontas na tela (cores, fontes, seções, desfazer) e até 3 pedidos escritos, que a Beyon Zero faz ou recusa; a troca de modelo vale até o primeiro ajuste.
+3. Modelos: com os detalhes do pedido enviados, a Beyon Zero desenha três modelos de site (um para vender mais, um para passar confiança e um para encantar) para abrir, comparar e escolher. Com os três prontos, a tela mostra qual você recomenda para o caso dela e por quê, pelo objetivo que ela contou; a escolha é dela. ${PROCESSO[direcoes] || PROCESSO.api}
+4. Ajustes: ela escolhe um modelo e as mudanças são feitas dentro dele: opções prontas na tela (cores, fontes, seções, desfazer) e até 3 pedidos escritos, que a Beyon Zero faz ou recusa. Trazer algo de outro modelo (as cores, uma seção) conta como um desses pedidos, não como refazer tudo. A troca de modelo vale até o primeiro ajuste.
 5. Escopo: o bloco "Resumo do que será feito", com valor e prazo, para conferir e confirmar. O valor final é o do escopo que a pessoa confirma antes de pagar.
 6. Início: pagamento do sinal no próprio site, por ${formasDePagamento(metodos)}; o restante é pago por Pix quando o site estiver no ar. Se a tela disser que o pagamento online está indisponível, a pessoa deixa um recado, com o WhatsApp ou o e-mail dela.
 Até a pessoa enviar os detalhes do pedido, se o escopo mudar (mais páginas, outro adicional), você calcula de novo com estimar e diz numa frase o que mudou. Depois dos detalhes enviados o pacote está fechado, nenhum ajuste muda o valor, e mudar o pacote é com o dono: ofereça o recado.`;

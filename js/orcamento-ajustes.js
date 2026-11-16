@@ -185,7 +185,9 @@
       if (!texto) { erro.textContent = 'Escreva o que você quer mudar.'; campo.focus(); return; }
       erro.textContent = '';
       depoisDoAviso(ev.submitter || campo, function () {
-        executar('livre', function () { return o.API.pedidoLivre(texto.slice(0, LIVRE_MAX)); }, function () { campo.value = ''; });
+        /* (dono, 15/11) a marca de "traz algo de outro modelo": conta como um pedido; o funil registra só a marca */
+        var mistura = $('o-livre-mistura');
+        executar('livre', function () { return o.API.pedidoLivre(texto.slice(0, LIVRE_MAX), !!(mistura && mistura.checked)); }, function () { campo.value = ''; if (mistura) mistura.checked = false; });
       });
     });
 

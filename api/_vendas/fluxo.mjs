@@ -44,6 +44,7 @@ import { respostasParciais, situacaoDeCodigos, ehFalaDoMudar, MOLDE_MUDAR } from
 import { respostasParaBriefingParcial } from './catalogo.mjs';
 import { valorLiberado } from './agente.mjs';
 import { fluxoConversa } from './consultor.mjs';
+import { recomendar } from './recomendacao.mjs';
 
 import { ORG } from './org.mjs';
 export { ORG };
@@ -447,7 +448,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const briefingLimpo = semChavesDaPlanta(briefingBruto);
       if (e.conversa && briefingLimpo !== briefingBruto) e.conversa = { ...e.conversa, briefing: briefingLimpo };
       const planta = plantaLigada(env) ? ((regulado) => ({ planta: montarPlanta(briefingBruto, { regulado, turnos: e.conversa?.turnos, mensagensNaJanela: (e.mensagens || []).length }), leitura: leituraParaTela(briefingBruto, { regulado }), planta_editavel: precoAberto(e.conversa?.etapa, e.pedido?.status) }))(!!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens })) : null;
-      return { ...e, painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env),
+      /* (dono, 15/11) com os modelos prontos, o Zero recomenda um, pelo objetivo que a pessoa deu (regra fixa, api/_vendas/recomendacao.mjs) */
+      const recomendacao = recomendar(e.conversa?.briefing, e.direcoes);
+      return { ...e, ...(recomendacao ? { recomendacao } : {}), painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env),
         ...(planta ? { ...(planta.planta ? { planta: planta.planta } : {}), ...(planta.leitura ? { leitura: planta.leitura } : {}), planta_editavel: planta.planta_editavel } : {}),
         /* (fluxo novo, spec §2) a tela segura o valor até o caso ser entendido; fora do fluxo novo a chave não existe (a resposta é a de hoje) */
         ...(fluxoConversa(briefingBruto) ? { valor_liberado: valorLiberado({ briefing: briefingBruto, estimativa: e.estimativa, mensagens: e.mensagens }) } : {}) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
@@ -605,8 +608,11 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     async escolher({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id) && ehUuid(corpo?.direcao_id), 400, 'Dados inválidos.');
-      exigirNaoDescartado(await estado(vid, corpo.conversa_id));
-      return banco('vendas_escolher', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id });
+      const est = await estado(vid, corpo.conversa_id);
+      exigirNaoDescartado(est);
+      /* (medição, dono 15/11) o funil registra se a escolha foi a recomendada; o cálculo é o mesmo da tela, feito aqui (nunca o que a página diz) */
+      const recomendada = recomendar(est.conversa?.briefing, est.direcoes)?.direcao_id === corpo.direcao_id;
+      return banco('vendas_escolher', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id, recomendada });
     },
 
     /* o escopo final (montado pelo código; o preço é o da última estimativa, conferido pelo banco) */

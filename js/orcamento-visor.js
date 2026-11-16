@@ -17,7 +17,7 @@
   var PV = window.BZPrevia;
   if (!PV) return;
   var $ = function (id) { return document.getElementById(id); };
-  var NOMES = { conversao: 'Conversão', autoridade: 'Autoridade', experiencia: 'Experiência' };
+  var NOMES = { conversao: 'Para vender mais', autoridade: 'Para passar confiança', experiencia: 'Para encantar' };   /* (= js/orcamento.js) */
   function el(tag, classe, texto) { var e = document.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; }
 
   function criar(o) {
