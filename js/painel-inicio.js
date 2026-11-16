@@ -67,7 +67,7 @@
       if (!r || !r.id) return;
       var dono = r.pedido_codigo && porCodigo[r.pedido_codigo];
       if (dono) { if (!dono.recado) { dono.recado = r.texto; dono.suspeito = !!r.suspeito; } return; }
-      pessoas.push({ chave: r.id, nome: null, como: 'Recado', etapa: null, codigo: r.pedido_codigo || null, quando: r.criado_em,
+      pessoas.push({ chave: r.id, nome: null, como: 'Recado', etapa: r.lido_em ? 'Lido' : 'Novo', codigo: r.pedido_codigo || null, quando: r.criado_em,
         telefone: r.whatsapp || null, email: r.email || null, recado: r.texto, suspeito: !!r.suspeito, acao: !r.lido_em });
     });
     return pessoas.map(function (p) { var q = Object.assign({}, p); delete q.peso; return q; })
@@ -109,8 +109,13 @@
     var completo = FONTES_PESSOAS.every(function (f) { return fontes[f]; });
     pessoas = montarInteressados(fontes);
     $('n-interessados').textContent = completo ? num(pessoas.length) : '—';
+    /* a ficha aberta acompanha a lista nova (a mesma pessoa pela chave; se saiu de todas as listas, fica como estava) */
+    if (pessoaAtual) {
+      var mesma = pessoas.filter(function (p) { return p.chave === pessoaAtual.chave; })[0];
+      if (mesma) { pessoaAtual = mesma; if (telaDoEndereco() === 'pessoa') fichaDaPessoa(); }
+    }
     var falhou = FONTES_PESSOAS.filter(function (f) { return fontes[f] && fontes[f].erro; }).length;
-    $('interessados-estado').textContent = !completo ? 'Carregando…' : falhou ? 'Parte da lista não carregou agora; toque em Atualizar no início.' : pessoas.length ? '' : 'Ninguém em andamento agora.';
+    $('interessados-estado').textContent = !completo ? 'Carregando…' : falhou ? 'Parte da lista não carregou agora; toque em Atualizar no início.' : pessoas.length ? '' : 'Ninguém deixou contato ainda.';
     var ul = $('interessados-lista');
     ul.textContent = '';
     var agora = Date.now();
@@ -152,7 +157,7 @@
   function fichaDaPessoa() {
     var p = pessoaAtual, dl = $('pessoa-ficha');
     dl.textContent = '';
-    if (!p) return;
+    if (!p) { $('t-pessoa').textContent = 'Interessado'; return; }   /* (depois do "Sair" nem o nome fica na página) */
     $('t-pessoa').textContent = p.nome || 'Sem nome';
     var C = window.BZPainelPedido;
     var item = function (rotulo, valor, classe) {
@@ -209,7 +214,7 @@
   });
   /* saiu: nomes, contatos e recados não ficam na página */
   document.addEventListener('bz-painel:saiu', function () {
-    fontes = {}; resumo = null; pessoaAtual = null;
+    fontes = {}; resumo = null; pessoaAtual = null; navegou = false;
     contarAcoes(); contarPessoas(); mostrarResumo(); fichaDaPessoa();
     if (location.hash) history.replaceState(null, '', location.pathname + location.search);
     mostrarTela(false);

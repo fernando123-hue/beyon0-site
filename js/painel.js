@@ -143,15 +143,21 @@
   }
   /* modo: nada = tudo (e as listas de ação recarregam pelo bz-painel:entrou); 'periodo' = números e contatos;
      'numeros' = depois de salvar um contato, só os totais (a lista de contatos fica como está) */
+  /* cada carga tem a sua vez (como as listas): a resposta que chega depois de sair, ou depois de uma carga mais nova
+     (7 → 30 dias tocados em seguida), é descartada; senão o painel reaparecia depois do "Sair", com os contatos */
+  var vez = 0;
   function carregar(modo) {
+    var minha = ++vez;
     var soNumeros = modo === 'numeros' || modo === 'periodo';
     $('estado').textContent = 'Carregando…';
     return pedir('?dias=' + dias).then(function (r) { return r.json(); }).then(function (r) {
+      if (minha !== vez) return;
       entrou(true);
       mostrar(r, modo);
       if (!soNumeros) document.dispatchEvent(new CustomEvent('bz-painel:entrou'));
       $('estado').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '.' + (r.aviso ? ' Atenção: ' + r.aviso + '.' : '');   /* (A9: o servidor leu só as páginas mais recentes de cada tabela) */
     }).catch(function (e) {
+      if (minha !== vez) return;
       if (recusada(e)) return;
       /* a chave não foi recusada, só as métricas falharam: o painel abre com o erro na linha das métricas e a fila
          de direções carrega assim mesmo (tem o próprio pedido e o próprio aviso de erro). Antes a fila só vinha
@@ -163,7 +169,7 @@
       entrou(true);
       $('estado').textContent = 'Não foi possível carregar as métricas: ' + e.message;
       avisar('resumo', null);
-      avisar('saude', { erro: true });
+      if (!soNumeros) avisar('saude', { erro: true });   /* (trocar o período ou salvar um contato não relê a saúde: a de antes segue valendo) */
       if (primeira && !soNumeros) document.dispatchEvent(new CustomEvent('bz-painel:entrou'));
     });
   }
@@ -176,6 +182,7 @@
     return true;
   }
   function sair() {
+    vez++;   /* (nenhuma carga em voo traz os dados de volta) */
     chave = '';
     try { sessionStorage.removeItem(CHAVE); } catch (e) { /* nada guardado */ }
     entrou(false);
