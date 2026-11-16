@@ -18,6 +18,7 @@ import { ambienteDe } from './_ambiente.mjs';
 import { criarTransporte } from './_vendas/transporte.mjs';
 import { configPagamentos } from './_pagamentos/config.mjs';
 import { criarServicoPagamentos } from './_pagamentos/servico.mjs';
+import { confirmacaoDoAmbiente } from './_pagamentos/confirmacao.mjs';
 import { verificarAssinatura } from './_pagamentos/assinatura.mjs';
 import { ErroProvedor } from './_pagamentos/mercadopago.mjs';
 import { criarFreio, ipDe } from './_freio.mjs';
@@ -40,7 +41,7 @@ export async function receber(request, env, deps = {}) {
   const banco = deps.banco || criarTransporte(env);
   const cfg = deps.cfg || configPagamentos(env);
   if (!banco || !cfg.ativo) { console.error('[pagamentos] desligado:', cfg.motivo || 'sem banco'); return json({ erro: 'Indisponível.' }, 503); }
-  const servico = deps.servico || criarServicoPagamentos({ banco, cfg });
+  const servico = deps.servico || criarServicoPagamentos({ banco, cfg, confirmacao: confirmacaoDoAmbiente(env) });
 
   if (acao === 'reconciliar') return reconciliar(request, cfg, servico);
   if (acao === 'simular') return simular(request, cfg, env, deps);
