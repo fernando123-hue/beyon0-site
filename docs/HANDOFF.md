@@ -1,5 +1,50 @@
 # Beyon Zero — transferência de contexto
 
+> **ESTADO DA SESSÃO FILHA "ORÇAMENTO / NICHO REGULADO / MODELOS" (15/11, noite; worktree `03 Projetos/site-zero-mapa`, branch atual `modelos-claros`).**
+> <!-- passagem-auto: 1-e21d8891-9338-4db8-b6de-11360de57dbd -->
+> Sessão filha da principal "Beyon Zero" (`local_c012a676-93ab-4c4f-a1d9-6b86d5cc65da`): reporta só por SendMessage; quem mescla e promove é a principal ("me mande o número de cada PR quando o CI estiver verde").
+>
+> **Feito hoje:**
+> - **#171 MESCLADO** (main `669109f`): a medição Sonnet × Opus de saúde e advocacia e a saída da trava, com a ciência do dono. Antes, #167 (`2f383ef`).
+> - **PR 4, a conferência do registro depois do Pix: PRONTO LOCAL, sem push.** Branch `conferir-registro`, commits `394ed31` e `47fea92`, sobre o #171.
+>   - Fica pronto para PR. Revisões feitas (técnica e segurança) e corrigidas. Mutação "registro: " 12/12. Testes `registro-conferencia*.test.mjs` 9 + 10 verdes.
+>   - Corpo do PR em `scratchpad/pr-registro4.md`, com a seção Migration.
+>   - A principal decidiu: NÃO bloqueia o lançamento; entra depois, ou junto da migração do e-mail pós-Pix, com um sim só do dono.
+> - **Modelos claros (decisão do dono 15/11 21h40, PRIORIDADE, entra no lançamento de 16/11):** branch `modelos-claros`, commits `37dd639` e `8360964`, sobre a main `4f7c699`. Feito:
+>   - a recomendação (`api/_vendas/recomendacao.mjs`);
+>   - os nomes "Para vender mais / Para passar confiança / Para encantar";
+>   - "modelo" na tela do cliente;
+>   - a regra dos ajustes na tela e no Zero (prompt regenerado);
+>   - a marca "trazer algo de outro modelo" no pedido escrito;
+>   - a migration `20261116100000_modelos_medicao.sql`;
+>   - o topo próprio por estratégia em `api/_vendas/direcao.mjs`.
+>   - Estado: revisões feitas e corrigidas; mutação "modelos: " 6/6 na 1ª versão; teste `modelos-recomendacao.test.mjs` 7/7.
+>   - Corpo do PR em `scratchpad/pr-modelos.md`; comentários das revisões em `scratchpad/revmod-cod.md` e `revmod-seg.md`.
+>
+> **PRÓXIMO PASSO EXATO (no branch `modelos-claros`):**
+> 1. `git fetch`. Se a main andou, juntar (`git merge origin/main`) e resolver.
+> 2. Mutação `BZ_MUTACAO_FILTRO="modelos: " node docs/testes/mutacao.mjs`: deu 6/6 antes dos ajustes; rodar de novo. A rodada interrompida não terminou.
+> 3. A suíte `npm run testar`, SOZINHA.
+> 4. O E2E `bash scratchpad/e2e-dois.sh`, para a foto DEPOIS a 390 px (`docs/olhar-orcamento/2-direcoes-cel.png`). A foto ANTES está em `scratchpad/fotos-modelos/antes-390.png`. A principal pediu fotos a 390 px de antes e depois.
+> 5. Opcional e barato: conferir com a IA real que os três topos saem diferentes, com `docs/avaliacao/regulado.mjs --etapas geracao`, um caso, Opus, ~US$ 0,33. O livro está em ~US$ 6,04 de 10, e não pode passar de US$ 10.
+> 6. Push. Abrir o PR com `scratchpad/pr-modelos.md` (preencher __VISTO__, __MUTACAO__, __REGRESSAO__ e os links dos comentários) e postar `revmod-cod.md` e `revmod-seg.md` como comentários.
+> 7. `ccd_pr get_status`, e mandar o número à principal quando o CI ficar verde. A principal mescla.
+> 8. Depois, o PR 4: `git switch conferir-registro`, juntar a main, suíte e E2E, push e PR com `scratchpad/pr-registro4.md` (preencher __VISTO__ com `scratchpad/ver-registros.tmp.mjs`, que tira a foto do bloco do painel com a lista fixa).
+>
+> **Pendências e decisões em aberto:**
+> - O escopo (o contrato) ainda diz "DIREÇÃO ESCOLHIDA: nome (Autoridade)": follow-up, se o dono quiser.
+> - `js/painel-entregas.js`: os textos ao cliente começam com "Aqui é o Fernando", contra o anonimato. Avisar a principal; o ramo é outro.
+> - O texto da cláusula do registro (§8.3) espera o dono. O print da consulta fica para depois do PR 4.
+> - Não tocar em `api/_ia/config.mjs` nem no `wrangler.jsonc` (ramo `geracao-automatica` de outro agente).
+>
+> **Armadilhas:**
+> - O PC do dono travou várias vezes: UMA coisa pesada por vez (mutação OU suíte OU E2E) e fechar os servidores `node docs/servidor.mjs` ao fim.
+> - Sabotagem de SQL na mutação vai por `arquivo:` (a cópia que os testes leem por BZ_MIGRATIONS). Por `fonte:` ela escapa sem os testes verem.
+> - A mutação muda arquivos de código no lugar: não editar nada enquanto ela roda. Se for interrompida, conferir `git status` (os arquivos voltam com `git checkout -- <arquivo>`).
+> - O guarda nega comando com substituição, variável dentro de `$()` ou heredoc com push. Escrever os scripts de edição com Write e rodar com node.
+>
+> **Skills sugeridas:** processo-qualidade (nível 3), voz-humana (os textos ao cliente), code-review.
+
 > **ESTADO DA SESSÃO "ORÇAMENTO COMO CONVERSA" (14/11, tarde; worktree `03 Projetos/site-zero-mapa`, branch `zero-mapa-desenho-b`).**
 > <!-- passagem-auto: 1-cf05db7a-0aec-488c-92c5-4f1b5ccd43e9 -->
 > **Feito:**
