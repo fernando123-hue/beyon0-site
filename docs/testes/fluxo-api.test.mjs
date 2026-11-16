@@ -443,20 +443,24 @@ test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com 
   chamadas = 0;
   const r0 = await Promise.all(g0.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
   assert.equal(chamadas, 3, 'com US$ 0,60 gastos, as 3 chamam o modelo — status: ' + JSON.stringify(r0.map(x => x.status)));
-  /* perto do teto: US$ 0,30 abaixo dele (1,70 de 2,00, com o teto de TETOS.conversa_usd) → 1,70 e 1,95 ainda começam; a 3ª (2,20 comprometidos) não */
+  /* perto do teto: US$ 0,30 abaixo dele (1,70 de 2,00, com o teto de TETOS.conversa_usd) → 1,70 e 1,95 ainda começam; a 3ª (2,20 comprometidos) não.
+     (numa conversa nova: esta já usou as 2 gerações do teto, TETOS.geracoes_por_conversa) */
   const { TETOS } = await import('../../api/_ia/config.mjs');
-  await local.db.query('update app.conversas set custo_ia_usd = $2 where id = $1', [c, TETOS.conversa_usd - 0.3]);
-  const g = await n.chamar('POST', 'gerar', { conversa_id: c });
+  await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [c]);
+  const n2 = navegador(comLenta);
+  const { c: c2 } = await ateDirecoes(n2);
+  await local.db.query('update app.conversas set custo_ia_usd = $2 where id = $1', [c2, TETOS.conversa_usd - 0.3]);
+  const g = await n2.chamar('POST', 'gerar', { conversa_id: c2 });
   assert.equal(g.status, 200, JSON.stringify(g.corpo));
   chamadas = 0; picoEmVoo = 0;
-  const r = await Promise.all(g.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
+  const r = await Promise.all(g.corpo.direcoes.map(d => n2.chamar('POST', 'gerar-direcao', { conversa_id: c2, direcao_id: d.id })));
   assert.equal(chamadas, 2, 'com US$ 0,30 abaixo do teto, só 2 chamam o modelo — status: ' + JSON.stringify(r.map(x => x.status)));
   assert.equal(r.filter(x => x.status === 429).length, 1, 'a 3ª: limite, com WhatsApp');
   assert.ok(r.filter(x => x.status === 429).every(x => x.corpo.recado === true));
   /* a reserva some depois da chamada: nada fica preso */
-  const presas = (await local.db.query('select count(*)::int n from privado.reservas_ia where conversa_id = $1', [c])).rows[0].n;
+  const presas = (await local.db.query('select count(*)::int n from privado.reservas_ia where conversa_id = $1', [c2])).rows[0].n;
   assert.equal(presas, 0, 'reserva liberada depois da chamada');
-  await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [c]);   /* (o teto do DIA não trava os testes seguintes) */
+  await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [c2]);   /* (o teto do DIA não trava os testes seguintes) */
 });
 
 test('reserva de custo: erro do banco fecha (sem chamar o modelo); só a função ainda inexistente segue como antes — revisões do PR 15', async () => {

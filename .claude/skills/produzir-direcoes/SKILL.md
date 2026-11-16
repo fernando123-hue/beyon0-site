@@ -5,7 +5,7 @@ description: Produz as três direções de site dos pedidos na fila manual do or
 
 # Produzir as direções da fila manual
 
-Decisão do dono (2026-10-08): enquanto não há verba para a API, as três direções de cada pedido são produzidas no Claude Code do dono e entregues pelo painel. O prazo prometido ao cliente é de **até 24 horas úteis**. O dono avisa o cliente pelo WhatsApp com um toque, no painel.
+Decisão do dono (2026-10-08): enquanto não havia verba para a API, as três direções de cada pedido eram produzidas no Claude Code do dono e entregues pelo painel. **Desde 15/11 a produção gera pela API** (`BZ_DIRECOES=api`): a fila manual fica para os pedidos de saúde (enquanto a trava de saúde existir), para a produção sem a chave da Anthropic e para o staging. Na fila manual, o prazo prometido ao cliente é de **até 24 horas úteis**. O dono avisa o cliente pelo WhatsApp com um toque, no painel.
 
 ## Todo pedido novo entra direto na fila (30/10: sem WhatsApp e sem confirmação)
 
