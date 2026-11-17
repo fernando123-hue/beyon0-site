@@ -347,7 +347,7 @@ try {
      no topo, que só vira BZ-XXXXX no render com o pedido, e o render escolhe o bloco e os botões de uma vez) */
   await page.waitForFunction(c => document.getElementById('o-codigo-v').textContent.trim() === c, codigo, { timeout: 15000 });
   ok(await page.locator('#o-confirmar').isHidden(), 'arquivado: a tela não mostra mais o pedido recebido');
-  ok(await page.getByRole('button', { name: 'Gerar as três direções' }).count() === 0, 'arquivado, de volta à etapa contato: nenhum "Gerar as três direções" (o servidor recusaria)');
+  ok(await page.getByRole('button', { name: 'Gerar os três modelos' }).count() === 0, 'arquivado, de volta à etapa contato: nenhum "Gerar as três direções" (o servidor recusaria)');
   await page.unroute(ESTADO, comoArquivado);
   await page.reload({ waitUntil: 'load' });
   await page.waitForFunction(c => document.getElementById('o-codigo-v').textContent.trim() === c, codigo, { timeout: 15000 });
@@ -643,7 +643,7 @@ try {
   /* cenário B: descartado com as três prontas (etapa "direcoes"): "pedido encerrado" e nenhuma escolha */
   const descartadoB = comPedido('descartado');
   ok(await desenhar(descartadoB, () => !document.getElementById('o-pedido-fim').hidden && document.querySelectorAll('.dir .dir__nome').length === 3), 'descartado com as três prontas: a tela diz que o pedido foi encerrado');
-  ok(await page.getByRole('button', { name: 'Escolher esta' }).count() === 0, 'descartado com as três prontas: nenhum "Escolher esta" (o servidor recusaria)');
+  ok(await page.getByRole('button', { name: 'Escolher este' }).count() === 0, 'descartado com as três prontas: nenhum "Escolher este" (o servidor recusaria)');
   await page.unroute(ESTADO, descartadoB);
   /* cenário A: confirmado e depois arquivado ou descartado com a geração em andamento: as três viram "falhou" e a
      conversa volta a "contato" (privado.parar_geracao) */
@@ -701,7 +701,7 @@ try {
   ok(await page.locator('#o-visor').isVisible(), 'visor abre');
   ok(await page.evaluate(() => document.activeElement.id) === 'o-visor-fechar', 'foco vai para o fechar');
   await page.locator('#o-visor-abas .chip').nth(1).click();
-  ok((await page.textContent('#o-visor-titulo')).startsWith('Direção 2'), 'troca para a direção 2');
+  ok((await page.textContent('#o-visor-titulo')).startsWith('Modelo 2'), 'troca para o modelo 2');
   await page.click('[data-aparelho="1280"]');
   ok(await page.evaluate(() => document.querySelector('#o-visor-palco .pv-menu') && getComputedStyle(document.querySelector('#o-visor-palco .pv-menu')).display === 'flex'), 'modo computador: menu da prévia aparece (container query)');
   await foto(page, '3-visor-cel');
