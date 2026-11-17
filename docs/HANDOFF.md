@@ -1,6 +1,52 @@
 # Beyon Zero — transferência de contexto
 
-> **ESTADO DA SESSÃO FILHA "ORÇAMENTO / NICHO REGULADO / MODELOS" (15/11, noite; worktree `03 Projetos/site-zero-mapa`, branch atual `modelos-claros`).**
+> **ESTADO DA SESSÃO FILHA "ORÇAMENTO / NICHO REGULADO / MODELOS" (16/11, noite; worktree `03 Projetos/site-zero-mapa`, branch atual `modelos-claros`, HEAD `153224a`, NÃO empurrado).**
+> <!-- passagem-auto: 1-572c8fdc-24e4-415a-8cbd-af561c1f349d -->
+> Sessão filha da principal "Beyon Zero" (`local_c012a676-93ab-4c4f-a1d9-6b86d5cc65da`): reporta só por SendMessage; a principal mescla e promove. O E2E na porta 8899 e as suítes que aparecem rodando na máquina são dos agentes da principal (#173/#174), não meus.
+>
+> **DECISÃO DA PRINCIPAL (16/11): o PR dos modelos sai 100% SEM migração** (uma promoção só, sem sim novo do dono). Corpo do PR: Migration = "nenhuma".
+> - A medição (migration `20261116100000_modelos_medicao.sql`, a marca `recomendada` no evento da escolha, a marca `mistura` na API/tela/caixa e a entrada no antes-de-ligar) foi TIRADA de `modelos-claros` (commit `153224a`) e está inteira, com a suíte verde (2752 passam, 0 falhas), no ramo local **`modelos-medicao`** (`35edbc7`). Entra junto do PR 4, com um sim só do dono.
+>
+> **O que o PR `modelos-claros` tem (sobre a main `4f7c699`, que não andou até agora):**
+> - a recomendação do Zero (`api/_vendas/recomendacao.mjs`, regra fixa, o primeiro objetivo decide; sem objetivo: "Eu começaria pelo…") no estado (`recomendacao`) e na tela (caixa "O Zero recomenda" + selo no cartão);
+> - os nomes "Para vender mais / Para passar confiança / Para encantar" e "modelo" no lugar de "direção" na tela do cliente;
+> - a regra dos ajustes no texto da tela e nos passos 3 e 4 do Zero (prompt regenerado, dentro das 27.000);
+> - o topo próprio por estratégia em `api/_vendas/direcao.mjs` (split / centro / faixa).
+> - Já feitas e corrigidas: as 2 revisões (técnica e segurança, agentes diferentes) sobre o commit `37dd639` (antes de tirar a medição; os textos prontos para o PR estão em `scratchpad/revmod-cod.md` e `revmod-seg.md`).
+> - Sem diferença para a main em `supabase/`. `package.json` só ganha o teste novo no `testar`.
+>
+> **Verificado depois de tirar a medição:** os testes focados passam (1068, 0 falhas): `modelos-recomendacao`, `antes-de-ligar` (volta a 19 migrations), `consultor`, `zero`, `ajustes-api`, `fluxo-api`.
+>
+> **PRÓXIMO PASSO EXATO (no branch `modelos-claros`):**
+> 1. `git fetch`: se a main andou além de `4f7c699`, juntar e resolver.
+> 2. Mutação focada (as 2 sabotagens que sobraram): `BZ_MUTACAO_FILTRO="modelos: " node docs/testes/mutacao.mjs` (esperado 2 de 2).
+> 3. A suíte completa UMA vez, sozinha: `npm run testar` (a retirada mexeu em teste).
+> 4. O E2E `bash scratchpad/e2e-dois.sh` (sobe o servidor na 8899: só rodar se a principal não estiver com o dela) e a foto de DEPOIS a 390 px (`docs/olhar-orcamento/2-direcoes-cel.png`). A foto de ANTES está em `scratchpad/fotos-modelos/antes-390.png`.
+> 5. Push (`git push -u origin modelos-claros`, sem pipe). Abrir o PR com `scratchpad/pr-modelos.md`, AJUSTANDO o corpo: Migration = "nenhuma"; tirar o ponto (4) da medição e o SQL de conferência; mencionar que a medição ficou no ramo `modelos-medicao`. Postar `revmod-cod.md` e `revmod-seg.md` como comentários (acrescentar a nota de que a medição saiu depois da revisão) e linkar no corpo.
+> 6. `ccd_pr get_status`; mandar o NÚMERO do PR à principal assim que abrir (e de novo com o CI verde).
+> 7. Depois, o PR pequeno do M3 (abaixo). Só então o PR 4.
+>
+> **PEDIDO M3 (da principal; PR separado e pequeno, DEPOIS do #173):** "clínica", "consultório" ou "escritório" SEM a profissão passam sem o bloco regulado no prompt e sem a conferência (a geração agora é automática em produção). Ver `nichoDaSessao` e `nichoReguladoDaSessao` em `api/_vendas/agente.mjs`. PROPOR o ajuste mínimo à principal ANTES de mexer em `api/_vendas/fluxo.mjs`/`gerador.mjs` (outro agente está no #173 neles). Opções: (a) essas palavras contam como saúde genérica/regulado até a pessoa dizer a profissão; (b) o Zero pergunta a profissão antes de gerar.
+>
+> **PR 4 (conferir registro; ramo local `conferir-registro`, `47fea92`, NÃO empurrado):** pronto, com as revisões feitas e corrigidas (corpo em `scratchpad/pr-registro4.md`, com a seção Migration). Vai COM migração e exige sim específico do dono; entra junto da `modelos-medicao`. Ao juntar: a migration da medição (`20261116100000`) vem antes da do registro (`20261116120000`); ajustar a lista e a contagem do `antes-de-ligar` (19 → 21) e o número de arquivos de `docs/testes/antes-de-ligar.test.mjs`; juntar a main antes.
+>
+> **Pendências e decisões em aberto:**
+> - Em aberto com a principal: nenhuma pergunta minha sem resposta.
+> - O escopo (o contrato) ainda diz "DIREÇÃO ESCOLHIDA: nome (Autoridade)": follow-up, se o dono quiser.
+> - `js/painel-entregas.js`: os textos ao cliente começam com "Aqui é o Fernando", contra o anonimato; avisar a principal (outro ramo).
+> - O texto da cláusula do registro (§8.3) espera o dono; o print da consulta fica para depois do PR 4.
+> - Não tocar em `api/_ia/config.mjs` nem no `wrangler.jsonc` (ramo `geracao-automatica`).
+>
+> **Armadilhas:**
+> - UMA coisa pesada por vez (mutação OU suíte OU E2E); o PC do dono já travou. Fechar servidores `node docs/servidor.mjs` ao fim.
+> - Sabotagem de SQL na mutação vai por `arquivo:` (a cópia que os testes leem), não por `fonte:`.
+> - A mutação muda arquivos no lugar: não editar enquanto roda; se interromper, conferir `git status` e `git checkout -- <arquivo>`.
+> - O guarda nega comando com substituição `$()`, variável dentro dela ou heredoc com push: scripts de edição com Write e rodar com node.
+> - O prompt do Zero tem teto de 27.000 caracteres (vários testes); texto novo nele precisa caber.
+>
+> **Skills sugeridas:** processo-qualidade (nível 3), voz-humana (textos ao cliente), code-review.
+
+> **(SUPERADO pelo bloco acima de 16/11; o histórico do que foi feito em 15/11 continua válido)** ESTADO DA SESSÃO FILHA "ORÇAMENTO / NICHO REGULADO / MODELOS" (15/11, noite; worktree `03 Projetos/site-zero-mapa`, branch atual `modelos-claros`).**
 > <!-- passagem-auto: 1-e21d8891-9338-4db8-b6de-11360de57dbd -->
 > Sessão filha da principal "Beyon Zero" (`local_c012a676-93ab-4c4f-a1d9-6b86d5cc65da`): reporta só por SendMessage; quem mescla e promove é a principal ("me mande o número de cada PR quando o CI estiver verde").
 >
