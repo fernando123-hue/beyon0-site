@@ -1,7 +1,8 @@
 /* OS TRÊS MODELOS, MAIS CLAROS (decisão do dono, 15/11, 21h40): (1) depois de gerar, o Zero recomenda um, com o motivo tirado do
    objetivo que a pessoa deu (regra fixa, sem inventar); (2) cada modelo com um nome que diz o que faz; (3) a regra dos ajustes na
-   tela e no Zero (escolhe um; trazer algo de outro modelo conta como um ajuste); (4) o funil registra se a escolha foi a recomendada
-   e se o pedido escrito traz algo de outro modelo, sem dado pessoal nem texto.  node --test docs/testes/modelos-recomendacao.test.mjs */
+   tela e no Zero (escolhe um; trazer algo de outro modelo conta como um pedido de ajuste). A medição no funil (a escolha ser a
+   recomendada, a mistura) fica no ramo modelos-medicao, com a migration, para entrar junto do PR 4.
+   node --test docs/testes/modelos-recomendacao.test.mjs */
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -59,9 +60,7 @@ test('os nomes que dizem o que cada modelo faz: a tela, o visor e a recomendaç�
   const html = ler('orcamento.html');
   assert.match(html, /id="o-recomenda"/);
   assert.match(html, /trazer algo de outro modelo, como as cores ou uma seção, conta como um pedido de ajuste/);
-  assert.match(html, /Conta como um pedido de ajuste\.<\/label>/);
   assert.match(html, /Três modelos para o seu site/);
-  assert.match(html, /id="o-livre-mistura"/);
   assert.match(ler('js/orcamento.js'), /'O Zero recomenda'/);
   const zero = ler('docs/zero/prompt-efetivo.txt');
   assert.match(zero, /para vender mais, para passar confiança e para encantar/);
@@ -104,28 +103,16 @@ async function comModelos(objetivos) {
 }
 const eventos = async (c, tipo) => (await local.db.query('select dados from app.eventos_funil where conversa_id = $1 and tipo = $2 order by created_at', [c, tipo])).rows.map((r) => r.dados);
 
-test('o estado traz a recomendação com os modelos prontos; a escolha registra se era a recomendada (só a marca, no evento de sempre)', async () => {
+test('o estado traz a recomendação com os modelos prontos, e escolher continua igual (qualquer um dos três)', async () => {
   const { n, c, est } = await comModelos(['apresentar_empresa']);
   assert.equal(est.recomendacao.estrategia, 'autoridade');
   const autoridade = est.direcoes.find((d) => d.estrategia === 'autoridade');
   assert.equal(est.recomendacao.direcao_id, autoridade.id);
   assert.match(est.recomendacao.texto, /você quer apresentar bem a empresa/);
   const outra = est.direcoes.find((d) => d.estrategia === 'experiencia');
-  assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: outra.id })).status, 200);
+  assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: outra.id })).status, 200, 'a recomendação não obriga');
   assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: autoridade.id })).status, 200, 'troca antes do 1º ajuste');
   const ev = await eventos(c, 'direcao_escolhida');
-  assert.deepEqual(ev.map((d) => [d.estrategia, d.recomendada]), [['experiencia', false], ['autoridade', true]]);
-  assert.deepEqual(Object.keys(ev[1]).sort(), ['estrategia', 'geracao', 'numero', 'recomendada'], 'nada além da marca');
-});
-
-test('o pedido escrito com "trazer algo de outro modelo" marca a mistura no funil (sem o texto); sem a marca, o evento é o de sempre', async () => {
-  const { n, c, est } = await comModelos(['vender']);
-  assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: est.direcoes[0].id })).status, 200);
-  const com = await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto: 'Quero as cores do modelo 3', mistura: true });
-  assert.equal(com.status, 200, JSON.stringify(com.corpo));
-  const sem = await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto: 'Trocar a foto do topo' });
-  assert.equal(sem.status, 200, JSON.stringify(sem.corpo));
-  const lixo = await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto: 'Mais um pedido', mistura: 'sim' });
-  assert.equal(lixo.status, 400, 'a marca é só booleana');
-  assert.deepEqual(await eventos(c, 'pedido_livre'), [{ mistura: true }, {}], 'só o booleano verdadeiro marca; nunca o texto');
+  assert.deepEqual(ev.map((d) => d.estrategia), ['experiencia', 'autoridade']);
+  assert.deepEqual(Object.keys(ev[1]).sort(), ['estrategia', 'geracao', 'numero'], 'o evento é o de sempre');
 });

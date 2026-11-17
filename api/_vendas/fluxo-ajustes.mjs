@@ -107,8 +107,7 @@ export function criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescar
     },
 
     async pedidoLivre({ request, corpo }) {
-      /* (dono, 15/11) mistura: opcional e só booleano (a marca de que o pedido traz algo de outro modelo) */
-      if (!soCom(corpo, ['conversa_id', 'texto', 'mistura']) || !ehUuid(corpo.conversa_id) || (corpo.mistura !== undefined && typeof corpo.mistura !== 'boolean')) throw new Recusa(400, FRASES.conversaInvalida);
+      if (!soCom(corpo, ['conversa_id', 'texto']) || !ehUuid(corpo.conversa_id)) throw new Recusa(400, FRASES.conversaInvalida);
       const limpo = limparMensagem(corpo.texto);
       /* redigido ANTES de medir ("a@b.co" vira "[e-mail]", que é maior) e numa linha só, como entra no resumo. A linha única
          vem ANTES de redigir também (um CPF partido por DEL ou por linhas em branco só é reconhecido depois de juntado) e
@@ -121,8 +120,7 @@ export function criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescar
       if (!est.pedido || est.pedido.status !== 'confirmado') throw new Recusa(409, FRASES.livreFora, { recado: true });
       if ((est.alteracoes || []).filter(a => a.origem === 'livre').length >= PEDIDOS_LIVRES_MAX) throw new Recusa(409, FRASES.limiteLivres, { recado: true });
       try {
-        /* (medição, dono 15/11) a pessoa marcou que traz algo de outro modelo: conta como um pedido, e o funil registra a marca (sem o texto) */
-        const r = await banco('vendas_pedido_livre', { conversa_id: corpo.conversa_id, visitante_id: vid, texto, mistura: corpo.mistura === true });
+        const r = await banco('vendas_pedido_livre', { conversa_id: corpo.conversa_id, visitante_id: vid, texto });
         return { alteracao_id: r.alteracao_id, restantes: r.restantes };
       } catch (e) {
         if (e instanceof ErroBanco && e.codigo === '23514') throw new Recusa(409, FRASES.limiteLivres, { recado: true });

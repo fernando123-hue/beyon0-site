@@ -218,7 +218,7 @@
     /* (PR 3a) os ajustes sem IA: uma opção pronta por vez, desfazer o último e o pedido livre (até 3, vai para a fila do dono) */
     ajustar: function (opcao) { return chamar('POST', 'ajustar', comConversa({ opcao: opcao }), undefined, ESTADO_MS); },
     desfazer: function () { return chamar('POST', 'desfazer', comConversa(), undefined, ESTADO_MS); },
-    pedidoLivre: function (texto, mistura) { return chamar('POST', 'pedido-livre', comConversa({ texto: texto, mistura: mistura === true }), undefined, ESTADO_MS); },
+    pedidoLivre: function (texto) { return chamar('POST', 'pedido-livre', comConversa({ texto: texto }), undefined, ESTADO_MS); },
     escopo: function () { return chamar('POST', 'escopo', comConversa()); },
     confirmar: function (propostaId, inicioImediato) { return chamar('POST', 'confirmar', comConversa({ proposta_id: propostaId, confirmo: true, inicio_imediato: inicioImediato })); },
     /* o valor NUNCA vai daqui: o servidor tira da proposta aceita */
