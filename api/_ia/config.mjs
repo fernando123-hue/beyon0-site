@@ -44,6 +44,8 @@ export const PRECO_POR_MILHAO = {
   'claude-haiku-5-5': { entrada: 0.1, saida: 0.5, cache_leitura: 0.01, cache_escrita: 0.125,
     ate_tokens: 100000, longo: { entrada: 0.5, saida: 2.5, cache_leitura: 0.05, cache_escrita: 0.625 } },
   'claude-sonnet-5-5': { entrada: 2, saida: 10, cache_leitura: 0.2, cache_escrita: 2.5 },
+  /* o reserva do Zero na queda do Sonnet 5.5 (MODELO_RESERVA, abaixo): mesmo preço por token */
+  'claude-sonnet-5': { entrada: 2, saida: 10, cache_leitura: 0.2, cache_escrita: 2.5 },
   'claude-opus-5-5': { entrada: 4, saida: 20, cache_leitura: 0.2, cache_escrita: 5 },
   'claude-haiku-4-5': { entrada: 1, saida: 5, cache_leitura: 0.1, cache_escrita: 1.25 }
 };
@@ -51,6 +53,12 @@ export const PRECO_POR_MILHAO = {
 /* o fallback do servidor (beta server-side-fallback-2026-07-01, modo "default") existe só nestes; no Haiku 5.5 o
    parâmetro não vale (referência da API, "Migrating to Claude Haiku 5.5": recusa sem fallback do servidor) */
 export const COM_FALLBACK = new Set(['claude-opus-5-5', 'claude-sonnet-5-5']);
+
+/* o MODELO RESERVA na QUEDA (auto-reparo, 15/11; docs/superpowers/specs/2026-11-15-auto-reparo-design.md, camada 2): o fallback do
+   servidor acima só cobre RECUSA; com o modelo fora do ar ou sobrecarregado (5xx/529, rede), depois das repetições do SDK, a
+   chamada tenta UMA vez no reserva (api/_ia/anthropic.mjs). Só o Zero: o Sonnet 5 tem o mesmo preço por token. Fora, de propósito:
+   o Haiku (o reserva possível custaria 10× a 20× mais: decisão de dinheiro do dono) e o Opus (a geração está em modo manual) */
+export const MODELO_RESERVA = Object.freeze({ 'claude-sonnet-5-5': 'claude-sonnet-5' });
 
 /* tetos de custo (operacionais, não comerciais): passou, o agente para com elegância e oferece o WhatsApp */
 export const TETOS = {
