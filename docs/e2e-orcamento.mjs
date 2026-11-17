@@ -353,7 +353,7 @@ try {
      no topo, que só vira BZ-XXXXX no render com o pedido, e o render escolhe o bloco e os botões de uma vez) */
   await page.waitForFunction(c => document.getElementById('o-codigo-v').textContent.trim() === c, codigo, { timeout: 15000 });
   ok(await page.locator('#o-confirmar').isHidden(), 'arquivado: a tela não mostra mais o pedido recebido');
-  ok(await page.getByRole('button', { name: 'Gerar as três direções' }).count() === 0, 'arquivado, de volta à etapa contato: nenhum "Gerar as três direções" (o servidor recusaria)');
+  ok(await page.getByRole('button', { name: 'Gerar os três modelos' }).count() === 0, 'arquivado, de volta à etapa contato: nenhum "Gerar as três direções" (o servidor recusaria)');
   await page.unroute(ESTADO, comoArquivado);
   await page.reload({ waitUntil: 'load' });
   await page.waitForFunction(c => document.getElementById('o-codigo-v').textContent.trim() === c, codigo, { timeout: 15000 });
@@ -373,7 +373,7 @@ try {
   });
   const painel = await ctx.newPage();
   await comoFilaManual(painel);
-  await painel.goto(BASE + '/painel', { waitUntil: 'load' });
+  await painel.goto(BASE + '/painel#acoes', { waitUntil: 'load' });   /* (15/11: a fila mora na tela "Precisam de você") */
   await painel.fill('#chave', PAINEL_CHAVE);
   await painel.click('#entrar button[type=submit]');
   const naFila = painel.locator('#fila .pn__fila', { hasText: codigo });
@@ -423,7 +423,7 @@ try {
   painel2.on('console', m => falaDoPainel.push(m.text()));
   painel2.on('pageerror', e => erros.push('painel: ' + String(e)));
   await comoFilaManual(painel2);
-  await painel2.goto(BASE + '/painel', { waitUntil: 'load' });
+  await painel2.goto(BASE + '/painel#acoes', { waitUntil: 'load' });
   await painel2.fill('#chave', PAINEL_CHAVE);
   await painel2.click('#entrar button[type=submit]');
   const avisoNaFila = painel2.locator('#fila .pn__fila', { hasText: codigo });
@@ -605,8 +605,8 @@ try {
      lista real vem vazia; depois a resposta de ?fila=lembretes é forjada com este pedido, mas o resto é de verdade: o
      "Preparar lembrete" gera um link novo no servidor e o "Já lembrei" grava no banco. Só então a lista forjada esvazia */
   let lembrado = false;
-  await painel2.locator('#bloco-lembretes').scrollIntoViewIfNeeded();
-  ok(await painel2.locator('#bloco-lembretes').isVisible() && /Nenhum lembrete/.test(await painel2.textContent('#lembretes-estado')), 'lembretes: sem ninguém avisado há 2 dias, a seção diz que não há lembrete');
+  /* (15/11: lista vazia some da tela "Precisam de você"; o estado dela segue no texto, para o leitor de tela) */
+  ok(await painel2.locator('#bloco-lembretes').isHidden() && /Nenhum lembrete/.test(await painel2.textContent('#lembretes-estado')), 'lembretes: sem ninguém avisado há 2 dias, a seção fica escondida e diz que não há lembrete');
   const contatoDoPedido = { nome: 'Ana Souza', telefone: '+55' + TELEFONE.replace(/\D/g, ''), email: null };
   const forjarLembretes = async route => {
     if (route.request().method() !== 'GET') { await route.continue(); return; }
@@ -614,7 +614,7 @@ try {
     await route.fulfill({ json: { lembretes: itens, total: itens.length } });
   };
   await painel2.route(/\/api\/painel\?fila=lembretes/, forjarLembretes);
-  await painel2.click('#lembretes-atualizar');
+  await painel2.locator('#lembretes-atualizar').dispatchEvent('click');   /* (a seção vazia está escondida: é o clique do próprio botão, sem a mão) */
   const cartaoLembrete = painel2.locator('#lembretes .pn__fila', { hasText: codigo });
   await cartaoLembrete.waitFor({ timeout: 15000 });
   ok(/1 lembrete para mandar/.test(await painel2.textContent('#lembretes-estado')), 'lembretes: o pedido avisado há 3 dias aparece na lista, com a contagem');
@@ -670,7 +670,7 @@ try {
   /* cenário B: descartado com as três prontas (etapa "direcoes"): "pedido encerrado" e nenhuma escolha */
   const descartadoB = comPedido('descartado');
   ok(await desenhar(descartadoB, () => !document.getElementById('o-pedido-fim').hidden && document.querySelectorAll('.dir .dir__nome').length === 3), 'descartado com as três prontas: a tela diz que o pedido foi encerrado');
-  ok(await page.getByRole('button', { name: 'Escolher esta' }).count() === 0, 'descartado com as três prontas: nenhum "Escolher esta" (o servidor recusaria)');
+  ok(await page.getByRole('button', { name: 'Escolher este' }).count() === 0, 'descartado com as três prontas: nenhum "Escolher este" (o servidor recusaria)');
   await page.unroute(ESTADO, descartadoB);
   /* cenário A: confirmado e depois arquivado ou descartado com a geração em andamento: as três viram "falhou" e a
      conversa volta a "contato" (privado.parar_geracao) */
@@ -728,7 +728,7 @@ try {
   ok(await page.locator('#o-visor').isVisible(), 'visor abre');
   ok(await page.evaluate(() => document.activeElement.id) === 'o-visor-fechar', 'foco vai para o fechar');
   await page.locator('#o-visor-abas .chip').nth(1).click();
-  ok((await page.textContent('#o-visor-titulo')).startsWith('Direção 2'), 'troca para a direção 2');
+  ok((await page.textContent('#o-visor-titulo')).startsWith('Modelo 2'), 'troca para o modelo 2');
   await page.click('[data-aparelho="1280"]');
   ok(await page.evaluate(() => document.querySelector('#o-visor-palco .pv-menu') && getComputedStyle(document.querySelector('#o-visor-palco .pv-menu')).display === 'flex'), 'modo computador: menu da prévia aparece (container query)');
   await foto(page, '3-visor-cel');

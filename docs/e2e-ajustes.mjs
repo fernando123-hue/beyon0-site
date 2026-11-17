@@ -35,7 +35,7 @@ export async function passoDosAjustes(page, { ok, espera, foto, semRolagemLatera
   forcar(false);
   ok((await page.textContent('#o-aj-resposta')).trim() === 'Feito: Cores do modelo 1.', 'ajustes: a resposta diz o que foi feito');
   ok(await page.locator('#o-aviso').isHidden() && await page.locator('#o-mudancas li').count() === 1, 'ajustes: resposta perdida na volta, mas o ajuste entrou: sem aviso de erro e sem repetir (1 só na lista)');
-  ok(await page.getByRole('button', { name: 'Escolher esta' }).count() === 0, 'ajustes: depois do 1º ajuste não há mais troca de modelo');
+  ok(await page.getByRole('button', { name: 'Escolher este' }).count() === 0, 'ajustes: depois do 1º ajuste não há mais troca de modelo');
   await page.click('#o-aj-desfazer');
   ok(await espera(page, () => !!document.querySelector('#o-mudancas li.is-desfeita') && !document.querySelector('#o-versao button'), 15000), 'ajustes: desfazer volta a versão anterior (sem "Abrir a sua versão")');
   ok(await espera(page, () => document.getElementById('o-aj-desfazer').hidden && document.activeElement && document.activeElement.id === 'o-aj-titulo', 5000), 'ajustes: sem nada para desfazer, o botão some e o foco vai para o título da seção (não se perde)');
