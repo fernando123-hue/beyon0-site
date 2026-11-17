@@ -10,9 +10,9 @@
    do briefing aparecem como ESPAÇO RESERVADO ("[ … ]"), nunca como fato.
    ========================================================================== */
 export const ESTRATEGIAS = {
-  conversao: 'CONVERSÃO: clareza imediata da oferta, chamadas para ação fortes e repetidas, hierarquia comercial, prova perto do botão, poucos cliques até o contato.',
-  autoridade: 'AUTORIDADE: posicionamento e confiança, tom sóbrio e premium, credenciais e método, prova social em destaque, ritmo calmo e espaçoso.',
-  experiencia: 'EXPERIÊNCIA: diferenciação e narrativa, a história do negócio contada em sequência, composição visual marcante, seções que surpreendem sem atrapalhar o contato.'
+  conversao: 'CONVERSÃO: clareza imediata da oferta, chamadas para ação fortes e repetidas, hierarquia comercial, prova perto do botão, poucos cliques até o contato. O topo (hero) em split: o título diz o que o negócio faz e para quem, com o botão de contato à vista.',
+  autoridade: 'AUTORIDADE: posicionamento e confiança, tom sóbrio e premium, credenciais e método, prova social em destaque, ritmo calmo e espaçoso. O topo (hero) em centro, sóbrio: o título fala do jeito de trabalhar (o cuidado, o método), nunca a lista de serviços.',
+  experiencia: 'EXPERIÊNCIA: diferenciação e narrativa, a história do negócio contada em sequência, composição visual marcante, seções que surpreendem sem atrapalhar o contato. O topo (hero) em faixa: o título começa a história (o porquê ou a origem do negócio), com outras palavras que não a lista de serviços.'
 };
 export const TIPOS_SECAO = ['hero', 'servicos', 'sobre', 'diferenciais', 'processo', 'depoimentos', 'numeros', 'galeria', 'faq', 'cta', 'contato', 'equipe', 'destaque', 'localizacao'];
 export const VARIANTES = ['split', 'centro', 'cartoes', 'lista', 'faixa', 'grade', 'linha_do_tempo'];
