@@ -93,7 +93,7 @@ try {
   ok(CONSULTOR ? await page.locator('#o-form').isVisible() : await page.locator('#o-form').isHidden(), CONSULTOR ? 'com consultor: a caixa de texto está à mão' : 'sem consultor: tudo por toques, sem caixa de texto');
   await foto(page, '1a-conversa-cel');
   const tocar = async texto => { const b = page.locator('#o-log .orc-toque:not([data-feito]) button', { hasText: texto }).first(); await b.scrollIntoViewIfNeeded(); await b.click(); };
-  await tocar('Serviços');   /* (saúde não fecha pelo site desde 15/11: o caminho até o Pix é de um nicho comum; a saúde em docs/testes/saude-pedido.test.mjs) */
+  await tocar('Serviços');   /* (o caminho até o Pix por um nicho comum; a saúde e a advocacia, que fecham pelo site com a ciência do dono, em docs/testes/saude-pedido.test.mjs) */
   ok(await espera(page, () => localStorage.getItem('bz-orcamento') !== null, 15000), 'a sessão nasce no 1º toque (com o anti-robô), não ao abrir a página');
   await tocar('Agendamentos');
   await tocar('Pronto');

@@ -7,6 +7,7 @@
    • `contar(fn)` gasta 1 por chamada e lança SemOrcamento quando acabou; a conta é feita ANTES de chamar, de forma
      síncrona, então tarefas em paralelo também respeitam o teto.
    • `reserva`: o que fica de fora das chamadas comuns, para as chamadas finais que não podem faltar (`contarReservado`).
+   • `restantes()`: quanto as chamadas comuns ainda podem gastar (quem precisa de N chamadas seguidas confere antes).
    ========================================================================== */
 export const ORCAMENTO_SUBPEDIDOS = 45;   /* (o limite é 50; sobram 5 de folga para o que não é contado) */
 
@@ -20,6 +21,7 @@ export function orcamentoDe(limite = ORCAMENTO_SUBPEDIDOS, reserva = 0) {
   return {
     contar: fn => async (...a) => { gastar(limite - reserva); return fn(...a); },
     contarReservado: fn => async (...a) => { gastar(limite); return fn(...a); },
-    gastos: () => gastos
+    gastos: () => gastos,
+    restantes: () => Math.max(0, limite - reserva - gastos)   /* (o que as chamadas comuns ainda podem gastar) */
   };
 }
