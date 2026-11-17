@@ -14,6 +14,7 @@ export const FRASES = {
   imagens: 'Nós escolhemos as fotos e imagens que combinam com o seu negócio.',
   formulario_avancado: 'Formulário em etapas ou com envio de arquivos.',
   agendamento: 'O cliente escolhe o dia e o horário pelo site.',
+  perfil_google: 'Nós deixamos tudo pronto para a ficha do seu negócio no Google: textos, serviços e o roteiro para colocar no ar, iguais ao site.',
   blog: 'Uma área para publicar notícias e artigos.',
   catalogo: 'Os seus produtos com foto, descrição e preço, sem venda online.',
   integracao: 'Os pedidos do site caem direto na sua planilha ou no seu sistema.',
@@ -46,7 +47,7 @@ const NOMES = {
 export const nomeDeTela = (chave, nome) => (Object.hasOwn(NOMES, chave) ? NOMES[chave] : nome);
 /* extras que valem para qualquer ramo, e os que valem só para certos ramos */
 const SEMPRE = ['pagina_extra', 'textos', 'imagens', 'formulario_avancado', 'idioma', 'interacao_leve', 'interacao_assinatura'];
-const POR_RAMO = { agendamento: ['saude', 'beleza', 'servicos', 'educacao'], catalogo: ['comercio', 'alimentacao'], blog: ['saude', 'educacao', 'associacao', 'servicos'], integracao: ['servicos', 'comercio', 'associacao'] };
+const POR_RAMO = { agendamento: ['saude', 'beleza', 'servicos', 'educacao'], perfil_google: ['saude', 'beleza', 'servicos', 'alimentacao', 'comercio', 'educacao'], catalogo: ['comercio', 'alimentacao'], blog: ['saude', 'educacao', 'associacao', 'servicos'], integracao: ['servicos', 'comercio', 'associacao'] };
 
 /* a landing vai até 3 páginas: o motor recusa o que passa disso (precos.mjs) e o catálogo da landing nem oferece.
    Quantas páginas extras a landing aceita: as 3 menos as que já vêm no pacote (1 na tabela → 2 extras) */
@@ -59,6 +60,7 @@ const CARTAO = {
   textos: ['Nós escrevemos os textos', 'Você não precisa escrever nada.', 'conteudo'],
   imagens: ['Nós escolhemos as imagens', 'Fotos que combinam com o seu negócio.', 'conteudo'],
   agendamento: ['Agendamento pelo site', 'O cliente marca o horário sozinho, a qualquer hora.', 'negocio'],
+  perfil_google: ['Perfil no Google pronto', 'Tudo escrito, igual ao site, com o roteiro de como colocar.', 'alcance'],
   catalogo: ['Catálogo de produtos', 'Seus produtos com foto e preço, sem venda online.', 'negocio'],
   blog: ['Blog', 'Uma área para publicar notícias e artigos.', 'negocio'],
   integracao: ['Pedidos na sua planilha', 'Os pedidos do site caem direto no seu sistema.', 'negocio'],
