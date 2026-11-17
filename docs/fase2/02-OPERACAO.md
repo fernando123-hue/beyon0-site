@@ -42,7 +42,7 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
 
 ## 1b. Fila manual das direções (modo econômico, decisão do dono 2026-10-08)
 
-**Desde 15/11 (decisão do dono) a produção gera pela API** (`BZ_DIRECOES=api` no `wrangler.jsonc`; até 2 gerações por conversa, `TETOS.geracoes_por_conversa`; além disso, os ajustes). A fila manual segue no staging, nas prévias, na produção sem a chave da Anthropic e nos pedidos de saúde enquanto a trava de saúde existir. Nela, as três direções não são geradas pelo modelo: o dono as produz no Claude Code e o dono avisa o cliente à mão, pelo WhatsApp dele (o painel monta a mensagem). O prazo prometido na tela é de até 24 horas úteis.
+**Desde 15/11 (decisão do dono) a produção gera pela API** (`BZ_DIRECOES=api` no `wrangler.jsonc`; até 2 gerações por conversa, `TETOS.geracoes_por_conversa`; além disso, os ajustes). A fila manual segue no staging, nas prévias e na produção sem a chave da Anthropic. Saúde e advocacia também geram pela API, com as regras do conselho e a conferência antes de gravar (PR #171). **Antes de promover, esvazie a fila manual:** pedido que ficou com direção "gerando" à espera do dono, quando a produção virar `api`, é tratado como abandonado meia hora depois (as direções viram "falhou" e a pessoa refaz pelo "Gerar de novo"). Nela, as três direções não são geradas pelo modelo: o dono as produz no Claude Code e o dono avisa o cliente à mão, pelo WhatsApp dele (o painel monta a mensagem). O prazo prometido na tela é de até 24 horas úteis.
 
 **Desde 30/10 todo pedido entra direto na fila (sem WhatsApp e sem confirmação).** A pessoa preenche os detalhes (nome do negócio, o que vende, telefone) e recebe um código **`BZ-XXXXX`**; o pedido nasce confirmado e as três direções entram na fila na mesma hora. As travas que sobraram: anti-robô, limite por IP, por /48, por telefone e por conversa, o teto de 10 pedidos na fila e o limite global de 5 pedidos por hora (ao passar, a página oferece o recado). Aviso no celular: ainda sem canal (app próprio em desenvolvimento); por ora o dono vê pedido novo, recado novo e fila cheia no painel. Curioso ou pedido sem sentido: **Descartar** no painel antes de produzir. Pedidos que estavam "aguardando" na hora da migration 20261030120000 foram promovidos a confirmados.
 
@@ -84,16 +84,18 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
 
 **Voltar para a API** (o que a produção fez em 15/11): `BZ_DIRECOES=api` no `wrangler.jsonc` (ou sem a variável). Direções que estiverem na fila nesse momento são geradas pela API quando o cliente voltar à página.
 - A confirmação pelo WhatsApp continua valendo no modo API (decisão D2): sem ela, nada é gerado.
-- No modo API, o pedido ocupa uma vaga do teto de 10 só enquanto as direções estão sendo geradas. Quando nenhuma está mais em geração (prontas ou falhas), o código o tira da fila sozinho (a mesma marca do "Já avisei": as prontas ficam entregues e o lembrete de 2 dias segue valendo). Quem viu os modelos e sumiu não segura vaga de cliente novo, e o dono não precisa tocar em nada. Se o cliente voltar depois, o pedido continua dele.
+- No modo API, o pedido ocupa uma vaga do teto de 10 só enquanto as direções estão sendo geradas. Quando nenhuma está mais em geração o código o tira da fila sozinho: com ao menos uma pronta, pela mesma marca do "Já avisei" (as prontas ficam entregues); com as três falhas, pelo gatilho do banco (a conversa volta a "contato"). Com 2 prontas e 1 falha ele também sai, mas o lembrete de 2 dias não dispara (só vale com as três prontas) e o painel não mostra o "uma direção falhou". Quem viu os modelos e sumiu não segura vaga de cliente novo, e o dono não precisa tocar em nada. Se o cliente voltar depois, o pedido continua dele.
+- **Pedido abandonado no modo API** (a aba fechou antes de gerar, ou o teto de custo barrou uma direção): a direção fica "gerando" e o pedido na fila. Meia hora depois do nascimento da geração a varredura (`api/_vendas/abandonadas.mjs`) marca as direções presas como "falhou" e solta o pedido. Ela roda quando a página do orçamento abre com a fila cheia (no máximo 1 vez por minuto) e na rotina diária (até 5 pedidos por vez). Quem voltar vê o "Gerar de novo" (a 2ª geração).
+- **Uma chamada ao Opus por direção:** uma direção reivindicada nunca é reivindicada de novo. Se a chamada morreu (a aba fechou e a Cloudflare cortou o pedido), 10 minutos depois quem voltar encontra a direção "falhou" e o valor da reserva da geração (US$ 0,25) entra no custo da conversa. A chamada cortada de quem NÃO volta e a varredura não somam custo: a Anthropic cobra o que gerou até o corte (até cerca de US$ 0,48 por direção) e nenhum teto do site enxerga isso; o freio é o limite de gasto da conta na console da Anthropic (item do dono, conferir antes de promover).
 
 ## 2. Desligar ou conter
 
 - **Desligar o agente:** apagar `ANTHROPIC_API_KEY` e publicar. Desde o orçamento sem IA (PR 37), a página continua vendendo: some a conversa com o consultor e ficam as quatro perguntas, o preço pela tabela e o "Quer ajustar?". Os três modelos vão para a fila manual (o dono produz no Claude Code, skill `produzir-direcoes`). Sem as chaves do Turnstile (`TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET`), ninguém vê o preço: "Ver o preço" cria a sessão e responde "O orçamento está indisponível agora". Confira as duas antes de promover.
 - **Tetos de custo** (`api/_ia/config.mjs › TETOS`):
-  - US$ 1,50 por conversa;
+  - US$ 2 por conversa;
   - US$ 25 por dia;
   - 40 turnos por conversa;
-  - 3 gerações de direções por conversa.
+  - 2 gerações de direções por conversa (a 1ª e um "gerar de novo"; depois, os ajustes); na fila manual, 1.
   Passou do teto: o modelo não é chamado, e a pessoa recebe o WhatsApp com o briefing salvo. Os valores são chute inicial: medir o custo real das primeiras conversas e ajustar.
 - **Preço do modelo** (`PRECO_POR_MILHAO`): conferir na página de preços da Anthropic antes de ligar. O custo gravado por conversa é calculado com essa tabela.
 

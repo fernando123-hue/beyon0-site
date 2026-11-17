@@ -33,6 +33,7 @@ import { criarAcoesDoPedido } from './fluxo-pedido.mjs';
 import { criarAcoesDaRetomada } from './fluxo-retomada.mjs';
 import { criarAcoesDosAjustes } from './fluxo-ajustes.mjs';
 import { PEDIDOS } from './pedido.mjs';
+import { soltarAbandonadasComFreio } from './abandonadas.mjs';
 import { criarAcoesDoMaterial } from './fluxo-material.mjs';
 import { criarAcoesDoLink } from './fluxo-link.mjs';
 import { criarAcoesDaPrevia } from './fluxo-previa.mjs';
@@ -55,6 +56,11 @@ const CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'esc
 /* a trava de "uma resposta de IA por vez" dura o pior caso que cabe na função (300 s na Vercel) */
 const TRAVA_IA_S = 300;
 const RESERVA_S = 600;   /* a reserva de custo vence sozinha se a função cair no meio (a geração cabe em 300 s) */
+/* (revisão de segurança do PR #173, A2) a posse de uma direção em geração: uma direção que foi reivindicada há menos disto pode estar rodando (o pior
+   caso, nicho regulado com 2 chamadas, leva ~6,5 min); além disto a chamada morreu (a aba fechou e a Cloudflare cortou o pedido). NUNCA é reivindicada de
+   novo (vence_s de um ano): no máximo 1 chamada ao Opus por direção. Quem quiser outra tenta pela 2ª geração (TETOS.geracoes_por_conversa) */
+const POSSE_VIVA_S = 600;
+const POSSE_NUNCA_VENCE_S = 31536000;
 const USO_IP48_IA = 'ia48';   /* o "uso" da chave /48 do consultor em privado.freio_ip (o do pedido é 'pedido48': contadores separados) */
 const LIMITE_CONVERSA = 'Chegamos ao limite desta conversa por aqui. Deixe um recado para a equipe: o seu briefing já está salvo.';
 const ALARME_CUSTO_DIA = 0.8;
@@ -249,9 +255,11 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   async function estado(vid, conversa_id) {
     return banco('vendas_estado', { conversa_id, visitante_id: vid });
   }
-  /* (dono, 15/11) no modo api o dono não produz nada: com as direções acabadas (prontas ou falhas, nenhuma em geração) o pedido sai da fila
-     do dono e da conta da "fila cheia" (a mesma marca do "Já avisei" do painel: as prontas ficam entregues, o lembrete de 2 dias segue valendo).
-     Quem viu os modelos e sumiu não segura vaga de cliente novo. Falhar aqui não derruba a geração que já deu certo: só registra */
+  /* (dono, 15/11) no modo api o dono não produz nada: quando nenhuma direção está mais em geração, o pedido sai da fila do dono e da conta da
+     "fila cheia". Com ao menos uma pronta, pela mesma marca do "Já avisei" do painel (as prontas ficam entregues). Com as três falhas, pelo gatilho do
+     banco (a conversa volta a "contato"); com 2 prontas e 1 falha também sai, mas o lembrete de 2 dias não dispara (só vale com as três prontas) e o
+     painel não mostra o "uma direção falhou". Quem viu os modelos e sumiu não segura vaga de cliente novo. Falhar aqui não derruba a geração que
+     já deu certo: só registra */
   async function soltarDaFila(vid, conversaId) {
     try {
       const e = await estado(vid, conversaId);
@@ -259,6 +267,15 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       await banco('vendas_marcar_avisado', { conversa_id: conversaId, org_slug: ORG });
     } catch (x) {
       console.error(JSON.stringify({ origem: 'vendas', nivel: 'aviso', evento: 'não tirou o pedido da fila', request_id: requestId || null, codigo: (x && x.codigo) || 'interno' }));
+    }
+  }
+  /* (PR #173, A1) o pedido abandonado no modo api (a aba fechou, ou o teto barrou a direção) sai da fila meia hora depois: api/_vendas/abandonadas.mjs.
+     Devolve quantos pedidos saíram; falhar aqui nunca derruba a leitura do estado */
+  async function varrerAbandonadas() {
+    try { return (await soltarAbandonadasComFreio({ banco })).liberados; }
+    catch (x) {
+      console.error(JSON.stringify({ origem: 'vendas', nivel: 'aviso', evento: 'não varreu os pedidos abandonados', request_id: requestId || null, codigo: (x && x.codigo) || 'interno' }));
+      return 0;
     }
   }
   /* a consulta LEVE (PR37-T4/S2): a conversa é deste visitante e está numa das etapas; devolve a etapa e o último
@@ -450,8 +467,10 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     async estado({ request, query }) {
       const vid = await visitante(request);
       exigir(ehUuid(query.get('conversa')), 400, 'Conversa inválida.');
-      const { fila_confirmados: naFila, ...e } = await estado(vid, query.get('conversa'));
+      const { fila_confirmados: naFilaBruta, ...e } = await estado(vid, query.get('conversa'));
       delete e.conversa.custo_ia_usd;   /* (métrica interna) */
+      /* (PR #173, A1) fila cheia no modo api: antes de esconder o formulário, solta o pedido abandonado (direção que não vai mais terminar) */
+      const naFila = Number(naFilaBruta) >= limitesPedido.fila_confirmados && modo === 'api' ? Number(naFilaBruta) - await varrerAbandonadas() : naFilaBruta;
       /* (PR 2a) a tela oferece o recado ANTES dos detalhes quando a fila do dono está cheia; o número em si é interno */
       /* (PR 3b-2, M5) a entrega só aparece com o interruptor ligado; desligado, a tela mostra a saída pelo recado */
       if (!entregaLigada(env)) delete e.entrega;
@@ -595,13 +614,26 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       if (modo === 'manual') return { status: 'na_fila' };
       /* em geração por outro pedido (o navegador repede a cada 60 s): responde sem entrar na trava da organização
          (revisão de segurança do PR 16). Só a consulta ainda inexistente (migration a aplicar) segue para reivindicar */
-      const andamento = await banco('vendas_direcao_em_andamento', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id })
+      const emAndamento = () => banco('vendas_direcao_em_andamento', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id, vence_s: POSSE_VIVA_S })
         .catch(e => { if (e && (e.codigo === '42883' || e.codigo === 'PGRST202')) return null; throw e; });
+      const andamento = await emAndamento();
       if (andamento && andamento.em_andamento) return { status: 'em_andamento' };
       await dentroDoCusto(est);   /* (o Opus é a chamada mais cara: confere antes) */
       return comReserva(corpo.conversa_id, vid, 'geracao', async () => {
-        const p = await banco('vendas_reivindicar_direcao', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id });
-        if (!p.reivindicada) return { status: p.status };
+        const p = await banco('vendas_reivindicar_direcao', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id, vence_s: POSSE_NUNCA_VENCE_S });
+        if (!p.reivindicada) {
+          if (p.status !== 'em_andamento') return { status: p.status };
+          /* já foi reivindicada: ou outro pedido a está gerando agora, ou a chamada morreu (a aba fechou e a Cloudflare cortou o pedido). Morta: o Opus pode ter
+             cobrado o que gerou até o corte, e nenhuma conta enxerga isso; soma o valor da reserva, falha a direção e deixa a pessoa refazer pela 2ª geração */
+          const viva = await emAndamento();
+          if (viva && viva.em_andamento) return { status: 'em_andamento' };
+          /* o outro pedido terminou entre a reivindicação e esta conferência (pronta ou falhou): não é chamada morta, devolve o que ficou */
+          if (viva && viva.status && viva.status !== 'gerando') return { status: viva.status };
+          await somarCusto(corpo.conversa_id, vid, reservaUsd('geracao'));
+          await banco('vendas_concluir_direcao', { direcao_id: corpo.direcao_id, erro: 'geração interrompida (a página foi fechada antes de terminar)' });
+          await soltarDaFila(vid, corpo.conversa_id);
+          return { status: 'falhou', mensagem: RECUPERACAO };
+        }
         try {
           /* (spec 2026-11-15 §5) saúde e advocacia: as regras do conselho no prompt e a conferência antes de gravar */
           const nicho = nichoReguladoDaSessao({ briefing: p.briefing, mensagens: est.mensagens });

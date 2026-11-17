@@ -351,8 +351,22 @@ try {
   await page.unroute(ESTADO, comoArquivado);
   await page.reload({ waitUntil: 'load' });
   await page.waitForFunction(c => document.getElementById('o-codigo-v').textContent.trim() === c, codigo, { timeout: 15000 });
-  /* o painel (celular): o pedido já está na fila de trabalho, sem lista de espera nem confirmação */
+  /* o painel (celular): o pedido já está na fila de trabalho, sem lista de espera nem confirmação.
+     (dono, 15/11) O servidor local roda em modo api, em que o pedido sai da fila do dono sozinho quando as direções acabam (e o abandonado,
+     meia hora depois): a tela do painel que o dono usa na fila MANUAL (cartão, "Preparar aviso", link de retomada) é conferida com a fila
+     montada como a manual a mostraria (uma só rota, comoFilaManual), e a saída da fila do modo api é conferida pela API real logo abaixo */
+  const conversaId = await page.evaluate(() => JSON.parse(localStorage.getItem('bz-orcamento')).conversa_id);
+  const comoFilaManual = pg => pg.route(/\/api\/painel\?fila=direcoes/, async route => {
+    const r = await route.fetch();
+    const j = await r.json();
+    const resto = (j.fila || []).filter(i => i.codigo !== codigo);
+    const item = { conversa_id: conversaId, etapa: 'direcoes', pedido_em: new Date().toISOString(), confirmado_em: new Date().toISOString(), codigo, suspeito: false, redes: [],
+      contato: { nome: 'Rita', telefone: TELEFONE, email: null }, briefing: {}, fatores: { formato: 'institucional' }, prioridade: 1,
+      direcoes: [1, 2, 3].map(n => ({ id: '00000000-0000-4000-8000-00000000000' + n, numero: n, estrategia: ['conversao', 'autoridade', 'experiencia'][n - 1], status: 'pronta' })) };
+    await route.fulfill({ response: r, json: { ...j, fila: [item, ...resto], total: resto.length + 1 } });
+  });
   const painel = await ctx.newPage();
+  await comoFilaManual(painel);
   await painel.goto(BASE + '/painel', { waitUntil: 'load' });
   await painel.fill('#chave', PAINEL_CHAVE);
   await painel.click('#entrar button[type=submit]');
@@ -373,7 +387,13 @@ try {
   /* (PR 2b-2) abrir o pedido pelo link do aviso, num aparelho novo. O dono gera o link no painel; o código chega no
      fragmento, sai da barra na hora e só é gasto no toque. O aparelho antigo perde o acesso (e volta por outro link,
      para o resto do teste seguir nele) */
-  const conversaId = await page.evaluate(() => JSON.parse(localStorage.getItem('bz-orcamento')).conversa_id);
+  /* (modo api, dono 15/11) com as três prontas o pedido já saiu da fila REAL do dono, sem ninguém tocar em nada: não segura vaga de cliente novo */
+  let filaReal = { fila: [{ codigo }] };
+  for (let i = 0; i < 20 && filaReal.fila.some(x => x.codigo === codigo); i++) {   /* (a saída da fila vem logo depois da última direção gravada: poucos ms) */
+    filaReal = await (await fetch(BASE + '/api/painel?fila=direcoes', { headers: { authorization: 'Bearer ' + PAINEL_CHAVE } })).json();
+    if (filaReal.fila.some(x => x.codigo === codigo)) await new Promise(r => setTimeout(r, 250));
+  }
+  ok(!(filaReal.fila || []).some(i => i.codigo === codigo), 'modo api: com as três direções prontas o pedido sai da fila do dono sozinho (não segura vaga de cliente novo)');
   const linkDoPainel = async () => {
     const r = await fetch(BASE + '/api/painel', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + PAINEL_CHAVE }, body: JSON.stringify({ link_retomada: conversaId }) });
     return { status: r.status, ...(await r.json().catch(() => ({}))) };
@@ -396,6 +416,7 @@ try {
   const falaDoPainel = [];
   painel2.on('console', m => falaDoPainel.push(m.text()));
   painel2.on('pageerror', e => erros.push('painel: ' + String(e)));
+  await comoFilaManual(painel2);
   await painel2.goto(BASE + '/painel', { waitUntil: 'load' });
   await painel2.fill('#chave', PAINEL_CHAVE);
   await painel2.click('#entrar button[type=submit]');
