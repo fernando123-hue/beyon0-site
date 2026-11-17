@@ -2,7 +2,7 @@
    (PGlite + migrations): assinatura (vetores do SDK oficial), estados, provedor, configuração por ambiente,
    Pix, cartão, 3DS, falhas do provedor e do banco, reconciliação, reembolso, e os ataques da especificação.
    npm run testar */
-import { test, before } from 'node:test';
+import { test, before, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { montarLocal } from '../banco-local.mjs';
@@ -15,7 +15,7 @@ import { configPagamentos, configPublica } from '../../api/_pagamentos/config.mj
 import { criarMercadoPago, ErroProvedor, retratoDe } from '../../api/_pagamentos/mercadopago.mjs';
 import { criarServicoPagamentos, validarPagador } from '../../api/_pagamentos/servico.mjs';
 import { ferramentas } from '../../api/_vendas/agente.mjs';
-import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
+import { LIMITES_DE_TESTE, detalhesEConfirmar, zerarRegistroDeIa } from './_pedido.mjs';
 
 const BASE = 'http://127.0.0.1:8899';
 let local, sim, cfg, servico, deps, ip = 0, desvio = 0;
@@ -29,6 +29,8 @@ before(async () => {
   servico = criarServicoPagamentos({ banco: local.rpc, cfg, agora });
   deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE, pagamentos: servico };
 });
+
+beforeEach(() => zerarRegistroDeIa(local.db));   /* (o gasto provisório de cada direção gerada não trava o dia deste banco) */
 
 /* ---------- um visitante até a cobrança (sinal de R$ 3.340: institucional 7900 + agendamento 450, 40%) ---------- */
 function navegador(d = deps) {

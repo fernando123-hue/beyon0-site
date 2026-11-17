@@ -40,7 +40,7 @@ Migrations `20261007120000` a `…120200`.
 
 - **Preço:** o escopo usa a **última estimativa**, e a cobrança usa o **sinal da proposta aceita**. Um valor enviado na chamada é ignorado.
 - **Pagamento:** só vale pelo evento do gateway. Ele é idempotente, confere o valor e, quando é o sinal, cria o cliente, cria o projeto (em produção, com prazo) e liga a proposta, tudo junto.
-- **Etapas:** cada passo exige a etapa certa. Há limite de 3 gerações de direções.
+- **Etapas:** cada passo exige a etapa certa. Há limite de 2 gerações de direções por conversa (`TETOS.geracoes_por_conversa`).
 - **Isolamento:** a conversa de outro visitante dá o mesmo erro de "não existe", para não permitir enumeração.
 
 **RLS:**

@@ -23,7 +23,7 @@ import { redigir, semPrecoNoTexto, semPrecoComMarca } from './seguranca.mjs';
 import { semPromessaDePagamento, motivoDaPergunta, motivoDaTroca, RESPOSTAS_PAGAMENTO } from './promessa.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import {
-  ABERTURA_PADRAO, pedeValor, semPromessaDeRecado, semPerguntaRepetida, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto, jaDito, CHAVES_DE_SAUDE } from './zero.mjs';
+  ABERTURA_PADRAO, pedeValor, semPromessaDeRecado, semPerguntaRepetida, nichoRegulado, ramoSemProfissao, NICHO_GENERICO, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto, jaDito, CHAVES_DE_SAUDE } from './zero.mjs';
 import { semPromessaDeSuporte, semMensalidadeDoAtendente } from './travas-promessa.mjs';
 import { semPromessaDeResultado, semGarantia } from './travas-resultado.mjs';
 import { semNegarSerIA, IDENTIDADE_FIXO } from './travas-identidade.mjs';
@@ -91,20 +91,14 @@ const doVisitante = mensagens => (mensagens || []).filter(m => m.papel === 'visi
 export function nichoDaSessao({ briefing, mensagens, mensagem }) {
   const b = briefing || {};
   /* (uma fonte por vez: o detector olha até 2.000 caracteres de cada, e a mensagem de agora não pode ser cortada pelas antigas) */
-  const fontes = [b.negocio?.segmento, b.negocio?.descricao, ...(Array.isArray(b.servicos) ? b.servicos : []), ...doVisitante(mensagens), mensagem];
+  const fontes = [b.negocio?.segmento, b.negocio?.descricao, ...(Array.isArray(b.servicos) ? b.servicos : []), b.negocio?.nome, ...doVisitante(mensagens), mensagem];
   for (const f of fontes) { const n = f ? nichoRegulado(f) : null; if (n) return n; }
+  /* (M3, 16/11) clínica ou consultório sem a profissão: saúde genérica até ela dizer qual (a profissão de qualquer fonte vence, acima) */
+  if (fontes.some((f) => f && ramoSemProfissao(f))) return NICHO_GENERICO;
   return null;
 }
-/* a sessão é de SAÚDE (o pedido vai à equipe, sem modelos automáticos e sem pagamento pelo site; decisão do dono, 14/11). Revisões do PR:
-   - TODAS as fontes (o nichoDaSessao para no 1º nicho: "advogado" antes de "dentista" escondia a saúde);
-   - o ramo "Saúde" tocado (segmento 'saúde'): o caminho só de toques nunca escreve a profissão */
+/* o ramo "Saúde" tocado (segmento 'saúde'): o caminho só de toques nunca escreve a profissão */
 const RAMO_SAUDE = /^\s*sa[uú]de\s*$/i;
-export function saudeDaSessao({ briefing, mensagens, mensagem }) {
-  const b = briefing || {};
-  if (typeof b.negocio?.segmento === 'string' && RAMO_SAUDE.test(b.negocio.segmento)) return true;
-  const fontes = [b.negocio?.segmento, b.negocio?.descricao, ...(Array.isArray(b.servicos) ? b.servicos : []), ...doVisitante(mensagens), mensagem];
-  return fontes.some((f) => { const n = f ? nichoRegulado(f) : null; return !!n && CHAVES_DE_SAUDE.has(n.chave); });
-}
 /* QUAL nicho regulado (saúde ou advocacia), para a geração e a conferência dos modelos (spec 2026-11-15 §2): a profissão de qualquer fonte
    vence; sem ela, a advocacia; sem as duas, o ramo "Saúde" tocado é a saúde genérica */
 export function nichoReguladoDaSessao({ briefing, mensagens, mensagem }) {
@@ -271,5 +265,6 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   /* sombra: só para o modo sombra do JEV medir (api/_classificador/sombra.mjs): a saída do modelo ANTES das travas e o nicho da sessão.
      O fluxo não devolve isto à tela nem grava o texto; nada aqui muda a resposta */
   return { resposta: cortarEmFrase(resposta, 1500), briefing, confianca, faltam, estimativa, pedir_contato: pedirContato, diagnostico, sugestoes_ia: sugestoes, leitura_rebaixos: rebaixos, custo_usd: custo, pronto_estimar: prontoParaEstimar(briefing),
-    sombra: { textoDoModelo: texto, nicho: nichoFinal } };
+    /* (M3) o genérico não vai ao sombra: o classificador mede o sinal de nicho real, e "clínica sem profissão" não é um */
+    sombra: { textoDoModelo: texto, nicho: nichoFinal?.chave === 'saude_generica' ? null : nichoFinal } };
 }

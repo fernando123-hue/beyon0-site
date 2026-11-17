@@ -4,5 +4,6 @@ import { agendar } from './agenda.mjs';
 
 export default {
   fetch(request, env, ctx) { return rotear(request, env, ctx); },
-  scheduled(controller, env, ctx) { ctx.waitUntil(agendar(controller.cron, env)); }
+  /* (a hora AGENDADA, não a do relógio: decide reconciliação × vigia mesmo se o cron atrasar) */
+  scheduled(controller, env, ctx) { ctx.waitUntil(agendar(controller.cron, env, undefined, { agora: controller.scheduledTime })); }
 };

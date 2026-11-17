@@ -48,7 +48,7 @@ test('instruções: idênticas entre turnos (cache de prompt) e mudam só com a 
 test('instruções: a etapa de ajustes descreve o fluxo sem IA (opções prontas e até 3 pedidos escritos que a Beyon Zero faz ou recusa)', () => {
   const s = montarSistema(REGRAS);
   assert.ok(!s.includes('a pessoa escreve o que mudaria'), 'o fluxo antigo (o ajuste pela IA) saiu');
-  assert.ok(s.includes('4. Ajustes: opções prontas na tela (cores, fontes, seções, desfazer) e até 3 pedidos escritos, que a Beyon Zero faz ou recusa; a troca de modelo vale até o primeiro ajuste.'));
+  assert.ok(s.includes('4. Ajustes: dentro do modelo escolhido, opções prontas na tela (cores, fontes, seções, desfazer) e até 3 pedidos escritos, que a Beyon Zero faz ou recusa; trazer algo de outro modelo conta como um desses pedidos. A troca de modelo vale até o primeiro ajuste.'));
 });
 
 test('instruções: tamanho que cabe e que entra em cache (Haiku 5.5: mínimo de 512 tokens)', () => {

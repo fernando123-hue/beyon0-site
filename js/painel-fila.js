@@ -79,7 +79,9 @@
     }
     var selo = C.selo(p.suspeito);
     if (selo) texto.appendChild(selo);
-    if (p.saude === true) texto.appendChild(el('p', 'pn__selo', 'Saúde: com o dono. Não fecha pelo site; fale pelo WhatsApp'));
+    /* (spec 2026-11-15 §9) saúde ou advocacia: o ramo, o conselho e o registro a conferir antes de produzir */
+    var reg = p.regulado && typeof p.regulado === 'object' ? p.regulado : null;
+    if (reg) texto.appendChild(el('p', 'pn__selo', (reg.tipo === 'advocacia' ? 'Advocacia' : 'Saúde') + ' · ' + (reg.conselho && reg.conselho !== 'conselho' ? String(reg.conselho) : 'conselho da profissão') + ' · ' + (typeof reg.registro === 'string' && reg.registro ? 'registro ' + reg.registro + ': conferir antes de produzir' : 'sem registro: pedir e conferir antes de produzir')));
     texto.appendChild(el('p', 'pn__fila-nome', (p.contato && p.contato.nome) || 'Sem nome'));
     var formato = p.fatores && Object.prototype.hasOwnProperty.call(FORMATOS, p.fatores.formato) ? FORMATOS[p.fatores.formato] : '';
     texto.appendChild(el('p', null, negocio(p.briefing) + (formato ? ' · ' + formato : '')));
@@ -108,10 +110,11 @@
       $('bloco-fila').hidden = false;
       $('fila-alarme').hidden = !r.alarme;
       r.fila.forEach(function (p) { alvo.appendChild(cartao(p)); });
+      if (P.avisar) P.avisar('fila', { n: r.total, itens: r.fila });   /* (o início soma "Precisam de você" e monta os interessados, js/painel-inicio.js) */
       var contagem = !r.fila.length ? 'Nenhum pedido confirmado na fila.'
         : r.total + (r.total === 1 ? ' pedido confirmado' : ' pedidos confirmados') + ', por prioridade.';
       $('fila-estado').textContent = (typeof aviso === 'string' ? aviso + ' ' : '') + contagem;
-    }).catch(function (e) { if (minha !== vez) return; if (P.recusada(e)) return; $('bloco-fila').hidden = false; $('fila-estado').textContent = e.message; });
+    }).catch(function (e) { if (minha !== vez) return; if (P.recusada(e)) return; $('bloco-fila').hidden = false; $('fila-estado').textContent = e.message; if (P.avisar) P.avisar('fila', { erro: true }); });
   }
   /* saiu do painel: nome e telefone dos clientes não ficam na página (e nenhuma leitura em voo os traz de volta) */
   function esvaziar() { vez++; $('fila').textContent = ''; $('fila-estado').textContent = ''; $('fila-alarme').hidden = true; $('bloco-fila').hidden = true; }

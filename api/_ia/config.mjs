@@ -20,16 +20,18 @@ export const PAPEIS = {
   extracao: { modelo: 'claude-haiku-5-5', esforco: 'low', max_tokens: 3000, timeout_ms: 45000 },
   /* o atendente do site do cliente: resposta curta, sem pensar muito; o código confere tudo o que sai (api/_atendente/agente.mjs) */
   atendente: { modelo: 'claude-haiku-5-5', esforco: 'low', max_tokens: 800, timeout_ms: 15000, tentativas: 0 },
-  /* (sem nova tentativa automática: 2 × 240 s não cabem nos 300 s da função; a tela oferece "gerar de novo") */
+  /* (sem nova tentativa automática do SDK: 2 × 240 s não cabem nos 300 s da função; a tela oferece "gerar de novo". No nicho regulado o gerador faz 2ª chamada
+     só se couber em 280 s, e a posse da direção dura 10 min (fluxo.mjs, POSSE_VIVA_S), mais que os ~6,5 min do pior caso) */
   geracao: { modelo: 'claude-opus-5-5', esforco: 'high', max_tokens: 24000, timeout_ms: 240000, tentativas: 0 }
 };
 export const TENTATIVAS_PADRAO = 2;
 
 /* as três direções: geradas pela API na hora ("api") ou produzidas pelo dono no Claude Code, em até 24 horas úteis
-   ("manual", decisão do dono 2026-10-08, enquanto não há verba para a API). BZ_DIRECOES na Vercel; lido a cada uso.
-   Sem chave da Anthropic os modelos saem SEMPRE pela fila manual (spec do orçamento sem IA §7); o simulador local
+   ("manual", a fila do dono). BZ_DIRECOES nas vars do wrangler.jsonc; lido a cada uso. A produção gera pela API desde a
+   decisão do dono de 2026-11-15 (de 2026-10-08 até ali era "manual", sem verba para a API); o staging e as prévias seguem
+   "manual". Sem chave da Anthropic os modelos saem SEMPRE pela fila manual (spec do orçamento sem IA §7); o simulador local
    (BZ_IA=simulada / BZ_LOCAL=1) continua gerando para os testes e o servidor local. A mesma condição de criarIA
-   (api/_ia/provedor.mjs): na produção da Vercel o simulador nunca liga, então lá "simulada" sem chave também é fila
+   (api/_ia/provedor.mjs): na produção o simulador nunca liga, então lá "simulada" sem chave também é fila
    manual (senão as direções ficariam presas em "gerando", sem modelo para gerá-las) */
 export const modoDirecoes = (env = process.env) => {
   if (String(env.BZ_DIRECOES || '').trim().toLowerCase() === 'manual') return 'manual';
@@ -44,6 +46,8 @@ export const PRECO_POR_MILHAO = {
   'claude-haiku-5-5': { entrada: 0.1, saida: 0.5, cache_leitura: 0.01, cache_escrita: 0.125,
     ate_tokens: 100000, longo: { entrada: 0.5, saida: 2.5, cache_leitura: 0.05, cache_escrita: 0.625 } },
   'claude-sonnet-5-5': { entrada: 2, saida: 10, cache_leitura: 0.2, cache_escrita: 2.5 },
+  /* o reserva do Zero na queda do Sonnet 5.5 (MODELO_RESERVA, abaixo): mesmo preço por token */
+  'claude-sonnet-5': { entrada: 2, saida: 10, cache_leitura: 0.2, cache_escrita: 2.5 },
   'claude-opus-5-5': { entrada: 4, saida: 20, cache_leitura: 0.2, cache_escrita: 5 },
   'claude-haiku-4-5': { entrada: 1, saida: 5, cache_leitura: 0.1, cache_escrita: 1.25 }
 };
@@ -51,6 +55,12 @@ export const PRECO_POR_MILHAO = {
 /* o fallback do servidor (beta server-side-fallback-2026-07-01, modo "default") existe só nestes; no Haiku 5.5 o
    parâmetro não vale (referência da API, "Migrating to Claude Haiku 5.5": recusa sem fallback do servidor) */
 export const COM_FALLBACK = new Set(['claude-opus-5-5', 'claude-sonnet-5-5']);
+
+/* o MODELO RESERVA na QUEDA (auto-reparo, 15/11; docs/superpowers/specs/2026-11-15-auto-reparo-design.md, camada 2): o fallback do
+   servidor acima só cobre RECUSA; com o modelo fora do ar ou sobrecarregado (5xx/529, rede), depois das repetições do SDK, a
+   chamada tenta UMA vez no reserva (api/_ia/anthropic.mjs). Só o Zero: o Sonnet 5 tem o mesmo preço por token. Fora, de propósito:
+   o Haiku (o reserva possível custaria 10× a 20× mais: decisão de dinheiro do dono) e o Opus (a geração está em modo manual) */
+export const MODELO_RESERVA = Object.freeze({ 'claude-sonnet-5-5': 'claude-sonnet-5' });
 
 /* tetos de custo (operacionais, não comerciais): passou, o agente para com elegância e oferece o WhatsApp */
 export const TETOS = {
@@ -60,7 +70,9 @@ export const TETOS = {
   conversa_usd: 2,
   dia_usd: 25,                // somando todas as conversas do dia
   turnos_por_conversa: 40,
-  geracoes_por_conversa: 3,   // = app.vendas_iniciar_geracao (max_geracoes)
+  /* = app.vendas_iniciar_geracao (max_geracoes; o código sempre passa, o 3 do banco é só o padrão de quem não passa).
+     Dono, 15/11: a 1ª geração e um "gerar de novo"; mudar além disso é pela etapa de ajustes (era 3). A fila manual: 1 */
+  geracoes_por_conversa: 2,
   /* conversas que USAM a IA, por IP por dia, contadas no banco (o teto do dia é global: sem isto, um IP o esgotava).
      8 × conversa_usd (2) = US$ 16 < dia_usd: um IP sozinho não derruba o agente para todos */
   conversas_por_ip_dia: 8,
@@ -88,7 +100,11 @@ const MAIS_CARO = Object.values(PRECO_POR_MILHAO).reduce((m, p) => ({
    papel. O que passar da reserva ainda é somado depois (o estouro fica pequeno) */
 /* conversa_planta: o turno com a planta ligada e o preço aberto pode gastar até 4 chamadas (a reserva é UMA por turno): o pior caso medido é ~US$ 0,20 (4 voltas no max_tokens),
    o realista ~0,06. Só esses turnos reservam 0,20; com a flag desligada vale o 'conversa' de sempre (api/_vendas/fluxo.mjs) */
-export const RESERVA_USD = { conversa: 0.05, conversa_planta: 0.2, extracao: 0.01, atendente: 0.003, geracao: 0.25 };
+/* geracao: o PIOR caso de uma chamada de Opus (24000 tokens de saída, ~US$ 0,48), por decisão da revisão de segurança do PR #173 (N1/N6). Esse valor é também o
+   que se grava em app.ia_chamadas na reivindicação da direção (fluxo.mjs): a chamada cortada, de quem fecha a aba e não volta, passa a contar no teto do dia.
+   Terminando normal, a conta do dia fica no maior entre este valor e o custo real (as chamadas reais são abatidas dele). Por isso o teto do dia (dia_usd)
+   conta US$ 0,50 por direção gerada, não o gasto real (~US$ 0,20): 3 direções = US$ 1,50 por pedido. Sobe o dia_usd se isso apertar a venda */
+export const RESERVA_USD = { conversa: 0.05, conversa_planta: 0.2, extracao: 0.01, atendente: 0.003, geracao: 0.5 };
 export function reservaUsd(papel) {
   return RESERVA_USD[papel] ?? 0.25;
 }

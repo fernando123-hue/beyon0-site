@@ -163,6 +163,22 @@ curl -s "https://SEU_PROJETO.supabase.co/rest/v1/clientes?select=id" -H "apikey:
 
 A resposta tem de ser **erro de permissão**, nunca dados.
 
+### 4.5 O vigia (auto-reparo, 2026-11-15)
+
+O cron horário do Worker confere o site nas horas sem reconciliação (spec
+`docs/superpowers/specs/2026-11-15-auto-reparo-design.md`). Ele **não chama IA**. Precisa da migration
+`20261115120000_vigia.sql` aplicada **antes** da promoção que leva o código ao ar; sem ela, o vigia fica sem memória e manda, só às 01, 07, 13 e
+19 h UTC, o e-mail "O vigia do site está sem a tabela dele no banco…" (com o que ele conseguiu conferir sozinho).
+
+- **Primeiro e-mail:** "O vigia do site está ligado…", na primeira ronda depois da promoção (até ~2 h). É o teste de
+  ponta a ponta. Se não chegar em 3 h, procure `"origem":"vigia"` nos logs do Worker de produção (`enviado: false` =
+  o canal de e-mail falhou; `migration do vigia` = falta a migration).
+- **Depois:** só escreve quando algo quebra (páginas, configuração, banco, conferência dos pagamentos, rotina diária,
+  alertas urgentes do painel, IA falhando nas conversas, conta da IA recusada) ou volta ao normal; lembra a cada 24 h o
+  que continua quebrado.
+- **Banco fora:** sem memória, avisa só às 01, 07, 13 e 19 h UTC.
+- **Zerar a memória** (o próximo e-mail volta a ser o de estreia): `delete from app.vigia;` no SQL Editor (só o dono).
+
 ## 5. Backup e recuperação
 
 **O que o Supabase oferece** (documentação oficial, 2026-10):

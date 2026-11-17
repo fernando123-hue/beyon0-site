@@ -1,6 +1,6 @@
 /* ==========================================================================
    O AVISO AO DONO. Um só lugar para quem manda: os avisos de "pedido novo na fila", "recado novo", "fila cheia" e os do
-   atendente (api/_vendas, api/atendente.mjs).
+   atendente (api/_vendas, api/atendente.mjs), e o e-mail do vigia (avisarDonoLinhas, api/_vigia/rondar.mjs).
    CANAL HOJE: e-mail pelo binding send_email da Cloudflare (AVISO_EMAIL), de avisos@ do domínio para AVISO_PARA (wrangler.jsonc,
    só produção). Dono, 10/11/2026: "Primeiro e mail até termos o APP, depois disso exclua o email e mantenha apenas no
    APP" — quando o app do dono com push existir, este canal SAI (e o binding também).
@@ -9,6 +9,7 @@
    ========================================================================== */
 export const AVISOS = Object.freeze({
   pedido: 'Pedido novo na fila. Detalhes no painel.',
+  pedido_regulado: 'Pedido novo de saúde ou advocacia na fila. Detalhes no painel.',
   recado: 'Recado novo. Leia no painel.',
   fila_cheia: 'URGENTE: a fila de pedidos encheu ou o limite por hora foi atingido. Veja o painel.',
   atendente_cliente: 'O atendente de um cliente bateu o teto de gasto do dia e passou a mandar as pessoas para a equipe. Veja o painel.',
@@ -27,7 +28,7 @@ const base64 = s => Buffer.from(s, 'utf8').toString('base64');
 const linhas76 = s => s.match(/.{1,76}/g).join('\r\n');
 /* assunto curto: cabe numa palavra codificada da RFC 2047 (até 75 caracteres; revisão técnica) */
 const ASSUNTO_MAX = 36;
-const assuntoDe = texto => { const s = texto.split('.')[0]; return s.length <= ASSUNTO_MAX ? s : s.slice(0, ASSUNTO_MAX - 1).replace(/\s+\S*$/, '') + '…'; };
+const assuntoDe = texto => { const s = texto.split(/[.\n]/)[0]; return s.length <= ASSUNTO_MAX ? s : s.slice(0, ASSUNTO_MAX - 1).replace(/\s+\S*$/, '') + '…'; };
 
 /* os avisos de alerta (fila cheia, tetos) mandam no máximo 1 e-mail por hora por tipo: com a fila cheia, cada tentativa de pedido
    chamaria o aviso (revisões técnica e de segurança). A memória é do isolado do Worker: freio de melhor esforço, que basta
@@ -53,21 +54,35 @@ export function montarEmail({ de, para, texto, agora = Date.now(), id = crypto.r
   ].join('\r\n');
 }
 
-/* avisarDono(env, tipo, { EmailMessage, agora }) → true se o e-mail saiu; false em qualquer outro caso */
-export async function avisarDono(env, tipo, deps = {}) {
-  const texto = AVISOS[tipo];
+/* o envio comum: canal configurado e endereço válido, senão false; nunca lança */
+async function enviar(env, texto, tipo, agora, deps) {
   const canal = env?.AVISO_EMAIL, de = DE, para = String(env?.AVISO_PARA ?? '');
   if (!texto || typeof canal?.send !== 'function' || !ENDERECO.test(para)) return false;
-  const agora = (deps.agora ?? Date.now)(), memoria = deps.memoria ?? ULTIMO_AVISO;
-  if (COM_FREIO.has(tipo) && agora - (memoria.get(tipo) ?? -Infinity) < FREIO_MS) return false;
   try {
     const EmailMessage = deps.EmailMessage ?? (await import('cloudflare:email')).EmailMessage;
     await canal.send(new EmailMessage(de, para, montarEmail({ de, para, texto, agora })));
-    if (COM_FREIO.has(tipo)) memoria.set(tipo, agora);
     return true;
   } catch (e) {
     /* sem endereço no log: só o tipo do aviso e o começo da mensagem de erro */
     console.error(JSON.stringify({ origem: 'aviso', nivel: 'erro', tipo, erro: String(e?.message ?? '').replace(/\S+@\S+/g, '[e-mail]').slice(0, 80) }));
     return false;
   }
+}
+
+/* avisarDono(env, tipo, { EmailMessage, agora }) → true se o e-mail saiu; false em qualquer outro caso */
+export async function avisarDono(env, tipo, deps = {}) {
+  const texto = AVISOS[tipo];
+  if (!texto) return false;
+  const agora = (deps.agora ?? Date.now)(), memoria = deps.memoria ?? ULTIMO_AVISO;
+  if (COM_FREIO.has(tipo) && agora - (memoria.get(tipo) ?? -Infinity) < FREIO_MS) return false;
+  const saiu = await enviar(env, texto, tipo, agora, deps);
+  if (saiu && COM_FREIO.has(tipo)) memoria.set(tipo, agora);
+  return saiu;
+}
+
+/* o e-mail do VIGIA (api/_vigia): várias linhas fixas num e-mail só (as linhas vêm de api/_vigia/decidir.mjs, textos fixos,
+   o único número é contagem). Sem freio aqui: quem decide não repetir é o vigia, com a memória dele no banco */
+export async function avisarDonoLinhas(env, linhas, deps = {}) {
+  if (!Array.isArray(linhas) || !linhas.length || !linhas.every(l => typeof l === 'string' && l && !/[\r\n]/.test(l))) return false;
+  return enviar(env, linhas.join('\n'), 'vigia', (deps.agora ?? Date.now)(), deps);
 }

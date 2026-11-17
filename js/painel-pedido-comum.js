@@ -51,15 +51,22 @@
   function negocio(n) { n = n || {}; return [n.nome, n.segmento, n.cidade].filter(Boolean).join(' · ') || 'Negócio sem descrição'; }
 
   /* uma ação do dono num pedido: POST, e as duas listas recarregam (o aviso vai junto). codigo: o do pedido, para o aviso de conflito */
+  function mudaram(aviso) {
+    document.dispatchEvent(new CustomEvent('bz-painel:pedidos-mudaram', { detail: { aviso: aviso } }));
+    /* o botão tocado some junto com o cartão; o foco vai para o título da fila, que não some. Assim a fila vazia fica na tela
+       (a tela de ações esconde lista vazia sem foco) e a confirmação ou o motivo do conflito continuam à vista */
+    var titulo = document.getElementById('t-fila');
+    if (titulo) titulo.focus();
+  }
   function agir(corpo, botao, saida, aviso, codigo) {
     botao.disabled = true;
     return P.pedir('', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo) })
       .then(function (r) { return r.json(); })
-      .then(function () { document.dispatchEvent(new CustomEvent('bz-painel:pedidos-mudaram', { detail: { aviso: aviso } })); })
+      .then(function () { mudaram(aviso); })
       .catch(function (e) {
         if (P.recusada(e)) return;   /* (a chave não vale mais: volta para a entrada) */
         /* 404/409: o pedido já mudou (expirou, foi confirmado em outra aba): as listas recarregam com o motivo e o código */
-        if (e.status === 404 || e.status === 409) { document.dispatchEvent(new CustomEvent('bz-painel:pedidos-mudaram', { detail: { aviso: (codigo ? 'Pedido ' + codigo + ': ' : '') + e.message } })); return; }
+        if (e.status === 404 || e.status === 409) { mudaram((codigo ? 'Pedido ' + codigo + ': ' : '') + e.message); return; }
         saida.textContent = e.message;
         botao.disabled = false;
       });

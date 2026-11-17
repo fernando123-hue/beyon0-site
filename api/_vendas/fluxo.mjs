@@ -8,7 +8,7 @@
    Falha de IA: nada é inventado; a resposta é a recuperação elegante pedida
    na especificação, e o que a pessoa já contou continua no banco.
    ========================================================================== */
-import { executarTurno, nichoDaSessao, saudeDaSessao, nichoReguladoDaSessao } from './agente.mjs';
+import { executarTurno, nichoDaSessao, nichoReguladoDaSessao } from './agente.mjs';
 import { estimar, LANDING_GRANDE, CHAVE as CHAVE_EXTRA } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
 import { montarEscopo } from './escopo.mjs';
@@ -33,6 +33,7 @@ import { criarAcoesDoPedido } from './fluxo-pedido.mjs';
 import { criarAcoesDaRetomada } from './fluxo-retomada.mjs';
 import { criarAcoesDosAjustes } from './fluxo-ajustes.mjs';
 import { PEDIDOS } from './pedido.mjs';
+import { soltarAbandonadasComFreio } from './abandonadas.mjs';
 import { criarAcoesDoMaterial } from './fluxo-material.mjs';
 import { criarAcoesDoLink } from './fluxo-link.mjs';
 import { criarAcoesDaPrevia } from './fluxo-previa.mjs';
@@ -44,6 +45,7 @@ import { respostasParciais, situacaoDeCodigos, ehFalaDoMudar, MOLDE_MUDAR } from
 import { respostasParaBriefingParcial } from './catalogo.mjs';
 import { valorLiberado } from './agente.mjs';
 import { fluxoConversa } from './consultor.mjs';
+import { recomendar } from './recomendacao.mjs';
 
 import { ORG } from './org.mjs';
 export { ORG };
@@ -55,6 +57,11 @@ const CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'esc
 /* a trava de "uma resposta de IA por vez" dura o pior caso que cabe na função (300 s na Vercel) */
 const TRAVA_IA_S = 300;
 const RESERVA_S = 600;   /* a reserva de custo vence sozinha se a função cair no meio (a geração cabe em 300 s) */
+/* (revisão de segurança do PR #173, A2) a posse de uma direção em geração: uma direção que foi reivindicada há menos disto pode estar rodando (o pior
+   caso, nicho regulado com 2 chamadas, leva ~6,5 min); além disto a chamada morreu (a aba fechou e a Cloudflare cortou o pedido). NUNCA é reivindicada de
+   novo (vence_s de um ano): no máximo 1 chamada ao Opus por direção. Quem quiser outra tenta pela 2ª geração (TETOS.geracoes_por_conversa) */
+const POSSE_VIVA_S = 600;
+const POSSE_NUNCA_VENCE_S = 31536000;
 const USO_IP48_IA = 'ia48';   /* o "uso" da chave /48 do consultor em privado.freio_ip (o do pedido é 'pedido48': contadores separados) */
 const LIMITE_CONVERSA = 'Chegamos ao limite desta conversa por aqui. Deixe um recado para a equipe: o seu briefing já está salvo.';
 const ALARME_CUSTO_DIA = 0.8;
@@ -161,12 +168,10 @@ const NAO_GERA = {
   descartado: [PEDIDO_ENCERRADO, { recado: true }],
   arquivado: ['Este pedido segue com a equipe da Beyon Zero. Se precisar, deixe um recado.', { recado: true }]
 };
-/* (decisão do dono, 14/11) saúde atende, mas não fecha pelo site: sem modelos automáticos e sem pagamento; a equipe fala pelo WhatsApp */
-export const SAUDE_COM_A_EQUIPE = 'Na área da saúde a gente confere tudo antes de seguir, então o pagamento não é feito por aqui: falamos com você pelo WhatsApp.';
-/* só ANTES da entrada: o restante de um site já em produção segue pelo site (revisão do PR: um cliente comum que fala "dentista" depois não trava) */
-const DEPOIS_DA_ENTRADA = new Set(['em_producao', 'encerrada']);
-const comAEquipe = (est) => !DEPOIS_DA_ENTRADA.has(est && est.conversa && est.conversa.etapa) &&
-  saudeDaSessao({ briefing: est && est.conversa && est.conversa.briefing, mensagens: (est && est.mensagens) || [] });
+/* (dono, 15/11) passou do teto de gerações (TETOS.geracoes_por_conversa; 1 na fila manual): mudar o modelo é nos ajustes. Sem
+   contar as vezes na frase (o teto muda com o modo); o recado fica à mão para quem não tem nenhum modelo pronto */
+export const GERACOES_ESGOTADAS = 'Por aqui não dá para fazer os modelos de novo. Escolha o que chegou mais perto e peça as mudanças nos ajustes; se nenhum ficou pronto, deixe um recado que a equipe resolve com você.';
+const semMaisGeracoes = (e) => { if (e instanceof ErroBanco && e.codigo === '23514') throw new Recusa(409, GERACOES_ESGOTADAS, { recado: true }); throw e; };
 /* sem pedido (o fluxo antigo, contato direto) ou em situação desconhecida: a frase de sempre */
 const SEM_CONFIRMACAO = ['O pedido ainda não foi confirmado.', undefined];
 function exigirNaoDescartado(est) {
@@ -216,21 +221,31 @@ const publicaRec = rec => ({ formato: rec.formato, alternativa: rec.alternativa,
 const soltar = p => { Promise.resolve(p).catch(() => {}); };
 
 export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId, direcoes, env, limitesPedido = PEDIDOS, armazem, sombra = null, segundoPlano = soltar, avisar = avisarDono }) {
-  /* as direções: geradas pela API na hora, ou na FILA MANUAL (o dono produz no Claude Code, em até 24 horas úteis;
-     decisão do dono 2026-10-08). Os testes passam o modo; o site lê BZ_DIRECOES */
+  /* as direções: geradas pela API na hora (a produção desde 2026-11-15), ou na FILA MANUAL (o dono produz no Claude Code,
+     em até 24 horas úteis; a produção de 2026-10-08 a 2026-11-15, e hoje o staging). Os testes passam o modo; o site lê BZ_DIRECOES */
   const modo = direcoes === 'manual' || direcoes === 'api' ? direcoes : 'manual';
   /* o REGISTRO das chamadas de IA (app.ia_chamadas): cada chamada ao modelo vira uma linha — papel, modelo,
      tokens, custo, ferramentas pedidas, tempo, erro — sem o texto de ninguém; gravado no fim da ação, dê certo ou não */
   const chamadas = [];
+  /* (PR #173, N1) o que já foi gravado em app.ia_chamadas, ANTES da chamada ao Opus, como gasto provisório da direção (registrarProvisorio): as chamadas
+     reais da geração abatem dele, então a conta do dia fica no maior entre o provisório e o real, nunca nos dois somados */
+  let provisorioAberto = 0;
+  const arredondar = x => Math.round(x * 1e6) / 1e6;
+  function abaterDoProvisorio(papel, custo) {
+    if (papel !== 'geracao' || !(provisorioAberto > 0) || !(custo > 0)) return custo;
+    const abate = Math.min(provisorioAberto, custo);
+    provisorioAberto = arredondar(provisorioAberto - abate);
+    return arredondar(custo - abate);
+  }
   const ia = iaBase && { ...iaBase, async mensagem(p) {
     const t0 = Date.now();
     try {
       const r = await iaBase.mensagem(p);
-      chamadas.push({ papel: p.papel, modelo: r.modelo, parada: r.parada, custo_usd: r.custo_usd || 0, tokens_entrada: r.uso?.entrada ?? null,
+      chamadas.push({ papel: p.papel, modelo: r.modelo, parada: r.parada, custo_usd: abaterDoProvisorio(p.papel, r.custo_usd || 0), tokens_entrada: r.uso?.entrada ?? null,
         tokens_saida: r.uso?.saida ?? null, ferramentas: (r.chamadas || []).map(c => c.nome), ms: Date.now() - t0 });
       return r;
     } catch (e) {
-      chamadas.push({ papel: p.papel, erro: e instanceof ErroIA ? e.motivo : 'interno', custo_usd: (e && e.custo_usd) || 0, ms: Date.now() - t0 });
+      chamadas.push({ papel: p.papel, erro: e instanceof ErroIA ? e.motivo : 'interno', custo_usd: abaterDoProvisorio(p.papel, (e && e.custo_usd) || 0), ms: Date.now() - t0 });
       throw e;
     }
   } };
@@ -243,6 +258,15 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
         return false;
       });
   }
+  /* (PR #173, N1) a direção reivindicada vai gastar até o pior caso de uma chamada de Opus, e se a aba fechar a Cloudflare corta o pedido sem nada rodar depois
+     (nem o finally que grava o registro). Por isso o gasto PROVISÓRIO entra em app.ia_chamadas antes da chamada: o teto do dia (privado.gasto_ia_dia) enxerga
+     a chamada cortada. Lança se o banco falhar: quem chama não chama o modelo sem esta marca (falha fechada) */
+  async function registrarProvisorio(conversaId, vid) {
+    const valor = reservaUsd('geracao');
+    await banco('vendas_registrar_ia', { conversa_id: conversaId, visitante_id: vid, request_id: requestId || null,
+      chamadas: [{ papel: 'geracao', modelo: 'provisorio', custo_usd: valor, ms: 0 }] });
+    provisorioAberto = valor;
+  }
   async function visitante(request) {
     const id = await visitantes.quem(request);
     exigir(id, 401, 'Sessão inválida ou expirada.');
@@ -250,6 +274,29 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   }
   async function estado(vid, conversa_id) {
     return banco('vendas_estado', { conversa_id, visitante_id: vid });
+  }
+  /* (dono, 15/11) no modo api o dono não produz nada: quando nenhuma direção está mais em geração, o pedido sai da fila do dono e da conta da
+     "fila cheia". Com ao menos uma pronta, pela mesma marca do "Já avisei" do painel (as prontas ficam entregues). Com as três falhas, pelo gatilho do
+     banco (a conversa volta a "contato"); com 2 prontas e 1 falha também sai, mas o lembrete de 2 dias não dispara (só vale com as três prontas) e o
+     painel não mostra o "uma direção falhou". Quem viu os modelos e sumiu não segura vaga de cliente novo. Falhar aqui não derruba a geração que
+     já deu certo: só registra */
+  async function soltarDaFila(vid, conversaId) {
+    try {
+      const e = await estado(vid, conversaId);
+      if ((e.direcoes || []).some(d => d.status === 'gerando')) return;
+      await banco('vendas_marcar_avisado', { conversa_id: conversaId, org_slug: ORG });
+    } catch (x) {
+      console.error(JSON.stringify({ origem: 'vendas', nivel: 'aviso', evento: 'não tirou o pedido da fila', request_id: requestId || null, codigo: (x && x.codigo) || 'interno' }));
+    }
+  }
+  /* (PR #173, A1) o pedido abandonado no modo api (a aba fechou, ou o teto barrou a direção) sai da fila meia hora depois: api/_vendas/abandonadas.mjs.
+     Devolve quantos pedidos saíram; falhar aqui nunca derruba a leitura do estado */
+  async function varrerAbandonadas() {
+    try { return (await soltarAbandonadasComFreio({ banco })).liberados; }
+    catch (x) {
+      console.error(JSON.stringify({ origem: 'vendas', nivel: 'aviso', evento: 'não varreu os pedidos abandonados', request_id: requestId || null, codigo: (x && x.codigo) || 'interno' }));
+      return 0;
+    }
   }
   /* a consulta LEVE (PR37-T4/S2): a conversa é deste visitante e está numa das etapas; devolve a etapa e o último
      pacote gravado. Etapa fora da lista = o pacote já foi fechado */
@@ -404,7 +451,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   }
 
   /* os detalhes e o pedido (PR 2a): api/_vendas/fluxo-pedido.mjs */
-  const acoesDoPedido = criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites: limitesPedido, requestId, segundoPlano });
+  /* (spec 2026-11-15 §9) o pedido de saúde ou advocacia: o aviso ao dono diz o ramo (ciência, não aprovação: nada espera o dono) */
+  const regulado = async (vid, conversaId) => { const est = await estado(vid, conversaId); return !!nichoReguladoDaSessao({ briefing: est.conversa?.briefing, mensagens: est.mensagens }); };
+  const acoesDoPedido = criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites: limitesPedido, requestId, segundoPlano, regulado });
 
   return {
     ...acoesDoPedido,
@@ -438,8 +487,13 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     async estado({ request, query }) {
       const vid = await visitante(request);
       exigir(ehUuid(query.get('conversa')), 400, 'Conversa inválida.');
-      const { fila_confirmados: naFila, ...e } = await estado(vid, query.get('conversa'));
+      const { fila_confirmados: naFilaBruta, ...e } = await estado(vid, query.get('conversa'));
       delete e.conversa.custo_ia_usd;   /* (métrica interna) */
+      /* (PR #173, A1) fila cheia no modo api: antes de esconder o formulário, solta o pedido abandonado (direção que não vai mais terminar) */
+      let naFila = naFilaBruta;
+      if (modo === 'api' && Number(naFilaBruta) >= limitesPedido.fila_confirmados && await varrerAbandonadas() > 0) {
+        naFila = (await estado(vid, query.get('conversa'))).fila_confirmados;   /* (N4) a fila de verdade depois da varredura, não uma conta de cabeça */
+      }
       /* (PR 2a) a tela oferece o recado ANTES dos detalhes quando a fila do dono está cheia; o número em si é interno */
       /* (PR 3b-2, M5) a entrega só aparece com o interruptor ligado; desligado, a tela mostra a saída pelo recado */
       if (!entregaLigada(env)) delete e.entrega;
@@ -449,10 +503,11 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
          e planta_editavel (o preço ainda aberto). Sem nenhuma das chaves no briefing, o objeto é o mesmo de antes: a resposta é byte a byte a de hoje */
       const briefingBruto = e.conversa?.briefing;
       const briefingLimpo = semChavesDaPlanta(briefingBruto);
-      const saudeAqui = saudeDaSessao({ briefing: briefingBruto, mensagens: e.mensagens });
       if (e.conversa && briefingLimpo !== briefingBruto) e.conversa = { ...e.conversa, briefing: briefingLimpo };
       const planta = plantaLigada(env) ? ((regulado) => ({ planta: montarPlanta(briefingBruto, { regulado, turnos: e.conversa?.turnos, mensagensNaJanela: (e.mensagens || []).length }), leitura: leituraParaTela(briefingBruto, { regulado }), planta_editavel: precoAberto(e.conversa?.etapa, e.pedido?.status) }))(!!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens })) : null;
-      return { ...e, painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: saudeAqui ? 'manual' : modo, ...(saudeAqui ? { saude_com_a_equipe: true } : {}), entrega_ligada: entregaLigada(env),
+      /* (dono, 15/11) com os modelos prontos, o Zero recomenda um, pelo objetivo que a pessoa deu (regra fixa, api/_vendas/recomendacao.mjs) */
+      const recomendacao = recomendar(e.conversa?.briefing, e.direcoes);
+      return { ...e, ...(recomendacao ? { recomendacao } : {}), painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env),
         ...(planta ? { ...(planta.planta ? { planta: planta.planta } : {}), ...(planta.leitura ? { leitura: planta.leitura } : {}), planta_editavel: planta.planta_editavel } : {}),
         /* (fluxo novo, spec §2) a tela segura o valor até o caso ser entendido; fora do fluxo novo a chave não existe (a resposta é a de hoje) */
         ...(fluxoConversa(briefingBruto) ? { valor_liberado: valorLiberado({ briefing: briefingBruto, estimativa: e.estimativa, mensagens: e.mensagens }) } : {}) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
@@ -562,11 +617,11 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const est = await estado(vid, corpo.conversa_id);
       const semConfirmacao = recusaDoGerar(est.pedido);
       if (semConfirmacao) throw semConfirmacao;
-      /* (fila manual: não há gasto de API; o disjuntor ou o teto da IA não barram quem acabou de deixar o WhatsApp). Saúde segue como a fila manual */
-      const manualAqui = modo === 'manual' || comAEquipe(est);
-      if (!manualAqui) await dentroDoCusto(est);
+      /* (fila manual: não há gasto de API; o disjuntor ou o teto da IA não barram quem acabou de deixar o WhatsApp) */
+      if (modo !== 'manual') await dentroDoCusto(est);
       /* no modo manual, uma geração por conversa: a 2ª só por pedido explícito ao dono (spec §0) */
-      return banco('vendas_iniciar_geracao', { conversa_id: corpo.conversa_id, visitante_id: vid, max_geracoes: manualAqui ? 1 : TETOS.geracoes_por_conversa });
+      return banco('vendas_iniciar_geracao', { conversa_id: corpo.conversa_id, visitante_id: vid, max_geracoes: modo === 'manual' ? 1 : TETOS.geracoes_por_conversa })
+        .catch(semMaisGeracoes);
     },
 
     /* gerar UMA direção (cabe nos 300 s da função) */
@@ -580,28 +635,56 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const atual = (est.direcoes || []).find(d => d.id === corpo.direcao_id);
       exigir(atual, 404, 'Não encontrado.');
       if (atual.status !== 'gerando') return { status: atual.status };
-      /* fila manual: nada a gerar aqui, o dono entrega pelo painel (vendas_concluir_direcao). Saúde também: nenhum modelo automático */
-      if (modo === 'manual' || comAEquipe(est)) return { status: 'na_fila' };
+      /* fila manual: nada a gerar aqui, o dono entrega pelo painel (vendas_concluir_direcao) */
+      if (modo === 'manual') return { status: 'na_fila' };
       /* em geração por outro pedido (o navegador repede a cada 60 s): responde sem entrar na trava da organização
          (revisão de segurança do PR 16). Só a consulta ainda inexistente (migration a aplicar) segue para reivindicar */
-      const andamento = await banco('vendas_direcao_em_andamento', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id })
+      const emAndamento = () => banco('vendas_direcao_em_andamento', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id, vence_s: POSSE_VIVA_S })
         .catch(e => { if (e && (e.codigo === '42883' || e.codigo === 'PGRST202')) return null; throw e; });
+      const andamento = await emAndamento();
       if (andamento && andamento.em_andamento) return { status: 'em_andamento' };
       await dentroDoCusto(est);   /* (o Opus é a chamada mais cara: confere antes) */
       return comReserva(corpo.conversa_id, vid, 'geracao', async () => {
-        const p = await banco('vendas_reivindicar_direcao', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id });
-        if (!p.reivindicada) return { status: p.status };
+        const p = await banco('vendas_reivindicar_direcao', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id, vence_s: POSSE_NUNCA_VENCE_S });
+        if (!p.reivindicada) {
+          if (p.status !== 'em_andamento') return { status: p.status };
+          /* já foi reivindicada: ou outro pedido a está gerando agora, ou a chamada morreu (a aba fechou e a Cloudflare cortou o pedido). Morta: o Opus pode ter
+             cobrado o que gerou até o corte, e nenhuma conta enxerga isso; soma o valor da reserva, falha a direção e deixa a pessoa refazer pela 2ª geração */
+          const viva = await emAndamento();
+          /* (N5) sem resposta da consulta (a função ainda não existe no banco): na dúvida a posse é de quem a tomou, falha fechada */
+          if (!viva || viva.em_andamento) return { status: 'em_andamento' };
+          /* o outro pedido terminou entre a reivindicação e esta conferência (pronta ou falhou): não é chamada morta, devolve o que ficou */
+          if (viva.status && viva.status !== 'gerando') return { status: viva.status };
+          /* o gasto da chamada cortada já está em app.ia_chamadas (registrarProvisorio, na reivindicação): aqui só entra na conta da conversa */
+          await somarCusto(corpo.conversa_id, vid, reservaUsd('geracao'));
+          await banco('vendas_concluir_direcao', { direcao_id: corpo.direcao_id, erro: 'geração interrompida (a página foi fechada antes de terminar)' });
+          await soltarDaFila(vid, corpo.conversa_id);
+          return { status: 'falhou', mensagem: RECUPERACAO };
+        }
+        /* (N1) o gasto provisório entra no registro ANTES do Opus: sem a marca, o modelo não é chamado (a direção, já reivindicada, falha e a pessoa refaz) */
+        try { await registrarProvisorio(corpo.conversa_id, vid); }
+        catch (x) {
+          console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'gasto provisório da geração não gravado: não chama o modelo', codigo: (x && x.codigo) || 'interno' }));
+          await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, erro: 'não foi possível gerar (registro)' });
+          await soltarDaFila(vid, corpo.conversa_id);
+          return { status: 'falhou', mensagem: RECUPERACAO };
+        }
         try {
           /* (spec 2026-11-15 §5) saúde e advocacia: as regras do conselho no prompt e a conferência antes de gravar */
           const nicho = nichoReguladoDaSessao({ briefing: p.briefing, mensagens: est.mensagens });
           const g = await gerarDirecao({ ia, briefing: p.briefing, estrategia: p.estrategia, numero: p.numero, fatores: p.fatores, nicho, hoje: new Date().toISOString().slice(0, 10) });
           await somarCusto(corpo.conversa_id, vid, g.custo_usd);   /* (antes de gravar: a Opus já cobrou, dê certo ou não a gravação) */
-          await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, conteudo: g.direcao, modelo: g.modelo });
+          const fim = await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, conteudo: g.direcao, modelo: g.modelo });
+          await soltarDaFila(vid, corpo.conversa_id);
+          /* (N2) a direção já tinha sido fechada por fora (a varredura de abandonados, que não sabe há quanto tempo a chamada corre): o conteúdo não foi gravado,
+             então não se diz "pronta" a um modelo que não existe; a pessoa refaz pela 2ª geração */
+          if (fim && fim.ignorado && fim.status !== 'pronta') return { status: 'falhou', mensagem: RECUPERACAO };
           return { status: 'pronta' };
         } catch (e) {
           const motivo = e instanceof ErroIA ? e.motivo : 'falha';
           if (e instanceof ErroIA) await somarCusto(corpo.conversa_id, vid, e.custo_usd);
           await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, erro: 'não foi possível gerar (' + motivo + ')' });
+          await soltarDaFila(vid, corpo.conversa_id);
           if (e instanceof ErroIA) return { status: 'falhou', mensagem: RECUPERACAO };
           throw e;
         }
@@ -621,7 +704,6 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
       const est = await estado(vid, corpo.conversa_id);
       exigirNaoDescartado(est);
-      if (comAEquipe(est)) throw new Recusa(409, SAUDE_COM_A_EQUIPE, { recado: true });
       exigir(est.escolha && est.estimativa, 409, 'Escolha uma direção antes.');
       const direcao = est.versao_final || est.direcoes.find(d => d.id === est.escolha.direcao_id)?.conteudo;
       exigir(direcao, 409, 'Escolha uma direção antes.');
@@ -642,7 +724,6 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id) && ehUuid(corpo?.proposta_id), 400, 'Dados inválidos.');
       exigir(corpo?.confirmo === true, 400, 'É preciso confirmar o escopo.');
-      if (comAEquipe(await estado(vid, corpo.conversa_id))) throw new Recusa(409, SAUDE_COM_A_EQUIPE, { recado: true });
       return banco('vendas_confirmar_escopo', { conversa_id: corpo.conversa_id, visitante_id: vid, proposta_id: corpo.proposta_id, confirmo: true, inicio_imediato: corpo.inicio_imediato === true });
     },
 
@@ -655,7 +736,6 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* sem contato (ou com o contato anonimizado pela retenção de 12 meses), o cliente nasceria sem nome nem telefone */
       const est = await estado(vid, corpo.conversa_id);
       exigirNaoDescartado(est);
-      if (comAEquipe(est)) throw new Recusa(409, SAUDE_COM_A_EQUIPE, { recado: true });
       exigirRestanteAberto(est, corpo, env);
       if (!est.conversa.tem_contato) throw new Recusa(409, 'Antes de pagar, precisamos do seu contato de novo: deixe um recado para a equipe citando o código do pedido.', { recado: true });
       try {

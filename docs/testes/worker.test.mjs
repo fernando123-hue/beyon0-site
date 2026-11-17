@@ -71,24 +71,46 @@ test('todo api/<nome>.mjs sem _ tem rota (endpoint novo esquecido falha)', () =>
 import { agendar, AGENDA } from '../../cloudflare/agenda.mjs';
 import { parse as lerJsonc } from '../../cloudflare/jsonc.mjs';
 import { HOST_DO_DOMINIO } from './dominio.mjs';
-test('crons: reconciliar de 3 em 3 h e a diária, com o CRON_SECRET, pelas MESMAS funções', async () => {
+/* (auto-reparo, 15/11) o cron de 3 em 3 h virou horário: o plano grátis tem 5 crons por conta. Nas horas múltiplas de 3 (UTC, as
+   mesmas de antes) roda só a reconciliação; nas outras, só o vigia (api/_vigia/rondar.mjs): nunca dividem a execução (50 subpedidos) */
+const as = h => Date.UTC(2026, 10, 15, h, 23);
+test('crons: reconciliar nas horas múltiplas de 3 e a diária, com o CRON_SECRET, pelas MESMAS funções; o vigia não roda nelas', async () => {
   const vistos = [];
   const falsa = nome => async (req, env) => { vistos.push({ nome, url: req.url, auth: req.headers.get('authorization'), env }); return new Response('{}'); };
+  const vigiar = async () => { vistos.push({ nome: 'vigia', url: 'http://x/' }); };
   const env = { CRON_SECRET: 'c'.repeat(40) };
-  await agendar('23 */3 * * *', env, { pagamentos: falsa('pagamentos'), rotinas: falsa('rotinas') });
-  await agendar('41 6 * * *', env, { pagamentos: falsa('pagamentos'), rotinas: falsa('rotinas') });
+  for (const h of [0, 3, 21]) await agendar('23 * * * *', env, { pagamentos: falsa('pagamentos'), rotinas: falsa('rotinas') }, { agora: as(h), vigiar });
+  await agendar('41 6 * * *', env, { pagamentos: falsa('pagamentos'), rotinas: falsa('rotinas') }, { agora: as(6), vigiar });
   assert.deepEqual(vistos.map(v => [v.nome, new URL(v.url).search, v.auth]), [
+    ['pagamentos', '?acao=reconciliar', 'Bearer ' + 'c'.repeat(40)], ['pagamentos', '?acao=reconciliar', 'Bearer ' + 'c'.repeat(40)],
     ['pagamentos', '?acao=reconciliar', 'Bearer ' + 'c'.repeat(40)], ['rotinas', '?acao=diaria', 'Bearer ' + 'c'.repeat(40)]]);
+});
+test('crons: nas outras horas roda só o vigia, sem precisar do CRON_SECRET (ele confere a falta dele) e com a hora agendada', async () => {
+  const rondas = [];
+  let reconciliou = false;
+  const f = async () => { reconciliou = true; return new Response('{}'); };
+  for (const h of [1, 2, 4, 23]) await agendar('23 * * * *', { CRON_SECRET: 'curto' }, { pagamentos: f, rotinas: f }, { agora: as(h), vigiar: async (env, d) => { rondas.push(d.agora); } });
+  assert.deepEqual(rondas, [as(1), as(2), as(4), as(23)]);
+  assert.equal(reconciliou, false);
+});
+test('crons: um erro do vigia não escapa da agenda (log, sem lançar)', async () => {
+  await agendar('23 * * * *', {}, {}, { agora: as(1), vigiar: async () => { throw new Error('quebrou'); } });
 });
 test('cron desconhecido ou segredo curto: não chama nada e loga erro', async () => {
   let chamou = false;
   const f = async () => { chamou = true; return new Response('{}'); };
-  await agendar('0 0 * * *', { CRON_SECRET: 'c'.repeat(40) }, { pagamentos: f, rotinas: f });
-  await agendar('41 6 * * *', { CRON_SECRET: 'curto' }, { pagamentos: f, rotinas: f });
+  const vigiar = async () => { chamou = true; };
+  await agendar('0 0 * * *', { CRON_SECRET: 'c'.repeat(40) }, { pagamentos: f, rotinas: f }, { agora: as(1), vigiar });
+  await agendar('41 6 * * *', { CRON_SECRET: 'curto' }, { pagamentos: f, rotinas: f }, { agora: as(6), vigiar });
+  await agendar('23 * * * *', { CRON_SECRET: 'curto' }, { pagamentos: f, rotinas: f }, { agora: as(3), vigiar });
   assert.equal(chamou, false);
 });
-test('a AGENDA tem só as duas rotinas (o wrangler.jsonc é conferido no teste do B6)', () => {
-  assert.deepEqual(Object.keys(AGENDA).sort(), ['23 */3 * * *', '41 6 * * *']);
+test('a AGENDA tem só os dois crons (o wrangler.jsonc é conferido no teste do B6)', () => {
+  assert.deepEqual(Object.keys(AGENDA).sort(), ['23 * * * *', '41 6 * * *']);
+});
+test('o Worker passa a hora agendada do cron para a agenda', () => {
+  const fonte = fs.readFileSync(new URL('../../cloudflare/worker.mjs', import.meta.url), 'utf8');
+  assert.match(fonte, /agendar\(controller\.cron, env, undefined, \{ agora: controller\.scheduledTime \}\)/);
 });
 test('jsonc: tira comentários e vírgulas finais, mas não mexe em texto de string', () => {
   const c = lerJsonc('{\n // linha\n "a": "http://x.com/*nao*/ // fica", /* bloco */ "b": [1, 2,],\n "c": {"d": 1,},\n}\n');
@@ -402,4 +424,16 @@ test('wrangler.jsonc: JEV_SOMBRA = "1" só na produção; staging e prévias sem
   assert.ok(!('JEV_SOMBRA' in c.env.previa.vars), 'o staging não liga a sombra');
   assert.ok(!('JEV_SOMBRA' in c.env.previa.previews.vars), 'as prévias de branch não ligam a sombra');
   for (const k of ['JEV_SOMBRA_TETO_DIA_USD', 'JEV_SOMBRA_AMOSTRA']) assert.ok(!(k in c.vars), k + ': fica no padrão do código (US$ 0,30/dia, todo turno)');
+});
+
+/* (dono, 15/11) na produção os 3 modelos saem pela API, na hora; o staging e as prévias seguem na fila manual (IA simulada,
+   sem gasto). Sem a chave da Anthropic a produção cai sozinha na fila manual (modoDirecoes), nunca em "gerando" para sempre */
+test('wrangler.jsonc: BZ_DIRECOES = "api" só na produção; staging e prévias seguem "manual"', async () => {
+  const { modoDirecoes } = await import('../../api/_ia/config.mjs');
+  const c = lerWrangler();
+  assert.equal(c.vars.BZ_DIRECOES, 'api', 'a produção gera os modelos pela API');
+  assert.equal(modoDirecoes({ ...c.vars, ANTHROPIC_API_KEY: 'x' }), 'api', 'com a chave, o modo é api');
+  assert.equal(modoDirecoes({ ...c.vars }), 'manual', 'sem a chave, a produção volta sozinha para a fila manual');
+  assert.equal(c.env.previa.vars.BZ_DIRECOES, 'manual', 'o staging segue na fila manual');
+  assert.equal(c.env.previa.previews.vars.BZ_DIRECOES, 'manual', 'as prévias de branch seguem na fila manual');
 });

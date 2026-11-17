@@ -15,8 +15,8 @@ import { PAPEIS, TETOS } from '../../api/_ia/config.mjs';
 import { ABERTURAS, ETIQUETA, RECADO_FIXO } from '../../api/_vendas/zero.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
-/* o modo das direções e a forma de pagamento do ar: manual (o dono produz os modelos, até haver verba) e só Pix */
-const OPCOES = { direcoes: 'manual', metodos: ['pix'] };
+/* o modo das direções e a forma de pagamento do ar: api (a produção gera os modelos na hora, desde 15/11) e só Pix */
+const OPCOES = { direcoes: 'api', metodos: ['pix'] };
 const MAX_HISTORICO = 12, MAX_RODADAS = 4;
 
 const tipoDe = v => {
