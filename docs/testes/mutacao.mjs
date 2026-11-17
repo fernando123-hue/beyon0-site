@@ -91,6 +91,15 @@ export const SABOTAGENS = [
     de: "avisarAoFundo(r.fila_cheia ? 'fila_cheia' : tipoDoPedido(vid, corpo.conversa_id));", para: "avisarAoFundo(r.fila_cheia ? 'fila_cheia' : await tipoDoPedido(vid, corpo.conversa_id));" },
   { nome: 'regulado: o dublê gera depoimentos em saúde', fonte: 'api/_ia/simulado-geracao.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
     de: ".filter(tipo => !regulado || (tipo !== 'depoimentos' && tipo !== 'numeros'))", para: '.filter(tipo => tipo)' },
+  /* ---- clínica ou consultório sem a profissão (M3, 16/11) ---- */
+  { nome: "nicho sem profissão: a sessão ignora clínica e consultório", fonte: "api/_vendas/agente.mjs", testes: ['docs/testes/nicho-sem-profissao.test.mjs'],
+    de: "  if (fontes.some((f) => f && ramoSemProfissao(f))) return NICHO_GENERICO;", para: "  if (false) return NICHO_GENERICO;" },
+  { nome: "nicho sem profissão: o nome do negócio não conta na geração", fonte: "api/_vendas/agente.mjs", testes: ['docs/testes/nicho-sem-profissao.test.mjs'],
+    de: "  if (typeof b.negocio?.nome === 'string' && ramoSemProfissao(b.negocio.nome)) return { chave: 'saude_generica' };", para: "  /* (sabotado) */" },
+  { nome: "nicho sem profissão: veterinária vira saúde", fonte: "api/_vendas/zero.mjs", testes: ['docs/testes/nicho-sem-profissao.test.mjs'],
+    de: "  if (semVet !== t) return false;", para: "  if (false) return false;" },
+  { nome: "nicho sem profissão: o Zero não pergunta a profissão", fonte: "api/_vendas/zero.mjs", testes: ['docs/testes/nicho-sem-profissao.test.mjs'],
+    de: "...(nicho.chave === 'saude_generica' ? { profissao_a_confirmar:", para: "...(false ? { profissao_a_confirmar:" },
   /* ---- o mapa e a trava de pagamento: o canal ("Chama no direct") passa só no mapa (teste C, 14/11) ---- */
   { nome: 'mapa: o canal volta a recusar o mapa', fonte: 'api/_vendas/planta-textos.mjs', testes: ['docs/testes/planta-textos5.test.mjs'],
     de: 'semPromessaDePagamento(t, { canal: false })', para: 'semPromessaDePagamento(t)' },

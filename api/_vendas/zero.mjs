@@ -112,7 +112,7 @@ const NICHOS = [
   { chave: 'enfermagem', re: /\benfermeir\w*\b/, site: 'enfermagem', conselho: 'COREN', registro: 'COREN' },
   { chave: 'biomedicina', re: /\bbiomedic\w*\b/, site: 'biomedicina', conselho: 'CRBM', registro: 'CRBM' },
   { chave: 'estetica', re: /\b(?:estetic\w*|esteticista\w*|harmonizacao|botox|preenchimento facial|micropigmentacao)\b/, site: 'estética', conselho: 'conselho', registro: 'registro profissional', procedimento: 'procedimento' },
-  { chave: 'advocacia', re: /\b(?:advogad\w*|advocacia|oab|escritorio juridico)\b/, site: 'advocacia', conselho: 'OAB', registro: 'OAB', procedimento: 'serviço', cabe: 'quem você é, o número da OAB, as áreas de atuação, como marcar uma conversa e onde fica' }
+  { chave: 'advocacia', re: /\b(?:advogad\w*|advocacia|oab|escritorio juridico|consultorio juridico)\b/, site: 'advocacia', conselho: 'OAB', registro: 'OAB', procedimento: 'serviço', cabe: 'quem você é, o número da OAB, as áreas de atuação, como marcar uma conversa e onde fica' }
 ];
 /* o que desfaz o sinal: médico veterinário e pet não são saúde humana; estética de carro não é estética (o prompt manda perguntar) */
 const VETERINARIO = /\b(?:medic[oa]s? veterinari\w*|veterinari\w*|vet|pets?|pet shop|petshop|banho e tosa|animais|animal)\b/g;
@@ -141,6 +141,21 @@ export function nichoRegulado(texto) {
   }
   return null;
 }
+
+/* (M3, 16/11) "clínica" ou "consultório" SEM a profissão (e sem ser veterinária, de carro ou de aparelho): é saúde, mas de qual conselho? Com a geração
+   automática, essa dúvida não pode virar um site sem as regras. Até a pessoa dizer a profissão (aí vale o nicho dela), tratamos como saúde genérica.
+   Fica FORA de nichoRegulado: o classificador mede esse detector, e "clínica" sozinha não é sinal de nicho para ele */
+const CLINICA = /\b(?:clinicas?|consultorios?)\b/;
+const APARELHO = /\b(?:celular(?:es)?|smartphones?|computador\w*|notebooks?|informatica|eletronic\w*|eletrodomestic\w*|bicicletas?|relogio\w*)\b/;
+export function ramoSemProfissao(texto) {
+  let t = paraBusca(texto);
+  if (!t) return false;
+  const semVet = t.replace(VETERINARIO, ' ');
+  if (semVet !== t) return false;   /* (veterinária e pet não são saúde humana) */
+  t = t.replace(DE_OUTRO, ' ');
+  return CLINICA.test(t) && !AUTOMOTIVO.test(t) && !APARELHO.test(t);
+}
+export const NICHO_GENERICO = descreverNicho({ chave: 'saude_generica', site: 'saúde', conselho: 'conselho', registro: 'registro profissional', procedimento: 'procedimento' });
 
 /* o que a Beyon não faz em site desses negócios, quando pedido */
 const PEDIDOS_PROIBIDOS = [
@@ -222,6 +237,7 @@ export function avisoRegulado(nicho, { pediuAgora = false } = {}) {
     nicho: nicho.site, conselho: nicho.conselho === 'conselho' ? 'o conselho da profissão da pessoa' : nicho.conselho,
     nunca: ['depoimento de paciente ou cliente', 'antes e depois', `preço ou promoção de ${nicho.procedimento}`, 'promessa de resultado', 'sessão grátis ou sorteio'],
     cabe: nicho.cabe, pediu_item_proibido_agora: pediuAgora,
+    ...(nicho.chave === 'saude_generica' ? { profissao_a_confirmar: 'A pessoa falou de clínica ou consultório, mas ainda não disse a profissão. Pergunte UMA vez, com naturalidade, qual é (dentista, psicólogo, fisioterapeuta, médico, advogado…) e registre em negocio.segmento. As regras acima valem até lá.' } : {}),
     orientacao: 'Só site informativo. Recuse como política da Beyon, sem citar a lei, ofereça o que cabe e mande conferir com o conselho. Não registre depoimentos no briefing.'
   };
 }
