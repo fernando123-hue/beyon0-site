@@ -226,15 +226,25 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   /* o REGISTRO das chamadas de IA (app.ia_chamadas): cada chamada ao modelo vira uma linha — papel, modelo,
      tokens, custo, ferramentas pedidas, tempo, erro — sem o texto de ninguém; gravado no fim da ação, dê certo ou não */
   const chamadas = [];
+  /* (PR #173, N1) o que já foi gravado em app.ia_chamadas, ANTES da chamada ao Opus, como gasto provisório da direção (registrarProvisorio): as chamadas
+     reais da geração abatem dele, então a conta do dia fica no maior entre o provisório e o real, nunca nos dois somados */
+  let provisorioAberto = 0;
+  const arredondar = x => Math.round(x * 1e6) / 1e6;
+  function abaterDoProvisorio(papel, custo) {
+    if (papel !== 'geracao' || !(provisorioAberto > 0) || !(custo > 0)) return custo;
+    const abate = Math.min(provisorioAberto, custo);
+    provisorioAberto = arredondar(provisorioAberto - abate);
+    return arredondar(custo - abate);
+  }
   const ia = iaBase && { ...iaBase, async mensagem(p) {
     const t0 = Date.now();
     try {
       const r = await iaBase.mensagem(p);
-      chamadas.push({ papel: p.papel, modelo: r.modelo, parada: r.parada, custo_usd: r.custo_usd || 0, tokens_entrada: r.uso?.entrada ?? null,
+      chamadas.push({ papel: p.papel, modelo: r.modelo, parada: r.parada, custo_usd: abaterDoProvisorio(p.papel, r.custo_usd || 0), tokens_entrada: r.uso?.entrada ?? null,
         tokens_saida: r.uso?.saida ?? null, ferramentas: (r.chamadas || []).map(c => c.nome), ms: Date.now() - t0 });
       return r;
     } catch (e) {
-      chamadas.push({ papel: p.papel, erro: e instanceof ErroIA ? e.motivo : 'interno', custo_usd: (e && e.custo_usd) || 0, ms: Date.now() - t0 });
+      chamadas.push({ papel: p.papel, erro: e instanceof ErroIA ? e.motivo : 'interno', custo_usd: abaterDoProvisorio(p.papel, (e && e.custo_usd) || 0), ms: Date.now() - t0 });
       throw e;
     }
   } };
@@ -246,6 +256,15 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
         console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'registro de IA não gravado', codigo: e && e.codigo }));
         return false;
       });
+  }
+  /* (PR #173, N1) a direção reivindicada vai gastar até o pior caso de uma chamada de Opus, e se a aba fechar a Cloudflare corta o pedido sem nada rodar depois
+     (nem o finally que grava o registro). Por isso o gasto PROVISÓRIO entra em app.ia_chamadas antes da chamada: o teto do dia (privado.gasto_ia_dia) enxerga
+     a chamada cortada. Lança se o banco falhar: quem chama não chama o modelo sem esta marca (falha fechada) */
+  async function registrarProvisorio(conversaId, vid) {
+    const valor = reservaUsd('geracao');
+    await banco('vendas_registrar_ia', { conversa_id: conversaId, visitante_id: vid, request_id: requestId || null,
+      chamadas: [{ papel: 'geracao', modelo: 'provisorio', custo_usd: valor, ms: 0 }] });
+    provisorioAberto = valor;
   }
   async function visitante(request) {
     const id = await visitantes.quem(request);
@@ -470,7 +489,10 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const { fila_confirmados: naFilaBruta, ...e } = await estado(vid, query.get('conversa'));
       delete e.conversa.custo_ia_usd;   /* (métrica interna) */
       /* (PR #173, A1) fila cheia no modo api: antes de esconder o formulário, solta o pedido abandonado (direção que não vai mais terminar) */
-      const naFila = Number(naFilaBruta) >= limitesPedido.fila_confirmados && modo === 'api' ? Number(naFilaBruta) - await varrerAbandonadas() : naFilaBruta;
+      let naFila = naFilaBruta;
+      if (modo === 'api' && Number(naFilaBruta) >= limitesPedido.fila_confirmados && await varrerAbandonadas() > 0) {
+        naFila = (await estado(vid, query.get('conversa'))).fila_confirmados;   /* (N4) a fila de verdade depois da varredura, não uma conta de cabeça */
+      }
       /* (PR 2a) a tela oferece o recado ANTES dos detalhes quando a fila do dono está cheia; o número em si é interno */
       /* (PR 3b-2, M5) a entrega só aparece com o interruptor ligado; desligado, a tela mostra a saída pelo recado */
       if (!entregaLigada(env)) delete e.entrega;
@@ -626,11 +648,21 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
           /* já foi reivindicada: ou outro pedido a está gerando agora, ou a chamada morreu (a aba fechou e a Cloudflare cortou o pedido). Morta: o Opus pode ter
              cobrado o que gerou até o corte, e nenhuma conta enxerga isso; soma o valor da reserva, falha a direção e deixa a pessoa refazer pela 2ª geração */
           const viva = await emAndamento();
-          if (viva && viva.em_andamento) return { status: 'em_andamento' };
+          /* (N5) sem resposta da consulta (a função ainda não existe no banco): na dúvida a posse é de quem a tomou, falha fechada */
+          if (!viva || viva.em_andamento) return { status: 'em_andamento' };
           /* o outro pedido terminou entre a reivindicação e esta conferência (pronta ou falhou): não é chamada morta, devolve o que ficou */
-          if (viva && viva.status && viva.status !== 'gerando') return { status: viva.status };
+          if (viva.status && viva.status !== 'gerando') return { status: viva.status };
+          /* o gasto da chamada cortada já está em app.ia_chamadas (registrarProvisorio, na reivindicação): aqui só entra na conta da conversa */
           await somarCusto(corpo.conversa_id, vid, reservaUsd('geracao'));
           await banco('vendas_concluir_direcao', { direcao_id: corpo.direcao_id, erro: 'geração interrompida (a página foi fechada antes de terminar)' });
+          await soltarDaFila(vid, corpo.conversa_id);
+          return { status: 'falhou', mensagem: RECUPERACAO };
+        }
+        /* (N1) o gasto provisório entra no registro ANTES do Opus: sem a marca, o modelo não é chamado (a direção, já reivindicada, falha e a pessoa refaz) */
+        try { await registrarProvisorio(corpo.conversa_id, vid); }
+        catch (x) {
+          console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'gasto provisório da geração não gravado: não chama o modelo', codigo: (x && x.codigo) || 'interno' }));
+          await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, erro: 'não foi possível gerar (registro)' });
           await soltarDaFila(vid, corpo.conversa_id);
           return { status: 'falhou', mensagem: RECUPERACAO };
         }
@@ -639,8 +671,11 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
           const nicho = nichoReguladoDaSessao({ briefing: p.briefing, mensagens: est.mensagens });
           const g = await gerarDirecao({ ia, briefing: p.briefing, estrategia: p.estrategia, numero: p.numero, fatores: p.fatores, nicho, hoje: new Date().toISOString().slice(0, 10) });
           await somarCusto(corpo.conversa_id, vid, g.custo_usd);   /* (antes de gravar: a Opus já cobrou, dê certo ou não a gravação) */
-          await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, conteudo: g.direcao, modelo: g.modelo });
+          const fim = await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, conteudo: g.direcao, modelo: g.modelo });
           await soltarDaFila(vid, corpo.conversa_id);
+          /* (N2) a direção já tinha sido fechada por fora (a varredura de abandonados, que não sabe há quanto tempo a chamada corre): o conteúdo não foi gravado,
+             então não se diz "pronta" a um modelo que não existe; a pessoa refaz pela 2ª geração */
+          if (fim && fim.ignorado && fim.status !== 'pronta') return { status: 'falhou', mensagem: RECUPERACAO };
           return { status: 'pronta' };
         } catch (e) {
           const motivo = e instanceof ErroIA ? e.motivo : 'falha';

@@ -11,8 +11,12 @@
         pedido da fila; com alguma pronta, vendas_marcar_avisado o tira (as prontas ficam entregues);
      3. quem voltar encontra "Gerar de novo" (a 2ª geração, TETOS.geracoes_por_conversa) ou as prontas.
    Só vale no modo api: na fila manual a direção "gerando" é trabalho do dono, que leva até 24 horas úteis.
-   NÃO soma custo (a varredura não tem o visitante): a chamada cortada continua fora dos tetos até o visitante voltar
-   (fluxo.mjs, posse morta) ou nunca; está dito no PR #173.
+   NÃO soma custo (a varredura não tem o visitante): o gasto da chamada cortada já está em app.ia_chamadas desde a
+   reivindicação da direção (fluxo.mjs, registrarProvisorio), então o teto do dia o enxerga sem a varredura.
+   Limite conhecido (N2 da revisão de segurança): a idade vem de pedido_em (o nascimento da geração), não da reivindicação
+   (vendas_fila_direcoes não expõe iniciada_em, e expor é migration). Quem volta aos 29 min e gera uma direção que leva 6
+   min pode ter a direção fechada pela varredura no meio; quem gera recebe "falhou" (fluxo.mjs lê o retorno de
+   vendas_concluir_direcao) e refaz pela 2ª geração.
    ========================================================================== */
 import { ORG } from './org.mjs';
 
@@ -30,9 +34,14 @@ export async function soltarAbandonadas({ banco, agora = Date.now(), limiteMs = 
   }).slice(0, max);
   let liberados = 0;
   for (const it of velhos) {
-    for (const d of it.direcoes.filter((x) => x.status === 'gerando')) await banco('vendas_concluir_direcao', { direcao_id: d.id, erro: MOTIVO });
-    if (it.direcoes.some((d) => d.status === 'pronta')) await banco('vendas_marcar_avisado', { conversa_id: it.conversa_id, org_slug: ORG });
-    liberados++;
+    /* (N3) um pedido que falha (deadlock, por exemplo) não trava os outros: registra e segue; ele volta na próxima varredura */
+    try {
+      for (const d of it.direcoes.filter((x) => x.status === 'gerando')) await banco('vendas_concluir_direcao', { direcao_id: d.id, erro: MOTIVO });
+      if (it.direcoes.some((d) => d.status === 'pronta')) await banco('vendas_marcar_avisado', { conversa_id: it.conversa_id, org_slug: ORG });
+      liberados++;
+    } catch (x) {
+      console.error(JSON.stringify({ origem: 'vendas', nivel: 'aviso', evento: 'varredura de abandonados: um pedido falhou', codigo: (x && x.codigo) || 'interno' }));
+    }
   }
   return { examinados: velhos.length, liberados };
 }

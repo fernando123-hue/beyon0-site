@@ -1,7 +1,7 @@
 /* O fluxo inteiro pela API (/api/vendas e /api/pagamentos), com o banco real (PGlite + migrations), a IA simulada e o
    Mercado Pago simulado (os pagamentos em detalhe: pagamentos.test.mjs). Cobre a lista da especificação: fluxo normal, incompleto, falha da IA, segurança, injeção de
    prompt, preço, webhook inválido, concorrência e dados inconsistentes.  npm run testar */
-import { test, before } from 'node:test';
+import { test, before, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { montarLocal } from '../banco-local.mjs';
 import { atender, freioGeral } from '../../api/vendas.mjs';
@@ -12,7 +12,7 @@ import { configPagamentos } from '../../api/_pagamentos/config.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { RECUPERACAO } from '../../api/_vendas/fluxo.mjs';
 import { SISTEMA } from '../../api/_vendas/agente.mjs';
-import { LIMITES_DE_TESTE, detalhesEConfirmar, telefoneDeTeste } from './_pedido.mjs';
+import { LIMITES_DE_TESTE, detalhesEConfirmar, telefoneDeTeste, zerarRegistroDeIa } from './_pedido.mjs';
 
 let local, deps;
 const PAGADOR = { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '52998224725' };
@@ -22,6 +22,8 @@ before(async () => {
   local = await montarLocal({ base: BASE });
   deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE, pagamentos: criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}) }) };
 });
+
+beforeEach(() => zerarRegistroDeIa(local.db));   /* (PR #173, N1: o gasto provisório de cada direção gerada não trava o dia deste banco; ver _pedido.mjs) */
 
 /* um "navegador": cada um com um IP próprio (o freio é por IP) */
 function navegador(d = deps) {
@@ -595,6 +597,101 @@ test('modo api: a posse de uma direção que não terminou nunca é reivindicada
   assert.equal(await naFila(), base);
 });
 
+/* ======================= 2ª rodada de segurança do PR #173 (N1, N2, N3, N5, N6) ======================= */
+const custoDoDia = async () => Number((await local.rpc('vendas_custo_dia', { org_slug: 'beyon-zero' })).custo_usd);
+const arred = (x) => Number(x.toFixed(4));
+
+test('N1/N6: a chamada ao Opus cortada (a aba fechou) já está na conta do DIA desde a reivindicação; terminando normal, a conta fica no maior entre o provisório e o real (nunca soma os dois)', async () => {
+  const { RESERVA_USD } = await import('../../api/_ia/config.mjs');
+  assert.ok(RESERVA_USD.geracao >= 0.48, 'a reserva cobre o pior caso de uma chamada de Opus (~US$ 0,48 com 24000 tokens de saída)');
+  /* a chamada começou e a resposta nunca vem (a Cloudflare cortou o pedido): nada roda depois, nem o finally */
+  let chegou; const comecou = new Promise(r => { chegou = r; });
+  const cortada = { ...deps, ia: { ...deps.ia, mensagem: async (p) => { if (p.papel === 'geracao') { chegou(); return new Promise(() => {}); } return deps.ia.mensagem(p); } } };
+  const n = navegador(cortada);
+  const P = await ateGerar(n);
+  const antes = await custoDoDia();
+  gerarUma(n, P.c, P.dirs[0]);   /* (sem esperar: o pedido nunca termina) */
+  await comecou;
+  assert.equal(arred(await custoDoDia() - antes), RESERVA_USD.geracao, 'o teto do dia enxerga a chamada cortada');
+  const linha = (await local.db.query("select papel, modelo from app.ia_chamadas where conversa_id = $1 and papel = 'geracao' order by created_at", [P.c])).rows;
+  assert.deepEqual(linha, [{ papel: 'geracao', modelo: 'provisorio' }]);
+  /* terminou normal e barato (custo 0 no simulador): o dia fica com o provisório, sem somar de novo */
+  const m = navegador(deps);
+  const Q = await ateGerar(m);
+  const a1 = await custoDoDia();
+  assert.equal((await gerarUma(m, Q.c, Q.dirs[0])).corpo.status, 'pronta');
+  assert.equal(arred(await custoDoDia() - a1), RESERVA_USD.geracao);
+  /* terminou normal e CARO (acima do provisório): o dia fica com o custo real, não com o real + o provisório */
+  const caro = { ...deps, ia: { ...deps.ia, mensagem: async (p) => { const r = await deps.ia.mensagem(p); return p.papel === 'geracao' ? { ...r, custo_usd: 0.8 } : r; } } };
+  const k = navegador(caro);
+  const R = await ateGerar(k);
+  const a2 = await custoDoDia();
+  assert.equal((await gerarUma(k, R.c, R.dirs[0])).corpo.status, 'pronta');
+  assert.equal(arred(await custoDoDia() - a2), 0.8);
+  assert.equal(arred(Number((await local.db.query('select custo_ia_usd c from app.conversas where id = $1', [R.c])).rows[0].c)), 0.8, 'a conversa soma o custo real (uma vez)');
+});
+
+test('N2: a varredura falhou a direção enquanto o Opus ainda gerava: a pessoa recebe "falhou", não "pronta" para um modelo que não existe', async () => {
+  const { soltarAbandonadas } = await import('../../api/_vendas/abandonadas.mjs');
+  await soltarAbandonadas({ banco: local.rpc, agora: Date.now() + 40 * 60 * 1000, max: 1000 });
+  const comVarredura = { ...deps, ia: { ...deps.ia, mensagem: async (p) => {
+    if (p.papel === 'geracao') await soltarAbandonadas({ banco: local.rpc, agora: Date.now() + 40 * 60 * 1000, max: 1000 });
+    return deps.ia.mensagem(p);
+  } } };
+  const n = navegador(comVarredura);
+  const P = await ateGerar(n);
+  const r = await gerarUma(n, P.c, P.dirs[0]);
+  assert.equal(r.corpo.status, 'falhou', JSON.stringify(r.corpo));
+  assert.equal((await statusDasDirecoes(P.c))[0], 'falhou');
+});
+
+test('N3: um pedido que falha na varredura não trava os outros', async () => {
+  const { soltarAbandonadas } = await import('../../api/_vendas/abandonadas.mjs');
+  await soltarAbandonadas({ banco: local.rpc, agora: Date.now() + 40 * 60 * 1000, max: 1000 });
+  const A = await ateGerar(navegador(deps)), B = await ateGerar(navegador(deps));
+  const bancoComDefeito = async (nome, p) => {
+    if (nome === 'vendas_concluir_direcao' && A.dirs.some((d) => d.id === p.direcao_id)) throw Object.assign(new Error('deadlock'), { codigo: '40P01' });
+    return local.rpc(nome, p);
+  };
+  const r = await soltarAbandonadas({ banco: bancoComDefeito, agora: Date.now() + 40 * 60 * 1000, max: 1000 });
+  assert.equal(r.examinados, 2);
+  assert.equal(r.liberados, 1, 'só o que saiu de fato');
+  assert.deepEqual(await statusDasDirecoes(A.c), ['gerando', 'gerando', 'gerando']);
+  assert.deepEqual(await statusDasDirecoes(B.c), ['falhou', 'falhou', 'falhou']);
+});
+
+test('N5: se a consulta "em andamento" some (banco atrasado), a posse já tomada é tratada como em andamento: não soma custo nem falha a direção', async () => {
+  const semConsulta = { ...deps, banco: async (nome, p) => {
+    if (nome === 'vendas_direcao_em_andamento') throw Object.assign(new Error('função ausente'), { codigo: '42883' });
+    return deps.banco(nome, p);
+  } };
+  const n = navegador(semConsulta);
+  const P = await ateGerar(n);
+  const vid = (await local.db.query('select visitante_id v from app.conversas where id = $1', [P.c])).rows[0].v;
+  assert.equal((await local.rpc('vendas_reivindicar_direcao', { conversa_id: P.c, visitante_id: vid, direcao_id: P.dirs[0].id })).reivindicada, true);
+  const antes = Number((await local.db.query('select custo_ia_usd c from app.conversas where id = $1', [P.c])).rows[0].c);
+  const r = await gerarUma(n, P.c, P.dirs[0]);
+  assert.equal(r.corpo.status, 'em_andamento', JSON.stringify(r.corpo));
+  assert.equal(Number((await local.db.query('select custo_ia_usd c from app.conversas where id = $1', [P.c])).rows[0].c), antes);
+  assert.deepEqual(await statusDasDirecoes(P.c), ['gerando', 'gerando', 'gerando']);
+});
+
+test('N1: se o gasto provisório não grava, o modelo NÃO é chamado (falha fechada): a direção falha e a pessoa refaz pela 2ª geração', async () => {
+  let chamadasDeGeracao = 0;
+  const semRegistro = { ...deps,
+    ia: { ...deps.ia, mensagem: async (p) => { if (p.papel === 'geracao') chamadasDeGeracao++; return deps.ia.mensagem(p); } },
+    banco: async (nome, p) => {
+      if (nome === 'vendas_registrar_ia' && p.chamadas.some((x) => x.modelo === 'provisorio')) throw Object.assign(new Error('x'), { codigo: '57014' });
+      return deps.banco(nome, p);
+    } };
+  const n = navegador(semRegistro);
+  const P = await ateGerar(n);
+  const r = await gerarUma(n, P.c, P.dirs[0]);
+  assert.equal(r.corpo.status, 'falhou', JSON.stringify(r.corpo));
+  assert.equal(chamadasDeGeracao, 0, 'sem a marca no registro do dia, nada de Opus');
+  assert.deepEqual(await statusDasDirecoes(P.c), ['falhou', 'gerando', 'gerando']);
+});
+
 test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com a conversa perto do teto, não passam juntas (revisão do PR 1, segurança B6)', async () => {
   /* o modelo "lento": as 3 chamadas ficam em voo ao mesmo tempo, como no navegador */
   let emVoo = 0, picoEmVoo = 0, chamadas = 0;
@@ -613,18 +710,18 @@ test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com 
   chamadas = 0;
   const r0 = await Promise.all(g0.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
   assert.equal(chamadas, 3, 'com US$ 0,60 gastos, as 3 chamam o modelo — status: ' + JSON.stringify(r0.map(x => x.status)));
-  /* perto do teto: US$ 0,30 abaixo dele (1,70 de 2,00, com o teto de TETOS.conversa_usd) → 1,70 e 1,95 ainda começam; a 3ª (2,20 comprometidos) não.
+  /* perto do teto: US$ 0,70 abaixo dele (1,30 de 2,00, com o teto de TETOS.conversa_usd e a reserva de US$ 0,50 por direção) → 1,30 e 1,80 ainda começam; a 3ª (2,30 comprometidos) não.
      (numa conversa nova: esta já usou as 2 gerações do teto, TETOS.geracoes_por_conversa) */
   const { TETOS } = await import('../../api/_ia/config.mjs');
   await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [c]);
   const n2 = navegador(comLenta);
   const { c: c2 } = await ateDirecoes(n2);
-  await local.db.query('update app.conversas set custo_ia_usd = $2 where id = $1', [c2, TETOS.conversa_usd - 0.3]);
+  await local.db.query('update app.conversas set custo_ia_usd = $2 where id = $1', [c2, TETOS.conversa_usd - 0.7]);
   const g = await n2.chamar('POST', 'gerar', { conversa_id: c2 });
   assert.equal(g.status, 200, JSON.stringify(g.corpo));
   chamadas = 0; picoEmVoo = 0;
   const r = await Promise.all(g.corpo.direcoes.map(d => n2.chamar('POST', 'gerar-direcao', { conversa_id: c2, direcao_id: d.id })));
-  assert.equal(chamadas, 2, 'com US$ 0,30 abaixo do teto, só 2 chamam o modelo — status: ' + JSON.stringify(r.map(x => x.status)));
+  assert.equal(chamadas, 2, 'com US$ 0,70 abaixo do teto, só 2 chamam o modelo — status: ' + JSON.stringify(r.map(x => x.status)));
   assert.equal(r.filter(x => x.status === 429).length, 1, 'a 3ª: limite, com WhatsApp');
   assert.ok(r.filter(x => x.status === 429).every(x => x.corpo.recado === true));
   /* a reserva some depois da chamada: nada fica preso */

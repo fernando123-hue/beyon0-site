@@ -100,7 +100,11 @@ const MAIS_CARO = Object.values(PRECO_POR_MILHAO).reduce((m, p) => ({
    papel. O que passar da reserva ainda é somado depois (o estouro fica pequeno) */
 /* conversa_planta: o turno com a planta ligada e o preço aberto pode gastar até 4 chamadas (a reserva é UMA por turno): o pior caso medido é ~US$ 0,20 (4 voltas no max_tokens),
    o realista ~0,06. Só esses turnos reservam 0,20; com a flag desligada vale o 'conversa' de sempre (api/_vendas/fluxo.mjs) */
-export const RESERVA_USD = { conversa: 0.05, conversa_planta: 0.2, extracao: 0.01, atendente: 0.003, geracao: 0.25 };
+/* geracao: o PIOR caso de uma chamada de Opus (24000 tokens de saída, ~US$ 0,48), por decisão da revisão de segurança do PR #173 (N1/N6). Esse valor é também o
+   que se grava em app.ia_chamadas na reivindicação da direção (fluxo.mjs): a chamada cortada, de quem fecha a aba e não volta, passa a contar no teto do dia.
+   Terminando normal, a conta do dia fica no maior entre este valor e o custo real (as chamadas reais são abatidas dele). Por isso o teto do dia (dia_usd)
+   conta US$ 0,50 por direção gerada, não o gasto real (~US$ 0,20): 3 direções = US$ 1,50 por pedido. Sobe o dia_usd se isso apertar a venda */
+export const RESERVA_USD = { conversa: 0.05, conversa_planta: 0.2, extracao: 0.01, atendente: 0.003, geracao: 0.5 };
 export function reservaUsd(papel) {
   return RESERVA_USD[papel] ?? 0.25;
 }
