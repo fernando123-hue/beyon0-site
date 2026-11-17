@@ -353,7 +353,7 @@ try {
   await page.waitForFunction(c => document.getElementById('o-codigo-v').textContent.trim() === c, codigo, { timeout: 15000 });
   /* o painel (celular): o pedido já está na fila de trabalho, sem lista de espera nem confirmação */
   const painel = await ctx.newPage();
-  await painel.goto(BASE + '/painel', { waitUntil: 'load' });
+  await painel.goto(BASE + '/painel#acoes', { waitUntil: 'load' });   /* (15/11: a fila mora na tela "Precisam de você") */
   await painel.fill('#chave', PAINEL_CHAVE);
   await painel.click('#entrar button[type=submit]');
   const naFila = painel.locator('#fila .pn__fila', { hasText: codigo });
@@ -396,7 +396,7 @@ try {
   const falaDoPainel = [];
   painel2.on('console', m => falaDoPainel.push(m.text()));
   painel2.on('pageerror', e => erros.push('painel: ' + String(e)));
-  await painel2.goto(BASE + '/painel', { waitUntil: 'load' });
+  await painel2.goto(BASE + '/painel#acoes', { waitUntil: 'load' });
   await painel2.fill('#chave', PAINEL_CHAVE);
   await painel2.click('#entrar button[type=submit]');
   const avisoNaFila = painel2.locator('#fila .pn__fila', { hasText: codigo });
@@ -578,8 +578,8 @@ try {
      lista real vem vazia; depois a resposta de ?fila=lembretes é forjada com este pedido, mas o resto é de verdade: o
      "Preparar lembrete" gera um link novo no servidor e o "Já lembrei" grava no banco. Só então a lista forjada esvazia */
   let lembrado = false;
-  await painel2.locator('#bloco-lembretes').scrollIntoViewIfNeeded();
-  ok(await painel2.locator('#bloco-lembretes').isVisible() && /Nenhum lembrete/.test(await painel2.textContent('#lembretes-estado')), 'lembretes: sem ninguém avisado há 2 dias, a seção diz que não há lembrete');
+  /* (15/11: lista vazia some da tela "Precisam de você"; o estado dela segue no texto, para o leitor de tela) */
+  ok(await painel2.locator('#bloco-lembretes').isHidden() && /Nenhum lembrete/.test(await painel2.textContent('#lembretes-estado')), 'lembretes: sem ninguém avisado há 2 dias, a seção fica escondida e diz que não há lembrete');
   const contatoDoPedido = { nome: 'Ana Souza', telefone: '+55' + TELEFONE.replace(/\D/g, ''), email: null };
   const forjarLembretes = async route => {
     if (route.request().method() !== 'GET') { await route.continue(); return; }
@@ -587,7 +587,7 @@ try {
     await route.fulfill({ json: { lembretes: itens, total: itens.length } });
   };
   await painel2.route(/\/api\/painel\?fila=lembretes/, forjarLembretes);
-  await painel2.click('#lembretes-atualizar');
+  await painel2.locator('#lembretes-atualizar').dispatchEvent('click');   /* (a seção vazia está escondida: é o clique do próprio botão, sem a mão) */
   const cartaoLembrete = painel2.locator('#lembretes .pn__fila', { hasText: codigo });
   await cartaoLembrete.waitFor({ timeout: 15000 });
   ok(/1 lembrete para mandar/.test(await painel2.textContent('#lembretes-estado')), 'lembretes: o pedido avisado há 3 dias aparece na lista, com a contagem');

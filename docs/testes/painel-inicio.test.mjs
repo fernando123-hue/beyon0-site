@@ -87,6 +87,11 @@ test('painel.html: os cartões na ordem pedida, Interessados logo depois de Prec
   assert.ok(!/\sstyle=|<style/i.test(HTML), 'a CSP do painel não aceita estilo inline');
 });
 
+test('lista vazia some da tela de ações, menos a que guarda o foco (o foco não cai no corpo depois do "Já lembrei" no último)', () => {
+  assert.match(FONTE, /pn__bloco--vazio', vazia && !bloco\.contains\(document\.activeElement\)\)/);
+  assert.match(CSS, /\.pn__bloco--vazio \{ display: none; \}/);
+});
+
 test('o módulo do início: só textContent, sem console nem armazenamento; o CSS sem blur, sombra nem brilho', () => {
   const codigo = FONTE.replace(/\/\*[\s\S]*?\*\//g, '');
   assert.ok(!/innerHTML|insertAdjacentHTML|document\.write|console\.|localStorage|sessionStorage/.test(codigo));

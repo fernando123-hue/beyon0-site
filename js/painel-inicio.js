@@ -97,10 +97,13 @@
     $('situacao').setAttribute('data-estado', s.estado);
     $('n-acoes').textContent = soma.faltam.length ? '—' : num(soma.n);
     $('c-acoes').setAttribute('data-alerta', String(soma.n > 0));
-    /* na tela de ações, lista vazia some: fica só o que pede um toque (lista com erro fica, com o erro) */
+    /* na tela de ações, lista vazia some: fica só o que pede um toque (lista com erro fica, com o erro).
+       Se o foco está dentro dela (acabou de tocar "Já lembrei" no último), ela fica até a próxima leitura: o foco não cai no corpo da página
+       e a frase "Lembrete marcado" segue à vista */
     FONTES_ACAO.forEach(function (f) {
-      var d = fontes[f];
-      $(BLOCOS[f]).classList.toggle('pn__bloco--vazio', !!d && !d.erro && !(Number(d.n) > 0));
+      var d = fontes[f], bloco = $(BLOCOS[f]);
+      var vazia = !!d && !d.erro && !(Number(d.n) > 0);
+      bloco.classList.toggle('pn__bloco--vazio', vazia && !bloco.contains(document.activeElement));
     });
     $('acoes-nada').hidden = !(s.estado === 'ok');
   }
