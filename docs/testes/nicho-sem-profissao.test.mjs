@@ -4,21 +4,34 @@
    node --test docs/testes/nicho-sem-profissao.test.mjs */
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { montarLocal } from '../banco-local.mjs';
 import { atender } from '../../api/vendas.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { criarServicoPagamentos } from '../../api/_pagamentos/servico.mjs';
 import { configPagamentos } from '../../api/_pagamentos/config.mjs';
 import { ramoSemProfissao, nichoRegulado, avisoRegulado, NICHO_GENERICO } from '../../api/_vendas/zero.mjs';
-import { nichoDaSessao, nichoReguladoDaSessao } from '../../api/_vendas/agente.mjs';
+import { nichoDaSessao, nichoReguladoDaSessao, executarTurno } from '../../api/_vendas/agente.mjs';
 import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
 
 const visitante = (conteudo) => ({ papel: 'visitante', conteudo });
 
 test('clínica ou consultório sem a profissão é ramo sem profissão; veterinária, carro, aparelho e outros ramos não', () => {
-  for (const t of ['tenho uma clínica em Niterói', 'meu consultório atende adultos', 'Clínica Sol', 'CONSULTÓRIO', 'clínicas populares']) assert.equal(ramoSemProfissao(t), true, t);
-  for (const t of ['clínica veterinária', 'consultório veterinário', 'clínica do celular', 'clínica de notebook e informática', 'clínica automotiva', 'padaria artesanal', 'loja de roupa', '', null, undefined])
+  for (const t of ['tenho uma clínica em Niterói', 'meu consultório atende adultos', 'Clínica Sol', 'CONSULTÓRIO', 'clínicas populares',
+    'Sol Clinic', 'Smile Dental Clinic', 'policlínica', 'ambulatório de reabilitação', 'centro de reabilitação', 'tenho um espaço de saúde', 'atendo com acupuntura'])
+    assert.equal(ramoSemProfissao(t), true, t);
+  for (const t of ['clínica veterinária', 'consultório veterinário', 'hospital veterinário', 'pet clínica', 'clínica do celular', 'clínica de reparo de celular', 'clínica de notebook e informática',
+    'clínica automotiva', 'padaria artesanal', 'loja de roupa', '', null, undefined])
     assert.equal(ramoSemProfissao(t), false, String(t));
+  /* quem vende PARA clínicas (plural) não é clínica */
+  for (const t of ['faço software de agenda para clínicas', 'agência de sites para clínicas e consultórios', 'contabilidade para consultórios']) assert.equal(ramoSemProfissao(t), false, t);
+});
+
+test('a exclusão vale só COLADA ao substantivo: uma palavra solta de outro ramo no texto não desliga a regra (achado das revisões)', () => {
+  for (const t of ['Tenho uma clínica em Niterói e quero que os pacientes marquem pelo celular', 'Minha clínica tem estacionamento para carros e motos',
+    'Tenho uma clínica de acupuntura, estacionamento para carros', 'Meu consultório fica ao lado de um pet shop', 'clínica, com agendamento pelo computador',
+    'Quero que o site abra bem no celular. Tenho uma clínica.'])
+    assert.equal(ramoSemProfissao(t), true, t);
 });
 
 test('o detector que o classificador mede não muda: "clínica" sozinha continua sem nicho', () => {
@@ -39,6 +52,13 @@ test('a sessão: clínica sem profissão vira saúde genérica; a profissão, de
   assert.equal(nichoDaSessao({ briefing: {}, mensagens: [visitante('Tenho uma padaria')] }), null);
 });
 
+test('o nome do negócio é fonte da sessão (o Zero e a geração falam do mesmo nicho): a profissão no nome vence; só "clínica" no nome é saúde genérica', () => {
+  assert.equal(nichoReguladoDaSessao({ briefing: { negocio: { nome: 'Clínica Odontológica Sorriso', segmento: 'serviços' } } }).chave, 'odontologia');
+  assert.equal(nichoReguladoDaSessao({ briefing: { negocio: { nome: 'Consultório Jurídico Silva', segmento: 'serviços' } } }).chave, 'advocacia', 'OAB, não saúde');
+  assert.equal(nichoReguladoDaSessao({ briefing: { negocio: { nome: 'Dra. Ana Psicóloga', segmento: 'serviços' } } }).chave, 'psicologia');
+  assert.equal(nichoDaSessao({ briefing: { negocio: { nome: 'Clínica Sol', segmento: 'serviços' } } }), NICHO_GENERICO, 'também no caminho do Zero, não só na geração');
+});
+
 test('a geração e o selo: o nome "Clínica Sol" com segmento genérico também fecha para o lado das regras; o nicho comum não muda', () => {
   assert.deepEqual(nichoReguladoDaSessao({ briefing: { negocio: { nome: 'Clínica Sol', segmento: 'serviços' } }, mensagens: [] }), { chave: 'saude_generica' });
   assert.deepEqual(nichoReguladoDaSessao({ briefing: { negocio: { nome: 'Consultório Bem Estar' } } }), { chave: 'saude_generica' });
@@ -53,7 +73,21 @@ test('o Zero: com clínica sem profissão, o aviso traz as regras e manda pergun
   assert.match(a.profissao_a_confirmar, /ainda não disse a profissão/);
   assert.match(a.profissao_a_confirmar, /UMA vez/);
   assert.ok(a.regras_do_conselho && a.nunca.includes('antes e depois'), 'as regras valem até lá');
+  assert.equal(a.registro, undefined, 'a profissão vem antes do número do registro: uma pergunta de cada vez');
+  assert.match(avisoRegulado(nichoRegulado('sou dentista')).registro, /CRO/, 'com a profissão, o registro é pedido como antes');
   assert.equal(avisoRegulado(nichoRegulado('sou dentista')).profissao_a_confirmar, undefined);
+});
+
+test('o turno: com "clínica" sem profissão o modelo recebe o aviso (regras e a pergunta da profissão) e a resposta liberando antes e depois é trocada; o sombra do classificador não recebe o genérico', async () => {
+  const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+  const recebidos = [];
+  const ia = { async mensagem(p) { recebidos.push(p); return { texto: 'Pode ter antes e depois, sim, fica ótimo na sua clínica.', chamadas: [], conteudo: [{ type: 'text', text: 'Pode ter antes e depois, sim, fica ótimo na sua clínica.' }], parada: 'fim', custo_usd: 0.001 }; } };
+  const r = await executarTurno({ ia, regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens: [], estimativa: null }, mensagem: 'Tenho uma clínica em Niterói e quero antes e depois no site' });
+  assert.doesNotMatch(r.resposta, /Pode ter antes e depois/, 'a trava de regulado vale também para clínica sem profissão');
+  assert.match(JSON.stringify(recebidos[0]), /profissao_a_confirmar/, 'o aviso chegou ao modelo');
+  assert.equal(r.sombra.nicho, null, 'o classificador mede o sinal de nicho real, não o genérico');
+  const r2 = await executarTurno({ ia, regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens: [], estimativa: null }, mensagem: 'Sou dentista e quero antes e depois no site' });
+  assert.equal(r2.sombra.nicho.chave, 'odontologia', 'com a profissão, o sombra segue como antes');
 });
 
 /* ---- pelo fluxo de verdade (API, banco local e dublê): a geração sai com as regras e o aviso do dono diz o ramo ---- */

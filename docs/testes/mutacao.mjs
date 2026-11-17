@@ -103,6 +103,12 @@ export const SABOTAGENS = [
     de: "  if (typeof b.negocio?.nome === 'string' && ramoSemProfissao(b.negocio.nome)) return { chave: 'saude_generica' };", para: "  /* (sabotado) */" },
   { nome: "nicho sem profissão: veterinária vira saúde", fonte: "api/_vendas/zero.mjs", testes: ['docs/testes/nicho-sem-profissao.test.mjs'],
     de: "  if (semVet !== t) return false;", para: "  if (false) return false;" },
+  { nome: "nicho sem profissão: a exclusão de outro ramo vale para o texto todo", fonte: "api/_vendas/zero.mjs", testes: ['docs/testes/nicho-sem-profissao.test.mjs'],
+    de: "  const sobra = t.replace(PARA_ESTABELECIMENTOS, ' ')", para: "  if (new RegExp('\\\\b(?:' + OUTRO_RAMO + ')\\\\b').test(t)) return false;\n  const sobra = t.replace(PARA_ESTABELECIMENTOS, ' ')" },
+  { nome: "nicho sem profissão: o sombra recebe o genérico", fonte: "api/_vendas/agente.mjs", testes: ['docs/testes/nicho-sem-profissao.test.mjs'],
+    de: "nicho: nichoFinal?.chave === 'saude_generica' ? null : nichoFinal }", para: "nicho: nichoFinal }" },
+  { nome: "nicho sem profissão: o Zero pergunta o registro antes da profissão", fonte: "api/_vendas/zero.mjs", testes: ['docs/testes/nicho-sem-profissao.test.mjs'],
+    de: "      ...(nicho.chave === 'saude_generica' ? {} : { registro:", para: "      ...(false ? {} : { registro:" },
   { nome: "nicho sem profissão: o Zero não pergunta a profissão", fonte: "api/_vendas/zero.mjs", testes: ['docs/testes/nicho-sem-profissao.test.mjs'],
     de: "...(nicho.chave === 'saude_generica' ? { profissao_a_confirmar:", para: "...(false ? { profissao_a_confirmar:" },
   /* ---- o mapa e a trava de pagamento: o canal ("Chama no direct") passa só no mapa (teste C, 14/11) ---- */

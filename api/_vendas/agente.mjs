@@ -91,7 +91,7 @@ const doVisitante = mensagens => (mensagens || []).filter(m => m.papel === 'visi
 export function nichoDaSessao({ briefing, mensagens, mensagem }) {
   const b = briefing || {};
   /* (uma fonte por vez: o detector olha até 2.000 caracteres de cada, e a mensagem de agora não pode ser cortada pelas antigas) */
-  const fontes = [b.negocio?.segmento, b.negocio?.descricao, ...(Array.isArray(b.servicos) ? b.servicos : []), ...doVisitante(mensagens), mensagem];
+  const fontes = [b.negocio?.segmento, b.negocio?.descricao, ...(Array.isArray(b.servicos) ? b.servicos : []), b.negocio?.nome, ...doVisitante(mensagens), mensagem];
   for (const f of fontes) { const n = f ? nichoRegulado(f) : null; if (n) return n; }
   /* (M3, 16/11) clínica ou consultório sem a profissão: saúde genérica até ela dizer qual (a profissão de qualquer fonte vence, acima) */
   if (fontes.some((f) => f && ramoSemProfissao(f))) return NICHO_GENERICO;
@@ -108,8 +108,6 @@ export function nichoReguladoDaSessao({ briefing, mensagens, mensagem }) {
   const n = nichoDaSessao({ briefing: b, mensagens, mensagem });
   if (n) return { chave: n.chave };
   if (typeof b.negocio?.segmento === 'string' && RAMO_SAUDE.test(b.negocio.segmento)) return { chave: 'saude_generica' };
-  /* (M3) o NOME do negócio também ("Clínica Sol" com segmento "serviços"): na geração a dúvida fecha para o lado das regras */
-  if (typeof b.negocio?.nome === 'string' && ramoSemProfissao(b.negocio.nome)) return { chave: 'saude_generica' };
   return null;
 }
 /* pediu de novo o que já foi recusado (a recusa fixa no histórico, ou o pedido proibido numa mensagem anterior) */
@@ -267,5 +265,6 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   /* sombra: só para o modo sombra do JEV medir (api/_classificador/sombra.mjs): a saída do modelo ANTES das travas e o nicho da sessão.
      O fluxo não devolve isto à tela nem grava o texto; nada aqui muda a resposta */
   return { resposta: cortarEmFrase(resposta, 1500), briefing, confianca, faltam, estimativa, pedir_contato: pedirContato, diagnostico, sugestoes_ia: sugestoes, leitura_rebaixos: rebaixos, custo_usd: custo, pronto_estimar: prontoParaEstimar(briefing),
-    sombra: { textoDoModelo: texto, nicho: nichoFinal } };
+    /* (M3) o genérico não vai ao sombra: o classificador mede o sinal de nicho real, e "clínica sem profissão" não é um */
+    sombra: { textoDoModelo: texto, nicho: nichoFinal?.chave === 'saude_generica' ? null : nichoFinal } };
 }
