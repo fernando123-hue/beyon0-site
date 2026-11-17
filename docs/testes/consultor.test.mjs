@@ -566,4 +566,8 @@ test('instruções: o Perfil no Google só entra se a tabela traz o item; oferec
   assert.match(linha, /Não prometa posição nem resultado/);
   assert.match(linha, /saúde e advocacia, só a estrutura, sem depoimento/i);
   assert.doesNotMatch(linha, /R\$|\d{3,}(?![\d%])/, 'nenhum valor em dinheiro chega ao modelo (o "100%" online não conta)');
+  for (const marca of [{ em_preparo: true }, { fora_do_automatico: true }]) {
+    const r = JSON.parse(JSON.stringify(REGRAS)); Object.assign(r.adicionais.perfil_google, marca);
+    assert.ok(!montarSistema(r).includes('Perfil no Google ('), 'item ' + Object.keys(marca)[0] + ': a Zero não o oferece como adicional comum');
+  }
 });

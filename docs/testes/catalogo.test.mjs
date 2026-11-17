@@ -188,5 +188,7 @@ test('Perfil no Google pronto (R$ 900, 17/11): principal nos ramos que recebem c
   }
   const e = doRamo('servicos').extras.principais.find(x => x.chave === 'perfil_google');
   assert.deepEqual([e.nome, e.valor, e.max], ['Perfil no Google pronto', 900, 1]);
-  assert.doesNotMatch(FRASES.perfil_google + e.beneficio, /garant|primeiro lugar|aumenta|só confirma/i, 'sem promessa de resultado nem "você só confirma": a verificação e a colagem são do cliente');
+  assert.doesNotMatch(FRASES.perfil_google + e.beneficio, /garant|primeiro lugar|aumenta|só confirma/i, 'sem promessa de resultado nem "você só confirma"');
+  assert.match(FRASES.perfil_google, /você confirma .* e cola/i, 'a frase diz que a confirmação no Google e a colagem são do cliente');
+  assert.match(e.beneficio, /você confirma .* e cola/i, 'o cartão também');
 });
