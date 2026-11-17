@@ -66,7 +66,7 @@
     lista(fontes.recados).forEach(function (r) {
       if (!r || !r.id) return;
       var dono = r.pedido_codigo && porCodigo[r.pedido_codigo];
-      if (dono) { if (!dono.recado) { dono.recado = r.texto; dono.suspeito = !!r.suspeito; } return; }
+      if (dono) { if (!dono.recado) dono.recado = r.texto; dono.suspeito = dono.suspeito || !!r.suspeito; return; }
       pessoas.push({ chave: r.id, nome: null, como: 'Recado', etapa: r.lido_em ? 'Lido' : 'Novo', codigo: r.pedido_codigo || null, quando: r.criado_em,
         telefone: r.whatsapp || null, email: r.email || null, recado: r.texto, suspeito: !!r.suspeito, acao: !r.lido_em });
     });

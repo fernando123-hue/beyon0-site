@@ -59,6 +59,16 @@ test('interessados: um por pessoa, a etapa mais adiantada, só o que o dado diz;
   assert.equal(por.c4.telefone, '+5521900000004'); assert.equal(por.c4.email, 'd@exemplo.com');
 });
 
+test('interessados: recado suspeito que chega depois do primeiro recado do mesmo pedido ainda marca a pessoa como suspeita', () => {
+  const fila = { itens: [{ conversa_id: 'c1', codigo: 'BZ-AAAAA', pedido_em: h(5), contato: { nome: 'Ana' } }] };
+  const recado = (id, suspeito) => ({ id, criado_em: h(1), texto: 't' + id, pedido_codigo: 'BZ-AAAAA', lido_em: null, suspeito });
+  const pessoa = recados => I.montarInteressados({ fila, recados: { itens: recados } }).find(p => p.chave === 'c1');
+  assert.equal(pessoa([recado('r1', false), recado('r2', true)]).suspeito, true, 'o suspeito vem depois do limpo');
+  assert.equal(pessoa([recado('r1', true), recado('r2', false)]).suspeito, true, 'o suspeito vem antes do limpo');
+  assert.equal(pessoa([recado('r1', false), recado('r2', false)]).suspeito, false, 'sem suspeito, segue limpo');
+  assert.equal(pessoa([recado('r1', false), recado('r2', true)]).recado, 'tr1', 'o texto da ficha continua sendo o do primeiro recado');
+});
+
 test('interessados: fonte que falhou ou veio sem lista não quebra nem inventa ninguém', () => {
   assert.deepEqual(I.montarInteressados({ fila: { erro: true }, recados: { itens: null }, lembretes: {}, avisos: undefined }), []);
   assert.deepEqual(I.montarInteressados({ fila: { itens: [{ conversa_id: 'x' }] } }).map(p => [p.nome, p.etapa]), [[null, 'Pediu os modelos']]);
@@ -90,6 +100,15 @@ test('painel.html: os cartões na ordem pedida, Interessados logo depois de Prec
 test('lista vazia some da tela de ações, menos a que guarda o foco (o foco não cai no corpo depois do "Já lembrei" no último)', () => {
   assert.match(FONTE, /pn__bloco--vazio', vazia && !bloco\.contains\(document\.activeElement\)\)/);
   assert.match(CSS, /\.pn__bloco--vazio \{ display: none; \}/);
+});
+
+test('todo js/painel*.js: nenhum innerHTML, insertAdjacentHTML nem document.write (o painel mostra texto de cliente; só textContent)', () => {
+  const arquivos = fs.readdirSync(new URL('../../js/', import.meta.url)).filter(f => /^painel.*\.js$/.test(f));
+  assert.ok(arquivos.length >= 8, 'achou os arquivos do painel: ' + arquivos.join(', '));
+  for (const f of arquivos) {
+    const codigo = ler('js/' + f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+    assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(codigo), f + ' escreve HTML na página');
+  }
 });
 
 test('o módulo do início: só textContent, sem console nem armazenamento; o CSS sem blur, sombra nem brilho', () => {
