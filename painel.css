@@ -1,6 +1,7 @@
 /* ==========================================================================
    PAINEL.CSS — o painel do dono (painel.html). Celular primeiro (390 px), tokens do site,
-   sem movimento, sem desfoque, sem sombra, sem gradiente: só traço nítido de 1px (regra do dono).
+   sem movimento, sem desfoque, sem sombra, sem gradiente: só traço nítido de 1px (regra do dono),
+   COM UMA EXCEÇÃO expressa dele (16/11): o brilho suave do bloco NEON-PAINEL, no fim deste arquivo.
    15/11 ("o mais simples e fácil de entender possível"): o início é uma linha de situação e quatro
    cartões grandes (ícone, número, legenda, seta); cada cartão abre a sua tela.
    ========================================================================== */
@@ -182,3 +183,24 @@ body { font-size: 1rem; line-height: 1.55; background: var(--bg); color: var(--t
   .pn__campos .pn__nota { grid-column: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .pn__cartao, .pn__seta, .pn__pessoa { transition: none; } }
+
+/* ==== NEON-PAINEL: início ====
+   EXCEÇÃO EXPRESSA DO DONO (16/11, referência: 00 Entrada/painel-simples/referencia-dono.jpg): brilho suave, no nosso ciano,
+   SÓ no painel (este arquivo só carrega em /painel; não copiar para o site público). Regras da exceção: sombra e gradiente
+   estáticos (box-shadow, text-shadow, radial/linear-gradient), nada de animação do brilho, nada de backdrop-filter, filter
+   nem blur() (celular fraco). Para reverter: apagar tudo entre os dois marcadores NEON-PAINEL (ou reverter o commit). */
+body { background-image: radial-gradient(90% 100% at 50% 0%, rgb(var(--ac-3-rgb) / .16), transparent 70%); background-repeat: no-repeat; background-size: 100% 60vh; }
+.pn__cartao { --halo: var(--ac-rgb); }
+.pn__cartao[data-alerta="true"] { --halo: var(--ouro-rgb); }   /* o que pede um toque segue no ouro, como o laranja dos quentes na referência */
+.pn__cartao {
+  background: radial-gradient(80% 60% at 0% 0%, rgb(var(--halo) / .10), transparent 70%), var(--s1);
+  border-color: rgb(var(--halo) / .30);
+  box-shadow: 0 0 22px rgb(var(--halo) / .10), inset 0 0 0 1px rgb(var(--halo) / .05);
+}
+.pn__cartao:hover { border-color: rgb(var(--halo) / .55); box-shadow: 0 0 28px rgb(var(--halo) / .20), inset 0 0 0 1px rgb(var(--halo) / .10); }
+.pn__cartao:active { background: radial-gradient(80% 60% at 0% 0%, rgb(var(--halo) / .14), transparent 70%), var(--s2); }
+.pn__cartao .pn__icone { background: rgb(var(--halo) / .08); border-color: rgb(var(--halo) / .40); box-shadow: 0 0 20px rgb(var(--halo) / .38); }
+.pn__cartao .pn__num { text-shadow: 0 0 18px rgb(var(--halo) / .50); }
+.pn__btn:not(.pn__btn--fino) { background-image: linear-gradient(135deg, var(--ac-2), var(--ac)); box-shadow: 0 0 22px rgb(var(--ac-rgb) / .40); }
+.pn__btn:not(.pn__btn--fino):disabled { box-shadow: none; }
+/* ==== NEON-PAINEL: fim ==== */

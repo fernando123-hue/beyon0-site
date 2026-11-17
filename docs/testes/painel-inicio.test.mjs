@@ -144,9 +144,24 @@ test('todo js/painel*.js: nenhum innerHTML, insertAdjacentHTML nem document.writ
   }
 });
 
-test('o módulo do início: só textContent, sem console nem armazenamento; o CSS sem blur, sombra nem brilho', () => {
-  const codigo = FONTE.replace(/\/\*[\s\S]*?\*\//g, '');
+/* A ÚNICA exceção à regra "sem brilho": o bloco NEON-PAINEL de painel.css (dono, 16/11: brilho suave no ciano, só no painel) */
+const NEON = /\/\*\s*====\s*NEON-PAINEL: início[\s\S]*?NEON-PAINEL: fim\s*====\s*\*\//;
+const semComentarios = s => s.replace(/\/\*[\s\S]*?\*\//g, '');
+
+test('o módulo do início: só textContent, sem console nem armazenamento; o CSS sem blur, sombra nem brilho fora do bloco NEON-PAINEL', () => {
+  const codigo = semComentarios(FONTE);
   assert.ok(!/innerHTML|insertAdjacentHTML|document\.write|console\.|localStorage|sessionStorage/.test(codigo));
-  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(NEON.test(CSS), 'o bloco da exceção está entre os dois marcadores');
+  const css = semComentarios(CSS.replace(NEON, ''));
   assert.ok(!/blur\(|box-shadow|text-shadow|drop-shadow|backdrop-filter|radial-gradient|linear-gradient/.test(css));
+});
+
+test('o brilho do painel (NEON-PAINEL): só sombra e gradiente estáticos, sem blur, filtro, animação, inline nem token novo; usa o ciano e o ouro da marca', () => {
+  const bloco = semComentarios(CSS.match(NEON)[0]);
+  assert.ok(bloco.length > 400, 'o bloco existe e tem corpo');
+  assert.ok(!/blur|backdrop|filter|animation|@keyframes|transition|will-change|!important|style=/.test(bloco), 'nada de desfoque, filtro, movimento do brilho nem !important');
+  assert.ok(/box-shadow/.test(bloco) && /text-shadow/.test(bloco) && /radial-gradient/.test(bloco), 'o que o dono pediu está lá');
+  assert.ok(/--ac-rgb/.test(bloco) && /--ouro-rgb/.test(bloco) && /--ac-3-rgb/.test(bloco), 'cores dos tokens da marca (ciano; ouro no que pede um toque)');
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgba?\(\s*\d/.test(bloco), 'nenhuma cor solta: só os tokens');
+  assert.equal((CSS.match(/NEON-PAINEL: início/g) || []).length, 1, 'um bloco só');
 });
