@@ -780,7 +780,7 @@ export const SABOTAGENS = [
   { nome: 'vigia: anon pode gravar o estado do vigia', arquivo: '20261115120000_vigia.sql', testes: ['docs/testes/vigia-banco.test.mjs'],
     de: 'revoke all on function app.rotinas_vigia_gravar(jsonb) from public, anon, authenticated;', para: 'grant execute on function app.rotinas_vigia_gravar(jsonb) to anon, authenticated;' },
   { nome: 'vigia: a falha que continua avisa toda hora', fonte: 'api/_vigia/decidir.mjs', testes: ['docs/testes/vigia.test.mjs'],
-    de: 'agora - ms(antes.avisado_em) >= LEMBRAR_MS;', para: 'agora - ms(antes.avisado_em) >= 0;' },
+    de: 'agora - ms(antes.avisado_em) >= LEMBRAR_MS', para: 'agora - ms(antes.avisado_em) >= 0' },
   { nome: 'vigia: um visitante sozinho dispara o alerta da IA', fonte: 'api/_vigia/decidir.mjs', testes: ['docs/testes/vigia.test.mjs'],
     de: '&& leitura.conversas_falha_hora >= MIN_CONVERSAS_IA;', para: '&& leitura.conversas_falha_hora >= 0;' },
   { nome: 'vigia: o e-mail que não saiu fica marcado como avisado', fonte: 'api/_vigia/rondar.mjs', testes: ['docs/testes/vigia.test.mjs'],
