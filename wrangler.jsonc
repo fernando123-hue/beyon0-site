@@ -17,7 +17,9 @@
     "not_found_handling": "404-page"
   },
   "triggers": { "crons": ["23 * * * *", "41 6 * * *"] },
-  "vars": { "BZ_AMBIENTE": "producao", "MP_AMBIENTE": "producao", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "",
+  // BZ_DIRECOES: os 3 modelos saem pela API, na hora (dono, 15/11; antes "manual", a fila do dono, desde 08/10). Sem a chave da Anthropic
+  // o código cai sozinho na fila manual (api/_ia/config.mjs, modoDirecoes); o staging e as prévias seguem "manual" (IA simulada, sem gasto)
+  "vars": { "BZ_AMBIENTE": "producao", "MP_AMBIENTE": "producao", "MP_METODOS": "pix", "BZ_DIRECOES": "api", "MP_3DS": "", "METRICAS_HOSTS": "",
     // o aviso ao dono por e-mail (api/_aviso.mjs) até existir o app com push; o remetente (avisos@ do domínio) fica no código; o destino é o e-mail público da empresa e precisa estar
     // verificado no Email Routing da zona. Só a produção avisa: o staging (env.previa) não tem o binding nem estes endereços
     "AVISO_PARA": "contato.beyon.zero@gmail.com",

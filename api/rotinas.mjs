@@ -27,7 +27,8 @@ import { criarArmazem } from './_material/armazem.mjs';
 import { conferirCron, segredoDoCron } from './_cron.mjs';
 import { criarTransporte } from './_vendas/transporte.mjs';
 import { banco as bancoMetricas } from './_banco.mjs';
-import { TETOS } from './_ia/config.mjs';
+import { TETOS, modoDirecoes } from './_ia/config.mjs';
+import { soltarAbandonadas } from './_vendas/abandonadas.mjs';
 import { ORG } from './_vendas/org.mjs';
 import { orcamentoDe, SemOrcamento, ORCAMENTO_SUBPEDIDOS } from './_orcamento.mjs';
 
@@ -68,6 +69,13 @@ export async function executar(request, env, deps = {}) {
   let pedidos = null;
   try { pedidos = await banco('vendas_expirar_pedidos', {}); }
   catch (e) { falhou('pedidos', e); }
+  /* (PR #173, A1) o pedido abandonado no modo api (a aba fechou antes de gerar): as direções que não vão mais terminar viram "falhou" e o pedido sai da fila do
+     dono. Até 5 pedidos por rotina (4 subpedidos cada, dentro do orçamento). Na fila manual não se faz: a direção "gerando" é trabalho do dono */
+  let abandonadas = null;
+  if (modoDirecoes(env) === 'api') {
+    try { abandonadas = await soltarAbandonadas({ banco }); }
+    catch (e) { falhou('abandonadas', e); }
+  }
   /* (PR 3b-2) a limpeza e a reconciliação do armazém: 3 subpedidos (2 ao banco, 1 remoção em lote), dentro do orçamento da rotina */
   let material = null;
   const armazem = deps.armazem !== undefined ? deps.armazem : criarArmazem(env);
@@ -100,7 +108,7 @@ export async function executar(request, env, deps = {}) {
   }
 
   /* sem canal de aviso no celular (o app próprio ainda não existe): o resumo do dia fica no log e no banco, nada é enviado */
-  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, recados, atendente, pedidos, alertas: saude.alertas.map(a => a.tipo), material, entregas, falhas, parcial, subpedidos: gasto.gastos() });
+  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, recados, atendente, pedidos, abandonadas, alertas: saude.alertas.map(a => a.tipo), material, entregas, falhas, parcial, subpedidos: gasto.gastos() });
   if (parcial) log({ nivel: 'aviso', evento: 'rotina parcial', subpedidos: gasto.gastos() });
   return json({ ok: !falhas.length, parcial, retencao, recados, atendente, pedidos, material, saude });
 }

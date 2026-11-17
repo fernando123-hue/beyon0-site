@@ -1,7 +1,7 @@
 /* O fluxo inteiro pela API (/api/vendas e /api/pagamentos), com o banco real (PGlite + migrations), a IA simulada e o
    Mercado Pago simulado (os pagamentos em detalhe: pagamentos.test.mjs). Cobre a lista da especificação: fluxo normal, incompleto, falha da IA, segurança, injeção de
    prompt, preço, webhook inválido, concorrência e dados inconsistentes.  npm run testar */
-import { test, before } from 'node:test';
+import { test, before, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { montarLocal } from '../banco-local.mjs';
 import { atender, freioGeral } from '../../api/vendas.mjs';
@@ -12,7 +12,7 @@ import { configPagamentos } from '../../api/_pagamentos/config.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { RECUPERACAO } from '../../api/_vendas/fluxo.mjs';
 import { SISTEMA } from '../../api/_vendas/agente.mjs';
-import { LIMITES_DE_TESTE, detalhesEConfirmar, telefoneDeTeste } from './_pedido.mjs';
+import { LIMITES_DE_TESTE, detalhesEConfirmar, telefoneDeTeste, zerarRegistroDeIa } from './_pedido.mjs';
 
 let local, deps;
 const PAGADOR = { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '52998224725' };
@@ -22,6 +22,8 @@ before(async () => {
   local = await montarLocal({ base: BASE });
   deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE, pagamentos: criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}) }) };
 });
+
+beforeEach(() => zerarRegistroDeIa(local.db));   /* (PR #173, N1: o gasto provisório de cada direção gerada não trava o dia deste banco; ver _pedido.mjs) */
 
 /* um "navegador": cada um com um IP próprio (o freio é por IP) */
 function navegador(d = deps) {
@@ -400,6 +402,296 @@ test('pedido arquivado (resolvido por fora) com as prontas: a escolha continua v
   assert.equal(r.status, 200, JSON.stringify(r.corpo));
 });
 
+/* (dono, 15/11) com os modelos saindo pela API, cada conversa gera no máximo 2 vezes: a 1ª e um "gerar de novo". Além disso, o
+   caminho é escolher o que chegou mais perto e pedir as mudanças nos ajustes, ou deixar um recado (nada a escolher) */
+test('modo api: as três direções saem no máximo 2 vezes por conversa; a 3ª recusa com o caminho dos ajustes e o recado', async () => {
+  const { TETOS } = await import('../../api/_ia/config.mjs');
+  const { GERACOES_ESGOTADAS } = await import('../../api/_vendas/fluxo.mjs');
+  assert.equal(TETOS.geracoes_por_conversa, 2, 'decisão do dono, 15/11');
+  const quebrada = { ...deps, ia: { mensagem: async () => { throw new ErroIA('tempo'); } } };
+  const n = navegador();
+  const c = (await n.iniciar()).conversa_id;
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
+  await detalhesEConfirmar(n.chamar, local.rpc, c);
+  for (let i = 0; i < TETOS.geracoes_por_conversa; i++) {
+    const g = await n.chamar('POST', 'gerar', { conversa_id: c });
+    assert.equal(g.status, 200, 'geração ' + (i + 1) + ': ' + JSON.stringify(g.corpo));
+    for (const d of g.corpo.direcoes) assert.equal((await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id }, { deps: quebrada })).corpo.status, 'falhou');
+  }
+  const terceira = await n.chamar('POST', 'gerar', { conversa_id: c });
+  assert.equal(terceira.status, 409, JSON.stringify(terceira.corpo));
+  assert.equal(terceira.corpo.erro, GERACOES_ESGOTADAS);
+  assert.equal(terceira.corpo.recado, true, 'sem modelo para escolher, o recado fica à mão');
+  assert.match(GERACOES_ESGOTADAS, /ajustes/);
+  assert.equal(Number((await local.db.query('select max(geracao) n from app.direcoes where conversa_id = $1', [c])).rows[0].n), 2, 'nenhuma 3ª geração gravada');
+});
+
+/* ======================= a fila no modo api (dono, 15/11; revisões do PR #173) =======================
+   A fila "cheia" conta só o que ainda precisa do dono. No modo api o dono não produz nada: quem recebeu as direções, viu e
+   sumiu NÃO segura vaga (senão dez curiosos davam "fila cheia" ao cliente novo), e o pedido abandonado no meio sai sozinho. */
+const naFila = async () => Number((await local.db.query('select count(*)::int n from app.pedidos pd where privado.pedido_na_fila(pd)')).rows[0].n);
+async function ateGerar(n) {
+  const c = (await n.iniciar()).conversa_id;
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
+  await detalhesEConfirmar(n.chamar, local.rpc, c);
+  const g = await n.chamar('POST', 'gerar', { conversa_id: c });
+  assert.equal(g.status, 200, JSON.stringify(g.corpo));
+  return { c, dirs: g.corpo.direcoes };
+}
+const gerarUma = (n, c, d, extra) => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id }, extra);
+const statusDasDirecoes = async (c) => (await local.db.query('select status from app.direcoes where conversa_id = $1 order by numero', [c])).rows.map(r => r.status);
+const comFila = (teto) => ({ ...deps, limitesPedido: { ...LIMITES_DE_TESTE, fila_confirmados: teto } });
+/* (created_at não muda por UPDATE: um gatilho o mantém; o teste desliga os gatilhos só durante o ajuste) */
+async function envelhecerGeracao(conversa, intervalo) {
+  await local.db.exec('set session_replication_role = replica');
+  try { await local.db.query("update app.direcoes set created_at = now() - interval '" + intervalo + "' where conversa_id = $1", [conversa]); }
+  finally { await local.db.exec('set session_replication_role = origin'); }
+}
+const iaQuebrada = (d) => ({ ...d, ia: { mensagem: async () => { throw new ErroIA('tempo'); } } });
+
+test('modo api: pedido com as três direções prontas sai da fila, e a fila cheia só conta quem ainda está sendo atendido', async () => {
+  const base = await naFila();
+  const d2 = comFila(base + 2);
+  /* dois pedidos em geração ocupam as duas vagas: o cliente novo recebe "fila cheia" */
+  const na = navegador(d2), nb = navegador(d2);
+  const A = await ateGerar(na), B = await ateGerar(nb);
+  assert.equal(await naFila(), base + 2, 'em geração, conta');
+  const ne = navegador(d2);
+  const ce = (await ne.iniciar()).conversa_id;
+  assert.equal((await ne.chamar('GET', 'estado', undefined, { query: '&conversa=' + ce })).corpo.fila_cheia, true, 'duas em geração: cheia');
+  /* com 2 das 3 prontas, o pedido ainda é do sistema: continua contando */
+  for (const d of A.dirs.slice(0, 2)) assert.equal((await gerarUma(na, A.c, d)).corpo.status, 'pronta');
+  assert.equal(await naFila(), base + 2, 'faltando uma direção, ainda conta');
+  /* a última pronta: o pedido sai da fila sem o dono tocar em nada, e a vaga volta */
+  assert.equal((await gerarUma(na, A.c, A.dirs[2])).corpo.status, 'pronta');
+  assert.equal(await naFila(), base + 1, 'as três prontas: sai da fila');
+  assert.equal((await ne.chamar('GET', 'estado', undefined, { query: '&conversa=' + ce })).corpo.fila_cheia, false, 'a vaga voltou para o cliente novo');
+  assert.equal(Number((await local.db.query('select count(*)::int n from app.direcoes where conversa_id = $1 and avisada_em is not null', [A.c])).rows[0].n), 3, 'marcadas como entregues: o lembrete de 2 dias segue valendo');
+  /* o pedido não se perde: o cliente ainda escolhe */
+  const e = (await na.chamar('GET', 'estado', undefined, { query: '&conversa=' + A.c })).corpo;
+  assert.equal(e.conversa.etapa, 'direcoes');
+  assert.equal(e.pedido.status, 'confirmado');
+  /* o outro pedido termina: a fila volta ao que era */
+  for (const d of B.dirs) await gerarUma(nb, B.c, d);
+  assert.equal(await naFila(), base, 'nenhum pedido pronto fica na fila');
+});
+
+test('modo api: três falhas e "2 prontas + 1 falha" também saem da fila; falhar ao soltar não derruba a direção que ficou pronta', async () => {
+  const base = await naFila();
+  const n = navegador(deps);
+  /* as três falham: a conversa volta a "contato" e o gatilho do banco solta o pedido */
+  const T = await ateGerar(n);
+  for (const d of T.dirs) assert.equal((await gerarUma(n, T.c, d, { deps: iaQuebrada(deps) })).corpo.status, 'falhou');
+  assert.deepEqual(await statusDasDirecoes(T.c), ['falhou', 'falhou', 'falhou']);
+  assert.equal(await naFila(), base, 'três falhas: fora da fila');
+  /* 2 prontas + 1 falha: sai da fila (as prontas ficam entregues) */
+  const D = await ateGerar(n);
+  for (const d of D.dirs.slice(0, 2)) assert.equal((await gerarUma(n, D.c, d)).corpo.status, 'pronta');
+  assert.equal((await gerarUma(n, D.c, D.dirs[2], { deps: iaQuebrada(deps) })).corpo.status, 'falhou');
+  assert.deepEqual(await statusDasDirecoes(D.c), ['pronta', 'pronta', 'falhou']);
+  assert.equal(await naFila(), base, '2 prontas + 1 falha: fora da fila');
+  /* o banco recusa tirar da fila: a direção que acabou de ficar pronta continua pronta e a resposta é "pronta" */
+  const { ErroBanco } = await import('../../api/_vendas/transporte.mjs');
+  const rpcQueFalha = Object.assign(async (nome, p) => { if (nome === 'vendas_marcar_avisado') throw new ErroBanco('XX000', 'falha simulada'); return local.rpc(nome, p); }, { chaveCache: local.rpc.chaveCache });
+  const dFalha = { ...deps, banco: rpcQueFalha };
+  const nf = navegador(dFalha);
+  const F = await ateGerar(nf);
+  for (const d of F.dirs) assert.equal((await gerarUma(nf, F.c, d)).corpo.status, 'pronta', 'a falha em soltar da fila não derruba a geração');
+  assert.deepEqual(await statusDasDirecoes(F.c), ['pronta', 'pronta', 'pronta']);
+  await local.rpc('vendas_marcar_avisado', { conversa_id: F.c, org_slug: 'beyon-zero' });   /* (limpa a fila para os testes seguintes) */
+  assert.equal(await naFila(), base);
+});
+
+test('modo api: pedido abandonado (a aba fechou antes de gerar) sai da fila depois de meia hora, e a fila volta a abrir para o cliente novo', async () => {
+  const { reiniciarVarredura } = await import('../../api/_vendas/abandonadas.mjs');
+  const base = await naFila();
+  const d2 = comFila(base + 2);
+  const A = await ateGerar(navegador(d2)), B = await ateGerar(navegador(d2));
+  const ne = navegador(d2);
+  const ce = (await ne.iniciar()).conversa_id;
+  const cheia = async () => (await ne.chamar('GET', 'estado', undefined, { query: '&conversa=' + ce })).corpo.fila_cheia;
+  reiniciarVarredura();
+  assert.equal(await cheia(), true, 'recém-pedidos: a fila está cheia e ninguém é solto (ainda podem estar gerando)');
+  assert.deepEqual(await statusDasDirecoes(A.c), ['gerando', 'gerando', 'gerando']);
+  /* A nasceu há uma hora e nada foi pedido; B é recente */
+  await envelhecerGeracao(A.c, '1 hour');
+  reiniciarVarredura();
+  assert.equal(await cheia(), false, 'a vaga do abandonado voltou');
+  assert.deepEqual(await statusDasDirecoes(A.c), ['falhou', 'falhou', 'falhou']);
+  assert.equal((await local.db.query('select etapa from app.conversas where id = $1', [A.c])).rows[0].etapa, 'contato', 'quem voltar tem o "Gerar de novo"');
+  assert.deepEqual(await statusDasDirecoes(B.c), ['gerando', 'gerando', 'gerando'], 'o recente não é tocado');
+  assert.equal(await naFila(), base + 1);
+  /* limpeza para os testes seguintes */
+  await envelhecerGeracao(B.c, '1 hour');
+  const { soltarAbandonadas } = await import('../../api/_vendas/abandonadas.mjs');
+  await soltarAbandonadas({ banco: local.rpc });
+  assert.equal(await naFila(), base);
+});
+
+test('rotina diária: no modo api solta o pedido abandonado (meia hora sem terminar); na fila manual não toca em nada (a direção "gerando" é trabalho do dono)', async () => {
+  const { executar } = await import('../../api/rotinas.mjs');
+  const CRON = 'c'.repeat(40);
+  const rodar = (env) => executar(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer ' + CRON, 'x-forwarded-for': '203.0.113.9' } }),
+    { CRON_SECRET: CRON, ...env }, { banco: local.rpc, armazem: null, metricas: null });
+  const A = await ateGerar(navegador(deps));
+  await envelhecerGeracao(A.c, '1 hour');
+  const base = await naFila();
+  const manual = await rodar({ BZ_DIRECOES: 'manual' });
+  assert.equal(manual.status, 200);
+  assert.deepEqual(await statusDasDirecoes(A.c), ['gerando', 'gerando', 'gerando'], 'fila manual: nada é tocado');
+  assert.equal(await naFila(), base);
+  const api = await rodar({ BZ_DIRECOES: 'api', ANTHROPIC_API_KEY: 'x' });
+  assert.equal(api.status, 200);
+  assert.equal((await api.json()).ok, true);
+  assert.deepEqual(await statusDasDirecoes(A.c), ['falhou', 'falhou', 'falhou']);
+  assert.ok(await naFila() < base, 'o pedido saiu da fila');
+});
+
+test('varredura de abandonados: com 2 prontas e 1 direção presa, a presa falha, as prontas ficam, e o pedido sai da fila', async () => {
+  const { soltarAbandonadas } = await import('../../api/_vendas/abandonadas.mjs');
+  await soltarAbandonadas({ banco: local.rpc, agora: Date.now() + 40 * 60 * 1000, max: 1000 });   /* (o que testes anteriores deixaram parado) */
+  const base = await naFila();
+  const n = navegador(deps);
+  const P = await ateGerar(n);
+  for (const d of P.dirs.slice(0, 2)) assert.equal((await gerarUma(n, P.c, d)).corpo.status, 'pronta');
+  assert.equal(await naFila(), base + 1, 'a terceira ainda está gerando');
+  assert.deepEqual(await soltarAbandonadas({ banco: local.rpc, agora: Date.now() + 10 * 60 * 1000 }), { examinados: 0, liberados: 0 }, 'com 10 minutos ainda não é abandono');
+  assert.deepEqual(await soltarAbandonadas({ banco: local.rpc, agora: Date.now() + 40 * 60 * 1000 }), { examinados: 1, liberados: 1 });
+  assert.deepEqual(await statusDasDirecoes(P.c), ['pronta', 'pronta', 'falhou']);
+  assert.equal(await naFila(), base);
+  assert.equal((await local.db.query('select etapa from app.conversas where id = $1', [P.c])).rows[0].etapa, 'direcoes');
+});
+
+test('modo api: a posse de uma direção que não terminou nunca é reivindicada de novo (no máximo 1 chamada ao Opus por direção); posse morta falha e soma a reserva ao custo', async () => {
+  const { RESERVA_USD } = await import('../../api/_ia/config.mjs');
+  let chamadasDeGeracao = 0;
+  const contando = { ...deps, ia: { ...deps.ia, mensagem: async (p) => { if (p.papel === 'geracao') chamadasDeGeracao++; return deps.ia.mensagem(p); } } };
+  const n = navegador(contando);
+  const P = await ateGerar(n);
+  const vid = (await local.db.query('select visitante_id v from app.conversas where id = $1', [P.c])).rows[0].v;
+  const custo = async () => Number((await local.db.query('select custo_ia_usd c from app.conversas where id = $1', [P.c])).rows[0].c);
+  const envelhecer = (direcao, intervalo) => local.db.query(`update app.direcoes set iniciada_em = now() - interval '${intervalo}' where id = $1`, [direcao.id]);
+  /* a 1ª chamada começou (e a aba fechou): a posse existe, mas a resposta nunca vem */
+  const r0 = await local.rpc('vendas_reivindicar_direcao', { conversa_id: P.c, visitante_id: vid, direcao_id: P.dirs[0].id });
+  assert.equal(r0.reivindicada, true);
+  /* 8 minutos depois (a posse antiga venceria em 6): AINDA pode estar rodando (o pior caso leva ~6,5 min), então não reivindica */
+  await envelhecer(P.dirs[0], '8 minutes');
+  const antes = await custo();
+  const viva = await gerarUma(n, P.c, P.dirs[0]);
+  assert.equal(viva.corpo.status, 'em_andamento');
+  assert.equal(chamadasDeGeracao, 0, 'nenhuma 2ª chamada ao modelo');
+  assert.equal(await custo(), antes);
+  /* 11 minutos depois: morta. Não chama o modelo de novo, vira "falhou", e a reserva entra no custo (a chamada cortada não some das contas) */
+  await envelhecer(P.dirs[0], '11 minutes');
+  const morta = await gerarUma(n, P.c, P.dirs[0]);
+  assert.equal(morta.corpo.status, 'falhou');
+  assert.equal(chamadasDeGeracao, 0, 'nenhuma 2ª chamada ao modelo');
+  assert.equal(Number((await custo() - antes).toFixed(2)), RESERVA_USD.geracao, 'soma o valor da reserva da geração');
+  assert.deepEqual(await statusDasDirecoes(P.c), ['falhou', 'gerando', 'gerando']);
+  /* as outras duas seguem o caminho normal (1 chamada cada) e o pedido sai da fila */
+  const base = (await naFila()) - 1;
+  for (const d of P.dirs.slice(1)) assert.equal((await gerarUma(n, P.c, d)).corpo.status, 'pronta');
+  assert.equal(chamadasDeGeracao, 2);
+  assert.equal(await naFila(), base);
+});
+
+/* ======================= 2ª rodada de segurança do PR #173 (N1, N2, N3, N5, N6) ======================= */
+const custoDoDia = async () => Number((await local.rpc('vendas_custo_dia', { org_slug: 'beyon-zero' })).custo_usd);
+const arred = (x) => Number(x.toFixed(4));
+
+test('N1/N6: a chamada ao Opus cortada (a aba fechou) já está na conta do DIA desde a reivindicação; terminando normal, a conta fica no maior entre o provisório e o real (nunca soma os dois)', async () => {
+  const { RESERVA_USD } = await import('../../api/_ia/config.mjs');
+  assert.ok(RESERVA_USD.geracao >= 0.48, 'a reserva cobre o pior caso de uma chamada de Opus (~US$ 0,48 com 24000 tokens de saída)');
+  /* a chamada começou e a resposta nunca vem (a Cloudflare cortou o pedido): nada roda depois, nem o finally */
+  let chegou; const comecou = new Promise(r => { chegou = r; });
+  const cortada = { ...deps, ia: { ...deps.ia, mensagem: async (p) => { if (p.papel === 'geracao') { chegou(); return new Promise(() => {}); } return deps.ia.mensagem(p); } } };
+  const n = navegador(cortada);
+  const P = await ateGerar(n);
+  const antes = await custoDoDia();
+  gerarUma(n, P.c, P.dirs[0]);   /* (sem esperar: o pedido nunca termina) */
+  await comecou;
+  assert.equal(arred(await custoDoDia() - antes), RESERVA_USD.geracao, 'o teto do dia enxerga a chamada cortada');
+  const linha = (await local.db.query("select papel, modelo from app.ia_chamadas where conversa_id = $1 and papel = 'geracao' order by created_at", [P.c])).rows;
+  assert.deepEqual(linha, [{ papel: 'geracao', modelo: 'provisorio' }]);
+  /* terminou normal e barato (custo 0 no simulador): o dia fica com o provisório, sem somar de novo */
+  const m = navegador(deps);
+  const Q = await ateGerar(m);
+  const a1 = await custoDoDia();
+  assert.equal((await gerarUma(m, Q.c, Q.dirs[0])).corpo.status, 'pronta');
+  assert.equal(arred(await custoDoDia() - a1), RESERVA_USD.geracao);
+  /* terminou normal e CARO (acima do provisório): o dia fica com o custo real, não com o real + o provisório */
+  const caro = { ...deps, ia: { ...deps.ia, mensagem: async (p) => { const r = await deps.ia.mensagem(p); return p.papel === 'geracao' ? { ...r, custo_usd: 0.8 } : r; } } };
+  const k = navegador(caro);
+  const R = await ateGerar(k);
+  const a2 = await custoDoDia();
+  assert.equal((await gerarUma(k, R.c, R.dirs[0])).corpo.status, 'pronta');
+  assert.equal(arred(await custoDoDia() - a2), 0.8);
+  assert.equal(arred(Number((await local.db.query('select custo_ia_usd c from app.conversas where id = $1', [R.c])).rows[0].c)), 0.8, 'a conversa soma o custo real (uma vez)');
+});
+
+test('N2: a varredura falhou a direção enquanto o Opus ainda gerava: a pessoa recebe "falhou", não "pronta" para um modelo que não existe', async () => {
+  const { soltarAbandonadas } = await import('../../api/_vendas/abandonadas.mjs');
+  await soltarAbandonadas({ banco: local.rpc, agora: Date.now() + 40 * 60 * 1000, max: 1000 });
+  const comVarredura = { ...deps, ia: { ...deps.ia, mensagem: async (p) => {
+    if (p.papel === 'geracao') await soltarAbandonadas({ banco: local.rpc, agora: Date.now() + 40 * 60 * 1000, max: 1000 });
+    return deps.ia.mensagem(p);
+  } } };
+  const n = navegador(comVarredura);
+  const P = await ateGerar(n);
+  const r = await gerarUma(n, P.c, P.dirs[0]);
+  assert.equal(r.corpo.status, 'falhou', JSON.stringify(r.corpo));
+  assert.equal((await statusDasDirecoes(P.c))[0], 'falhou');
+});
+
+test('N3: um pedido que falha na varredura não trava os outros', async () => {
+  const { soltarAbandonadas } = await import('../../api/_vendas/abandonadas.mjs');
+  await soltarAbandonadas({ banco: local.rpc, agora: Date.now() + 40 * 60 * 1000, max: 1000 });
+  const A = await ateGerar(navegador(deps)), B = await ateGerar(navegador(deps));
+  const bancoComDefeito = async (nome, p) => {
+    if (nome === 'vendas_concluir_direcao' && A.dirs.some((d) => d.id === p.direcao_id)) throw Object.assign(new Error('deadlock'), { codigo: '40P01' });
+    return local.rpc(nome, p);
+  };
+  const r = await soltarAbandonadas({ banco: bancoComDefeito, agora: Date.now() + 40 * 60 * 1000, max: 1000 });
+  assert.equal(r.examinados, 2);
+  assert.equal(r.liberados, 1, 'só o que saiu de fato');
+  assert.deepEqual(await statusDasDirecoes(A.c), ['gerando', 'gerando', 'gerando']);
+  assert.deepEqual(await statusDasDirecoes(B.c), ['falhou', 'falhou', 'falhou']);
+});
+
+test('N5: se a consulta "em andamento" some (banco atrasado), a posse já tomada é tratada como em andamento: não soma custo nem falha a direção', async () => {
+  const semConsulta = { ...deps, banco: async (nome, p) => {
+    if (nome === 'vendas_direcao_em_andamento') throw Object.assign(new Error('função ausente'), { codigo: '42883' });
+    return deps.banco(nome, p);
+  } };
+  const n = navegador(semConsulta);
+  const P = await ateGerar(n);
+  const vid = (await local.db.query('select visitante_id v from app.conversas where id = $1', [P.c])).rows[0].v;
+  assert.equal((await local.rpc('vendas_reivindicar_direcao', { conversa_id: P.c, visitante_id: vid, direcao_id: P.dirs[0].id })).reivindicada, true);
+  const antes = Number((await local.db.query('select custo_ia_usd c from app.conversas where id = $1', [P.c])).rows[0].c);
+  const r = await gerarUma(n, P.c, P.dirs[0]);
+  assert.equal(r.corpo.status, 'em_andamento', JSON.stringify(r.corpo));
+  assert.equal(Number((await local.db.query('select custo_ia_usd c from app.conversas where id = $1', [P.c])).rows[0].c), antes);
+  assert.deepEqual(await statusDasDirecoes(P.c), ['gerando', 'gerando', 'gerando']);
+});
+
+test('N1: se o gasto provisório não grava, o modelo NÃO é chamado (falha fechada): a direção falha e a pessoa refaz pela 2ª geração', async () => {
+  let chamadasDeGeracao = 0;
+  const semRegistro = { ...deps,
+    ia: { ...deps.ia, mensagem: async (p) => { if (p.papel === 'geracao') chamadasDeGeracao++; return deps.ia.mensagem(p); } },
+    banco: async (nome, p) => {
+      if (nome === 'vendas_registrar_ia' && p.chamadas.some((x) => x.modelo === 'provisorio')) throw Object.assign(new Error('x'), { codigo: '57014' });
+      return deps.banco(nome, p);
+    } };
+  const n = navegador(semRegistro);
+  const P = await ateGerar(n);
+  const r = await gerarUma(n, P.c, P.dirs[0]);
+  assert.equal(r.corpo.status, 'falhou', JSON.stringify(r.corpo));
+  assert.equal(chamadasDeGeracao, 0, 'sem a marca no registro do dia, nada de Opus');
+  assert.deepEqual(await statusDasDirecoes(P.c), ['falhou', 'gerando', 'gerando']);
+});
+
 test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com a conversa perto do teto, não passam juntas (revisão do PR 1, segurança B6)', async () => {
   /* o modelo "lento": as 3 chamadas ficam em voo ao mesmo tempo, como no navegador */
   let emVoo = 0, picoEmVoo = 0, chamadas = 0;
@@ -418,20 +710,24 @@ test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com 
   chamadas = 0;
   const r0 = await Promise.all(g0.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
   assert.equal(chamadas, 3, 'com US$ 0,60 gastos, as 3 chamam o modelo — status: ' + JSON.stringify(r0.map(x => x.status)));
-  /* perto do teto: US$ 0,30 abaixo dele (1,70 de 2,00, com o teto de TETOS.conversa_usd) → 1,70 e 1,95 ainda começam; a 3ª (2,20 comprometidos) não */
+  /* perto do teto: US$ 0,70 abaixo dele (1,30 de 2,00, com o teto de TETOS.conversa_usd e a reserva de US$ 0,50 por direção) → 1,30 e 1,80 ainda começam; a 3ª (2,30 comprometidos) não.
+     (numa conversa nova: esta já usou as 2 gerações do teto, TETOS.geracoes_por_conversa) */
   const { TETOS } = await import('../../api/_ia/config.mjs');
-  await local.db.query('update app.conversas set custo_ia_usd = $2 where id = $1', [c, TETOS.conversa_usd - 0.3]);
-  const g = await n.chamar('POST', 'gerar', { conversa_id: c });
+  await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [c]);
+  const n2 = navegador(comLenta);
+  const { c: c2 } = await ateDirecoes(n2);
+  await local.db.query('update app.conversas set custo_ia_usd = $2 where id = $1', [c2, TETOS.conversa_usd - 0.7]);
+  const g = await n2.chamar('POST', 'gerar', { conversa_id: c2 });
   assert.equal(g.status, 200, JSON.stringify(g.corpo));
   chamadas = 0; picoEmVoo = 0;
-  const r = await Promise.all(g.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
-  assert.equal(chamadas, 2, 'com US$ 0,30 abaixo do teto, só 2 chamam o modelo — status: ' + JSON.stringify(r.map(x => x.status)));
+  const r = await Promise.all(g.corpo.direcoes.map(d => n2.chamar('POST', 'gerar-direcao', { conversa_id: c2, direcao_id: d.id })));
+  assert.equal(chamadas, 2, 'com US$ 0,70 abaixo do teto, só 2 chamam o modelo — status: ' + JSON.stringify(r.map(x => x.status)));
   assert.equal(r.filter(x => x.status === 429).length, 1, 'a 3ª: limite, com WhatsApp');
   assert.ok(r.filter(x => x.status === 429).every(x => x.corpo.recado === true));
   /* a reserva some depois da chamada: nada fica preso */
-  const presas = (await local.db.query('select count(*)::int n from privado.reservas_ia where conversa_id = $1', [c])).rows[0].n;
+  const presas = (await local.db.query('select count(*)::int n from privado.reservas_ia where conversa_id = $1', [c2])).rows[0].n;
   assert.equal(presas, 0, 'reserva liberada depois da chamada');
-  await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [c]);   /* (o teto do DIA não trava os testes seguintes) */
+  await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [c2]);   /* (o teto do DIA não trava os testes seguintes) */
 });
 
 test('reserva de custo: erro do banco fecha (sem chamar o modelo); só a função ainda inexistente segue como antes — revisões do PR 15', async () => {
@@ -486,11 +782,11 @@ test('gerar-direcao sem trabalho a fazer não entra na trava da organização: i
   assert.equal(andando.corpo.status, 'em_andamento');
   assert.equal(reservas, 0, 'nenhuma reserva sem trabalho a fazer');
   assert.equal(chamadas, 0);
-  /* a posse venceu (o pedido que gerava caiu): esta sim reserva e gera */
+  /* a posse venceu (o pedido que gerava caiu): PR #173, A2: a direção NÃO é gerada de novo (no máximo 1 chamada ao Opus por direção); falha, e a pessoa refaz pela 2ª geração */
   await local.db.query("update app.direcoes set iniciada_em = now() - interval '1 hour' where id = $1", [dirs[0].id]);
   const retomada = await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: dirs[0].id });
-  assert.equal(retomada.corpo.status, 'pronta', JSON.stringify(retomada.corpo));
-  assert.equal(reservas, 1);
+  assert.equal(retomada.corpo.status, 'falhou', JSON.stringify(retomada.corpo));
+  assert.equal(chamadas, 0, 'o modelo não foi chamado de novo');
 });
 
 test('reserva de custo: resposta sem reserva_id fecha (não segue sem reserva) — revisão de segurança do PR 16', async () => {

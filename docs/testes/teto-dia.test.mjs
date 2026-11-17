@@ -109,7 +109,8 @@ test('teto do dia: se o registro da chamada não grava, a reserva NÃO é libera
    o de comReserva achava a lista vazia e liberava a reserva na hora (revisões finais da auditoria run-1) */
 test('teto do dia: na geração de direção, se o registro da chamada não grava, a reserva também NÃO é liberada', async () => {
   const nav = navegador({ ...deps, banco: async (nome, p) => {
-    if (nome === 'vendas_registrar_ia') throw Object.assign(new Error('x'), { codigo: '57014' });
+    /* (N1) o registro PROVISÓRIO, gravado antes do Opus, tem de passar (sem ele o modelo nem é chamado); falha o registro das chamadas reais, depois */
+    if (nome === 'vendas_registrar_ia' && !p.chamadas.some((x) => x.modelo === 'provisorio')) throw Object.assign(new Error('x'), { codigo: '57014' });
     return deps.banco(nome, p);
   } });
   const c = await nav.iniciar();

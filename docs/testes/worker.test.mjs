@@ -425,3 +425,15 @@ test('wrangler.jsonc: JEV_SOMBRA = "1" só na produção; staging e prévias sem
   assert.ok(!('JEV_SOMBRA' in c.env.previa.previews.vars), 'as prévias de branch não ligam a sombra');
   for (const k of ['JEV_SOMBRA_TETO_DIA_USD', 'JEV_SOMBRA_AMOSTRA']) assert.ok(!(k in c.vars), k + ': fica no padrão do código (US$ 0,30/dia, todo turno)');
 });
+
+/* (dono, 15/11) na produção os 3 modelos saem pela API, na hora; o staging e as prévias seguem na fila manual (IA simulada,
+   sem gasto). Sem a chave da Anthropic a produção cai sozinha na fila manual (modoDirecoes), nunca em "gerando" para sempre */
+test('wrangler.jsonc: BZ_DIRECOES = "api" só na produção; staging e prévias seguem "manual"', async () => {
+  const { modoDirecoes } = await import('../../api/_ia/config.mjs');
+  const c = lerWrangler();
+  assert.equal(c.vars.BZ_DIRECOES, 'api', 'a produção gera os modelos pela API');
+  assert.equal(modoDirecoes({ ...c.vars, ANTHROPIC_API_KEY: 'x' }), 'api', 'com a chave, o modo é api');
+  assert.equal(modoDirecoes({ ...c.vars }), 'manual', 'sem a chave, a produção volta sozinha para a fila manual');
+  assert.equal(c.env.previa.vars.BZ_DIRECOES, 'manual', 'o staging segue na fila manual');
+  assert.equal(c.env.previa.previews.vars.BZ_DIRECOES, 'manual', 'as prévias de branch seguem na fila manual');
+});
