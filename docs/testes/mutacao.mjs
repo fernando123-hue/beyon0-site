@@ -91,6 +91,11 @@ export const SABOTAGENS = [
     de: "avisarAoFundo(r.fila_cheia ? 'fila_cheia' : tipoDoPedido(vid, corpo.conversa_id));", para: "avisarAoFundo(r.fila_cheia ? 'fila_cheia' : await tipoDoPedido(vid, corpo.conversa_id));" },
   { nome: 'regulado: o dublê gera depoimentos em saúde', fonte: 'api/_ia/simulado-geracao.mjs', testes: ['docs/testes/saude-pedido.test.mjs'],
     de: ".filter(tipo => !regulado || (tipo !== 'depoimentos' && tipo !== 'numeros'))", para: '.filter(tipo => tipo)' },
+  /* ---- os três modelos mais claros (dono, 15/11): a recomendação. A medição (SQL) está no ramo modelos-medicao ---- */
+  { nome: "modelos: a recomendação ignora o objetivo", fonte: "api/_vendas/recomendacao.mjs", testes: ['docs/testes/modelos-recomendacao.test.mjs'],
+    de: "  if (objetivo) return { estrategia: OBJETIVO[objetivo][0], objetivo };", para: "  if (false) return { estrategia: OBJETIVO[objetivo][0], objetivo };" },
+  { nome: "modelos: recomenda um modelo que não está pronto", fonte: "api/_vendas/recomendacao.mjs", testes: ['docs/testes/modelos-recomendacao.test.mjs'],
+    de: "d && d.status === 'pronta' && Object.hasOwn(O_QUE_FAZ, d.estrategia)", para: "d && Object.hasOwn(O_QUE_FAZ, d.estrategia)" },
   /* ---- clínica ou consultório sem a profissão (M3, 16/11) ---- */
   { nome: "nicho sem profissão: a sessão ignora clínica e consultório", fonte: "api/_vendas/agente.mjs", testes: ['docs/testes/nicho-sem-profissao.test.mjs'],
     de: "  if (fontes.some((f) => f && ramoSemProfissao(f))) return NICHO_GENERICO;", para: "  if (false) return NICHO_GENERICO;" },

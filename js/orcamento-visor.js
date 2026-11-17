@@ -17,7 +17,7 @@
   var PV = window.BZPrevia;
   if (!PV) return;
   var $ = function (id) { return document.getElementById(id); };
-  var NOMES = { conversao: 'Conversão', autoridade: 'Autoridade', experiencia: 'Experiência' };
+  var NOMES = { conversao: 'Para vender mais', autoridade: 'Para passar confiança', experiencia: 'Para encantar' };   /* (= js/orcamento.js) */
   function el(tag, classe, texto) { var e = document.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; }
 
   function criar(o) {
@@ -71,7 +71,7 @@
         b.type = 'button';
         b.setAttribute('data-id', x.id);
         b.setAttribute('aria-pressed', String(x.id === d.id));
-        b.setAttribute('aria-label', x.id === 'final' ? 'Sua versão, com os ajustes' : 'Direção ' + x.numero + ': ' + (NOMES[x.estrategia] || ''));
+        b.setAttribute('aria-label', x.id === 'final' ? 'Sua versão, com os ajustes' : 'Modelo ' + x.numero + ': ' + (NOMES[x.estrategia] || ''));
         b.addEventListener('click', function () { estado.id = x.id; desenhar(true); b = abas.querySelector('[data-id="' + x.id + '"]'); if (b) b.focus(); anunciar($('o-visor-titulo').textContent); });
         abas.appendChild(b);
       });
@@ -88,7 +88,7 @@
       var rolagem = forcar ? 0 : palco.scrollTop;
       estado.assinatura = assinatura;
       var d = a.d;
-      $('o-visor-titulo').textContent = d.id === 'final' ? 'Sua versão, com os ajustes' : 'Direção ' + d.numero + ' · ' + (NOMES[d.estrategia] || '') + ' · ' + d.conteudo.nome_conceito;
+      $('o-visor-titulo').textContent = d.id === 'final' ? 'Sua versão, com os ajustes' : 'Modelo ' + d.numero + ' · ' + (NOMES[d.estrategia] || '') + ' · ' + d.conteudo.nome_conceito;
       $('o-visor-resumo').textContent = d.conteudo.resumo || '';
       desenharAbas(a.lista, d);
       botaoEscolher.hidden = d.id === 'final' || !o.podeEscolher() || o.escolhida() === d.id;

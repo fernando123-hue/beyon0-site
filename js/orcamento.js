@@ -30,7 +30,8 @@
     aviso.hidden = false;
   }
   var RECUPERACAO = 'Não consegui concluir a análise neste momento. Suas informações foram preservadas. Vamos continuar de onde paramos.';
-  var NOMES = { conversao: 'Conversão', autoridade: 'Autoridade', experiencia: 'Experiência' };
+  /* (dono, 15/11) o nome de cada modelo pelo que ele faz, para quem não é do meio (= api/_vendas/recomendacao.mjs) */
+  var NOMES = { conversao: 'Para vender mais', autoridade: 'Para passar confiança', experiencia: 'Para encantar' };
   /* até o sinal; no escopo e no sinal, só para dúvidas (api/_vendas/consultor.mjs, ETAPAS_SO_DUVIDAS) */
   var CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes', 'escopo', 'aguardando_pagamento'];
   /* (perto do pagamento, o lembrete de não colar dados do cartão vai na própria caixa: revisão de segurança do PR 34) */
@@ -586,15 +587,19 @@
   /* FILA MANUAL (decisão do dono, 2026-10-08): as direções são feitas pela Beyon Zero em até 24 horas úteis e o aviso
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
+  /* (dono, 15/11) a regra dos ajustes, clara antes de escolher: um modelo só, e trazer algo de outro conta como um ajuste */
+  var REGRA_DOS_MODELOS = 'Os três partem do que você contou, cada um com um objetivo. Abra, compare e escolha um: os ajustes são feitos dentro dele, e trazer algo de outro modelo, como as cores ou uma seção, conta como um pedido de ajuste.';
   var TEXTOS_MANUAL = {
-    direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página por ele.',
-    prontas: 'Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio.'
+    direcoes: 'Os três partem do que você contou, cada um com um objetivo. Ficam prontos em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página por ele.',
+    prontas: REGRA_DOS_MODELOS
   };
   /* (PR 2a) descartado pelo dono: o pedido acabou e o servidor recusa escolher, ajustar e seguir (api/_vendas/fluxo.mjs) */
   var descartado = function () { return !!(E && E.pedido && E.pedido.status === 'descartado'); };
   var podeEscolher = function () { return E && !descartado() && (E.conversa.etapa === 'direcoes' || E.conversa.etapa === 'escolhida'); };   /* (o servidor trava a troca depois do 1º ajuste) */
   var podeGerar = function () { return E && ['contato', 'estimativa', 'direcoes', 'escolhida'].indexOf(E.conversa.etapa) >= 0; };   /* (= app.vendas_iniciar_geracao) */
   var escolhidaId = function () { return E && E.escolha ? E.escolha.direcao_id : null; };
+  /* (dono, 15/11) o modelo que o Zero recomenda: o servidor calcula (pelo objetivo do briefing) e manda pronto, com o motivo */
+  var recomendadaId = function () { return E && E.recomendacao && typeof E.recomendacao.direcao_id === 'string' ? E.recomendacao.direcao_id : null; };
 
   function botao(classe, texto, aoClicar) { var b = el('button', classe, texto); b.type = 'button'; b.addEventListener('click', aoClicar); return b; }
   /* botão de uma ação que muda a etapa (escolher, gerar): nasce desligado se outra está em voo */
@@ -613,6 +618,7 @@
       mini.appendChild(tela);
       mini.setAttribute('aria-hidden', 'true');
       mini.addEventListener('click', function () { visor.abrir(d.id); });
+      if (recomendadaId() === d.id) { li.classList.add('is-recomendada'); corpo.appendChild(el('p', 'dir__recomendado', 'Recomendado pelo Zero')); }
       corpo.appendChild(el('h3', 'dir__nome', d.conteudo.nome_conceito));
       corpo.appendChild(el('p', 'dir__resumo', d.conteudo.resumo));
       var acoes = el('div', 'dir__acoes');
@@ -620,21 +626,21 @@
       abrir.setAttribute('data-abrir', d.id);
       acoes.appendChild(abrir);
       if (escolhida) acoes.appendChild(el('span', 'dir__selo', 'Escolhida'));
-      else if (podeEscolher()) acoes.appendChild(botaoAcao('btn btn--sm btn--primary', 'Escolher esta', function () { escolher(d.id); }));
+      else if (podeEscolher()) acoes.appendChild(botaoAcao('btn btn--sm btn--primary', 'Escolher este', function () { escolher(d.id); }));
       corpo.appendChild(acoes);
     } else if (d.status === 'falhou') {
       var p = el('div', 'dir__progresso');
-      p.appendChild(el('p', '', 'Esta direção não saiu desta vez.'));
+      p.appendChild(el('p', '', 'Este modelo não saiu desta vez.'));
       mini.appendChild(p);
       /* (PR 2a) só com o pedido confirmado: arquivado ou descartado, a geração parou de propósito e o servidor recusaria */
       if (window.BZDetalhes.pendente(E)) corpo.appendChild(el('p', 'dir__resumo', 'Este pedido segue com a equipe da Beyon Zero.'));
       else if (podeGerar()) {
         corpo.appendChild(el('p', 'dir__resumo', 'Você pode gerar as três de novo ou seguir com as que ficaram prontas.'));
         corpo.appendChild(botaoAcao('btn btn--sm', 'Gerar de novo', gerarTodas));
-      } else corpo.appendChild(el('p', 'dir__resumo', 'Os ajustes seguem sobre a direção escolhida.'));
+      } else corpo.appendChild(el('p', 'dir__resumo', 'Os ajustes seguem sobre o modelo escolhido.'));
     } else if (manual()) {
       var f = el('div', 'dir__progresso');
-      f.appendChild(el('p', '', 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
+      f.appendChild(el('p', '', 'Na fila: o modelo ' + d.numero + ' (' + (NOMES[d.estrategia] || '').toLowerCase() + ') fica pronto em até 24 horas úteis.'));
       mini.appendChild(f);
       corpo.appendChild(el('p', 'dir__resumo', 'Você pode voltar a esta página neste aparelho quando quiser: o pedido fica salvo aqui.'));
       var conf = botao('btn btn--sm', 'Conferir agora', function () { conferir(conf); });   /* (sem consulta automática: a pessoa confere quando quiser) */
@@ -642,7 +648,7 @@
       corpo.appendChild(conf);
     } else {
       var g = el('div', 'dir__progresso');
-      g.appendChild(el('p', '', 'Desenhando a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + '…'));
+      g.appendChild(el('p', '', 'Desenhando o modelo ' + d.numero + ' (' + (NOMES[d.estrategia] || '').toLowerCase() + ')…'));
       g.appendChild(el('span', 'orc-pensando__fio'));
       var t = el('p', 'dir__tempo', tempo(d.id));
       t.setAttribute('data-tempo', d.id);
@@ -800,12 +806,13 @@
     mostrar('o-direcoes', temDirecoes || (E.conversa.tem_contato && et === 'contato' && !pendente));
     var resumo = E.direcoes.map(function (d) { return [d.id, d.status, d.conteudo]; });
     anunciarProntas();
-    if (mudou('direcoes', [resumo, escolhidaId(), podeEscolher(), podeGerar(), E.conversa.tem_contato, pendente])) {
+    recomendacao();
+    if (mudou('direcoes', [resumo, escolhidaId(), recomendadaId(), podeEscolher(), podeGerar(), E.conversa.tem_contato, pendente])) {
       var ul = $('o-dirs');
       var foco = focoNaLista(ul);
       ul.textContent = '';
       if (temDirecoes) { E.direcoes.forEach(function (d) { ul.appendChild(cartaoDirecao(d)); }); encaixarMinis(); }
-      else if (E.conversa.tem_contato && podeGerar() && !pendente) ul.appendChild(botaoAcao('btn btn--primary', 'Gerar as três direções', gerarTodas));   /* (F20: só na etapa que gera) */
+      else if (E.conversa.tem_contato && podeGerar() && !pendente) ul.appendChild(botaoAcao('btn btn--primary', 'Gerar os três modelos', gerarTodas));   /* (F20: só na etapa que gera) */
       devolverFocoNaLista(ul, foco);
     }
     if (manual()) $('o-dir-lead').textContent = E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
@@ -813,6 +820,20 @@
     var emGeracao = manual() ? [] : E.direcoes.filter(function (d) { return d.status === 'gerando'; });   /* (fila manual: nada a pedir) */
     relogioDosCartoes(emGeracao.length > 0);
     emGeracao.forEach(function (d) { pedirDirecao(d.id); });
+  }
+  /* a recomendação do Zero, acima dos três: enquanto a pessoa escolhe (depois de escolher, o selo no cartão basta) */
+  function recomendacao() {
+    var caixa = $('o-recomenda');
+    if (!caixa) return;
+    var r = E.recomendacao;
+    var mostra = !!(r && typeof r.texto === 'string' && recomendadaId() && !escolhidaId() && podeEscolher());
+    if (!mudou('recomenda', [mostra, mostra ? r.texto : ''])) return;
+    caixa.textContent = '';
+    caixa.hidden = !mostra;
+    if (!mostra) return;
+    caixa.appendChild(el('p', 'orc-recomenda__quem', 'O Zero recomenda'));
+    caixa.appendChild(el('p', 'orc-recomenda__texto', r.texto));
+    caixa.appendChild(botao('btn btn--sm', 'Abrir o modelo ' + r.numero, function () { visor.abrir(r.direcao_id); }));
   }
   /* o foco estava num botão da lista que vai ser refeita: guarda qual (cartão + texto) para devolver depois */
   function focoNaLista(ul) {
@@ -837,7 +858,7 @@
     var agora = {}, prontas = [];
     E.direcoes.forEach(function (d) {
       agora[d.id] = d.status;
-      if (statusVisto && statusVisto[d.id] && statusVisto[d.id] !== 'pronta' && d.status === 'pronta') prontas.push('Direção ' + d.numero + ' pronta.');
+      if (statusVisto && statusVisto[d.id] && statusVisto[d.id] !== 'pronta' && d.status === 'pronta') prontas.push('Modelo ' + d.numero + ' pronto.');
     });
     statusVisto = agora;
     if (prontas.length) anunciar(prontas.join(' '));
