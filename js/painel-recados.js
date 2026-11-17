@@ -60,10 +60,11 @@
       alvo.textContent = '';
       $('bloco-recados').hidden = false;
       r.recados.forEach(function (i) { alvo.appendChild(cartao(i)); });
+      if (P.avisar) P.avisar('recados', { n: r.nao_lidos, itens: r.recados });   /* (o início: os novos contam em "Precisam de você", js/painel-inicio.js) */
       var n = r.nao_lidos;
       var contagem = !r.recados.length ? 'Nenhum recado ainda.' : n + (n === 1 ? ' recado novo' : ' recados novos') + ' (de ' + r.total + ').';
       $('recados-estado').textContent = (typeof aviso === 'string' ? aviso + ' ' : '') + contagem;
-    }).catch(function (e) { if (minha !== vez) return; if (P.recusada(e)) return; $('bloco-recados').hidden = false; $('recados-estado').textContent = e.message; });
+    }).catch(function (e) { if (minha !== vez) return; if (P.recusada(e)) return; $('bloco-recados').hidden = false; $('recados-estado').textContent = e.message; if (P.avisar) P.avisar('recados', { erro: true }); });
   }
   /* saiu do painel: os recados (e-mails de visitantes) não ficam na página */
   function esvaziar() { vez++; $('recados').textContent = ''; $('recados-estado').textContent = ''; $('bloco-recados').hidden = true; }

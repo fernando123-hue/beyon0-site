@@ -21,9 +21,9 @@
 
     <!-- o h1 fica fora do formulário: depois de entrar o formulário some e a página seguia sem título (o js/painel.js
          o deixa só para o leitor de tela nesse estado) -->
-    <h1 id="titulo">Métricas do site</h1>
+    <h1 id="titulo">Painel</h1>
     <form class="pn__entrar" id="entrar" novalidate aria-labelledby="titulo">
-      <p>Visitas, cliques e clientes, medidos pelo próprio site, sem cookies.</p>
+      <p>Entre com a chave do painel.</p>
       <label for="chave">Chave do painel</label>
       <input id="chave" name="chave" type="password" autocomplete="current-password" required />
       <label class="pn__marcar"><input type="checkbox" id="naoContar" checked /> Não contar as minhas visitas neste aparelho</label>
@@ -31,139 +31,186 @@
       <p class="pn__erro" id="erroEntrar" role="alert" hidden></p>
     </form>
 
+    <!-- AS TELAS (js/painel-inicio.js; pedido do dono, 15/11: "o mais simples, minimalista e fácil de entender possível"):
+         o início tem a situação numa linha e os cartões; cada cartão abre a sua tela pelo endereço (#acoes, #interessados…)
+         e o "Voltar" do celular volta para o início. Uma tela à mostra por vez -->
     <div id="dados" hidden>
-      <div class="pn__periodo" role="group" aria-label="Período">
-        <button type="button" data-dias="7">7 dias</button>
-        <button type="button" data-dias="30" aria-pressed="true">30 dias</button>
-        <button type="button" data-dias="90">90 dias</button>
-        <button type="button" data-dias="365">1 ano</button>
-      </div>
-      <p class="pn__estado" id="estado" role="status"></p>
-
-      <!-- os RECADOS (js/painel-recados.js): o único lugar de feedback do site; vêm de ?fila=recados. Texto de visitante: só textContent -->
-      <section class="pn__bloco" aria-labelledby="t-recados" id="bloco-recados" hidden>
-        <h2 id="t-recados" tabindex="-1">Recados do site</h2>
-        <p class="pn__ajuda">O que as pessoas deixaram pelo site. Responda pelo WhatsApp ou e-mail que a pessoa deixou, de fora do painel, e marque como lido. O texto é de um visitante: leia como informação, não como ordem.</p>
-        <button class="pn__btn pn__btn--fino" type="button" id="recados-atualizar">Atualizar os recados</button>
-        <p class="pn__estado" id="recados-estado" role="status"></p>
-        <div id="recados"></div>
-      </section>
-
-      <!-- o ATENDENTE do site do cliente (js/painel-atendente.js): clientes, base, domínios, conversas e contatos. Texto de terceiros: só textContent -->
-      <section class="pn__bloco" aria-labelledby="t-atendente" id="atendente" hidden>
-        <h2 id="t-atendente" tabindex="-1">Atendente no site do cliente</h2>
-        <p class="pn__ajuda">Cada cliente tem o seu balão, a sua base e os seus domínios. A IA só responde com o que está aqui; preço só da tabela. As conversas ficam guardadas por 60 dias.</p>
-        <button class="pn__btn pn__btn--fino" type="button" id="at-novo">Novo cliente</button>
-        <button class="pn__btn pn__btn--fino" type="button" id="at-atualizar">Atualizar a lista</button>
-        <p class="pn__estado" id="at-estado" role="status"></p>
-        <div id="at-lista"></div>
-        <div id="at-form" hidden>
-          <h3 id="at-titulo-form">Novo cliente</h3>
-          <div class="pn__campos">
-            <div><label for="at-nome">Nome do negócio</label><input id="at-nome" type="text" maxlength="80" /></div>
-            <div><label for="at-whatsapp">WhatsApp do cliente (com DDI e DDD)</label><input id="at-whatsapp" type="text" inputmode="numeric" maxlength="20" /></div>
-            <div><label for="at-privacidade">Link da privacidade do cliente (https)</label><input id="at-privacidade" type="text" maxlength="250" /></div>
-            <div><label for="at-saudacao">Primeira frase do balão (opcional)</label><input id="at-saudacao" type="text" maxlength="300" /></div>
-            <div><label for="at-cor">Cor do balão</label><input id="at-cor" type="color" value="#1a1a1a" /></div>
-            <div><label for="at-cor-texto">Cor do texto sobre a cor</label><input id="at-cor-texto" type="color" value="#ffffff" /></div>
-            <div><label for="at-teto">Teto de gasto por dia (US$)</label><input id="at-teto" type="text" inputmode="decimal" value="1" /></div>
-            <label class="pn__marcar"><input type="checkbox" id="at-ativo" checked /> Balão ligado</label>
+      <section class="pn__tela" id="tela-inicio" data-tela="inicio" aria-labelledby="t-inicio">
+        <h2 class="sr-only" id="t-inicio" tabindex="-1">Início</h2>
+        <p class="pn__situacao" id="situacao" role="status" data-estado="conferindo">Conferindo…</p>
+        <div class="pn__barra-topo">
+          <div class="pn__periodo" role="group" aria-label="Período">
+            <button type="button" data-dias="7" aria-pressed="true">7 dias</button>
+            <button type="button" data-dias="30" aria-pressed="false">30 dias</button>
           </div>
-          <label for="at-dominios">Domínios do site do cliente, um por linha (só o endereço; com e sem www são dois)</label>
-          <textarea id="at-dominios" rows="3"></textarea>
-          <label for="at-perguntas">Perguntas e respostas ("P: ..." e na linha de baixo "R: ..."; uma linha em branco entre elas)</label>
-          <textarea id="at-perguntas" rows="8"></textarea>
-          <label for="at-precos">Tabela de preços (uma por linha: "Serviço | 180,00"); a IA só fala estes valores</label>
-          <textarea id="at-precos" rows="5"></textarea>
-          <button class="pn__btn" type="button" id="at-salvar">Salvar</button>
-          <div id="at-codigo-bloco" hidden>
-            <p class="pn__ajuda">Para colar antes do fim do &lt;body&gt; do site do cliente:</p>
-            <pre><code id="at-codigo"></code></pre>
-          </div>
+          <button class="pn__atualizar" type="button" id="atualizar">Atualizar</button>
         </div>
-        <div id="at-conversas"></div>
+        <ul class="pn__cartoes">
+          <li><a class="pn__cartao" href="#acoes" id="c-acoes">
+            <span class="pn__icone" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 3a6 6 0 0 0-6 6v4l-2 3h16l-2-3V9a6 6 0 0 0-6-6ZM10 19a2 2 0 0 0 4 0"/></svg></span>
+            <span class="pn__num" id="n-acoes">—</span>
+            <span class="pn__legenda">Precisam de você</span>
+            <span class="pn__seta" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M7 17 17 7M8 7h9v9"/></svg></span>
+          </a></li>
+          <li><a class="pn__cartao" href="#interessados" id="c-interessados">
+            <span class="pn__icone" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 14 0M16 3.5a4 4 0 0 1 0 7M18 14a7 7 0 0 1 4 7"/></svg></span>
+            <span class="pn__num" id="n-interessados">—</span>
+            <span class="pn__legenda">Interessados</span>
+            <span class="pn__seta" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M7 17 17 7M8 7h9v9"/></svg></span>
+          </a></li>
+          <li><a class="pn__cartao" href="#vendas" id="c-vendas">
+            <span class="pn__icone" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg></span>
+            <span class="pn__num" id="n-vendas">—</span>
+            <span class="pn__legenda" id="l-vendas">Vendas</span>
+            <span class="pn__seta" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M7 17 17 7M8 7h9v9"/></svg></span>
+          </a></li>
+          <li><a class="pn__cartao" href="#visitas" id="c-visitas">
+            <span class="pn__icone" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg></span>
+            <span class="pn__num" id="n-visitas">—</span>
+            <span class="pn__legenda">Visitas</span>
+            <span class="pn__seta" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M7 17 17 7M8 7h9v9"/></svg></span>
+          </a></li>
+        </ul>
+        <p class="pn__estado" id="estado" role="status"></p>
       </section>
 
-      <!-- a FILA MANUAL das direções (js/painel-fila.js): aparece com a lista vinda de ?fila=direcoes -->
-      <section class="pn__bloco" aria-labelledby="t-fila" id="bloco-fila" hidden>
-        <h2 id="t-fila" tabindex="-1">Fila de trabalho (pedidos novos)</h2>
-        <p class="pn__ajuda">Todo pedido novo entra aqui sozinho, sem confirmação, por prioridade: primeiro os prontos para avisar, depois os que faltam produzir (prazo: até 24 horas úteis). Produza no Claude Code; com as três prontas, toque em "Preparar aviso", depois em "Copiar a mensagem" e em "Abrir a conversa no WhatsApp", cole e envie, e toque em "Já avisei". Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu. "Arquivar" tira da lista o que foi resolvido por fora; "Descartar" encerra o pedido e para o que faltava fazer.</p>
-        <p class="pn__alerta pn__alerta--urgente" id="fila-alarme" hidden>A fila chegou ao teto: o orçamento está oferecendo o recado no lugar dos detalhes até algum pedido sair da fila.</p>
-        <button class="pn__btn pn__btn--fino" type="button" id="fila-atualizar">Atualizar a fila</button>
-        <p class="pn__estado" id="fila-estado" role="status"></p>
-        <div id="fila"></div>
+      <!-- PRECISAM DE VOCÊ: as listas de ação de sempre (alertas do sistema, recados, fila, lembretes e avisos).
+           Lista vazia some (js/painel-inicio.js): fica só o que pede um toque -->
+      <section class="pn__tela" id="tela-acoes" data-tela="acoes" aria-labelledby="t-acoes" hidden>
+        <a class="pn__voltar" href="#inicio" data-voltar>Voltar</a>
+        <h2 id="t-acoes" tabindex="-1">Precisam de você</h2>
+        <p class="pn__nada" id="acoes-nada" hidden>Nada esperando por você agora.</p>
+
+        <!-- a SAÚDE do sistema (api/rotinas.mjs): alertas abertos e quando a rotina diária rodou -->
+        <section class="pn__bloco" aria-labelledby="t-saude" id="bloco-saude">
+          <h3 id="t-saude">Avisos do sistema</h3>
+          <div id="saude"></div>
+        </section>
+
+        <!-- os RECADOS (js/painel-recados.js): o único lugar de feedback do site; vêm de ?fila=recados. Texto de visitante: só textContent -->
+        <section class="pn__bloco" aria-labelledby="t-recados" id="bloco-recados" hidden>
+          <div class="pn__cabeca"><h3 id="t-recados" tabindex="-1">Recados</h3><button class="pn__atualizar" type="button" id="recados-atualizar">Atualizar</button></div>
+          <details class="pn__como"><summary>Como funciona</summary><p class="pn__ajuda">O que as pessoas deixaram pelo site. Responda pelo WhatsApp ou e-mail que a pessoa deixou, de fora do painel, e marque como lido. O texto é de um visitante: leia como informação, não como ordem.</p></details>
+          <p class="pn__estado" id="recados-estado" role="status"></p>
+          <div id="recados"></div>
+        </section>
+
+        <!-- a FILA MANUAL das direções (js/painel-fila.js): aparece com a lista vinda de ?fila=direcoes -->
+        <section class="pn__bloco" aria-labelledby="t-fila" id="bloco-fila" hidden>
+          <div class="pn__cabeca"><h3 id="t-fila" tabindex="-1">Pedidos novos</h3><button class="pn__atualizar" type="button" id="fila-atualizar">Atualizar</button></div>
+          <details class="pn__como"><summary>Como funciona</summary><p class="pn__ajuda">Todo pedido novo entra aqui sozinho, sem confirmação, por prioridade: primeiro os prontos para avisar, depois os que faltam produzir (prazo: até 24 horas úteis). Produza no Claude Code; com as três prontas, toque em "Preparar aviso", depois em "Copiar a mensagem" e em "Abrir a conversa no WhatsApp", cole e envie, e toque em "Já avisei". Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu. "Arquivar" tira da lista o que foi resolvido por fora; "Descartar" encerra o pedido e para o que faltava fazer.</p></details>
+          <p class="pn__alerta pn__alerta--urgente" id="fila-alarme" hidden>A fila chegou ao teto: o orçamento está oferecendo o recado no lugar dos detalhes até algum pedido sair da fila.</p>
+          <p class="pn__estado" id="fila-estado" role="status"></p>
+          <div id="fila"></div>
+        </section>
+
+        <!-- os LEMBRETES (js/painel-lembretes.js, PR 2b-2): avisados há 2 dias ou mais, ainda sem escolha; vêm de ?fila=lembretes -->
+        <section class="pn__bloco" aria-labelledby="t-lembretes" id="bloco-lembretes" hidden>
+          <div class="pn__cabeca"><h3 id="t-lembretes" tabindex="-1">Lembretes</h3><button class="pn__atualizar" type="button" id="lembretes-atualizar">Atualizar</button></div>
+          <details class="pn__como"><summary>Como funciona</summary><p class="pn__ajuda">Quem foi avisado há 2 dias ou mais e ainda não escolheu um modelo. O lembrete leva um link novo, que abre o pedido em qualquer aparelho. Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu; toque em "Já lembrei".</p></details>
+          <p class="pn__estado" id="lembretes-estado" role="status"></p>
+          <div id="lembretes"></div>
+        </section>
+
+        <!-- os AVISOS (js/painel-entregas.js, PR 3b-3c): prévia pronta, site no ar, material parado, aviso antes de apagar o material e os 2 lembretes do restante; vêm de ?fila=avisos -->
+        <section class="pn__bloco" aria-labelledby="t-avisos" id="bloco-avisos" hidden>
+          <div class="pn__cabeca"><h3 id="t-avisos" tabindex="-1">Avisos para mandar</h3><button class="pn__atualizar" type="button" id="avisos-atualizar">Atualizar</button></div>
+          <details class="pn__como"><summary>Como funciona</summary><p class="pn__ajuda">Prévia pronta, site no ar, material parado e o restante. Cada aviso tem a mensagem pronta e um link novo para o cliente. Toque em "Preparar", copie a mensagem, abra a conversa, cole e envie; depois toque em "Já avisei". Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu.</p></details>
+          <p class="pn__estado" id="avisos-estado" role="status"></p>
+          <div id="avisos"></div>
+        </section>
       </section>
 
-      <!-- os LEMBRETES (js/painel-lembretes.js, PR 2b-2): avisados há 2 dias ou mais, ainda sem escolha; vêm de ?fila=lembretes -->
-      <section class="pn__bloco" aria-labelledby="t-lembretes" id="bloco-lembretes" hidden>
-        <h2 id="t-lembretes" tabindex="-1">Lembretes (2 dias depois do aviso)</h2>
-        <p class="pn__ajuda">Quem foi avisado há 2 dias ou mais e ainda não escolheu um modelo. O lembrete leva um link novo, que abre o pedido em qualquer aparelho. Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu; toque em "Já lembrei".</p>
-        <button class="pn__btn pn__btn--fino" type="button" id="lembretes-atualizar">Atualizar os lembretes</button>
-        <p class="pn__estado" id="lembretes-estado" role="status"></p>
-        <div id="lembretes"></div>
+      <!-- INTERESSADOS (js/painel-inicio.js): quem deixou contato e está em andamento, montado SÓ com o que o painel já
+           recebe (fila, lembretes, avisos, recados). Telefone e e-mail só no detalhe da pessoa, nunca na lista -->
+      <section class="pn__tela" id="tela-interessados" data-tela="interessados" aria-labelledby="t-interessados" hidden>
+        <a class="pn__voltar" href="#inicio" data-voltar>Voltar</a>
+        <h2 id="t-interessados" tabindex="-1">Interessados</h2>
+        <p class="pn__sub">Quem deixou contato por pedido ou recado, do mais recente ao mais antigo.</p>
+        <p class="pn__estado" id="interessados-estado" role="status"></p>
+        <ul class="pn__lista" id="interessados-lista"></ul>
       </section>
 
-      <!-- os AVISOS (js/painel-entregas.js, PR 3b-3c): prévia pronta, site no ar, material parado, aviso antes de apagar o material e os 2 lembretes do restante; vêm de ?fila=avisos -->
-      <section class="pn__bloco" aria-labelledby="t-avisos" id="bloco-avisos" hidden>
-        <h2 id="t-avisos" tabindex="-1">Avisos para mandar (prévia, site no ar, material e restante)</h2>
-        <p class="pn__ajuda">Cada aviso tem a mensagem pronta e um link novo para o cliente. Toque em "Preparar", copie a mensagem, abra a conversa, cole e envie; depois toque em "Já avisei". Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu.</p>
-        <button class="pn__btn pn__btn--fino" type="button" id="avisos-atualizar">Atualizar os avisos</button>
-        <p class="pn__estado" id="avisos-estado" role="status"></p>
-        <div id="avisos"></div>
+      <section class="pn__tela" id="tela-pessoa" data-tela="pessoa" aria-labelledby="t-pessoa" hidden>
+        <a class="pn__voltar" href="#interessados" data-voltar>Voltar</a>
+        <h2 id="t-pessoa" tabindex="-1">Interessado</h2>
+        <dl class="pn__ficha" id="pessoa-ficha"></dl>
+        <a class="pn__btn pn__btn--fino" href="#acoes" id="pessoa-acoes" hidden>Abrir em "Precisam de você"</a>
       </section>
 
-      <!-- a SAÚDE do sistema (api/rotinas.mjs): alertas abertos e quando a rotina diária rodou -->
-      <section class="pn__bloco" aria-labelledby="t-saude">
-        <h2 id="t-saude">Saúde do sistema</h2>
-        <div id="saude"></div>
+      <!-- VENDAS: o valor dos contatos marcados como cliente no período; aqui ficam os contatos do recado, para marcar -->
+      <section class="pn__tela" id="tela-vendas" data-tela="vendas" aria-labelledby="t-vendas" hidden>
+        <a class="pn__voltar" href="#inicio" data-voltar>Voltar</a>
+        <h2 id="t-vendas" tabindex="-1">Vendas</h2>
+        <p class="pn__destaque" id="vendas-valor">—</p>
+        <p class="pn__sub" id="vendas-sub">A soma do valor dos contatos que você marcou como cliente no período.</p>
+        <section class="pn__bloco" aria-labelledby="t-contatos">
+          <h3 id="t-contatos">Contatos pelo recado</h3>
+          <p class="pn__ajuda">Cada contato tem um código. Quando a pessoa mandar mensagem, marque "conversa". Quando fechar, marque "cliente" e o valor. Não escreva nome nem telefone na nota.</p>
+          <div id="contatos"></div>
+        </section>
       </section>
 
-      <section class="pn__bloco" aria-labelledby="t-resumo">
-        <h2 id="t-resumo">Resumo</h2>
-        <div id="kpis"></div>
-        <div class="pn__funil" id="funil"></div>
+      <!-- VISITAS: o número do período e de onde vieram, em cartões (sem tabela) -->
+      <section class="pn__tela" id="tela-visitas" data-tela="visitas" aria-labelledby="t-visitas" hidden>
+        <a class="pn__voltar" href="#inicio" data-voltar>Voltar</a>
+        <h2 id="t-visitas" tabindex="-1">Visitas</h2>
+        <ul class="pn__lista" id="visitas-numeros"></ul>
+        <h3 class="pn__titulo-lista">De onde vieram</h3>
+        <ul class="pn__lista" id="origens"></ul>
       </section>
 
-      <section class="pn__bloco" aria-labelledby="t-contatos">
-        <h2 id="t-contatos">Contatos</h2>
-        <p class="pn__ajuda">Cada contato tem um código. Quando a pessoa mandar mensagem, marque "conversa". Quando fechar, marque "cliente" e o valor. Não escreva nome nem telefone na nota.</p>
-        <div id="contatos"></div>
+      <!-- FERRAMENTAS (link discreto no rodapé): o atendente do site do cliente e o arquivo do Google Ads -->
+      <section class="pn__tela" id="tela-ferramentas" data-tela="ferramentas" aria-labelledby="t-ferramentas" hidden>
+        <a class="pn__voltar" href="#inicio" data-voltar>Voltar</a>
+        <h2 id="t-ferramentas" tabindex="-1">Ferramentas</h2>
+
+        <!-- o ATENDENTE do site do cliente (js/painel-atendente.js): clientes, base, domínios, conversas e contatos. Texto de terceiros: só textContent -->
+        <section class="pn__bloco" aria-labelledby="t-atendente" id="atendente" hidden>
+          <h3 id="t-atendente" tabindex="-1">Atendente no site do cliente</h3>
+          <p class="pn__ajuda">Cada cliente tem o seu balão, a sua base e os seus domínios. A IA só responde com o que está aqui; preço só da tabela. As conversas ficam guardadas por 60 dias.</p>
+          <button class="pn__btn pn__btn--fino" type="button" id="at-novo">Novo cliente</button>
+          <button class="pn__btn pn__btn--fino" type="button" id="at-atualizar">Atualizar a lista</button>
+          <p class="pn__estado" id="at-estado" role="status"></p>
+          <div id="at-lista"></div>
+          <div id="at-form" hidden>
+            <h4 id="at-titulo-form">Novo cliente</h4>
+            <div class="pn__campos">
+              <div><label for="at-nome">Nome do negócio</label><input id="at-nome" type="text" maxlength="80" /></div>
+              <div><label for="at-whatsapp">WhatsApp do cliente (com DDI e DDD)</label><input id="at-whatsapp" type="text" inputmode="numeric" maxlength="20" /></div>
+              <div><label for="at-privacidade">Link da privacidade do cliente (https)</label><input id="at-privacidade" type="text" maxlength="250" /></div>
+              <div><label for="at-saudacao">Primeira frase do balão (opcional)</label><input id="at-saudacao" type="text" maxlength="300" /></div>
+              <div><label for="at-cor">Cor do balão</label><input id="at-cor" type="color" value="#1a1a1a" /></div>
+              <div><label for="at-cor-texto">Cor do texto sobre a cor</label><input id="at-cor-texto" type="color" value="#ffffff" /></div>
+              <div><label for="at-teto">Teto de gasto por dia (US$)</label><input id="at-teto" type="text" inputmode="decimal" value="1" /></div>
+              <label class="pn__marcar"><input type="checkbox" id="at-ativo" checked /> Balão ligado</label>
+            </div>
+            <label for="at-dominios">Domínios do site do cliente, um por linha (só o endereço; com e sem www são dois)</label>
+            <textarea id="at-dominios" rows="3"></textarea>
+            <label for="at-perguntas">Perguntas e respostas ("P: ..." e na linha de baixo "R: ..."; uma linha em branco entre elas)</label>
+            <textarea id="at-perguntas" rows="8"></textarea>
+            <label for="at-precos">Tabela de preços (uma por linha: "Serviço | 180,00"); a IA só fala estes valores</label>
+            <textarea id="at-precos" rows="5"></textarea>
+            <button class="pn__btn" type="button" id="at-salvar">Salvar</button>
+            <div id="at-codigo-bloco" hidden>
+              <p class="pn__ajuda">Para colar antes do fim do &lt;body&gt; do site do cliente:</p>
+              <pre><code id="at-codigo"></code></pre>
+            </div>
+          </div>
+          <div id="at-conversas"></div>
+        </section>
+
+        <section class="pn__bloco" aria-labelledby="t-ads">
+          <h3 id="t-ads">Mandar os clientes para o Google Ads</h3>
+          <p class="pn__ajuda">Baixa os clientes que vieram de clique em anúncio (últimos 90 dias), no formato de "importar conversões off-line". Com isso o Google aprende quais buscas viram cliente, não só clique.</p>
+          <label for="nomeConversao">Nome da conversão no Google Ads</label>
+          <input id="nomeConversao" type="text" value="Cliente fechado" maxlength="80" />
+          <button class="pn__btn" type="button" id="baixarCsv">Baixar o arquivo</button>
+          <p class="pn__estado" id="ads-estado" role="status"></p>
+        </section>
       </section>
 
-      <section class="pn__bloco" aria-labelledby="t-origem">
-        <h2 id="t-origem">De onde vieram</h2>
-        <div class="pn__tabela" id="origens"></div>
-        <h3>Campanhas e termos do anúncio</h3>
-        <div class="pn__tabela" id="campanhas"></div>
-        <h3>Página de entrada</h3>
-        <div class="pn__tabela" id="entradas"></div>
-        <h3>Aparelho</h3>
-        <div class="pn__tabela" id="dispositivos"></div>
-      </section>
-
-      <section class="pn__bloco" aria-labelledby="t-paginas">
-        <h2 id="t-paginas">O que fizeram no site</h2>
-        <h3>Botão que levou à conversa</h3>
-        <div class="pn__tabela" id="botoes"></div>
-        <div id="paginas"></div>
-        <h3>Formulário da página de Automação</h3>
-        <div id="formulario"></div>
-        <h3>O Ouro</h3>
-        <div id="ouro"></div>
-      </section>
-
-      <section class="pn__bloco" aria-labelledby="t-dias">
-        <h2 id="t-dias">Por dia</h2>
-        <div class="pn__tabela" id="dias"></div>
-      </section>
-
-      <section class="pn__bloco" aria-labelledby="t-ads">
-        <h2 id="t-ads">Mandar os clientes para o Google Ads</h2>
-        <p class="pn__ajuda">Baixa os clientes que vieram de clique em anúncio (últimos 90 dias), no formato de "importar conversões off-line". Com isso o Google aprende quais buscas viram cliente, não só clique.</p>
-        <label for="nomeConversao">Nome da conversão no Google Ads</label>
-        <input id="nomeConversao" type="text" value="Cliente fechado" maxlength="80" />
-        <button class="pn__btn" type="button" id="baixarCsv">Baixar o arquivo</button>
-      </section>
+      <footer class="pn__rodape"><a href="#ferramentas">Ferramentas</a></footer>
     </div>
   </main>
   <script src="js/painel.js" defer></script>
@@ -173,5 +220,6 @@
   <script src="js/painel-entregas.js" defer></script>
   <script src="js/painel-recados.js" defer></script>
   <script src="js/painel-atendente.js" defer></script>
+  <script src="js/painel-inicio.js" defer></script>
 </body>
 </html>
