@@ -720,6 +720,15 @@ export const SABOTAGENS = [
     de: "if (prefixoUsado && !desenho.gravou && i > 0) saida =", para: "if (false) saida =" },
   { nome: "leitura: o estado devolve a evidência de um eixo que a pessoa não falou", fonte: "api/_vendas/leitura.mjs", testes: ['docs/testes/planta-leitura.test.mjs'],
     de: "const r = e.nivel === 'nao_falou' || e.evidencia === undefined ? null :", para: "const r = e.evidencia === undefined ? null :" },
+  /* ---- o modelo reserva na queda (auto-reparo, 15/11) ---- */
+  { nome: 'reserva: o tempo esgotado também chama o reserva (dobra a espera)', fonte: 'api/_ia/anthropic.mjs', testes: ['docs/testes/ia-reserva.test.mjs'],
+    de: '&& !(e instanceof Anthropic.APIConnectionTimeoutError));', para: ');' + ' /* sabotado */' },
+  { nome: 'reserva: o erro do reserva troca o da queda (um 4xx esconde o provedor fora do ar)', fonte: 'api/_ia/anthropic.mjs', testes: ['docs/testes/ia-reserva.test.mjs'],
+    de: 'const erro = erroIA(e, cfg, tentativas);', para: 'const erro = erroIA(e2, cfg, tentativas);' },
+  { nome: 'reserva: sem o orçamento de tempo (a resposta passa de 2 min)', fonte: 'api/_ia/anthropic.mjs', testes: ['docs/testes/ia-reserva.test.mjs'],
+    de: '|| agora() - inicio > RESERVA_SO_ATE_MS)', para: '|| agora() - inicio > Infinity)' },
+  { nome: 'reserva: o custo pela tabela do principal (sufixo de data vira o mais caro)', fonte: 'api/_ia/anthropic.mjs', testes: ['docs/testes/ia-reserva.test.mjs'],
+    de: "modelo.startsWith(feito.model + '-') ? feito.model : modelo", para: "modelo.startsWith(cfg.modelo + '-') ? cfg.modelo : modelo" },
   /* ---- a confirmação da entrada por e-mail (decisões do dono, 14 e 15/11/2026): uma vez só, só a entrada, nunca derruba o pagamento ---- */
   { nome: 'confirmação: a reserva não apaga o e-mail de quem pagou', arquivo: '20261115130000_confirmacao_entrada.sql', testes: ['docs/testes/confirmacao-banco.test.mjs'],
     de: 'set confirmacao_email_em = now(), pagador_email = null', para: 'set confirmacao_email_em = now()' },
