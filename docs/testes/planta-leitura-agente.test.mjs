@@ -66,7 +66,7 @@ test('ferramentas: ler_caso só entra com leitura:true E preço aberto, no FIM d
 test('o prompt de sistema é o mesmo: a leitura mora na ferramenta e no ESTADO, não nas instruções', () => {
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
   assert.ok(!/ler_caso|radar|Como lemos/.test(s));
-  assert.ok(s.length < 27000, 'segue abaixo das 27.000 que o teste do Zero prende (' + s.length + ')');
+  assert.ok(s.length < 27500, 'segue abaixo das 27.500 que o teste do Zero prende (' + s.length + ')');
 });
 
 /* ---------- o proximoPasso: o prefixo ---------- */

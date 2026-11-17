@@ -177,3 +177,18 @@ test('cada extra tem nome curto e benefício para o cartão; o nome da tabela se
   assert.equal(textos.por_pagina, true, 'textos é por página: o cartão diz');
   assert.match(textos.nome, /Textos/, 'o nome da tabela não muda');
 });
+
+test('Perfil no Google pronto (R$ 900, 17/11): principal nos ramos que recebem cliente, em "mais" nos outros; frase honesta sobre o que é do cliente', () => {
+  const doRamo = ramo => catalogoPublico(REGRAS, { formato: 'institucional', ramo });
+  for (const ramo of ['saude', 'beleza', 'servicos', 'alimentacao', 'comercio', 'educacao']) {
+    assert.ok(doRamo(ramo).extras.principais.some(e => e.chave === 'perfil_google'), 'principal em ' + ramo);
+  }
+  for (const ramo of ['associacao', 'outro']) {
+    assert.ok(doRamo(ramo).extras.mais.some(e => e.chave === 'perfil_google'), 'em "mais" em ' + ramo);
+  }
+  const e = doRamo('servicos').extras.principais.find(x => x.chave === 'perfil_google');
+  assert.deepEqual([e.nome, e.valor, e.max], ['Perfil no Google pronto', 900, 1]);
+  assert.doesNotMatch(FRASES.perfil_google + e.beneficio, /garant|primeiro lugar|aumenta|só confirma/i, 'sem promessa de resultado nem "você só confirma"');
+  assert.match(FRASES.perfil_google, /você confirma .* e cola/i, 'a frase diz que a confirmação no Google e a colagem são do cliente');
+  assert.match(e.beneficio, /você confirma .* e cola/i, 'o cartão também');
+});
