@@ -64,9 +64,9 @@ test('os nomes que dizem o que cada modelo faz: a tela, o visor e a recomendaç�
   assert.match(html, /id="o-livre-mistura"/);
   assert.match(ler('js/orcamento.js'), /'O Zero recomenda'/);
   const zero = ler('docs/zero/prompt-efetivo.txt');
-  assert.match(zero, /um para vender mais, um para passar confiança e um para encantar/);
-  assert.match(zero, /Trazer algo de outro modelo \(as cores, uma seção\) conta como um desses pedidos, não como refazer tudo/);
-  assert.match(zero, /a tela mostra qual você recomenda/);
+  assert.match(zero, /para vender mais, para passar confiança e para encantar/);
+  assert.match(zero, /trazer algo de outro modelo conta como um desses pedidos/);
+  assert.match(zero, /a tela mostra qual você recomenda e por quê/);
 });
 
 test('os três saem diferentes desde o topo: cada estratégia pede um hero próprio (variante e ângulo do título)', () => {

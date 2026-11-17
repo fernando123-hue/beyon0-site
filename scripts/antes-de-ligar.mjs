@@ -17,7 +17,8 @@ export const MIGRATIONS = [
   '20261024120000_pr3b3_esquema.sql', '20261024120100_pr3b3_previa.sql', '20261024120200_pr3b3_restante.sql', '20261024120300_pr3b3_rotina.sql', '20261024120400_pr3b3_lista.sql',
   '20261028120000_aviso_no_ar_so_no_ar.sql', '20261029120000_recados.sql', '20261030120000_confirmacao_automatica.sql', '20261030130000_atendente.sql',
   '20261110120000_jev_sombra.sql', '20261111120000_recado_whatsapp.sql', '20261113120000_aceite_versao.sql', '20261115120000_vigia.sql',
-  '20261115130000_confirmacao_entrada.sql'
+  '20261115130000_confirmacao_entrada.sql',
+  '20261116100000_modelos_medicao.sql'
 ];
 /* o endereço do envio assinado, token inteiro; o grupo 1 é o projeto */
 const SUPABASE_EXATO = /^https:\/\/([a-z0-9]{20})\.supabase\.co\/storage\/v1\/object\/upload\/sign\/$/;
