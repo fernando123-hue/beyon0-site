@@ -33,6 +33,8 @@
     if (!soma.n) return { texto: 'Tudo certo', estado: 'ok' };
     return { texto: soma.n + (soma.n === 1 ? ' coisa precisa de você' : ' coisas precisam de você'), estado: 'pendente' };
   }
+  /* o número do cartão "Precisam de você": sem a soma inteira (fonte faltando ou com erro), "—"; nunca uma soma parcial */
+  function contagemAcoes(soma) { return soma.faltam.length || soma.erros.length ? '—' : (Number(soma.n) || 0).toLocaleString('pt-BR'); }
   function haQuanto(iso, agora) {
     var t = Date.parse(iso);
     if (isNaN(t)) return '';
@@ -77,7 +79,7 @@
   function linhaDaLista(p, agora) {
     return [p.nome || 'Sem nome', [p.como, p.etapa].filter(Boolean).join(' · '), haQuanto(p.quando, agora)];
   }
-  window.BZPainelInicio = { somarPendentes: somarPendentes, situacao: situacao, haQuanto: haQuanto, montarInteressados: montarInteressados, linhaDaLista: linhaDaLista };
+  window.BZPainelInicio = { somarPendentes: somarPendentes, situacao: situacao, contagemAcoes: contagemAcoes, haQuanto: haQuanto, montarInteressados: montarInteressados, linhaDaLista: linhaDaLista };
 
   /* ---------- a tela ---------- */
   var P = window.BZPainel;
@@ -95,7 +97,7 @@
     var soma = somarPendentes(fontes), s = situacao(soma);
     $('situacao').textContent = s.texto;
     $('situacao').setAttribute('data-estado', s.estado);
-    $('n-acoes').textContent = soma.faltam.length ? '—' : num(soma.n);
+    $('n-acoes').textContent = contagemAcoes(soma);
     $('c-acoes').setAttribute('data-alerta', String(soma.n > 0));
     /* na tela de ações, lista vazia some: fica só o que pede um toque (lista com erro fica, com o erro).
        Se o foco está dentro dela (acabou de tocar "Já lembrei" no último), ela fica até a próxima leitura: o foco não cai no corpo da página

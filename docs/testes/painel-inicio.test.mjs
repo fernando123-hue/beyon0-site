@@ -69,6 +69,39 @@ test('interessados: recado suspeito que chega depois do primeiro recado do mesmo
   assert.equal(pessoa([recado('r1', false), recado('r2', true)]).recado, 'tr1', 'o texto da ficha continua sendo o do primeiro recado');
 });
 
+test('cartão Precisam de você: com fonte faltando ou com erro mostra "—", nunca a soma parcial', () => {
+  const tudo = { fila: { n: 2 }, avisos: { n: 1 }, recados: { n: 1 }, lembretes: { n: 0 }, saude: { n: 1 } };
+  assert.equal(I.contagemAcoes(I.somarPendentes(tudo)), '5');
+  assert.equal(I.contagemAcoes(I.somarPendentes({ ...tudo, avisos: { erro: true } })), '—', 'uma fonte falhou: 4 seria mentira');
+  const semSaude = { ...tudo }; delete semSaude.saude;
+  assert.equal(I.contagemAcoes(I.somarPendentes(semSaude)), '—');
+  assert.equal(I.contagemAcoes(I.somarPendentes({ fila: { n: 0 }, avisos: { n: 0 }, recados: { n: 0 }, lembretes: { n: 0 }, saude: { n: 0 } })), '0');
+});
+
+test('agir (cartões de pedido): depois de avisar que os pedidos mudaram, o foco vai para o título da fila (a fila vazia não some com a confirmação)', async () => {
+  const ordem = [];
+  const titulo = { focus: () => ordem.push('foco') };
+  const documento = { dispatchEvent: ev => { ordem.push('evento:' + ev.detail.aviso); return true; }, getElementById: id => (id === 't-fila' ? titulo : null) };
+  const janelaComum = {};
+  const montar = pedir => {
+    janelaComum.BZPainel = { el: () => ({}), pedir, recusada: () => false };
+    new Function('window', 'document', ler('js/painel-pedido-comum.js'))(janelaComum, documento);
+    return janelaComum.BZPainelPedido.agir;
+  };
+  const botao = { disabled: false }, saida = { textContent: '' };
+  ordem.length = 0;
+  await montar(() => Promise.resolve({ json: () => Promise.resolve({}) }))({ arquivar_pedido: 'c1' }, botao, saida, 'Pedido BZ-AAAAA arquivado.', 'BZ-AAAAA');
+  assert.deepEqual(ordem, ['evento:Pedido BZ-AAAAA arquivado.', 'foco'], 'sucesso: avisa e foca o título');
+  ordem.length = 0;
+  await montar(() => Promise.reject(Object.assign(new Error('já foi confirmado'), { status: 409 })))({ arquivar_pedido: 'c1' }, { disabled: false }, saida, 'x', 'BZ-AAAAA');
+  assert.deepEqual(ordem, ['evento:Pedido BZ-AAAAA: já foi confirmado', 'foco'], 'conflito 409: o motivo fica à vista e o foco vai para o título');
+  ordem.length = 0;
+  const botaoErro = { disabled: false };
+  await montar(() => Promise.reject(Object.assign(new Error('sem rede'), { status: 500 })))({ arquivar_pedido: 'c1' }, botaoErro, saida, 'x', 'BZ-AAAAA');
+  assert.deepEqual(ordem, [], 'erro de verdade: nada recarrega e o foco fica no botão, que volta a ficar ativo');
+  assert.equal(botaoErro.disabled, false); assert.equal(saida.textContent, 'sem rede');
+});
+
 test('interessados: fonte que falhou ou veio sem lista não quebra nem inventa ninguém', () => {
   assert.deepEqual(I.montarInteressados({ fila: { erro: true }, recados: { itens: null }, lembretes: {}, avisos: undefined }), []);
   assert.deepEqual(I.montarInteressados({ fila: { itens: [{ conversa_id: 'x' }] } }).map(p => [p.nome, p.etapa]), [[null, 'Pediu os modelos']]);
