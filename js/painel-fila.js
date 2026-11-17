@@ -110,10 +110,11 @@
       $('bloco-fila').hidden = false;
       $('fila-alarme').hidden = !r.alarme;
       r.fila.forEach(function (p) { alvo.appendChild(cartao(p)); });
+      if (P.avisar) P.avisar('fila', { n: r.total, itens: r.fila });   /* (o início soma "Precisam de você" e monta os interessados, js/painel-inicio.js) */
       var contagem = !r.fila.length ? 'Nenhum pedido confirmado na fila.'
         : r.total + (r.total === 1 ? ' pedido confirmado' : ' pedidos confirmados') + ', por prioridade.';
       $('fila-estado').textContent = (typeof aviso === 'string' ? aviso + ' ' : '') + contagem;
-    }).catch(function (e) { if (minha !== vez) return; if (P.recusada(e)) return; $('bloco-fila').hidden = false; $('fila-estado').textContent = e.message; });
+    }).catch(function (e) { if (minha !== vez) return; if (P.recusada(e)) return; $('bloco-fila').hidden = false; $('fila-estado').textContent = e.message; if (P.avisar) P.avisar('fila', { erro: true }); });
   }
   /* saiu do painel: nome e telefone dos clientes não ficam na página (e nenhuma leitura em voo os traz de volta) */
   function esvaziar() { vez++; $('fila').textContent = ''; $('fila-estado').textContent = ''; $('fila-alarme').hidden = true; $('bloco-fila').hidden = true; }

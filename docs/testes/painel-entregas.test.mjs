@@ -89,7 +89,7 @@ test('o CSS do painel: a caixa da mensagem e o bloco não ganham blur, sombra ne
   assert.match(bloco, /\.pn__aviso-texto[^{]*\{[^}]*width: 100%/); assert.match(bloco, /\.pn__aviso-texto[^{]*\{[^}]*box-sizing: border-box/);
   assert.match(bloco, /\.pn__aviso-texto[^{]*\{[^}]*font-size: 1rem/, 'texto que importa com 16 px');
   assert.ok(!/blur|box-shadow|text-shadow|drop-shadow|backdrop|filter/.test(bloco), 'sem blur nem sombra');
-  assert.ok(!/blur\(|box-shadow|text-shadow|drop-shadow|backdrop-filter/.test(CSS.replace(/\/\*[\s\S]*?\*\//g, '')), 'o CSS do painel inteiro segue sem blur nem sombra');
+  assert.ok(!/blur\(|box-shadow|text-shadow|drop-shadow|backdrop-filter/.test(CSS.replace(/\/\*\s*====\s*NEON-PAINEL: início[\s\S]*?NEON-PAINEL: fim\s*====\s*\*\//, '').replace(/\/\*[\s\S]*?\*\//g, '')), 'o CSS do painel inteiro segue sem blur nem sombra (menos o bloco NEON-PAINEL, exceção do dono: painel-inicio.test.mjs o vigia)');
 });
 
 test('acessibilidade do aviso: caixa só de leitura com aria-label, "Copiar a mensagem" e o estado com role=status', () => {

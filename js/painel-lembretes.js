@@ -49,9 +49,10 @@
       alvo.textContent = '';
       $('bloco-lembretes').hidden = false;
       r.lembretes.forEach(function (l) { alvo.appendChild(cartao(l)); });
+      if (P.avisar) P.avisar('lembretes', { n: r.total, itens: r.lembretes });   /* (o início, js/painel-inicio.js) */
       var contagem = !r.lembretes.length ? 'Nenhum lembrete para mandar hoje.' : r.total + (r.total === 1 ? ' lembrete para mandar.' : ' lembretes para mandar.');
       $('lembretes-estado').textContent = (typeof aviso === 'string' ? aviso + ' ' : '') + contagem;
-    }).catch(function (e) { if (minha !== vez) return; if (P.recusada(e)) return; $('bloco-lembretes').hidden = false; $('lembretes-estado').textContent = e.message; });
+    }).catch(function (e) { if (minha !== vez) return; if (P.recusada(e)) return; $('bloco-lembretes').hidden = false; $('lembretes-estado').textContent = e.message; if (P.avisar) P.avisar('lembretes', { erro: true }); });
   }
   /* saiu do painel: nome, telefone e links dos clientes não ficam na página (e nenhuma leitura em voo os traz de volta) */
   function esvaziar() { vez++; $('lembretes').textContent = ''; $('lembretes-estado').textContent = ''; $('bloco-lembretes').hidden = true; }

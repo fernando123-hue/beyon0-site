@@ -84,11 +84,12 @@
       alvo.textContent = '';
       $('bloco-avisos').hidden = false;
       var itens = Array.isArray(r.itens) ? r.itens : [];
-      itens.forEach(function (a) { var c = cartao(a); if (c) alvo.appendChild(c); });
+      var mostrados = itens.filter(function (a) { var c = cartao(a); if (c) alvo.appendChild(c); return !!c; });
+      if (P.avisar) P.avisar('avisos', { n: mostrados.length, itens: mostrados });   /* (o início conta só o aviso que a tela mostra, js/painel-inicio.js) */
       var total = alvo.childNodes.length;
       var contagem = !total ? 'Nenhum aviso para mandar hoje.' : total + (total === 1 ? ' aviso para mandar.' : ' avisos para mandar.');
       $('avisos-estado').textContent = (typeof aviso === 'string' ? aviso + ' ' : '') + contagem;
-    }).catch(function (e) { if (minha !== vez) return; if (P.recusada(e)) return; $('bloco-avisos').hidden = false; $('avisos-estado').textContent = e.message; });
+    }).catch(function (e) { if (minha !== vez) return; if (P.recusada(e)) return; $('bloco-avisos').hidden = false; $('avisos-estado').textContent = e.message; if (P.avisar) P.avisar('avisos', { erro: true }); });
   }
   /* saiu do painel: nome, telefone e links dos clientes não ficam na página (e nenhuma leitura em voo os traz de volta) */
   function esvaziar() { vez++; $('avisos').textContent = ''; $('avisos-estado').textContent = ''; $('bloco-avisos').hidden = true; }
