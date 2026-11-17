@@ -112,7 +112,7 @@ const NICHOS = [
   { chave: 'enfermagem', re: /\benfermeir\w*\b/, site: 'enfermagem', conselho: 'COREN', registro: 'COREN' },
   { chave: 'biomedicina', re: /\bbiomedic\w*\b/, site: 'biomedicina', conselho: 'CRBM', registro: 'CRBM' },
   { chave: 'estetica', re: /\b(?:estetic\w*|esteticista\w*|harmonizacao|botox|preenchimento facial|micropigmentacao)\b/, site: 'estética', conselho: 'conselho', registro: 'registro profissional', procedimento: 'procedimento' },
-  { chave: 'advocacia', re: /\b(?:advogad\w*|advocacia|oab|escritorio juridico)\b/, site: 'advocacia', conselho: 'OAB', registro: 'OAB', procedimento: 'serviço', cabe: 'quem você é, o número da OAB, as áreas de atuação, como marcar uma conversa e onde fica' }
+  { chave: 'advocacia', re: /\b(?:advogad\w*|advocacia|oab|escritorio juridico|consultorio juridico)\b/, site: 'advocacia', conselho: 'OAB', registro: 'OAB', procedimento: 'serviço', cabe: 'quem você é, o número da OAB, as áreas de atuação, como marcar uma conversa e onde fica' }
 ];
 /* o que desfaz o sinal: médico veterinário e pet não são saúde humana; estética de carro não é estética (o prompt manda perguntar) */
 const VETERINARIO = /\b(?:medic[oa]s? veterinari\w*|veterinari\w*|vet|pets?|pet shop|petshop|banho e tosa|animais|animal)\b/g;
@@ -141,6 +141,29 @@ export function nichoRegulado(texto) {
   }
   return null;
 }
+
+/* (M3, 16/11) "clínica" ou "consultório" SEM a profissão: é saúde, mas de qual conselho? Com a geração automática, essa dúvida não pode virar um
+   site sem as regras. Até a pessoa dizer a profissão (aí vale o nicho dela), tratamos como saúde genérica. Fica FORA de nichoRegulado: o
+   classificador mede esse detector, e "clínica" sozinha não é sinal de nicho para ele.
+   A exclusão de outro ramo (veterinária, pet, carro, aparelho) vale só COLADA ao substantivo ("clínica veterinária", "clínica do celular",
+   "pet clínica"): uma palavra solta no texto ("agende pelo celular", "estacionamento para carros") não desliga a regra (revisões do M3) */
+const ESTABELECIMENTO = '(?:poli)?clinic(?:as?|s)?|consultorios?|ambulatori\\w*|hospital\\w*|pronto atendimento|posto de saude|espaco (?:de )?saude|centro de reabilitacao';
+const PROFISSAO_SOLTA = 'acupuntur\\w*|quiropraxi\\w*|podolog\\w*';
+const OUTRO_RAMO = 'veterinari\\w*|vet|pets?|animais|animal|automotiv\\w*|carros?|veiculos?|lava ?jato|funilaria|motos?|auto ?(?:center|pecas)|oficina|celular(?:es)?|smartphones?|computador\\w*|notebooks?|informatica|eletronic\\w*|eletrodomestic\\w*|bicicletas?|relogio\\w*';
+const CONECTOR = '(?:(?:de|do|da|dos|das|para|pra|e)\\s+)?';
+const GATILHO = new RegExp('\\b(?:' + ESTABELECIMENTO + '|' + PROFISSAO_SOLTA + ')\\b');
+const ESTAB_DE_OUTRO_RAMO = new RegExp('\\b(?:' + ESTABELECIMENTO + ')\\s+' + CONECTOR + '(?:\\w+\\s+)?' + CONECTOR + '(?:' + OUTRO_RAMO + ')\\b', 'g');
+const OUTRO_RAMO_ESTAB = new RegExp('\\b(?:' + OUTRO_RAMO + ')\\s+(?:' + ESTABELECIMENTO + ')\\b', 'g');
+/* "software para clínicas", "agência para consultórios" (plural): é o cliente do negócio, não o ramo dele */
+const PLURAL = '(?:poli)?clinicas|consultorios|ambulatorios|hospitais';
+const PARA_ESTABELECIMENTOS = new RegExp('\\b(?:para|pra)\\s+(?:(?:as|os|suas|seus|varias|muitas)\\s+)?(?:' + PLURAL + ')(?:\\s+(?:e|ou)\\s+(?:(?:as|os)\\s+)?(?:' + PLURAL + '))*\\b', 'g');
+export function ramoSemProfissao(texto) {
+  const t = paraBusca(texto);
+  if (!t) return false;
+  const sobra = t.replace(PARA_ESTABELECIMENTOS, ' ').replace(ESTAB_DE_OUTRO_RAMO, ' ').replace(OUTRO_RAMO_ESTAB, ' ').replace(DE_OUTRO, ' ');
+  return GATILHO.test(sobra);
+}
+export const NICHO_GENERICO = descreverNicho({ chave: 'saude_generica', site: 'saúde', conselho: 'conselho', registro: 'registro profissional', procedimento: 'procedimento' });
 
 /* o que a Beyon não faz em site desses negócios, quando pedido */
 const PEDIDOS_PROIBIDOS = [
@@ -217,11 +240,12 @@ export function avisoRegulado(nicho, { pediuAgora = false } = {}) {
     /* (spec 2026-11-15 §4) o que o conselho deixa e não deixa no site, e o registro para pôr no site */
     ...(Object.hasOwn(CONSELHOS, nicho.chave) ? {
       regras_do_conselho: CONSELHOS[nicho.chave].resumo,
-      registro: 'Se o briefing ainda não tem negocio.registro, pergunte UMA vez, com naturalidade, o número do registro (' + CONSELHOS[nicho.chave].registro + ', com a UF) para pôr no site, e registre em negocio.registro. Se a pessoa não souber ou não quiser, siga sem insistir.'
+      ...(nicho.chave === 'saude_generica' ? {} : { registro: 'Se o briefing ainda não tem negocio.registro, pergunte UMA vez, com naturalidade, o número do registro (' + CONSELHOS[nicho.chave].registro + ', com a UF) para pôr no site, e registre em negocio.registro. Se a pessoa não souber ou não quiser, siga sem insistir.' })
     } : {}),
     nicho: nicho.site, conselho: nicho.conselho === 'conselho' ? 'o conselho da profissão da pessoa' : nicho.conselho,
     nunca: ['depoimento de paciente ou cliente', 'antes e depois', `preço ou promoção de ${nicho.procedimento}`, 'promessa de resultado', 'sessão grátis ou sorteio'],
     cabe: nicho.cabe, pediu_item_proibido_agora: pediuAgora,
+    ...(nicho.chave === 'saude_generica' ? { profissao_a_confirmar: 'A pessoa falou de clínica ou consultório, mas ainda não disse a profissão. Pergunte UMA vez, com naturalidade, qual é (dentista, psicólogo, fisioterapeuta, médico, advogado…) e registre em negocio.segmento. As regras acima valem até lá.' } : {}),
     orientacao: 'Só site informativo. Recuse como política da Beyon, sem citar a lei, ofereça o que cabe e mande conferir com o conselho. Não registre depoimentos no briefing.'
   };
 }
