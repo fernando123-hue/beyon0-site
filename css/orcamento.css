@@ -638,7 +638,7 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .pix__anel-fundo { stroke: var(--line-2); }
 .pix__anel-vivo { stroke: var(--ac); stroke-linecap: round; stroke-dasharray: 339.292; transition: stroke-dashoffset .9s linear, stroke .4s; }
 .pix__tempo { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--sans); font-weight: 300; font-size: 1.9rem; letter-spacing: .02em; font-variant-numeric: tabular-nums; color: var(--t1); }
-.pix__relogio.is-curto .pix__anel-vivo { stroke: rgb(var(--ouro-rgb)); }
-.pix__relogio.is-curto .pix__tempo { color: rgb(var(--ouro-rgb)); }
+.pix__relogio.is-curto .pix__anel-vivo { stroke: rgb(var(--aviso-rgb)); }
+.pix__relogio.is-curto .pix__tempo { color: rgb(var(--aviso-rgb)); }
 @media (prefers-reduced-motion: reduce) { .pix__anel-vivo { transition: none; } }
 html.menos-movimento .pix__anel-vivo { transition: none; }
