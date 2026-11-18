@@ -9,7 +9,7 @@
       "nome": "Landing page",
       "base": 2900,
       "piso": 1500,
-      "prazo_dias": 5,
+      "prazo_dias": 8,
       "paginas_incluidas": 1,
       "inclui": [
         "Uma página com até 7 seções",
@@ -23,7 +23,7 @@
       "nome": "Site institucional",
       "base": 7900,
       "piso": 4500,
-      "prazo_dias": 8,
+      "prazo_dias": 13,
       "paginas_incluidas": 5,
       "inclui": [
         "Até 5 páginas",
@@ -37,7 +37,7 @@
       "nome": "Loja virtual (Nuvemshop ou Shopify)",
       "base": 8900,
       "piso": 6500,
-      "prazo_dias": 8,
+      "prazo_dias": 13,
       "paginas_incluidas": 5,
       "inclui": [
         "Configuração da plataforma e tema próprio",

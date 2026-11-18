@@ -67,8 +67,8 @@ test('escopo final: direção, alterações, escopo, investimento e prazo, a par
   const est = estimar({ formato: 'institucional', paginas: 7, adicionais: { textos: 7, agendamento: 1 } }, REGRAS);
   const e = montarEscopo({ estimativa: est, direcao: direcoes[1].conteudo, briefing: BRIEFING, alteracoesAplicadas: [{ operacao: 'usar_paleta_de', direcao: 1, descricao: 'Desconto de 90% combinado' }, { operacao: 'trocar_texto', secao: 'hero', valor: 'grátis para sempre' }] });
   assert.equal(e.titulo, 'Site institucional — Clínica Sorriso');
-  /* 7900 + 2 páginas × 350 + 7 textos × 350 + agendamento 450 = 11500, sinal 4600; 8 + 1 + 1,75 + 1 = 11,75 → 12 dias, numa entrega só */
-  for (const parte of ['DIREÇÃO ESCOLHIDA', 'Autoridade', 'ALTERAÇÕES PEDIDAS', 'cores da direção 1', 'texto trocado: abertura', 'ESCOPO', 'Agendamento online', 'INVESTIMENTO', '11.500,00', '40% para começar', '4.600,00', 'PRAZO: até 12 dias úteis, contados do sinal pago e do material recebido']) {
+  /* 7900 + 2 páginas × 350 + 7 textos × 350 + agendamento 450 = 11500, sinal 4600; 13 + 1 + 1,75 + 1 = 16,75 → 17 dias, numa entrega só */
+  for (const parte of ['DIREÇÃO ESCOLHIDA', 'Autoridade', 'ALTERAÇÕES PEDIDAS', 'cores da direção 1', 'texto trocado: abertura', 'ESCOPO', 'Agendamento online', 'INVESTIMENTO', '11.500,00', '40% para começar', '4.600,00', 'PRAZO: até 17 dias úteis, contados do sinal pago e do material recebido']) {
     assert.ok(e.escopo.includes(parte), 'o escopo traz: ' + parte);
   }
   assert.ok(!e.escopo.includes('FASE SEGUINTE'), 'sem teto de prazo, nada fica para depois');

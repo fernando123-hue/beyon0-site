@@ -83,7 +83,7 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   e = (await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo;
   assert.equal(e.conversa.etapa, 'em_producao');
   assert.deepEqual(await ultimoProjeto(), { status: 'pronto_para_producao', dias: m1.corpo.estimativa.prazo_dias, lead: 'ganho' }, 'prazo do projeto = prazo da estimativa (institucional 8 + agendamento 1)');
-  assert.equal(m1.corpo.estimativa.prazo_dias, 9);
+  assert.equal(m1.corpo.estimativa.prazo_dias, 14);
 });
 
 /* ======================= fluxo incompleto ======================= */
