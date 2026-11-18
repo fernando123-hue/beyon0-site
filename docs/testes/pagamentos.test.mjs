@@ -513,3 +513,16 @@ test('entrada sem percentual (PR 3b-1): o 23514 do banco vira 409 com o WhatsApp
     e => e.status === 409 && /valor da entrada/.test(e.message) && e.extra && e.extra.recado === true);
   assert.equal(ordens, 0, 'nenhuma ordem criada no provedor');
 });
+
+/* ======================= validade curta do Pix ======================= */
+test('Pix: a order nasce com validade de 30 minutos (Pix agendado para depois não passa da validade do QR)', async () => {
+  let corpo = null;
+  const fetchEspia = async (url, init) => {
+    corpo = JSON.parse(init.body);
+    return { ok: true, status: 201, headers: new Headers(), text: async () => JSON.stringify({ id: 'ORDVALIDADE0001', external_reference: 'ref-val', total_amount: '10.00', transactions: { payments: [{ id: 'PAY1', amount: '10.00', status: 'action_required', status_detail: 'waiting_transfer', payment_method: { id: 'pix', type: 'bank_transfer' } }] } }) };
+  };
+  const pagador = { email: 'test@testuser.com', nome: 'APRO', sobrenome: 'T', documentoTipo: 'CPF', documento: '52998224725' };
+  await criarMercadoPago({ token: 'APP_USR-token-teste-0000000000', fetch: fetchEspia }).criarOrdem({ chave: 'bz-validade-000001', referencia: 'ref-val', valor: 10, pagador, metodo: 'pix' });
+  assert.equal(corpo.transactions.payments[0].expiration_time, 'PT30M');
+  assert.equal(configPagamentos({}).pixExpiracao, 'PT30M', 'a configuração também pede 30 minutos');
+});

@@ -71,7 +71,7 @@ export function criarMercadoPago({ token, base = 'https://api.mercadopago.com', 
       const pagamento = { amount: valorTexto(valor) };
       if (metodo === 'pix') {
         pagamento.payment_method = { id: 'pix', type: 'bank_transfer' };
-        pagamento.expiration_time = pixExpiracao || 'PT1H';
+        pagamento.expiration_time = pixExpiracao || 'PT30M';
       } else {
         pagamento.payment_method = { id: cartao.meio, type: cartao.tipo, token: cartao.token, installments: cartao.parcelas };
       }
