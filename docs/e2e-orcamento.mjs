@@ -112,7 +112,7 @@ try {
     await page.locator('#o-mic').click();
     await page.waitForFunction(() => document.getElementById('o-mic').getAttribute('aria-pressed') === 'true', null, { timeout: 10000 });
     await page.locator('#o-mic-cancelar').click();
-    await page.waitForFunction(() => document.getElementById('o-mic').getAttribute('aria-pressed') === 'false', null, { timeout: 10000 });
+    await page.waitForFunction(() => /descartada/.test(document.getElementById('o-mic-aviso').textContent), null, { timeout: 10000 });   /* (o botão deixa de ficar pressionado já no 'parando'; o aviso vem no onstop) */
     const depois = await page.inputValue('#o-texto');
     ok(/descartada/.test(await page.locator('#o-mic-aviso').textContent()) && /confeitaria em Niterói/.test(depois) && !/confeitaria.*confeitaria/.test(depois), 'microfone: descartar não manda nada e não mexe no que já estava na caixa');
     await page.fill('#o-texto', '');
