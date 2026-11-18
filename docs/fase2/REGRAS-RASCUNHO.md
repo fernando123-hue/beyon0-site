@@ -20,7 +20,7 @@ Em 2026-10-09 o dono aprovou também: textos de R$ 150 para R$ 250 por página (
 
 Os adicionais seguem a mesma lógica: um valor por unidade, um prazo por unidade e uma prioridade. Cada adicional soma o seu prazo ao do formato. A prioridade define o que entra primeiro numa tabela com teto de prazo (a tabela ativa pode ter um; o rascunho de 2026-10-28 tem 60 dias, e só um pedido extremo de loja chega lá).
 
-- **Loja em plataforma pronta** (Nuvemshop ou Shopify, tabela v2, 2026-10-09): base R$ 8.900 desde 2026-10-28 (piso R$ 6.500; era R$ 4.800), 8 dias, até 30 produtos. Adicionais que só existem com ela (campo `requer`): +25 produtos R$ 300, meio de pagamento extra R$ 400, frete por transportadora R$ 500, ERP/nota fiscal R$ 1.500, marketplace R$ 1.200, migração R$ 1.500. A mensalidade da plataforma é do cliente.
+- **Loja em plataforma pronta** (Nuvemshop ou Shopify, tabela v2, 2026-10-09): base R$ 8.900 desde 2026-10-28 (piso R$ 6.500; era R$ 4.800), 13 dias (8 até 17/11), até 30 produtos. Adicionais que só existem com ela (campo `requer`): +25 produtos R$ 300, meio de pagamento extra R$ 400, frete por transportadora R$ 500, ERP/nota fiscal R$ 1.500, marketplace R$ 1.200, migração R$ 1.500. A mensalidade da plataforma é do cliente.
 - **Área restrita com login**: saiu da venda em 2026-10-28 (dono, Decisões.md); antes, de 2026-10-14 a 2026-10-28, ficou fora do automático ("a partir de R$ 4.500, com escopo escrito"). Na tabela v2 era adicional de R$ 4.500, 4 dias, com extras dependentes (tela R$ 700, perfil R$ 1.200, cobrança de anuidade R$ 2.500, documentos R$ 900, importar usuários R$ 400); os testes do mecanismo de dependentes usam essa cópia (`docs/testes/_area-v2.mjs`). Item dependente só fica na fase 1 se a base também ficar.
 - **Fora da venda** desde 2026-10-28 (dono, Decisões.md): área restrita, loja feita do zero, em código próprio, e sistema sob medida. Saíram da tabela (antes eram "fora do automático", com conversa de diagnóstico); se a pessoa pedir, o consultor diz com honestidade que a Beyon Zero não faz isso hoje, sem prometer conversa. O motor continua mandando para o diagnóstico um item fora do automático de uma tabela antiga; os testes desse caminho usam uma cópia (`docs/testes/_fora-do-automatico.mjs`).
 - **Urgência:** multiplica o valor por 1,3 e o prazo por 0,6.
@@ -33,14 +33,14 @@ Os adicionais seguem a mesma lógica: um valor por unidade, um prazo por unidade
 
 | Caso | Valor | Sinal | Prazo |
 |---|---|---|---|
-| Landing page simples | R$ 2.900 | R$ 1.160 | 5 dias |
-| Landing page com urgência | R$ 3.770 | R$ 1.508 | 3 dias |
-| Institucional com 7 páginas, textos nas 7 e agendamento | R$ 11.500 | R$ 4.600 | 12 dias |
-| Institucional com 10 páginas, blog e catálogo | R$ 12.050 | R$ 4.820 | 16 dias |
+| Landing page simples | R$ 2.900 | R$ 1.160 | 8 dias |
+| Landing page com urgência | R$ 3.770 | R$ 1.508 | 5 dias |
+| Institucional com 7 páginas, textos nas 7 e agendamento | R$ 11.500 | R$ 4.600 | 17 dias |
+| Institucional com 10 páginas, blog e catálogo | R$ 12.050 | R$ 4.820 | 21 dias |
 | Experiência digital de complexidade alta | R$ 24.880 | R$ 9.952 | 10 dias |
 | Qualquer formato com loja feita do zero | recusado (não está na tabela) | — | o consultor diz que a Beyon Zero não faz isso hoje |
 
-Sem teto de prazo, os dois institucionais saem numa entrega só: 8 dias da base + 2 × 0,5 (páginas) + 7 × 0,25 (textos) + 1 (agendamento) = 11,75, arredondado para 12; 8 + 5 × 0,5 + 2 (blog) + 3 (catálogo) = 15,5, arredondado para 16. Com o teto antigo de 10 dias, os mesmos pedidos davam fase 1 de R$ 10.000 (fase seguinte de R$ 1.500) e fase 1 de R$ 9.300 (fase seguinte de R$ 2.750).
+Sem teto de prazo, os dois institucionais saem numa entrega só (prazos de 18/11: 13 dias da base): 13 + 2 × 0,5 (páginas) + 7 × 0,25 (textos) + 1 (agendamento) = 16,75, arredondado para 17; 13 + 5 × 0,5 + 2 (blog) + 3 (catálogo) = 20,5, arredondado para 21. Com o teto antigo de 10 dias, os mesmos pedidos davam fase 1 de R$ 10.000 (fase seguinte de R$ 1.500) e fase 1 de R$ 9.300 (fase seguinte de R$ 2.750).
 
 ## O que o dono decide
 

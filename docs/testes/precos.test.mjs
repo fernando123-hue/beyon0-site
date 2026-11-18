@@ -474,7 +474,7 @@ test('v4: o visual exclusivo só existe no institucional e entra antes dos outro
   const v = V4.adicionais.visual_exclusivo;
   assert.deepEqual([v.valor, v.prazo_dias, v.max, v.requer], [3200, 3, 1, ['institucional']]);
   const i = estimar({ formato: 'institucional', adicionais: { visual_exclusivo: 1 } }, V4);
-  assert.deepEqual([i.valor_total, i.prazo_dias, i.itens.map(x => x.chave)], [11100, 11, ['visual_exclusivo']]);
+  assert.deepEqual([i.valor_total, i.prazo_dias, i.itens.map(x => x.chave)], [11100, 16, ['visual_exclusivo']]);
   for (const formato of ['landing_page', 'loja_plataforma']) {
     const e = estimar({ formato, adicionais: { visual_exclusivo: 1 } }, V4);
     assert.ok(e.erros?.some(x => /visual_exclusivo exige um destes: Site institucional/.test(x)), formato + ': ' + JSON.stringify(e.erros));
@@ -501,7 +501,7 @@ test('v4: o SQL de ativação arquiva a v3, grava a v4 como ativa e é o mesmo q
   const { sqlDeAtivacao } = await import('../fase2/gerar-ativar-sql.mjs');
   const sql = fs.readFileSync(new URL('../fase2/regras-v4-ativar.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const json = fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8').replace(/\r\n/g, '\n').trim();
-  assert.equal(sql, sqlDeAtivacao(json, 'aprovada pelo dono em 2026-11-17 (chat): A proposta e 900 (Perfil no Google pronto).'), 'o arquivo não ficou para trás da tabela-rascunho');
+  assert.equal(sql, sqlDeAtivacao(json, 'aprovada pelo dono em 2026-11-17 (chat): A proposta e 900 (Perfil no Google pronto); prazo de 8 a 13 dias uteis aprovado em 2026-11-18 (chat).'), 'o arquivo não ficou para trás da tabela-rascunho');
   assert.throws(() => sqlDeAtivacao(JSON.stringify({ moeda: 'BRL' }), 'x'), /Tabela inválida/);
   assert.throws(() => sqlDeAtivacao(json, "o dono's"), /aspas simples/);
   for (const ruim of ['a\\b', 'a\nb', 'a\rb', '']) assert.throws(() => sqlDeAtivacao(json, ruim), /Fontes/, JSON.stringify(ruim));
