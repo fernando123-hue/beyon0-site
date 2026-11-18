@@ -80,7 +80,7 @@
 .orc-pedido .orc-passo.is-feito .orc-passo__n { background: var(--ac); border-color: var(--ac); color: var(--bg); }
 .orc-pedido .orc-passo.is-agora .orc-passo__n { border-color: var(--ac); color: var(--ac); }
 .orc-pedido .orc-passo.is-agora .orc-passo__n::after { content: ""; position: absolute; inset: -5px; border: 1px solid var(--ac); border-radius: 50%; opacity: .35; }
-.orc-noar__endereco, .orc-fim .orc-noar__endereco { font-size: clamp(1.1rem, .9rem + 1.2vw, 1.5rem); }
+.orc-noar .orc-noar__endereco, .orc-fim .orc-noar__endereco { font-size: clamp(1.1rem, .9rem + 1.2vw, 1.5rem); }
 @media (prefers-reduced-motion: no-preference) {
   html:not(.menos-movimento) .orc-pedido .orc-passo.is-agora .orc-passo__n::after { animation: trilha-pulsa 2.4s ease-in-out infinite; }
   html:not(.menos-movimento) .orc-pedido .orc-passo.is-feito .orc-passo__n { animation: nasce-selo .3s cubic-bezier(.2, .9, .3, 1.4) both; }

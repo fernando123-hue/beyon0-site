@@ -14,9 +14,13 @@ test('a trilha existe: bolinha por passo, cheia no feito, com anel no agora', ()
   assert.match(bloco, /\.orc-passo\.is-agora \.orc-passo__n\s*\{[^}]*border-color:\s*var\(--ac\)/);
 });
 
-test('o seletor vence o da tela de entrega (que carrega depois): começa por .orc-pedido ou .orc-antes-passos', () => {
-  for (const linha of bloco.split('\n').filter(l => /\.orc-passo__n/.test(l) && /\{/.test(l) && !/@keyframes/.test(l))) {
-    assert.match(linha.trim(), /^(\.orc-pedido|\.orc-antes-passos|html:not\(\.menos-movimento\) \.orc-pedido)/, linha.trim().slice(0, 80));
+test('o seletor vence o da tela de entrega e o da prévia (que carregam depois): começa por .orc-pedido, .orc-antes-passos, .orc-noar ou .orc-fim', () => {
+  const linhas = bloco.split('\n').filter(l => /(\.orc-passo__n|\.orc-noar__endereco)/.test(l) && /\{/.test(l) && !/@keyframes/.test(l));
+  assert.ok(linhas.length >= 5, 'achou as regras da trilha e do endereço');
+  for (const linha of linhas) {
+    for (const seletor of linha.slice(0, linha.indexOf('{')).split(',').map(s => s.trim())) {
+      assert.match(seletor, /^(\.orc-pedido|\.orc-antes-passos|\.orc-noar|\.orc-fim|html:not\(\.menos-movimento\) \.orc-pedido)/, 'seletor fraco: ' + seletor);
+    }
   }
 });
 
@@ -29,8 +33,16 @@ test('o movimento é acréscimo: o pulso só com movimento liberado e só em tra
   assert.match(pulso, /opacity/);
   assert.match(pulso, /transform/);
   assert.doesNotMatch(pulso, /width|height|top|left|margin/);
-  const idx = bloco.indexOf('trilha-pulsa 2.4s');
-  assert.ok(idx > bloco.indexOf('prefers-reduced-motion: no-preference'), 'a animação mora dentro do no-preference');
+  const ini = bloco.indexOf('@media (prefers-reduced-motion: no-preference) {');
+  assert.ok(ini >= 0, 'o bloco no-preference existe');
+  let fundo = 0, fim = -1;
+  for (let i = bloco.indexOf('{', ini); i < bloco.length; i++) {   /* o corpo do @media, por contagem de chaves */
+    if (bloco[i] === '{') fundo++;
+    if (bloco[i] === '}' && --fundo === 0) { fim = i; break; }
+  }
+  const dentro = bloco.slice(ini, fim);
+  assert.match(dentro, /trilha-pulsa 2\.4s/, 'a animação do pulso mora DENTRO do no-preference');
+  assert.match(dentro, /nasce-selo/, 'o selo da bolinha também');
 });
 
 test('o endereço do site fica em destaque sem estourar a coluna', () => {
