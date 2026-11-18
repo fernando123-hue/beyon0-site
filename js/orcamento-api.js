@@ -12,6 +12,7 @@
   var CHAVE = 'bz-orcamento';
   var MARGEM_S = 60;   /* renova o token um minuto antes de vencer */
   var MENSAGEM_MS = 90e3;   /* tempo limite de um turno com a IA (a conversa; auditoria 2026-10-09, F2): sem ele, a rede caída deixava a página esperando para sempre */
+  var configDaSessao = null;   /* a resposta de sessao-config, uma por página: o consultor e o microfone leem a mesma (cada GET a mais gasta o freio de 90 por minuto do IP) */
   var ESTADO_MS = 15e3;     /* a leitura do estado: curta, para a releitura depois de uma falha não pendurar a tela */
   var ESQUECIDA = 'bz-orcamento-esquecida';   /* a conversa que a pessoa mandou recomeçar: nenhuma aba a grava de novo */
 
@@ -234,7 +235,10 @@
        que NÃO grava) e o pacote gravado uma vez (confirmar-pacote, com a versão da tabela que a pessoa viu) */
     /* o microfone: o áudio (Blob) vira texto no servidor e nada fica guardado; 30 s de limite (a gravação tem até 90 s) */
     transcrever: async function (audio) { await garantirSessao(); return chamar('POST', 'transcrever', audio, undefined, 30000); },
-    sessaoConfig: function () { return http('GET', 'sessao-config', undefined, undefined, undefined, ESTADO_MS); },
+    sessaoConfig: function () {
+      if (!configDaSessao) configDaSessao = http('GET', 'sessao-config', undefined, undefined, undefined, ESTADO_MS).catch(function (e) { configDaSessao = null; throw e; });   /* (falhou: a próxima leitura tenta de novo) */
+      return configDaSessao;
+    },
     catalogo: async function (formato, ramo) {
       await garantirSessao();
       return chamar('GET', 'catalogo', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id) + '&formato=' + encodeURIComponent(formato || '') + '&ramo=' + encodeURIComponent(ramo || ''), ESTADO_MS);
