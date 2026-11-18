@@ -8,6 +8,7 @@
    ========================================================================== */
 import { ESQUEMA_DIRECAO, ESTRATEGIAS, TIPOS_SECAO, FONTES, higienizar } from './direcao.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
+import { PAPEIS, RESERVA_DO_PAPEL } from '../_ia/config.mjs';
 import { semChavesDaPlanta } from './planta.mjs';
 import { semChavesDoCodigo } from './briefing.mjs';
 import { conferirDirecao, falhasParaModelo } from './conferencia-regulada.mjs';
@@ -77,7 +78,7 @@ export async function gerarDirecao({ ia, briefing, estrategia, numero, fatores, 
     const t0 = agora();
     let r;
     try { r = await ia.mensagem({ papel: 'geracao', sistema, mensagens: [{ role: 'user', content: pedido + conserto }], esquema: ESQUEMA_DIRECAO, ...(reserva ? { reserva: true } : {}) }); }
-    catch (e) { if (e instanceof ErroIA && custo) e.custo_usd = (e.custo_usd || 0) + custo; throw e; }
+    catch (e) { if (e && typeof e === 'object' && custo) e.custo_usd = (e.custo_usd || 0) + custo; throw e; }
     custo += r.custo_usd || 0;
     if (r.parada === 'recusa') throw new ErroIA('recusa', 'o modelo recusou', custo);
     if (r.parada === 'limite') throw new ErroIA('formato', 'a resposta foi cortada', custo);
@@ -86,7 +87,9 @@ export async function gerarDirecao({ ia, briefing, estrategia, numero, fatores, 
     const c = nicho ? conferirDirecao(h.direcao, nicho, { hoje }) : { ok: true, falhas: [] };
     if (typeof aoTentar === 'function') { try { aoTentar({ tentativa, falhas: c.falhas.map((f) => f.regra), detalhe: c.falhas, direcao: h.direcao, custo_usd: r.custo_usd || 0, ms: agora() - t0 }); } catch { /* a medição não derruba a geração */ } }
     if (c.ok) return { direcao: h.direcao, ajustes: h.ajustes, modelo: r.modelo, custo_usd: custo, tentativas: tentativa };
-    if (tentativa >= 2 || agora() - inicio + (agora() - t0) > prazoMs) throw new ErroIA('regras', 'o modelo saiu fora da norma do conselho (' + c.falhas.map(f => f.regra).join(', ') + ')', custo);
+    /* o refazer pode levar até o teto da chamada (não só o tempo da 1ª): só entra se esse pior caso couber no prazo */
+    const tetoDaChamada = (reserva ? RESERVA_DO_PAPEL.geracao : PAPEIS.geracao).timeout_ms;
+    if (tentativa >= 2 || agora() - inicio + tetoDaChamada > prazoMs) throw new ErroIA('regras', 'o modelo saiu fora da norma do conselho (' + c.falhas.map(f => f.regra).join(', ') + ')', custo);
     ultimasFalhas = falhasParaModelo(c.falhas);
   }
 }
@@ -113,7 +116,10 @@ export async function gerarDirecaoGarantida({ aoCair = null, agora = Date.now, p
     return { ...g, degrau: 'opus', motivos };
   } catch (e) { cair('opus', e); }
   const restante = prazoMs - (agora() - inicio);
-  if (restante >= TEMPO_DA_RESERVA_MS) {
+  /* o Sonnet repete o mesmo pedido: não adianta quando o Opus caiu porque a conta/credencial está fora ou porque o conselho recusou o conteúdo */
+  const insistirNaoAdianta = /^opus:(indisponivel|regras)$/.test(motivos[0] || '');
+  if (insistirNaoAdianta) motivos.push('sonnet:pulado');
+  else if (restante >= TEMPO_DA_RESERVA_MS) {
     try {
       const g = await gerarDirecao({ ...args, agora, prazoMs: restante, reserva: true });
       return { ...g, custo_usd: custo + g.custo_usd, degrau: 'sonnet', motivos };

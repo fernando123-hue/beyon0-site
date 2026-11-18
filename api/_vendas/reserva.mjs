@@ -33,14 +33,21 @@ const ESTILOS = {
   }
 };
 
+/* um resumo por estratégia: se as três caírem na reserva, o cliente não vê a mesma frase três vezes */
+const RESUMOS = {
+  conversao: nome => 'Uma página direta para ' + nome + ': mostra o que faz e leva ao contato.',
+  autoridade: nome => 'Um visual sóbrio e escuro para ' + nome + ', que passa confiança antes do primeiro contato.',
+  experiencia: nome => 'Um visual claro e acolhedor para ' + nome + ', com o jeito da casa desde o topo.'
+};
 const texto = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : '');
 const lista = (v, max, itemMax) => (Array.isArray(v) ? v.map(x => texto(x, itemMax)).filter(Boolean).slice(0, max) : []);
 
-/* nível 0: usa o que a pessoa contou; 1: só o nome e o segmento (se o conteúdo dela esbarrou na regra do conselho); 2: só o nome */
+/* nível 0: usa o que a pessoa contou; 1: só o nome e o segmento (se o conteúdo dela esbarrou na regra do conselho); 2: só o nome;
+   3: nem o nome (o próprio nome pode esbarrar na regra, ex.: "Clínica Preço Justo"): só texto fixo, que passa em qualquer entrada */
 function montar(briefing, estrategia, nicho, nivel) {
   const e = ESTILOS[estrategia] || ESTILOS.conversao;
   const neg = briefing?.negocio || {};
-  const nome = texto(neg.nome, 60) || 'Seu negócio';
+  const nome = (nivel <= 2 && texto(neg.nome, 60)) || 'Seu negócio';
   const segmento = nivel <= 1 ? texto(neg.segmento, 60) : '';
   const cidade = nivel === 0 ? texto(neg.cidade, 60) : '';
   const descricao = nivel === 0 ? cortarNaFrase(neg.descricao, 220) : '';
@@ -68,7 +75,7 @@ function montar(briefing, estrategia, nicho, nivel) {
   const rodape = nicho ? nome + ', ' + profissao + ', ' + (registro || MARCADOR_REGISTRO) : nome;
   return {
     nome_conceito: e.conceito,
-    resumo: 'Uma página direta para ' + nome + ': mostra o que faz e leva ao contato.',
+    resumo: RESUMOS[estrategia] ? RESUMOS[estrategia](nome) : RESUMOS.conversao(nome),
     identidade: { paleta: e.paleta, tipografia: e.fontes, estilo: { cantos: e.cantos, densidade: e.densidade, tema: e.tema } },
     navegacao: { marca: nome, itens: secoes.slice(1).map(s => s.rotulo || s.titulo).slice(0, 4), cta },
     secoes,
@@ -78,12 +85,12 @@ function montar(briefing, estrategia, nicho, nivel) {
 
 /* devolve { direcao, ajustes, modelo, custo_usd, tentativas } no mesmo formato do gerarDirecao; nunca lança por conteúdo do briefing */
 export function direcaoDeReserva({ briefing, estrategia, nicho = null, hoje = '' }) {
-  for (let nivel = 0; nivel <= 2; nivel++) {
+  for (let nivel = 0; nivel <= 3; nivel++) {
     const h = higienizar(montar(briefing, estrategia, nicho, nivel), estrategia);
     if (h.erro) continue;
     const c = nicho ? conferirDirecao(h.direcao, nicho, { hoje }) : { ok: true };
     if (c.ok) return { direcao: h.direcao, ajustes: h.ajustes, modelo: MODELO_RESERVA_CODIGO, custo_usd: 0, tentativas: 0 };
   }
-  /* o nível 2 (só o nome, textos fixos sem promessa) passa em qualquer nome; chegar aqui é erro de programação, e o teste de propriedade o pega */
+  /* o nível 3 é texto fixo, sem dado do visitante: chegar aqui é erro de programação, e o teste de propriedade (nome incluído) o pega */
   throw new Error('direção de reserva inválida');
 }

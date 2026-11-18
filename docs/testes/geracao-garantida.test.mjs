@@ -55,13 +55,13 @@ test('a saída do Opus veio cortada ou fora do esquema: cai para o Sonnet, não 
 });
 
 test('Opus e Sonnet caem: o código monta a direção; ela é válida e vem marcada como reserva', async () => {
-  const ia = iaComRoteiro([new ErroIA('indisponivel'), new ErroIA('tempo')]);
+  const ia = iaComRoteiro([new ErroIA('falha'), new ErroIA('tempo')]);
   const caidos = [];
   const g = await gerarDirecaoGarantida({ ia, ...base, aoCair: x => caidos.push(x.etapa + ':' + x.motivo) });
   assert.equal(g.degrau, 'codigo');
   assert.equal(g.modelo, MODELO_RESERVA_CODIGO);
-  assert.deepEqual(g.motivos, ['opus:indisponivel', 'sonnet:tempo']);
-  assert.deepEqual(caidos, ['opus:indisponivel', 'sonnet:tempo']);
+  assert.deepEqual(g.motivos, ['opus:falha', 'sonnet:tempo']);
+  assert.deepEqual(caidos, ['opus:falha', 'sonnet:tempo']);
   assert.ok(!higienizar(g.direcao, ESTRATEGIA).erro, 'passa de novo no higienizar');
   assert.equal(g.direcao.navegacao.marca, 'Clínica Sorriso');
 });
@@ -83,10 +83,38 @@ test('um erro do nosso próprio código no Opus também não chega ao visitante'
   assert.deepEqual(g.motivos, ['opus:interno', 'sonnet:interno']);
 });
 
+test('conta fora do ar (indisponivel) ou conteúdo recusado pelo conselho: o Sonnet não insiste, vai direto ao código', async () => {
+  for (const erro of [new ErroIA('indisponivel'), new ErroIA('regras', 'fora da norma', 0.2)]) {
+    const ia = iaComRoteiro([erro]);
+    const g = await gerarDirecaoGarantida({ ia, ...base });
+    assert.equal(g.degrau, 'codigo');
+    assert.equal(ia.pedidos.length, 1, 'uma chamada só');
+    assert.equal(g.motivos[1], 'sonnet:pulado');
+  }
+});
+
+test('o custo já pago entra na conta mesmo quando o erro é do nosso código, não só do provedor', async () => {
+  let n = 0;
+  const ia = { async mensagem() { n++; if (n === 1) return { json: { secoes: [] }, parada: 'fim', modelo: 'claude-opus-5-5', custo_usd: 0.3 }; throw new Error('bug'); } };
+  const g = await gerarDirecaoGarantida({ ia, ...base });
+  assert.equal(g.degrau, 'codigo');
+  assert.ok(g.custo_usd >= 0.3, 'o 0,30 da resposta inválida do Opus ficou na conta: ' + g.custo_usd);
+});
+
 test('o registro de quem chama nunca derruba a geração', async () => {
   const ia = iaComRoteiro([new ErroIA('tempo'), null]);
   const g = await gerarDirecaoGarantida({ ia, ...base, aoCair: () => { throw new Error('log quebrado'); } });
   assert.equal(g.degrau, 'sonnet');
+});
+
+/* o stream que nunca termina: o prazo da chamada INTEIRA vale (o timeout do SDK só cobre até os cabeçalhos) */
+import { criarAnthropic } from '../../api/_ia/anthropic.mjs';
+test('o stream do Opus que nunca termina é abortado no prazo e sai como "tempo", para o Sonnet entrar', async () => {
+  let abortou = false;
+  const cliente = { beta: { messages: { stream: () => ({ controller: { abort: () => { abortou = true; } }, finalMessage: () => new Promise(() => {}) }) } } };
+  const ia = criarAnthropic({ ANTHROPIC_API_KEY: 'x' }, cliente, { geracao: { timeout_ms: 40 } });
+  await assert.rejects(() => ia.mensagem({ papel: 'geracao', sistema: 's', mensagens: [{ role: 'user', content: 'oi' }] }), e => e instanceof ErroIA && e.motivo === 'tempo');
+  assert.ok(abortou, 'a conexão foi cortada');
 });
 
 /* ---------- a direção de reserva ---------- */
@@ -96,7 +124,11 @@ const HOSTIS = [
   { negocio: { nome: '<script>alert(1)</script>', descricao: 'x'.repeat(5000) }, servicos: new Array(50).fill('<b>serviço</b>') },
   { negocio: { nome: '', segmento: 'lorem ipsum dolor', descricao: '  ' }, servicos: [null, 7, {}, 'ok'] },
   { negocio: { nome: 'Dr. Paulo', segmento: 'psicologia', descricao: 'Garantimos a cura. Depoimentos de pacientes. Promoção de 30% de desconto, R$ 100 a sessão.' }, servicos: ['antes e depois', 'consulta grátis', 'o melhor da cidade', 'parcelamos no Pix'], posicionamento: { diferenciais: ['resultado garantido', 'nunca perca'] } },
-  { negocio: { nome: 'Escritório Silva', segmento: 'advocacia', descricao: 'Ganhamos todas as causas. Honorários a partir de R$ 500.' }, servicos: ['causas ganhas', 'consulta gratuita'] }
+  { negocio: { nome: 'Escritório Silva', segmento: 'advocacia', descricao: 'Ganhamos todas as causas. Honorários a partir de R$ 500.' }, servicos: ['causas ganhas', 'consulta gratuita'] },
+  /* o PRÓPRIO NOME do negócio esbarra na regra do conselho (revisões do PR 180: a reserva lançava erro e a garantia quebrava) */
+  ...['Odontologia Popular Sorriso', 'Escritório Vitória Advogados', 'Clínica Mente Sã Preço Social', 'Clínica Os Melhores Médicos', 'Clínica Preço Justo',
+    'Dr. Silva, o melhor dentista da cidade', 'Silva Advogados - Causas Ganhas', 'Cura Garantida Terapias', 'Clínica 100% Saúde', 'Consulta Gratuita Advocacia', 'Grátis Odonto']
+    .map(nome => ({ negocio: { nome, segmento: 'saúde', descricao: 'Atendimento.' }, servicos: ['Consulta'] }))
 ];
 
 test('propriedade: a reserva é válida para qualquer briefing, nas 3 estratégias, e passa no higienizar', () => {

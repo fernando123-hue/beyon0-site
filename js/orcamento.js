@@ -652,20 +652,28 @@
   }
   /* (17/11, dono: "nunca, em nenhuma hipótese um cliente deverá se deparar com isso") o servidor já não deixa uma direção falhar (reserva em 3 degraus), mas o que caiu antes ou pelo
      banco (varredura, posse perdida) nunca aparece como falha: sai da lista; se não sobrou nenhum, esta tela de espera e uma nova geração sozinha, uma vez */
-  function cartaoPreparando() {
+  function cartaoPreparando(semMaisTentativas) {
     var li = el('li', 'dir');
     var mini = el('div', 'dir__mini');
     var g = el('div', 'dir__progresso');
-    g.appendChild(el('p', '', 'Preparando os seus modelos…'));
-    g.appendChild(el('span', 'orc-pensando__fio'));
+    g.appendChild(el('p', '', semMaisTentativas ? 'Os seus modelos estão levando mais tempo' : 'Preparando os seus modelos…'));
+    if (!semMaisTentativas) g.appendChild(el('span', 'orc-pensando__fio'));
     mini.appendChild(g);
     var corpo = el('div', 'dir__corpo');
-    corpo.appendChild(el('p', 'dir__resumo', 'Pode sair: ao voltar a esta página, eles continuam sendo preparados.'));
+    if (semMaisTentativas) {
+      /* a regeração sozinha já foi feita e o servidor não gera mais: não prometer preparo que não existe; a saída é o recado (a equipe responde) */
+      var p = el('p', 'dir__resumo', 'Não vamos deixar você sem os modelos. ');
+      var a = el('a', '', 'Deixe um recado');
+      a.setAttribute('href', '#'); a.setAttribute('data-recado-abrir', '');
+      p.appendChild(a);
+      p.appendChild(document.createTextNode(' e a equipe envia por aqui.'));
+      corpo.appendChild(p);
+    } else corpo.appendChild(el('p', 'dir__resumo', 'Pode sair: ao voltar a esta página, eles continuam sendo preparados.'));
     li.appendChild(mini);
     li.appendChild(corpo);
     return li;
   }
-  var regerouSozinho = false;
+  var regerouSozinho = false, regeracaoTerminou = false;
   function encaixarMinis() { [].forEach.call(document.querySelectorAll('.dir__mini'), function (m) { var t = m.querySelector('.pv-tela'); if (t) PV.encaixar(m, t, 390); }); }
   var adiado = null;
   window.addEventListener('resize', function () { clearTimeout(adiado); adiado = setTimeout(encaixarMinis, 150); });
@@ -815,16 +823,21 @@
     var resumo = E.direcoes.map(function (d) { return [d.id, d.status, d.conteudo]; });
     anunciarProntas();
     recomendacao();
-    if (mudou('direcoes', [resumo, escolhidaId(), recomendadaId(), podeEscolher(), podeGerar(), E.conversa.tem_contato, pendente])) {
+    if (mudou('direcoes', [resumo, escolhidaId(), recomendadaId(), podeEscolher(), podeGerar(), E.conversa.tem_contato, pendente, regeracaoTerminou])) {
       var ul = $('o-dirs');
       var foco = focoNaLista(ul);
       ul.textContent = '';
       if (temDirecoes) { visiveis.forEach(function (d) { ul.appendChild(cartaoDirecao(d)); }); encaixarMinis(); }
-      else if (soFalhas && !pendente) ul.appendChild(cartaoPreparando());
+      else if (soFalhas && !pendente) ul.appendChild(cartaoPreparando(regeracaoTerminou));
       else if (E.conversa.tem_contato && podeGerar() && !pendente) ul.appendChild(botaoAcao('btn btn--primary', 'Gerar os três modelos', gerarTodas));   /* (F20: só na etapa que gera) */
       devolverFocoNaLista(ul, foco);
     }
-    if (soFalhas && !pendente && !manual() && !regerouSozinho && podeGerar()) { regerouSozinho = true; gerarTodas(); }
+    /* a regeração sozinha só conta quando de fato dispara (com outra ação em voo, o pedido seria ignorado e a flag travaria a tentativa);
+       ao terminar, se ainda só há falhas, a tela troca a promessa de "preparando" pela saída do recado */
+    if (soFalhas && !pendente && !manual() && !regerouSozinho && podeGerar() && !acaoEmVoo) {
+      regerouSozinho = true;
+      gerarTodas().then(function () { regeracaoTerminou = true; direcoes(); });
+    }
     if (manual()) $('o-dir-lead').textContent = E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
     if (window.BZPreparo) window.BZPreparo.atualizar(E);   /* a espera útil: o prazo e o que separar (js/orcamento-preparo.js); sem o módulo, o resto da tela segue */
     var emGeracao = manual() ? [] : E.direcoes.filter(function (d) { return d.status === 'gerando'; });   /* (fila manual: nada a pedir) */
