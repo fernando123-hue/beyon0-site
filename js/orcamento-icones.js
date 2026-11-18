@@ -40,7 +40,10 @@
     metade: ['M12 4.5a7.5 7.5 0 1 0 0 15z', 'M12 4.5a7.5 7.5 0 0 1 0 15'],
     traco: ['M6 12h12'],
     relogio: ['M12 4.5a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15z', 'M12 8v4.2l2.8 1.8'],
-    caixa: ['M4 8l8-4 8 4v8l-8 4-8-4z', 'M4 8l8 4 8-4', 'M12 12v8']
+    caixa: ['M4 8l8-4 8 4v8l-8 4-8-4z', 'M4 8l8 4 8-4', 'M12 12v8'],
+    paleta: ['M12 4.2c4.7 0 8 3 8 6.9 0 2.6-2 3.9-4 3.9h-1.3a1.6 1.6 0 0 0-1.1 2.7c.6.7.2 2.2-1.6 2.2-4.2 0-8-3.2-8-7.9S7 4.2 12 4.2z', 'M8.4 10.4h.01', 'M12 8.2h.01', 'M15.6 10.4h.01'],
+    fonte: ['M3.5 19l5-13 5 13', 'M5.3 14.5h6.4', 'M16.5 11.8c1-1 3.5-1 3.5 1.5v5.7', 'M20 15.5c-2.3-.2-3.8.5-3.8 1.9s1.3 1.9 2.4 1.9c.8 0 1.4-.4 1.4-.4'],
+    pergunta: ['M12 3.5a8.5 8.5 0 1 1 0 17 8.5 8.5 0 0 1 0-17z', 'M9.4 9.4a2.7 2.7 0 1 1 3.9 2.4c-.8.4-1.3 1-1.3 1.8', 'M12 17.1h.01']
   });
 
   /* qual desenho vai em qual opção. Chave "grupo:valor" (o mesmo valor pode querer coisas diferentes em grupos diferentes:
@@ -61,7 +64,13 @@
     'dor:passa_na_frente': 'loja', 'dor:responde_na_mao': 'conversa', 'dor:pergunta_e_some': 'conversa',
     'dor:nao_me_acham': 'local', 'dor:falta_consulta': 'agenda', 'dor:horario_vago': 'relogio',
     'dor:visita_perdida': 'relogio', 'dor:pedido_perdido': 'sacola', 'dor:pergunta_estoque': 'caixa',
-    'dor:matricula_demora': 'livro', 'dor:ninguem_sabe': 'megafone'
+    'dor:matricula_demora': 'livro', 'dor:ninguem_sabe': 'megafone',
+    /* os ajustes (js/orcamento-ajustes.js): usar as cores ou as fontes de outro modelo, e acrescentar uma seção */
+    'ajuste:paleta': 'paleta', 'ajuste:fonte': 'fonte',
+    'ajuste:sec_hero': 'loja', 'ajuste:sec_servicos': 'ferramenta', 'ajuste:sec_sobre': 'loja', 'ajuste:sec_diferenciais': 'certo',
+    'ajuste:sec_processo': 'relogio', 'ajuste:sec_depoimentos': 'coracao', 'ajuste:sec_numeros': 'pontos', 'ajuste:sec_galeria': 'camera',
+    'ajuste:sec_faq': 'pergunta', 'ajuste:sec_cta': 'megafone', 'ajuste:sec_contato': 'conversa', 'ajuste:sec_equipe': 'pessoas',
+    'ajuste:sec_destaque': 'megafone', 'ajuste:sec_localizacao': 'local'
   });
 
   function nomeDe(valor, grupo) {

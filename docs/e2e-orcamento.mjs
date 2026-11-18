@@ -430,6 +430,10 @@ try {
   ok(await semRolagemLateral(page), 'celular com direções: sem rolagem lateral');
   await page.locator('#o-direcoes').scrollIntoViewIfNeeded();
   await foto(page, '2-direcoes-cel');
+  /* a casca nova dos modelos (parte 2): o cartão com o botão grande à vista e os pontos do carrossel */
+  await page.locator('#o-dirs .dir').first().scrollIntoViewIfNeeded();
+  await page.evaluate(() => { const c = document.querySelector('#o-dirs .dir'); c.scrollIntoView({ block: 'end' }); });
+  await foto(page, '2b-direcoes-cartao-cel');
   /* (PR 2b-2) abrir o pedido pelo link do aviso, num aparelho novo. O dono gera o link no painel; o código chega no
      fragmento, sai da barra na hora e só é gasto no toque. O aparelho antigo perde o acesso (e volta por outro link,
      para o resto do teste seguir nele) */

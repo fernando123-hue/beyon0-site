@@ -588,9 +588,9 @@
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
   /* (dono, 15/11) a regra dos ajustes, clara antes de escolher: um modelo só, e trazer algo de outro conta como um ajuste */
-  var REGRA_DOS_MODELOS = 'Os três partem do que você contou, cada um com um objetivo. Abra, compare e escolha um: os ajustes são feitos dentro dele, e trazer algo de outro modelo, como as cores ou uma seção, conta como um pedido de ajuste.';
+  var REGRA_DOS_MODELOS = 'Deslize, abra a prévia e escolha um. Trazer cores ou uma seção de outro modelo conta como um ajuste.';
   var TEXTOS_MANUAL = {
-    direcoes: 'Os três partem do que você contou, cada um com um objetivo. Ficam prontos em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página por ele.',
+    direcoes: 'Prontos em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página.',
     prontas: REGRA_DOS_MODELOS
   };
   /* (PR 2a) descartado pelo dono: o pedido acabou e o servidor recusa escolher, ajustar e seguir (api/_vendas/fluxo.mjs) */
