@@ -43,7 +43,7 @@ const MOTIVO_RECUSA = {
   sem_importado: 'O pedido ainda não foi importado na captação: rode "importado BZ-… c-xxxxxx" antes.',
   endereco: 'O endereço não vale (o banco recusou).',
   estado: 'O material já não está em rascunho.',
-  pagamento_em_andamento: 'Há um Pix do restante em andamento: espere ele expirar (1 hora) ou cancele no Mercado Pago, e tente de novo.',
+  pagamento_em_andamento: 'Há um Pix do restante em andamento: espere ele expirar (30 minutos) ou cancele no Mercado Pago, e tente de novo.',
   sem_aviso: 'O aviso "seu site está no ar" ainda não foi registrado: os 3 dias do restante só contam a partir dele (aviso BZ-… no-ar).',
   fora_do_ar: 'O site não está no ar: o lembrete do restante só existe com o site no ar.',
   dispensar: 'O número já está autorizado: o caminho é dispensar o material (dispensar BZ-…), não o aviso de material parado.',

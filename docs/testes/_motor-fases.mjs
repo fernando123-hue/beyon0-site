@@ -14,6 +14,9 @@ export const comFases = regras => {
   const INCLUI_V3 = ['Até 6 páginas com direção visual própria', 'Textos escritos pela Beyon Zero em todas as páginas', 'Curadoria das imagens e formulário com etapas', 'Animações de entrada e rolagem no site todo e 2 interações de assinatura', 'Celular primeiro', 'SEO básico e medição', 'Publicação no domínio do cliente'];
   copia.formatos.sob_medida = { nome: 'Experiência digital', base: 19900, piso: 9900, prazo_dias: 10, paginas_incluidas: 4, inclui: copia.formatos.sob_medida?.inclui ?? INCLUI_V3 };
   for (const k of Object.keys(copia.adicionais)) if (/^interacao_|^atendente_ia_|^visual_exclusivo$/.test(k)) delete copia.adicionais[k];
+  /* os prazos de 18/11 (landing 8, institucional e loja 13, dono) passam do teto antigo de 10 dias: estes testes são do MECANISMO de fases e
+     seguem com os prazos da tabela de então (5, 8 e 8), que os números esperados daqui já usam */
+  for (const [k, dias] of Object.entries({ landing_page: 5, institucional: 8, loja_plataforma: 8 })) if (copia.formatos[k]) copia.formatos[k].prazo_dias = dias;
   return {
     ...copia,
     prazo_max_dias: TETO_ANTIGO.prazo_max_dias,
