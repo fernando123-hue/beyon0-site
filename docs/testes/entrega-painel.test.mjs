@@ -63,7 +63,7 @@ test('material: se a UF faltar mesmo assim (dado antigo), o pacote não sai e di
   assert.equal(pedido.codigo, codigo); assert.ok(['landing', 'institucional'].includes(pedido.plano)); assert.equal(pedido.negocio.uf, 'RJ'); assert.equal(pedido.negocio.cidade, 'Niterói');
   assert.equal(pedido.valores.entrada + pedido.valores.final, pedido.valores.preco);
   assert.ok(Number.isInteger(pedido.valores.preco) && Number.isInteger(pedido.valores.entrada), 'reais inteiros');
-  assert.equal(pedido.prazo.contagem, 'uteis'); assert.ok(pedido.prazo.dias >= 5 && pedido.prazo.dias <= 10, 'o prazo da proposta aceita (o cenário tem de ter entre 5 e 10)');
+  assert.equal(pedido.prazo.contagem, 'uteis'); assert.ok(pedido.prazo.dias >= 8 && pedido.prazo.dias <= 20, 'o prazo da proposta aceita (o cenário tem de ter entre 8 e 20, a tabela de 18/11: landing 8, institucional 13)');
   assert.match(pedido.whatsapp, /^\+55\d{10,11}$/, 'o WhatsApp de contato do pedido (o do cadastro), não o dos botões do material');
   assert.deepEqual(r.corpo.suspeitos, [], 'nenhum campo com cara de injeção');
   assert.deepEqual(formulario.arquivos, ['logo.png', 'foto-01.jpg']);

@@ -193,12 +193,12 @@ test('extra com dígito na chave (produtos_lote_25) entra no preço', async () =
 
 test('os itens do cartão trazem a chave do extra (a tela casa pela chave, não pelo nome)', async () => {
   const n = navegador(), c = await n.iniciar();
-  /* (institucional 8 + agendamento 1 + blog 2 = 11 dias: sem teto de prazo desde 2026-10-28, tudo numa entrega só; a chave
+  /* (institucional 13 + agendamento 1 + blog 2 = 16 dias: sem teto de prazo desde 2026-10-28, tudo numa entrega só; a chave
      dos itens da fase seguinte, numa tabela com teto, está em precos.test.mjs) */
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { blog: 1 } });
   assert.equal(s.status, 200, JSON.stringify(s.corpo));
   assert.deepEqual(s.corpo.estimativa.itens.map(i => i.chave), ['agendamento', 'blog']);
-  assert.deepEqual([s.corpo.estimativa.fase_seguinte, s.corpo.estimativa.prazo_dias, s.corpo.estimativa.valor_total], [null, 11, 9250], '7900 + 450 + 900');
+  assert.deepEqual([s.corpo.estimativa.fase_seguinte, s.corpo.estimativa.prazo_dias, s.corpo.estimativa.valor_total], [null, 16, 9250], '7900 + 450 + 900');
 });
 
 test('a confiança gravada é a do servidor, nunca a do corpo', async () => {

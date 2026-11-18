@@ -112,7 +112,7 @@ test('comando: lê a lista do painel só com GET, imprime a tabela com o prazo d
   assert.deepEqual(pedidos.map(p => [p[0], p[1], p[2]]), [['http://127.0.0.1:8899/api/painel?fila=entregas', 'GET', undefined]], 'um GET só, sem corpo');
   const texto = saidas.join('\n');
   assert.match(texto, /landing_page/);
-  assert.match(texto, /5 → 7/, 'reais 5, 7, 6 contra 5 prometidos (sem feriado em novembro nesses dias): p75 de real ÷ prometido 1,4 → 7');
+  assert.match(texto, /8 → 12/, 'reais 5, 7, 6 contra 5 prometidos (sem feriado em novembro nesses dias): p75 de real ÷ prometido 1,4; a tabela diz 8 (landing, desde 18/11) e 8 × 1,4 = 11,2 → 12');
   assert.match(texto, /1 entrega fora da conta/);
   assert.match(texto, /só as entregas que ainda estão na lista do painel/i, 'avisa que a lista do painel não guarda as concluídas');
   /* revisão de 28/10: o aviso vem ANTES da tabela (quem lê a tabela primeiro decidiria com a amostra só das abertas) */
