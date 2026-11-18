@@ -628,16 +628,6 @@
       if (escolhida) acoes.appendChild(el('span', 'dir__selo', 'Escolhida'));
       else if (podeEscolher()) acoes.appendChild(botaoAcao('btn btn--sm btn--primary', 'Escolher este', function () { escolher(d.id); }));
       corpo.appendChild(acoes);
-    } else if (d.status === 'falhou') {
-      var p = el('div', 'dir__progresso');
-      p.appendChild(el('p', '', 'Este modelo não saiu desta vez.'));
-      mini.appendChild(p);
-      /* (PR 2a) só com o pedido confirmado: arquivado ou descartado, a geração parou de propósito e o servidor recusaria */
-      if (window.BZDetalhes.pendente(E)) corpo.appendChild(el('p', 'dir__resumo', 'Este pedido segue com a equipe da Beyon Zero.'));
-      else if (podeGerar()) {
-        corpo.appendChild(el('p', 'dir__resumo', 'Você pode gerar as três de novo ou seguir com as que ficaram prontas.'));
-        corpo.appendChild(botaoAcao('btn btn--sm', 'Gerar de novo', gerarTodas));
-      } else corpo.appendChild(el('p', 'dir__resumo', 'Os ajustes seguem sobre o modelo escolhido.'));
     } else if (manual()) {
       var f = el('div', 'dir__progresso');
       f.appendChild(el('p', '', 'Na fila: o modelo ' + d.numero + ' (' + (NOMES[d.estrategia] || '').toLowerCase() + ') fica pronto em até 24 horas úteis.'));
@@ -660,6 +650,22 @@
     li.appendChild(corpo);
     return li;
   }
+  /* (17/11, dono: "nunca, em nenhuma hipótese um cliente deverá se deparar com isso") o servidor já não deixa uma direção falhar (reserva em 3 degraus), mas o que caiu antes ou pelo
+     banco (varredura, posse perdida) nunca aparece como falha: sai da lista; se não sobrou nenhum, esta tela de espera e uma nova geração sozinha, uma vez */
+  function cartaoPreparando() {
+    var li = el('li', 'dir');
+    var mini = el('div', 'dir__mini');
+    var g = el('div', 'dir__progresso');
+    g.appendChild(el('p', '', 'Preparando os seus modelos…'));
+    g.appendChild(el('span', 'orc-pensando__fio'));
+    mini.appendChild(g);
+    var corpo = el('div', 'dir__corpo');
+    corpo.appendChild(el('p', 'dir__resumo', 'Pode sair: ao voltar a esta página, eles continuam sendo preparados.'));
+    li.appendChild(mini);
+    li.appendChild(corpo);
+    return li;
+  }
+  var regerouSozinho = false;
   function encaixarMinis() { [].forEach.call(document.querySelectorAll('.dir__mini'), function (m) { var t = m.querySelector('.pv-tela'); if (t) PV.encaixar(m, t, 390); }); }
   var adiado = null;
   window.addEventListener('resize', function () { clearTimeout(adiado); adiado = setTimeout(encaixarMinis, 150); });
@@ -800,10 +806,12 @@
   }
   function direcoes() {
     var et = E.conversa.etapa;
-    var temDirecoes = E.direcoes.length > 0;
+    var visiveis = E.direcoes.filter(function (d) { return d.status !== 'falhou'; });
+    var temDirecoes = visiveis.length > 0;
+    var soFalhas = E.direcoes.length > 0 && !temDirecoes;
     /* (PR 2a) com o pedido vencido, encerrado ou arquivado: nada de "Gerar" (o servidor recusaria) */
     var pendente = window.BZDetalhes.pendente(E);
-    mostrar('o-direcoes', temDirecoes || (E.conversa.tem_contato && et === 'contato' && !pendente));
+    mostrar('o-direcoes', E.direcoes.length > 0 || (E.conversa.tem_contato && et === 'contato' && !pendente));
     var resumo = E.direcoes.map(function (d) { return [d.id, d.status, d.conteudo]; });
     anunciarProntas();
     recomendacao();
@@ -811,10 +819,12 @@
       var ul = $('o-dirs');
       var foco = focoNaLista(ul);
       ul.textContent = '';
-      if (temDirecoes) { E.direcoes.forEach(function (d) { ul.appendChild(cartaoDirecao(d)); }); encaixarMinis(); }
+      if (temDirecoes) { visiveis.forEach(function (d) { ul.appendChild(cartaoDirecao(d)); }); encaixarMinis(); }
+      else if (soFalhas && !pendente) ul.appendChild(cartaoPreparando());
       else if (E.conversa.tem_contato && podeGerar() && !pendente) ul.appendChild(botaoAcao('btn btn--primary', 'Gerar os três modelos', gerarTodas));   /* (F20: só na etapa que gera) */
       devolverFocoNaLista(ul, foco);
     }
+    if (soFalhas && !pendente && !manual() && !regerouSozinho && podeGerar()) { regerouSozinho = true; gerarTodas(); }
     if (manual()) $('o-dir-lead').textContent = E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
     if (window.BZPreparo) window.BZPreparo.atualizar(E);   /* a espera útil: o prazo e o que separar (js/orcamento-preparo.js); sem o módulo, o resto da tela segue */
     var emGeracao = manual() ? [] : E.direcoes.filter(function (d) { return d.status === 'gerando'; });   /* (fila manual: nada a pedir) */

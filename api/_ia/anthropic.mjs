@@ -15,7 +15,7 @@
    A chave vem só de process.env.ANTHROPIC_API_KEY (Vercel/Infisical), nunca do código.
    ========================================================================== */
 import Anthropic from '@anthropic-ai/sdk';
-import { PAPEIS, custoUsd, TENTATIVAS_PADRAO, COM_FALLBACK, MODELO_RESERVA } from './config.mjs';
+import { PAPEIS, RESERVA_DO_PAPEL, custoUsd, TENTATIVAS_PADRAO, COM_FALLBACK, MODELO_RESERVA } from './config.mjs';
 import { ErroIA } from './provedor.mjs';
 
 const BETA_FALLBACK = 'server-side-fallback-2026-07-01';
@@ -72,8 +72,8 @@ function erroIA(e, cfg, tentativas) {
 export function criarAnthropic(env = process.env, cliente, ajustes = {}, { agora = Date.now } = {}) {
   const client = cliente || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: TENTATIVAS_PADRAO });
 
-  async function mensagem({ papel, sistema, contexto, mensagens, ferramentas, esquema }) {
-    const cfg = PAPEIS[papel] && { ...PAPEIS[papel], ...(ajustes[papel] || {}) };
+  async function mensagem({ papel, sistema, contexto, mensagens, ferramentas, esquema, reserva = false }) {
+    const cfg = PAPEIS[papel] && { ...PAPEIS[papel], ...(reserva === true ? RESERVA_DO_PAPEL[papel] : {}), ...(ajustes[papel] || {}) };
     if (!cfg) throw new ErroIA('falha', 'papel desconhecido: ' + papel);
     const pedido = {
       model: cfg.modelo,
