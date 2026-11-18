@@ -501,7 +501,7 @@ test('v4: o SQL de ativação arquiva a v3, grava a v4 como ativa e é o mesmo q
   const { sqlDeAtivacao } = await import('../fase2/gerar-ativar-sql.mjs');
   const sql = fs.readFileSync(new URL('../fase2/regras-v4-ativar.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const json = fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8').replace(/\r\n/g, '\n').trim();
-  assert.equal(sql, sqlDeAtivacao(json, 'aprovada pelo dono em 2026-11-08 (chat): Confirmo, pode excluir o Atelier.'), 'o arquivo não ficou para trás da tabela-rascunho');
+  assert.equal(sql, sqlDeAtivacao(json, 'aprovada pelo dono em 2026-11-17 (chat): A proposta e 900 (Perfil no Google pronto).'), 'o arquivo não ficou para trás da tabela-rascunho');
   assert.throws(() => sqlDeAtivacao(JSON.stringify({ moeda: 'BRL' }), 'x'), /Tabela inválida/);
   assert.throws(() => sqlDeAtivacao(json, "o dono's"), /aspas simples/);
   for (const ruim of ['a\\b', 'a\nb', 'a\rb', '']) assert.throws(() => sqlDeAtivacao(json, ruim), /Fontes/, JSON.stringify(ruim));

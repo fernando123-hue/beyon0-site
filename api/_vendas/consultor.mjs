@@ -82,6 +82,8 @@ function linhasV2(regras) {
   const linhas = [];
   if (regras.formatos?.loja_plataforma) linhas.push('- Loja virtual: vender online com carrinho e pagamento, numa plataforma pronta (Nuvemshop ou Shopify), com a cara da marca. Se a pessoa precisa de uma loja feita do zero, em código próprio, ' + (naoFazHoje(regras, 'loja_virtual') ? 'a Beyon Zero não faz isso hoje.' : 'isso vai para o diagnóstico.'));
   if (regras.adicionais?.area_restrita && !regras.adicionais.area_restrita.fora_do_automatico) linhas.push('- Área restrita com login (para associados, alunos, clientes) é um adicional; os extras dela (telas, perfis, cobrança de anuidade, documentos, importar usuários) só existem junto com ela.' + (regras.formatos?.loja_plataforma ? ' Numa loja em plataforma pronta, um login próprio costuma não ser viável: confirme com a pessoa antes de somar os dois.' : ''));
+  const perfil = regras.adicionais?.perfil_google;
+  if (perfil && !perfil.fora_do_automatico && perfil.em_preparo !== true) linhas.push('- Perfil no Google (adicional "' + perfil.nome + '"): a ficha do negócio no Google, com tudo escrito e igual ao site e o passo a passo; a própria pessoa confirma no Google que o negócio é dela e cola os textos. Ofereça só a quem recebe clientes ou atende num endereço ou região, nunca a negócio 100% online, e pergunte uma vez se já tem ficha no Google. Não prometa posição nem resultado. Em saúde e advocacia, só a estrutura, sem depoimento.');
   return linhas.length ? '\n' + linhas.join('\n') : '';
 }
 

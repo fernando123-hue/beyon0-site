@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import { montarLocal } from '../banco-local.mjs';
 import { atender } from '../../api/vendas.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
+import { MODELO_RESERVA_CODIGO } from '../../api/_vendas/reserva.mjs';
 import { criarServicoPagamentos } from '../../api/_pagamentos/servico.mjs';
 import { configPagamentos } from '../../api/_pagamentos/config.mjs';
 import { criarAcoesDoPedido } from '../../api/_vendas/fluxo-pedido.mjs';
@@ -47,6 +48,11 @@ test('saúde fecha pelo site: o pedido gera os 3 modelos (conferidos), e a escol
   const prontas = await Promise.all(g.corpo.direcoes.map((d) => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
   assert.deepEqual(prontas.map((p) => p.corpo.status), ['pronta', 'pronta', 'pronta'], 'os 3 modelos saem (o dublê segue a norma e passa na conferência)');
   const est = (await n.chamar('GET', 'estado', undefined, '&conversa=' + c)).corpo;
+  /* (PR 180) a reserva por código também sai "pronta" e sem depoimentos: sem isto, um gerador que viola a norma passaria despercebido.
+     Os três têm de vir do gerador (o dublê), nunca da reserva */
+  const modelos = (await local.db.query('select modelo from app.direcoes where conversa_id = $1', [c])).rows.map((r) => r.modelo);
+  assert.equal(modelos.length, 3);
+  assert.ok(modelos.every((m) => m !== MODELO_RESERVA_CODIGO), 'os modelos vieram do gerador, não da reserva por código: ' + modelos.join(','));
   for (const d of est.direcoes) {
     assert.ok(!d.conteudo.secoes.some((s) => s.tipo === 'depoimentos' || s.tipo === 'numeros'), 'sem depoimentos nem números');
     assert.match(d.conteudo.rodape.texto, /\[número do registro\]|CRO/, 'a identificação no rodapé');

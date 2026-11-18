@@ -54,7 +54,7 @@ test('instruções: a etapa de ajustes descreve o fluxo sem IA (opções prontas
 test('instruções: tamanho que cabe e que entra em cache (Haiku 5.5: mínimo de 512 tokens)', () => {
   const s = montarSistema(REGRAS);
   assert.ok(s.length > 4000, 'contexto de verdade, não um parágrafo: ' + s.length);
-  assert.ok(s.length < 27000, 'sem inchar o turno: ' + s.length);   /* 26000 -> 27000 em 01/11: fatos e negociação pedidos pelo dono; o enxugamento do texto é a tarefa seguinte */
+  assert.ok(s.length < 27500, 'sem inchar o turno: ' + s.length);   /* 27000 -> 27500 em 17/11: a linha do Perfil no Google (adicional novo); 26000 -> 27000 em 01/11: fatos e negociação pedidos pelo dono; o enxugamento do texto é a tarefa seguinte */
 });
 
 test('instruções: regras que valem a conversa inteira, transparência de ser IA, e nada de pedir contato no texto', () => {
@@ -553,4 +553,21 @@ test('v4: sem o Atelier, o Zero não fala dele e indica o institucional com o vi
   /* sem o adicional (tabela sem Atelier e sem visual exclusivo), a linha some inteira */
   const sem = JSON.parse(JSON.stringify(REGRAS)); delete sem.adicionais.visual_exclusivo;
   assert.doesNotMatch(montarSistema(sem), /Quem quer um site só dele|Exceção:/);
+});
+
+test('instruções: o Perfil no Google só entra se a tabela traz o item; oferece a quem atende cliente, pergunta uma vez e não promete resultado', () => {
+  const sem = JSON.parse(JSON.stringify(REGRAS)); delete sem.adicionais.perfil_google;
+  assert.ok(!montarSistema(sem).includes('Perfil no Google ('), 'sem o item na tabela, nada no prompt');
+  const s = montarSistema(REGRAS);
+  const linha = s.split('\n').find(l => l.includes('Perfil no Google ('));
+  assert.ok(linha, 'a tabela do rascunho traz o item');
+  assert.match(linha, /nunca a negócio 100% online/);
+  assert.match(linha, /pergunte uma vez se já tem ficha no Google/);
+  assert.match(linha, /Não prometa posição nem resultado/);
+  assert.match(linha, /saúde e advocacia, só a estrutura, sem depoimento/i);
+  assert.doesNotMatch(linha, /R\$|\d{3,}(?![\d%])/, 'nenhum valor em dinheiro chega ao modelo (o "100%" online não conta)');
+  for (const marca of [{ em_preparo: true }, { fora_do_automatico: true }]) {
+    const r = JSON.parse(JSON.stringify(REGRAS)); Object.assign(r.adicionais.perfil_google, marca);
+    assert.ok(!montarSistema(r).includes('Perfil no Google ('), 'item ' + Object.keys(marca)[0] + ': a Zero não o oferece como adicional comum');
+  }
 });

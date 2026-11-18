@@ -677,7 +677,9 @@ try {
   const pararam = j => { j.conversa.etapa = 'contato'; j.escolha = null; j.direcoes = j.direcoes.map(d => ({ ...d, status: 'falhou', conteudo: null })); };
   for (const status of ['arquivado', 'descartado']) {
     const rota = comPedido(status, pararam);
-    ok(await desenhar(rota, () => [...document.querySelectorAll('.dir .dir__progresso')].filter(p => /não saiu/.test(p.textContent)).length === 3), status + ' com a geração parada: os três cartões "não saiu"');
+    /* (17/11, o dono: "nunca" o cartão de falha na tela) uma direção que falhou nunca aparece: nem "não saiu", nem promessa de "preparando"
+       (o pedido está encerrado, não há o que preparar) */
+    ok(await desenhar(rota, () => document.getElementById('o-dirs').children.length === 0 && !/não saiu|Preparando/.test(document.getElementById('o-dirs').textContent)), status + ' com a geração parada: nenhum cartão "não saiu" nem "preparando"');
     ok(await page.getByRole('button', { name: 'Gerar de novo' }).count() === 0, status + ' com a geração parada: nenhum "Gerar de novo" (o servidor recusaria)');
     await page.unroute(ESTADO, rota);
   }
