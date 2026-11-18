@@ -73,3 +73,16 @@
 @media (prefers-reduced-motion: no-preference) {
   html:not(.menos-movimento) .esc-numero:not([hidden]) { animation: nasce-entra .4s ease-out both; }
 }
+
+/* ---------- parte 4: a trilha do pedido (os 4 passos depois do pagamento): cada passo é uma bolinha que enche quando fecha ---------- */
+.orc-pedido .orc-passo, .orc-antes-passos .orc-passo { align-items: center; }
+.orc-pedido .orc-passo__n, .orc-antes-passos .orc-passo__n { position: relative; display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--stroke); border-radius: 50%; line-height: 1; color: var(--t3); }
+.orc-pedido .orc-passo.is-feito .orc-passo__n { background: var(--ac); border-color: var(--ac); color: var(--bg); }
+.orc-pedido .orc-passo.is-agora .orc-passo__n { border-color: var(--ac); color: var(--ac); }
+.orc-pedido .orc-passo.is-agora .orc-passo__n::after { content: ""; position: absolute; inset: -5px; border: 1px solid var(--ac); border-radius: 50%; opacity: .35; }
+.orc-noar__endereco, .orc-fim .orc-noar__endereco { font-size: clamp(1.1rem, .9rem + 1.2vw, 1.5rem); }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .orc-pedido .orc-passo.is-agora .orc-passo__n::after { animation: trilha-pulsa 2.4s ease-in-out infinite; }
+  html:not(.menos-movimento) .orc-pedido .orc-passo.is-feito .orc-passo__n { animation: nasce-selo .3s cubic-bezier(.2, .9, .3, 1.4) both; }
+}
+@keyframes trilha-pulsa { 0%, 100% { opacity: .15; transform: scale(.94); } 50% { opacity: .45; transform: scale(1.06); } }
