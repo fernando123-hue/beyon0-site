@@ -120,10 +120,14 @@ test('IA falha: recuperação elegante, nada inventado, nada perdido; volta a fu
   await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'sim, quero' });
   await detalhesEConfirmar(n.chamar, local.rpc, s.conversa_id, { nome: 'Rui' });
   const g = await n.chamar('POST', 'gerar', { conversa_id: s.conversa_id });
-  const falhou = await n.chamar('POST', 'gerar-direcao', { conversa_id: s.conversa_id, direcao_id: g.corpo.direcoes[0].id }, { deps: quebrada });
-  assert.equal(falhou.corpo.status, 'falhou');
+  /* (17/11, o dono viu "Este modelo não saiu desta vez" no celular) a geração caindo NUNCA chega ao visitante: com o Opus e o Sonnet quebrados, o código monta a
+     direção de reserva e ela sai "pronta", marcada no banco como reserva para o dono medir */
+  const feita = await n.chamar('POST', 'gerar-direcao', { conversa_id: s.conversa_id, direcao_id: g.corpo.direcoes[0].id }, { deps: quebrada });
+  assert.equal(feita.corpo.status, 'pronta');
   const d = (await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + s.conversa_id })).corpo.direcoes[0];
-  assert.equal(d.conteudo, null);
+  assert.equal(d.status, 'pronta');
+  assert.ok(d.conteudo && d.conteudo.secoes.length >= 3, 'a reserva tem conteúdo de verdade');
+  assert.equal((await local.db.query('select modelo from app.direcoes where id = $1', [d.id])).rows[0].modelo, 'reserva-codigo');
 });
 
 /* ======================= segurança ======================= */
@@ -408,7 +412,6 @@ test('modo api: as três direções saem no máximo 2 vezes por conversa; a 3ª 
   const { TETOS } = await import('../../api/_ia/config.mjs');
   const { GERACOES_ESGOTADAS } = await import('../../api/_vendas/fluxo.mjs');
   assert.equal(TETOS.geracoes_por_conversa, 2, 'decisão do dono, 15/11');
-  const quebrada = { ...deps, ia: { mensagem: async () => { throw new ErroIA('tempo'); } } };
   const n = navegador();
   const c = (await n.iniciar()).conversa_id;
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho um estúdio de pilates e quero um site institucional para agendamentos' });
@@ -417,7 +420,7 @@ test('modo api: as três direções saem no máximo 2 vezes por conversa; a 3ª 
   for (let i = 0; i < TETOS.geracoes_por_conversa; i++) {
     const g = await n.chamar('POST', 'gerar', { conversa_id: c });
     assert.equal(g.status, 200, 'geração ' + (i + 1) + ': ' + JSON.stringify(g.corpo));
-    for (const d of g.corpo.direcoes) assert.equal((await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id }, { deps: quebrada })).corpo.status, 'falhou');
+    for (const d of g.corpo.direcoes) await falharDirecao(d);   /* (o caminho do banco: a IA quebrada já não falha a direção, vira reserva) */
   }
   const terceira = await n.chamar('POST', 'gerar', { conversa_id: c });
   assert.equal(terceira.status, 409, JSON.stringify(terceira.corpo));
@@ -441,6 +444,8 @@ async function ateGerar(n) {
   return { c, dirs: g.corpo.direcoes };
 }
 const gerarUma = (n, c, d, extra) => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id }, extra);
+/* falha a direção pelo caminho do banco (varredura de abandonadas, posse perdida): a IA quebrada, sozinha, já não falha (geração garantida, 17/11) */
+const falharDirecao = d => local.rpc('vendas_concluir_direcao', { direcao_id: d.id, erro: 'falha simulada pelo teste' });
 const statusDasDirecoes = async (c) => (await local.db.query('select status from app.direcoes where conversa_id = $1 order by numero', [c])).rows.map(r => r.status);
 const comFila = (teto) => ({ ...deps, limitesPedido: { ...LIMITES_DE_TESTE, fila_confirmados: teto } });
 /* (created_at não muda por UPDATE: um gatilho o mantém; o teste desliga os gatilhos só durante o ajuste) */
@@ -483,13 +488,14 @@ test('modo api: três falhas e "2 prontas + 1 falha" também saem da fila; falha
   const n = navegador(deps);
   /* as três falham: a conversa volta a "contato" e o gatilho do banco solta o pedido */
   const T = await ateGerar(n);
-  for (const d of T.dirs) assert.equal((await gerarUma(n, T.c, d, { deps: iaQuebrada(deps) })).corpo.status, 'falhou');
+  for (const d of T.dirs) await falharDirecao(d);
   assert.deepEqual(await statusDasDirecoes(T.c), ['falhou', 'falhou', 'falhou']);
   assert.equal(await naFila(), base, 'três falhas: fora da fila');
   /* 2 prontas + 1 falha: sai da fila (as prontas ficam entregues) */
   const D = await ateGerar(n);
   for (const d of D.dirs.slice(0, 2)) assert.equal((await gerarUma(n, D.c, d)).corpo.status, 'pronta');
-  assert.equal((await gerarUma(n, D.c, D.dirs[2], { deps: iaQuebrada(deps) })).corpo.status, 'falhou');
+  await falharDirecao(D.dirs[2]);
+  await local.rpc('vendas_marcar_avisado', { conversa_id: D.c, org_slug: 'beyon-zero' });   /* (o que o servidor faz ao fim de uma direção: soltarDaFila) */
   assert.deepEqual(await statusDasDirecoes(D.c), ['pronta', 'pronta', 'falhou']);
   assert.equal(await naFila(), base, '2 prontas + 1 falha: fora da fila');
   /* o banco recusa tirar da fila: a direção que acabou de ficar pronta continua pronta e a resposta é "pronta" */

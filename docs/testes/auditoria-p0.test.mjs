@@ -104,7 +104,7 @@ test('P0 custo: o modelo que recusa responder também é pago (turno e geração
   await local.db.query(`update app.direcoes set status = 'gerando', conteudo = null, iniciada_em = null where id = $1`, [dirs[0].id]);
   await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'gerando' where id = '${c}'; commit;`);
   const g = await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: dirs[0].id }, { deps: { ...deps, ia: recusa } });
-  assert.equal(g.corpo.status, 'falhou');
+  assert.equal(g.corpo.status, 'pronta', 'a recusa não deixa a tela sem modelo: entra a reserva por código');
   assert.ok((await conversa(c)).custo > depoisTurno, 'a recusa da geração entrou na conta');
 });
 

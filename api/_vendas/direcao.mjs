@@ -60,6 +60,25 @@ const LOREM = /lorem ipsum|dolor sit amet/i;
 /* o teto de seções de um modelo: o higienizar corta aqui; ajustar confere antes de acrescentar (fluxo-ajustes.mjs) */
 export const MAX_SECOES = 12;
 
+/* corta na última frase inteira que cabe no limite (ou, sem ponto, na última palavra): nunca no meio da palavra nem com parêntese aberto.
+   (17/11, dono: a descrição do modelo saía com 400 caracteres e cortada em "(bolo") */
+export function cortarNaFrase(s, max) {
+  const t = typeof s === 'string' ? s.replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  if (t.length <= max) return t;
+  const pedaco = t.slice(0, max);
+  const ponto = Math.max(pedaco.lastIndexOf('. '), pedaco.lastIndexOf('! '), pedaco.lastIndexOf('? '));
+  if (ponto >= max * 0.4) return pedaco.slice(0, ponto + 1);
+  const espaco = pedaco.lastIndexOf(' ');
+  return (espaco > 0 ? pedaco.slice(0, espaco) : pedaco).replace(/[,;:(\-–]+$/, '').trim();
+}
+/* o que cada modelo diz de si na tela: até 2 frases e 180 caracteres (as pessoas não gostam de ler) */
+export const MAX_RESUMO = 180;
+export function resumoCurto(s) {
+  const corte = cortarNaFrase(s, MAX_RESUMO);
+  const frases = corte.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [corte];
+  return frases.slice(0, 2).join('').trim();
+}
+
 export function higienizar(bruta, estrategia) {
   if (!bruta || typeof bruta !== 'object') return { erro: 'direção vazia' };
   const d = bruta;
@@ -90,7 +109,7 @@ export function higienizar(bruta, estrategia) {
   const direcao = {
     nome_conceito: t(d.nome_conceito, 60) || 'Direção',
     estrategia,
-    resumo: t(d.resumo, 400),
+    resumo: resumoCurto(d.resumo),
     identidade: {
       paleta,
       tipografia: { titulos: FONTES.includes(tip.titulos) ? tip.titulos : 'sans_geometrica', texto: FONTES.includes(tip.texto) ? tip.texto : 'sans_humanista' },

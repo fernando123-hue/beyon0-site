@@ -22,8 +22,12 @@ export const PAPEIS = {
   atendente: { modelo: 'claude-haiku-5-5', esforco: 'low', max_tokens: 800, timeout_ms: 15000, tentativas: 0 },
   /* (sem nova tentativa automática do SDK: 2 × 240 s não cabem nos 300 s da função; a tela oferece "gerar de novo". No nicho regulado o gerador faz 2ª chamada
      só se couber em 280 s, e a posse da direção dura 10 min (fluxo.mjs, POSSE_VIVA_S), mais que os ~6,5 min do pior caso) */
-  geracao: { modelo: 'claude-opus-5-5', esforco: 'high', max_tokens: 24000, timeout_ms: 240000, tentativas: 0 }
+  geracao: { modelo: 'claude-opus-5-5', esforco: 'high', max_tokens: 24000, timeout_ms: 190000, tentativas: 0 }
 };
+/* (17/11, o dono viu um modelo falhar na tela: nunca mais) o Opus ganha 190 s e deixa 90 s da função para a RESERVA: o mesmo pedido no Sonnet 5.5 (70 s), pedido com
+   { reserva: true }. O papel segue 'geracao' (o registro das chamadas, app.ia_chamadas, só aceita os três papéis do banco). Se a reserva também cair, o código monta a
+   direção (api/_vendas/reserva.mjs): o visitante nunca vê falha (gerarDirecaoGarantida, gerador.mjs) */
+export const RESERVA_DO_PAPEL = { geracao: { modelo: 'claude-sonnet-5-5', esforco: 'medium', max_tokens: 12000, timeout_ms: 70000, tentativas: 0 } };
 export const TENTATIVAS_PADRAO = 2;
 
 /* as três direções: geradas pela API na hora ("api") ou produzidas pelo dono no Claude Code, em até 24 horas úteis

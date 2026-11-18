@@ -15,7 +15,7 @@
    A chave vem só de process.env.ANTHROPIC_API_KEY (Vercel/Infisical), nunca do código.
    ========================================================================== */
 import Anthropic from '@anthropic-ai/sdk';
-import { PAPEIS, custoUsd, TENTATIVAS_PADRAO, COM_FALLBACK, MODELO_RESERVA } from './config.mjs';
+import { PAPEIS, RESERVA_DO_PAPEL, custoUsd, TENTATIVAS_PADRAO, COM_FALLBACK, MODELO_RESERVA } from './config.mjs';
 import { ErroIA } from './provedor.mjs';
 
 const BETA_FALLBACK = 'server-side-fallback-2026-07-01';
@@ -72,8 +72,8 @@ function erroIA(e, cfg, tentativas) {
 export function criarAnthropic(env = process.env, cliente, ajustes = {}, { agora = Date.now } = {}) {
   const client = cliente || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: TENTATIVAS_PADRAO });
 
-  async function mensagem({ papel, sistema, contexto, mensagens, ferramentas, esquema }) {
-    const cfg = PAPEIS[papel] && { ...PAPEIS[papel], ...(ajustes[papel] || {}) };
+  async function mensagem({ papel, sistema, contexto, mensagens, ferramentas, esquema, reserva = false }) {
+    const cfg = PAPEIS[papel] && { ...PAPEIS[papel], ...(reserva === true ? RESERVA_DO_PAPEL[papel] : {}), ...(ajustes[papel] || {}) };
     if (!cfg) throw new ErroIA('falha', 'papel desconhecido: ' + papel);
     const pedido = {
       model: cfg.modelo,
@@ -87,8 +87,15 @@ export function criarAnthropic(env = process.env, cliente, ajustes = {}, { agora
 
     const tentativas = cfg.tentativas ?? TENTATIVAS_PADRAO;
     const opcoes = { timeout: cfg.timeout_ms, maxRetries: tentativas };
+    /* o timeout do SDK só vale até os cabeçalhos chegarem; num stream eles chegam em segundos e o corpo pode seguir por minutos.
+       Por isso o prazo da chamada INTEIRA é imposto aqui (aborta o stream e sai como tempo esgotado): sem ele o Opus lento comia os 280 s
+       da função e o Sonnet e a reserva por código nunca entravam (revisão técnica do PR 180) */
+    const comPrazo = (stream, ms) => new Promise((resolve, reject) => {
+      const t = setTimeout(() => { try { stream.controller?.abort(); } catch { /* já encerrado */ } reject(new Anthropic.APIConnectionTimeoutError()); }, ms);
+      stream.finalMessage().then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+    });
     const chamar = (p, o) => (cfg.max_tokens > 16000
-      ? client.beta.messages.stream(p, o).finalMessage()   /* (saída longa: streaming evita o tempo esgotado do HTTP) */
+      ? comPrazo(client.beta.messages.stream(p, o), o.timeout)   /* (saída longa: streaming evita o tempo esgotado do HTTP) */
       : client.beta.messages.create(p, o));
     let r, feito = pedido;
     const inicio = agora();
