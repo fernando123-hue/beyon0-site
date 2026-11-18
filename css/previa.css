@@ -3,7 +3,17 @@
    variáveis postas por script (--pv-*); a largura do "aparelho" vem da
    .pv-tela (390 ou 1280) e a disposição responde ao CONTAINER, não à janela,
    para a mesma prévia caber num cartão e no visor.
+   Fontes autorais HOSPEDADAS (assets/fonts, licença OFL em LICENCAS.txt; a CSP é
+   font-src 'self'): Fraunces (serif_moderna), Lora (serif_classica) e DM Sans
+   (sans_humanista). Só baixa a que o modelo usa. Sem blur, sem brilho: traço nítido.
    ========================================================================== */
+@font-face { font-family: 'Fraunces'; font-style: normal; font-weight: 400; font-display: swap; src: url('../assets/fonts/fraunces-latin-400.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Fraunces'; font-style: normal; font-weight: 600; font-display: swap; src: url('../assets/fonts/fraunces-latin-600.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Lora'; font-style: normal; font-weight: 400; font-display: swap; src: url('../assets/fonts/lora-latin-400.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Lora'; font-style: normal; font-weight: 600; font-display: swap; src: url('../assets/fonts/lora-latin-600.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('../assets/fonts/dm-sans-latin-400.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url('../assets/fonts/dm-sans-latin-600.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
 .pv-tela { container-type: inline-size; width: 390px; }
 .pv-tela--1280 { width: 1280px; }
 
@@ -21,7 +31,7 @@
 
 .pv h3, .pv h4, .pv h5, .pv-marca, .pv-numero { font-family: var(--pv-f-tit); color: var(--pv-texto); }
 .pv-nav { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-bottom: 1px solid color-mix(in srgb, var(--pv-texto) 12%, transparent); }
-.pv-marca { font-weight: 700; font-size: 18px; letter-spacing: -.01em; margin-right: auto; }
+.pv-marca { font-weight: 600; font-size: 19px; letter-spacing: -.01em; margin-right: auto; }
 .pv-menu { display: none; list-style: none; gap: 20px; font-size: 14px; color: var(--pv-suave); }
 .pv-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 18px; border-radius: var(--pv-raio); background: var(--pv-dest); color: var(--pv-dest-texto); font-weight: 600; font-size: 15px; font-family: var(--pv-f-txt); }
 .pv-btn--nav { min-height: 36px; padding: 6px 14px; font-size: 13px; }
@@ -34,17 +44,47 @@
 .pv-h2 { font-size: 26px; line-height: 1.15; letter-spacing: -.01em; font-weight: 600; }
 .pv-sub { font-size: 18px; color: var(--pv-suave); }
 .pv-texto { color: var(--pv-suave); }
-.pv-arte { width: 100%; aspect-ratio: 16 / 10; border-radius: var(--pv-raio); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--pv-texto) 6%, transparent) 0 1px, transparent 1px 14px), var(--pv-sup); border: 1px solid color-mix(in srgb, var(--pv-texto) 10%, transparent); }
-.pv-sec--hero { gap: 28px; }
 .pv-v--centro .pv-cab { align-items: center; text-align: center; margin: 0 auto; }
+
+/* ---- O TOPO (o que o cartão da escolha mostra): título grande, botão cheio, arte desenhada por código ---- */
+.pv-sec--hero { padding: 28px 0 0; gap: 22px; }
+.pv-sec--hero .pv-cab { padding: 0 20px; gap: 18px; }
+.pv-sec--hero .pv-rotulo { display: flex; align-items: center; gap: 10px; }
+.pv-sec--hero .pv-rotulo::before { content: ''; flex: none; width: 28px; height: 2px; background: var(--pv-dest); }
+.pv-sec--hero .pv-h1 { font-size: clamp(34px, 11.2cqw, 44px); line-height: 1.02; letter-spacing: -.025em; overflow-wrap: break-word; }   /* cqw: em 320 px o "ar-condicionado" ainda cabe */
+.pv-sec--hero .pv-itens { padding: 0 20px 32px; }   /* o topo não tem padding lateral (a arte vai até a borda): os itens põem o deles */
+.pv-sec--hero .pv-sub { font-size: 18px; max-width: 34ch; }
+.pv-sec--hero .pv-texto { display: none; }   /* o parágrafo longo do topo só entra quando cabe (container largo) */
+.pv-sec--hero .pv-btn { width: 100%; max-width: 420px; min-height: 48px; justify-content: space-between; }
+.pv-sec--hero .pv-btn::after { content: '\2192'; margin-left: 12px; }
+.pv-hero--centro .pv-cab { align-items: center; text-align: center; margin: 0 auto; }
+.pv-hero--centro .pv-rotulo::before { display: none; }
+.pv-hero--centro .pv-h1 { font-size: clamp(32px, 10.2cqw, 40px); }
+.pv-hero--centro .pv-sub { margin: 0 auto; }
+.pv-hero--faixa { --pv-a-forte: var(--pv-dest-texto); --pv-a-fraco: var(--pv-dest-texto); --pv-a-cheio: var(--pv-dest-texto); --pv-a-vazio: var(--pv-dest-texto); }
+.pv-hero--faixa, .pv-hero--faixa.pv-sec:nth-of-type(even) { background: var(--pv-dest); }
+.pv-hero--faixa .pv-h1, .pv-hero--faixa .pv-sub, .pv-hero--faixa .pv-rotulo { color: var(--pv-dest-texto); }
+.pv-hero--faixa .pv-rotulo::before { background: var(--pv-dest-texto); }
+.pv-hero--faixa .pv-btn { background: var(--pv-dest-texto); color: var(--pv-dest); }
+.pv-hero--faixa .pv-arte { background: transparent; border-top-color: var(--pv-dest-texto); }
+.pv-hero--faixa .pv-arte__leg { background: var(--pv-dest); color: var(--pv-dest-texto); }
+
+.pv-arte { position: relative; overflow: hidden; width: 100%; height: 300px; background: var(--pv-sup); border-top: 2px solid var(--pv-texto); --pv-a-forte: var(--pv-dest); --pv-a-fraco: var(--pv-texto); --pv-a-cheio: var(--pv-dest); --pv-a-vazio: var(--pv-texto); }
+.pv-hero--faixa .pv-arte { --pv-a-forte: var(--pv-dest-texto); --pv-a-fraco: var(--pv-dest-texto); --pv-a-cheio: var(--pv-dest-texto); --pv-a-vazio: var(--pv-dest-texto); }
+.pv-arte svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.pv-arte .a-forte { fill: none; stroke: var(--pv-a-forte); stroke-width: 2.5; }
+.pv-arte .a-fraco { fill: none; stroke: var(--pv-a-fraco); stroke-opacity: .3; stroke-width: 1.2; }
+.pv-arte .a-cheio { fill: var(--pv-a-cheio); stroke: none; }
+.pv-arte .a-vazio { fill: none; stroke: var(--pv-a-vazio); stroke-width: 2; }
+.pv-arte__leg { position: absolute; left: 20px; bottom: 14px; padding: 4px 8px; background: var(--pv-fundo); color: var(--pv-suave); font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
 
 .pv-itens { list-style: none; display: grid; gap: 14px; }
 .pv-item { padding: 18px; border-radius: var(--pv-raio); background: var(--pv-fundo); border: 1px solid color-mix(in srgb, var(--pv-texto) 10%, transparent); display: flex; flex-direction: column; gap: 6px; }
 .pv-sec:nth-of-type(even) .pv-item { background: var(--pv-fundo); }
 .pv-item__t { font-size: 17px; font-weight: 600; }
 .pv-item__x { font-size: 15px; color: var(--pv-suave); }
-.pv-item__n { font-family: var(--pv-f-tit); font-size: 13px; font-weight: 700; color: var(--pv-dest); }
-.pv-numero { font-size: 32px; font-weight: 700; color: var(--pv-dest); }
+.pv-item__n { font-family: var(--pv-f-tit); font-size: 13px; font-weight: 600; color: var(--pv-dest); }
+.pv-numero { font-size: 32px; font-weight: 600; color: var(--pv-dest); }
 .pv-citacao { font-size: 16px; font-style: italic; color: var(--pv-texto); }
 .pv-item__autor { font-size: 13px; font-weight: 600; color: var(--pv-suave); }
 .pv-v--lista .pv-item, .pv-v--linha_do_tempo .pv-item { background: transparent; border: 0; border-left: 2px solid var(--pv-dest); border-radius: 0; padding: 4px 0 4px 16px; }
@@ -66,8 +106,21 @@
   .pv-itens { grid-template-columns: repeat(3, 1fr); }
   .pv-v--lista .pv-itens, .pv-sec--faq .pv-itens { grid-template-columns: 1fr; max-width: 760px; }
   .pv-v--linha_do_tempo .pv-itens { grid-template-columns: repeat(4, 1fr); }
-  .pv-v--split.pv-sec, .pv-sec--hero.pv-v--split { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 56px; }
-  .pv-sec--hero.pv-v--centro .pv-arte { max-width: 960px; margin: 0 auto; }
+  .pv-v--split.pv-sec { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 56px; }
   .pv-v--grade .pv-itens { grid-template-columns: repeat(2, 1fr); }
   .pv-rodape { padding: 32px 56px; }
+
+  /* o topo no container largo: duas colunas (texto + arte) ou, centrado, a arte larga embaixo */
+  .pv-sec--hero { padding: calc(var(--pv-esp) * 1.1) 56px; gap: 56px; }
+  .pv-sec--hero .pv-cab { padding: 0; gap: 22px; }
+  .pv-sec--hero .pv-itens { grid-column: 1 / -1; padding: 0; }
+  .pv-sec--hero .pv-h1 { font-size: 68px; }
+  .pv-hero--centro .pv-h1 { font-size: 64px; }
+  .pv-sec--hero .pv-sub { font-size: 21px; }
+  .pv-sec--hero .pv-texto { display: block; }
+  .pv-sec--hero .pv-btn { width: auto; }
+  .pv-hero--split, .pv-hero--faixa { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; }
+  .pv-hero--split .pv-arte, .pv-hero--faixa .pv-arte { height: 440px; border: 2px solid var(--pv-texto); }
+  .pv-hero--faixa .pv-arte { border-color: var(--pv-dest-texto); }
+  .pv-hero--centro .pv-arte { height: 360px; max-width: 960px; margin: 0 auto; border: 2px solid var(--pv-texto); }
 }

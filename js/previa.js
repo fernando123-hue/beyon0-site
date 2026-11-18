@@ -16,13 +16,16 @@
 
   var FONTES = {
     sans_geometrica: "'Sora', 'Sora Reserva', ui-sans-serif, system-ui, sans-serif",
-    sans_humanista: "'Segoe UI', 'Helvetica Neue', Roboto, 'Noto Sans', system-ui, sans-serif",
-    serif_classica: "Georgia, 'Times New Roman', 'Noto Serif', serif",
-    serif_moderna: "'Didot', 'Bodoni 72', 'Bodoni MT', Georgia, serif",
+    sans_humanista: "'DM Sans', 'Segoe UI', 'Helvetica Neue', Roboto, 'Noto Sans', system-ui, sans-serif",
+    serif_classica: "'Lora', Georgia, 'Times New Roman', 'Noto Serif', serif",
+    serif_moderna: "'Fraunces', 'Didot', 'Bodoni 72', 'Bodoni MT', Georgia, serif",
     mono_tecnica: "'JetBrains Mono', ui-monospace, Menlo, monospace"
   };
   var TIPOS = ['hero', 'servicos', 'sobre', 'diferenciais', 'processo', 'depoimentos', 'numeros', 'galeria', 'faq', 'cta', 'contato', 'equipe', 'destaque', 'localizacao'];
   var VARIANTES = ['split', 'centro', 'cartoes', 'lista', 'faixa', 'grade', 'linha_do_tempo'];
+  var VARIANTES_TOPO = ['split', 'centro', 'faixa'];
+  var ESTRATEGIAS = ['conversao', 'autoridade', 'experiencia'];
+  var SVG = 'http://www.w3.org/2000/svg';
   var HEX = /^#[0-9a-fA-F]{6}$/;
   var RESERVADO = /(\[[^\]]{1,160}\])/;
   var PALETA = { fundo: '--pv-fundo', superficie: '--pv-sup', texto: '--pv-texto', texto_suave: '--pv-suave', destaque: '--pv-dest', destaque_texto: '--pv-dest-texto' };
@@ -70,9 +73,84 @@
     return ul;
   }
 
-  function secao(s, primeira) {
+  /* ---------- a arte do topo: desenhada por código na paleta do modelo (traço nítido; sem filtro, sem blur, sem brilho) ----------
+     Cada motivo devolve formas [tag, atributos, classe]; a cor vem da classe no CSS (a CSP proíbe style=""): a-forte (traço na cor de destaque),
+     a-fraco (traço fino na cor do texto), a-cheio (preenchimento de destaque), a-vazio (contorno na cor do texto). Seis motivos; o motivo vem de
+     um hash da marca somado à ordem da estratégia, então os 3 modelos do mesmo negócio nunca repetem o desenho e a mesma entrada dá sempre o mesmo. */
+  var MOTIVOS = [
+    function veios() {
+      var f = [];
+      for (var i = 0; i < 17; i++) {
+        var y = 20 + i * 17;
+        f.push(['path', { d: 'M0 ' + y + ' C 90 ' + (y - 26) + ', 150 ' + (y + 30) + ', 240 ' + (y - 6) + ' S 360 ' + (y + 22) + ', 420 ' + (y - 10) }, i % 5 === 0 ? 'a-forte' : 'a-fraco']);
+      }
+      f.push(['circle', { cx: 290, cy: 150, r: 64 }, 'a-cheio'], ['circle', { cx: 298, cy: 158, r: 64 }, 'a-vazio']);
+      return f;
+    },
+    function arcos() {
+      var f = [];
+      for (var i = 0; i < 6; i++) f.push(['circle', { cx: 195, cy: 330, r: 50 + i * 36 }, i % 2 ? 'a-fraco' : 'a-forte']);
+      f.push(['circle', { cx: 320, cy: 70, r: 26 }, 'a-cheio']);
+      return f;
+    },
+    function trama() {
+      var f = [];
+      for (var i = 0; i <= 13; i++) f.push(['line', { x1: i * 30, y1: 0, x2: i * 30, y2: 300 }, i % 4 === 0 ? 'a-forte' : 'a-fraco']);
+      for (var j = 0; j <= 10; j++) f.push(['line', { x1: 0, y1: j * 30, x2: 390, y2: j * 30 }, j % 4 === 0 ? 'a-forte' : 'a-fraco']);
+      f.push(['rect', { x: 150, y: 90, width: 120, height: 120 }, 'a-cheio'], ['rect', { x: 162, y: 102, width: 120, height: 120 }, 'a-vazio']);
+      return f;
+    },
+    function diagonais() {
+      var f = [];
+      for (var i = -6; i < 20; i++) f.push(['line', { x1: i * 28, y1: 300, x2: i * 28 + 300, y2: 0 }, i % 4 === 0 ? 'a-forte' : 'a-fraco']);
+      f.push(['circle', { cx: 110, cy: 170, r: 52 }, 'a-cheio']);
+      return f;
+    },
+    function ondas() {
+      var f = [];
+      for (var i = 0; i < 8; i++) {
+        var y = 40 + i * 32;
+        f.push(['path', { d: 'M0 ' + y + ' Q 49 ' + (y - 34) + ' 98 ' + y + ' T 195 ' + y + ' T 293 ' + y + ' T 390 ' + y }, i % 3 === 0 ? 'a-forte' : 'a-fraco']);
+      }
+      f.push(['circle', { cx: 60, cy: 60, r: 30 }, 'a-cheio']);
+      return f;
+    },
+    function losangos() {   /* quadrados girados e encaixados (nada que lembre gráfico de barras: a arte não "mostra dado") */
+      var f = [];
+      for (var i = 6; i >= 1; i--) f.push(['rect', { x: 195 - i * 24, y: 150 - i * 24, width: i * 48, height: i * 48, transform: 'rotate(45 195 150)' }, i % 2 ? 'a-forte' : 'a-fraco']);
+      f.push(['rect', { x: 171, y: 126, width: 48, height: 48, transform: 'rotate(45 195 150)' }, 'a-cheio']);
+      return f;
+    }
+  ];
+  function hash(texto) {
+    var h = 5381;
+    for (var i = 0; i < texto.length; i++) h = ((h * 33) ^ texto.charCodeAt(i)) >>> 0;
+    return h;
+  }
+  function arteDoTopo(d) {
+    var marca = str(d && d.navegacao && d.navegacao.marca);
+    var ordem = Math.max(0, ESTRATEGIAS.indexOf(d && d.estrategia));
+    var formas = MOTIVOS[(hash(marca) + ordem) % MOTIVOS.length]();
+    var svg = document.createElementNS(SVG, 'svg');
+    svg.setAttribute('viewBox', '0 0 390 300');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    svg.setAttribute('aria-hidden', 'true');
+    formas.forEach(function (f) {
+      var n = document.createElementNS(SVG, f[0]);
+      Object.keys(f[1]).forEach(function (k) { n.setAttribute(k, f[1][k]); });
+      n.setAttribute('class', f[2]);
+      svg.appendChild(n);
+    });
+    var arte = el('div', 'pv-arte');
+    arte.appendChild(svg);
+    arte.appendChild(el('span', 'pv-arte__leg', 'Aqui entra a foto do seu negócio'));   /* o lugar da imagem do cliente */
+    return arte;
+  }
+
+  function secao(s, primeira, d) {
     var tipo = umDe(TIPOS, s.tipo, 'destaque');
-    var sec = el('section', 'pv-sec pv-sec--' + tipo + ' pv-v--' + umDe(VARIANTES, s.variante, 'centro'));
+    var sec = el('section', 'pv-sec pv-sec--' + tipo + ' pv-v--' + umDe(VARIANTES, s.variante, 'centro') +
+      (primeira ? ' pv-hero--' + umDe(VARIANTES_TOPO, s.variante, 'split') : ''));
     var cab = el('div', 'pv-cab');
     if (s.rotulo) cab.appendChild(el('p', 'pv-rotulo', s.rotulo));
     if (s.titulo) cab.appendChild(el(primeira ? 'h3' : 'h4', primeira ? 'pv-h1' : 'pv-h2', s.titulo));
@@ -80,8 +158,8 @@
     if (s.texto) cab.appendChild(el('p', 'pv-texto', s.texto));
     if (s.cta) cab.appendChild(el('span', 'pv-btn', s.cta));
     sec.appendChild(cab);
+    if (primeira) sec.appendChild(arteDoTopo(d));   /* a arte vem logo depois do título; os itens (se o modelo pôs) ficam abaixo dela */
     if (Array.isArray(s.itens) && s.itens.length) sec.appendChild(itens(s.itens, tipo));
-    if (primeira) sec.appendChild(el('div', 'pv-arte'));   /* o lugar da imagem do cliente */
     return sec;
   }
 
@@ -106,7 +184,7 @@
     if (nav.cta) barra.appendChild(el('span', 'pv-btn pv-btn--nav', nav.cta));
     raiz.appendChild(barra);
 
-    (Array.isArray(d.secoes) ? d.secoes : []).slice(0, 12).forEach(function (s, n) { raiz.appendChild(secao(s || {}, n === 0)); });
+    (Array.isArray(d.secoes) ? d.secoes : []).slice(0, 12).forEach(function (s, n) { raiz.appendChild(secao(s || {}, n === 0, d)); });
     if (d.rodape && d.rodape.texto) raiz.appendChild(el('footer', 'pv-rodape', d.rodape.texto));
     return raiz;
   }
