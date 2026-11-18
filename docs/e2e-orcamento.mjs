@@ -164,8 +164,8 @@ try {
   ok(true, 'sugestões: o toque no cartão soma e tira do preço (8.350 → 8.600 → 8.350)');
   await page.click('#o-ajustar-abrir');
   ok(await page.isChecked('#o-x-agendamento'), 'ajustar: o extra da recomendação (agendamento) já vem marcado');
-  /* (tabela de 28/10, sem trava de prazo: tudo numa entrega só. Institucional 8 + agendamento 1 + imagens meio dia; com o blog,
-     de 2 dias, o prazo vai a 11 dias e o blog entra no valor, sem fase seguinte) */
+  /* (tabela de 28/10, sem trava de prazo: tudo numa entrega só. Institucional 13 (8 até 17/11) + agendamento 1 + imagens meio dia; com o blog,
+     de 2 dias, o prazo vai a 16 dias e o blog entra no valor, sem fase seguinte) */
   await page.check('#o-x-imagens');
   await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('8.600'));
   ok(true, 'ajustar: o preço muda na hora pelo servidor (8.350 + imagens 250)');
@@ -175,7 +175,7 @@ try {
   await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('8.350'));
   await page.check('#o-x-blog');
   await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('9.250'));
-  ok((await page.textContent('#o-est-prazo')).includes('11 dias') && await page.locator('#o-est-fase').isHidden(), 'ajustar: o blog soma valor (9.250) e prazo (11 dias), numa entrega só, sem fase seguinte');
+  ok((await page.textContent('#o-est-prazo')).includes('16 dias') && await page.locator('#o-est-fase').isHidden(), 'ajustar: o blog soma valor (9.250) e prazo (16 dias), numa entrega só, sem fase seguinte');
   await page.uncheck('#o-x-blog');
   await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('8.350'));
   /* trocar de formato e voltar não perde o extra da recomendação (o servidor só o soma no formato recomendado) */

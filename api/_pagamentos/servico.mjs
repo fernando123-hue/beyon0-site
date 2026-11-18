@@ -68,7 +68,7 @@ export function validarCartao(c) {
 }
 
 /* os freios do banco viram mensagens que a pessoa entende */
-const PIX_MINUTOS = 60;   /* (igual a cfg.pixExpiracao = PT1H) */
+const PIX_MINUTOS = 30;   /* (igual a cfg.pixExpiracao = PT30M; curto de propósito: Pix agendado para depois não passa da validade do QR) */
 function traduzirLimite(e) {
   const m = String(e && e.message || '');
   if (e && e.codigo === '23514' && /cartão pausado/.test(m)) throw new ErroPagamento(503, 'O pagamento com cartão está pausado por segurança. Use o Pix ou deixe um recado para a equipe.', { recado: true });
