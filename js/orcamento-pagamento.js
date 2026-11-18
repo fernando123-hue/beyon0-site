@@ -239,7 +239,7 @@
     function tiqueDoPix() {
       var r = $('o-pix-relogio');
       if ($('o-pix').hidden || !relogioFim) { clearInterval(relogio); relogio = null; return; }
-      var ms = Math.max(0, relogioFim - Date.now()), s = Math.ceil(ms / 1000);
+      var ms = Math.max(0, relogioFim - Date.now()), s = Math.min(99 * 60 + 59, Math.ceil(ms / 1000));
       $('o-pix-tempo').textContent = ('0' + Math.floor(s / 60)).slice(-2) + ':' + ('0' + (s % 60)).slice(-2);
       $('o-pix-anel').setAttribute('stroke-dashoffset', String(ANEL_CIRC * (1 - Math.min(1, ms / Math.max(RELOGIO_TOTAL_MS, ms)))));
       r.classList.toggle('is-curto', ms > 0 && ms <= RELOGIO_CURTO_MS);
