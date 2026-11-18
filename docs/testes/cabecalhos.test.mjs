@@ -117,18 +117,19 @@ test('formato: ≤ 100 regras e nenhuma linha acima de 2.000 caracteres', () => 
   for (const l of TEXTO.split('\n')) assert.ok(l.length <= 2000, l.slice(0, 40));
 });
 /* paridade com o vercel.json enquanto ele existir: os mesmos cabeçalhos por caminho (a regra "/api/*" fica no rotear) */
-function doVercel(caminho) {
+/* (a única diferença de propósito: só o /orcamento libera o microfone ao próprio site; o vercel.json é legado e não ganha a regra) */
+function doVercel(caminho, trocas = {}) {
   const h = {};
   for (const regra of VERCEL) {
     if (regra.source.startsWith('/api/')) continue;
     if (!new RegExp('^' + regra.source + '$').test(caminho)) continue;
     for (const { key, value } of regra.headers) h[key.toLowerCase()] = value;
   }
-  return h;
+  return { ...h, ...trocas };
 }
 test('paridade com o vercel.json: mesmos cabeçalhos em /, /sites, /orcamento, /painel, /condicoes, /vendor, fontes', () => {
   for (const c of ['/', '/sites', '/automacao', '/orcamento', '/painel', '/condicoes', '/privacidade', '/resumo', '/vendor/x.js', '/assets/fonts/x.woff2'])
-    assert.deepEqual(Object.fromEntries(cabecalhosPara(REGRAS, c)), doVercel(c), c);
+    assert.deepEqual(Object.fromEntries(cabecalhosPara(REGRAS, c)), doVercel(c, c === '/orcamento' ? { 'permissions-policy': 'camera=(), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()' } : {}), c);
 });
 /* O balão do atendente é um <script> em site de OUTRA origem: com CORP same-origin o navegador o bloqueia (revisão técnica C1).
    Só esse arquivo é liberado, nunca /js/* nem os outros scripts. */

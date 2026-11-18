@@ -10,6 +10,8 @@ import { entregaLigada, FRASE_DESLIGADA } from '../../api/_material/interruptor.
 
 /* as ações POST de /api/vendas que já existiam antes da entrega e as que a entrega trouxe (estas ficam atrás do interruptor) */
 const ANTIGAS = ['recado', 'sessao', 'retomar', 'renovar', 'mensagem', 'gerar', 'gerar-direcao', 'escolher', 'ajustar', 'desfazer', 'pedido-livre', 'escopo', 'confirmar', 'pagar', 'simular', 'confirmar-pacote', 'detalhes'];
+/* o microfone tem o próprio interruptor: sem transcritor configurado a ação dá 503 (voz-api.test.mjs) */
+const DA_VOZ = ['transcrever'];
 const DA_ENTREGA = ['material-salvar', 'material-reservar', 'material-conferir', 'material-remover', 'material-enviar', 'link-pedido', 'sair-do-aparelho', 'outro-aparelho', 'abrir-pedido', 'previa-ajustes', 'previa-aprovar'];
 
 let local, cen;
@@ -59,6 +61,6 @@ test('ligada: o estado traz a entrega e entrega_ligada true', async () => {
 test('toda ação POST de /api/vendas é antiga ou está na lista da entrega (e cada uma da lista dá 503 com a entrega desligada, no teste acima): nenhuma ação nova nasce fora do interruptor', async () => {
   const { ACOES } = await import('../../api/vendas.mjs');
   const novas = Object.keys(ACOES.POST).filter(a => !ANTIGAS.includes(a)).sort();
-  assert.deepEqual(novas, [...DA_ENTREGA].sort(), 'uma ação nova entrou em ACOES.POST: ponha-a atrás do interruptor e em DA_ENTREGA (ou, se é anterior à entrega, em ANTIGAS)');
-  assert.equal(new Set([...ANTIGAS, ...DA_ENTREGA]).size, ANTIGAS.length + DA_ENTREGA.length, 'uma ação não pode estar nas duas listas');
+  assert.deepEqual(novas, [...DA_ENTREGA, ...DA_VOZ].sort(), 'uma ação nova entrou em ACOES.POST: ponha-a atrás do interruptor e em DA_ENTREGA (ou DA_VOZ, com o interruptor do microfone; ou, se é anterior à entrega, em ANTIGAS)');
+  assert.equal(new Set([...ANTIGAS, ...DA_ENTREGA, ...DA_VOZ]).size, ANTIGAS.length + DA_ENTREGA.length + DA_VOZ.length, 'uma ação não pode estar nas duas listas');
 });

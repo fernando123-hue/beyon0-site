@@ -216,7 +216,7 @@ test('anti-robô (Turnstile): a sessão só nasce com token conferido na Cloudfl
     }), {}, metodo, { ...deps, cfgTurnstile, ...extra });
     return { status: r.status, corpo: await r.json() };
   };
-  assert.deepEqual((await chamar('sessao-config', 'GET')).corpo, { turnstile: '1x00000000000000000000AA', consultor: true }, 'a página recebe a chave pública (e se há consultor)');
+  assert.deepEqual((await chamar('sessao-config', 'GET')).corpo, { turnstile: '1x00000000000000000000AA', consultor: true, voz: false }, 'a página recebe a chave pública (e se há consultor e microfone)');
   const sem = await chamar('sessao', 'POST', {}, { buscarTurnstile: siteverify(true) });
   assert.equal(sem.status, 403, 'sem token: recusado');
   assert.ok(/robô/.test(sem.corpo.erro));
