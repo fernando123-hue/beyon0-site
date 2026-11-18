@@ -641,3 +641,4 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .pix__relogio.is-curto .pix__anel-vivo { stroke: rgb(var(--ouro-rgb)); }
 .pix__relogio.is-curto .pix__tempo { color: rgb(var(--ouro-rgb)); }
 @media (prefers-reduced-motion: reduce) { .pix__anel-vivo { transition: none; } }
+html.menos-movimento .pix__anel-vivo { transition: none; }

@@ -250,7 +250,7 @@
       relogioFim = fim > 0 ? fim : 0;
       mostrar('o-pix-relogio', !!relogioFim);
       tiqueDoPix();
-      if (relogioFim && !relogio) relogio = setInterval(tiqueDoPix, 1000);
+      if (relogioFim - Date.now() > 0 && !relogio) relogio = setInterval(tiqueDoPix, 1000);
     }
     function desenharPix(t) {
       var PIX = window.BZPix;   /* (sem o módulo, a linha sem percentual e o QR fechado: nada quebra) */
@@ -313,7 +313,7 @@
         try { desenhar(await o.API.pagamento()); } catch (e) { /* tenta na próxima */ }
       }, ESPERA_MS);
     }
-    function pararEspera() { clearInterval(espera); espera = null; }
+    function pararEspera() { clearInterval(espera); espera = null; clearInterval(relogio); relogio = null; relogioFim = 0; }   /* (o relógio do Pix morre junto: pago, tela de pagamento escondida ou sem Pix) */
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) return;
       if (espera) o.API.pagamento().then(desenhar).catch(function () {});
