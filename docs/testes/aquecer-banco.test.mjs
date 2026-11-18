@@ -87,7 +87,7 @@ test('GET sessao-config responde sem esperar o aquecimento, mesmo com o banco pe
     const env = { BZ_AMBIENTE: 'local', SUPABASE_URL: 'https://falso.supabase.co', SUPABASE_CHAVE_SECRETA: 'sb_secret_y' };
     const r = await atender(new Request(URL_CONFIG), env, 'GET', undefined, { waitUntil: p => adiadas.push(p) });
     assert.equal(r.status, 200);
-    assert.deepEqual(Object.keys(await r.json()).sort(), ['consultor', 'turnstile']);
+    assert.deepEqual(Object.keys(await r.json()).sort(), ['consultor', 'turnstile', 'voz']);
   });
   assert.equal(adiadas.length, 1, 'o aquecimento ficou no waitUntil, pendurado, e a resposta saiu');
 });
