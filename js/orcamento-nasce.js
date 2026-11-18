@@ -40,16 +40,17 @@
   });
   var PECA_MATERIAL = 'Seu logo e seus textos';
   var MAX_NOME = 40;
+  var MAX_OBJETIVOS = 20;   /* (a lista fechada tem 6; o teto só protege de um evento forjado com lista gigante) */
 
   /* o desenho do site a partir das respostas até agora. null = ainda não há ramo (a miniatura fica escondida).
      rotulos: o BZOrcRotulos (os nomes dos ramos); sem ele o nome do ramo fica vazio */
   function planoDoSite(r, rotulos) {
     if (!r || typeof r !== 'object' || !Object.prototype.hasOwnProperty.call(TITULOS, r.ramo)) return null;
     var nome = '';
-    if (r.ramo === 'outro' && typeof r.outro === 'string') nome = r.outro.replace(/\s+/g, ' ').trim().slice(0, MAX_NOME);
+    if (r.ramo === 'outro' && typeof r.outro === 'string') nome = r.outro.slice(0, 200).replace(/\s+/g, ' ').trim().slice(0, MAX_NOME);   /* (corta ANTES: um texto gigante não custa CPU) */
     else if (rotulos && rotulos.RAMOS && Object.prototype.hasOwnProperty.call(rotulos.RAMOS, r.ramo)) nome = rotulos.RAMOS[r.ramo];
     var pecas = [];
-    (Array.isArray(r.objetivos) ? r.objetivos : []).forEach(function (o) {
+    (Array.isArray(r.objetivos) ? r.objetivos.slice(0, MAX_OBJETIVOS) : []).forEach(function (o) {
       if (Object.prototype.hasOwnProperty.call(PECAS, o) && !pecas.some(function (p) { return p.chave === o; })) pecas.push({ chave: o, texto: PECAS[o] });
     });
     if (r.material === 'tenho' || r.material === 'parte') pecas.push({ chave: 'material', texto: PECA_MATERIAL });
@@ -62,6 +63,7 @@
     if (!caixa) return;
     if (!plano) { caixa.hidden = true; return; }
     var nome = doc.getElementById('o-nasce-nome'), titulo = doc.getElementById('o-nasce-titulo'), lista = doc.getElementById('o-nasce-pecas');
+    if (!nome || !titulo || !lista) return;
     var fim = plano.nome ? 'Seu site · ' + plano.nome : 'Seu site';
     if (nome.textContent !== fim) nome.textContent = fim;
     if (titulo.textContent !== plano.titulo) {
@@ -70,14 +72,15 @@
     }
     var chaves = plano.pecas.map(function (p) { return p.chave; });
     [].slice.call(lista.children).forEach(function (li) { if (chaves.indexOf(li.getAttribute('data-peca')) < 0) lista.removeChild(li); });
-    plano.pecas.forEach(function (p) {
-      var existe = [].some.call(lista.children, function (li) { return li.getAttribute('data-peca') === p.chave; });
-      if (existe) return;
-      var li = doc.createElement('li');
-      li.className = 'nasce__peca is-nova';
-      li.setAttribute('data-peca', p.chave);
-      li.textContent = p.texto;
-      lista.appendChild(li);
+    plano.pecas.forEach(function (p, i) {
+      var li = [].filter.call(lista.children, function (x) { return x.getAttribute('data-peca') === p.chave; })[0];
+      if (!li) {
+        li = doc.createElement('li');
+        li.className = 'nasce__peca is-nova';
+        li.setAttribute('data-peca', p.chave);
+        li.textContent = p.texto;
+      }
+      if (lista.children[i] !== li) lista.insertBefore(li, lista.children[i] || null);   /* (a ordem é a do plano, também depois do "Mudar") */
     });
     caixa.hidden = false;
     caixa.setAttribute('data-pecas', String(plano.pecas.length));

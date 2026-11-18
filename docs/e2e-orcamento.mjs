@@ -748,6 +748,7 @@ try {
   await page.click('#o-visor-escolher');
   await page.waitForSelector('#o-ajustes:not([hidden])');
   ok(await page.locator('.dir.is-escolhida .dir__estrategia').textContent().then(t => t.startsWith('02')), 'direção 2 escolhida');
+  ok(await espera(page, () => document.getElementById('o-etapas').getAttribute('data-n') === '3' && document.getElementById('o-etapas').getAttribute('data-nome') === 'Ajustes', 8000), 'casca: a barra anda sozinha com a etapa (3 de 5 · Ajustes)');
 
   await passoDosAjustes(page, { ok, espera, foto, semRolagemLateral, forcar: v => { falhaForcada = v; } });
 

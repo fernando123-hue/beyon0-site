@@ -42,11 +42,97 @@ test('o módulo pinta só por textContent e classe: sem innerHTML, sem style inl
   assert.doesNotMatch(textos, /\d{2,}|%|R\$|\bLtda\b|\bCl[ií]nica [A-Z]/, 'texto de modelo sem número, preço nem nome de empresa');
 });
 
+/* um DOM de mentira, o mínimo que pintar() usa */
+function noh(tag) {
+  const e = { tag, children: [], attrs: {}, hidden: false, className: '', classes: new Set(), animou: 0, _t: '',
+    get textContent() { return this._t; }, set textContent(v) { this._t = String(v); },
+    get offsetWidth() { return 0; },
+    classList: { add: c => { e.classes.add(c); if (c === 'is-nova') e.animou++; }, remove: c => e.classes.delete(c) },
+    setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+    appendChild(c) { this.insertBefore(c, null); return c; },
+    removeChild(c) { this.children.splice(this.children.indexOf(c), 1); return c; },
+    insertBefore(c, ref) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); const j = ref ? this.children.indexOf(ref) : -1; this.children.splice(j < 0 ? this.children.length : j, 0, c); return c; } };
+  return e;
+}
+function paginaDeMentira() {
+  const nos = { 'o-nasce': noh('div'), 'o-nasce-nome': noh('span'), 'o-nasce-titulo': noh('p'), 'o-nasce-pecas': noh('ul') };
+  nos['o-nasce'].hidden = true;
+  const ouvintes = {};
+  return { nos, ouvintes, getElementById: id => nos[id] || null, createElement: noh, addEventListener: (n, f) => { ouvintes[n] = f; } };
+}
+
+test('pintar: o 1º ramo mostra a miniatura, cada peça nova entra (uma vez), a que saiu do plano sai e o título só anima quando muda', () => {
+  const d = paginaDeMentira(), cx = d.nos['o-nasce'], lista = d.nos['o-nasce-pecas'], titulo = d.nos['o-nasce-titulo'];
+  N.pintar(d, null);
+  assert.equal(cx.hidden, true, 'sem plano, escondida');
+  N.pintar(d, N.planoDoSite({ ramo: 'saude', objetivos: ['agendamentos'] }, R));
+  assert.equal(cx.hidden, false);
+  assert.equal(d.nos['o-nasce-nome'].textContent, 'Seu site · Saúde');
+  assert.deepEqual(lista.children.map(l => l.textContent), ['Agenda de horários']);
+  assert.match(lista.children[0].className, /is-nova/);
+  const primeira = lista.children[0], animou = titulo.animou;
+  N.pintar(d, N.planoDoSite({ ramo: 'saude', objetivos: ['agendamentos', 'pedidos_whatsapp'] }, R));
+  assert.equal(lista.children.length, 2);
+  assert.equal(lista.children[0], primeira, 'a peça que já estava não é refeita (não repete o pulo)');
+  assert.equal(titulo.animou, animou, 'o título não mudou: não anima de novo');
+  N.pintar(d, N.planoDoSite({ ramo: 'saude', objetivos: ['pedidos_whatsapp'] }, R));
+  assert.deepEqual(lista.children.map(l => l.getAttribute('data-peca')), ['pedidos_whatsapp'], 'o "Mudar" tirou uma: a peça sai');
+  N.pintar(d, N.planoDoSite({ ramo: 'beleza', objetivos: [] }, R));
+  assert.equal(titulo.textContent, 'Seu horário, sem espera'); assert.ok(titulo.animou > animou, 'o título mudou: anima');
+  assert.equal(lista.children.length, 0);
+  N.pintar(d, null);
+  assert.equal(cx.hidden, true, 'sem ramo de novo, escondida');
+});
+
+test('pintar: a ordem das peças é a do plano, também depois do "Mudar", sem duplicar', () => {
+  const d = paginaDeMentira(), lista = d.nos['o-nasce-pecas'];
+  N.pintar(d, N.planoDoSite({ ramo: 'servicos', objetivos: ['pedidos_whatsapp'] }, R));
+  N.pintar(d, N.planoDoSite({ ramo: 'servicos', objetivos: ['agendamentos', 'pedidos_whatsapp', 'campanha'] }, R));
+  assert.deepEqual(lista.children.map(l => l.getAttribute('data-peca')), ['agendamentos', 'pedidos_whatsapp', 'campanha']);
+});
+
+test('pintar: página sem os nós da miniatura não lança (a conversa nunca cai por enfeite)', () => {
+  const d = paginaDeMentira();
+  delete d.nos['o-nasce-pecas'];
+  assert.doesNotThrow(() => N.pintar(d, N.planoDoSite({ ramo: 'saude', objetivos: [] }, R)));
+  assert.doesNotThrow(() => N.pintar({ getElementById: () => null }, null));
+});
+
+test('ligar: escuta bz:respostas, lê os rótulos SÓ na hora do evento (eles carregam depois) e ignora lixo', () => {
+  const d = paginaDeMentira();
+  let leituras = 0;
+  N.ligar(d, () => { leituras++; return R; });
+  assert.equal(leituras, 0, 'nada lido ao ligar');
+  d.ouvintes['bz:respostas']({ detail: { ramo: 'educacao', objetivos: ['apresentar'] } });
+  assert.equal(leituras, 1);
+  assert.equal(d.nos['o-nasce-nome'].textContent, 'Seu site · Educação');
+  assert.deepEqual(d.nos['o-nasce-pecas'].children.map(l => l.textContent), ['Quem somos e o que fazemos']);
+  assert.doesNotThrow(() => d.ouvintes['bz:respostas'](undefined));
+  assert.doesNotThrow(() => d.ouvintes['bz:respostas']({ detail: 'lixo' }));
+  assert.equal(d.nos['o-nasce'].hidden, true, 'detail inválido esconde a miniatura');
+  N.ligar({ getElementById: () => null, addEventListener() { throw new Error('não era para ligar'); } });
+});
+
+test('o evento tem o mesmo nome nos dois lados, e o toques manda uma CÓPIA das respostas (quem escuta não recebe o estado vivo)', () => {
+  const toques = fs.readFileSync(new URL('../../js/orcamento-toques.js', import.meta.url), 'utf8');
+  const nasce = fs.readFileSync(new URL('../../js/orcamento-nasce.js', import.meta.url), 'utf8');
+  assert.match(toques, /new CustomEvent\('bz:respostas', \{ detail: copiar\(s\.respostas\) \}\)/);
+  assert.match(nasce, /addEventListener\('bz:respostas'/);
+});
+
+test('planoDoSite: entrada forjada enorme é cortada antes de custar CPU (texto de 90 MB, lista de 5 milhões)', () => {
+  const t0 = Date.now();
+  const p = N.planoDoSite({ ramo: 'outro', outro: ' a '.repeat(3e7), objetivos: new Array(5e6).fill('agendamentos') }, R);
+  assert.equal(p.nome.length <= 40, true); assert.equal(p.pecas.length, 1);
+  assert.ok(Date.now() - t0 < 1500, 'demorou ' + (Date.now() - t0) + ' ms');
+  const esparso = []; esparso.length = 4294967295;
+  assert.doesNotThrow(() => N.planoDoSite({ ramo: 'saude', objetivos: esparso }, R));
+});
+
 test('a miniatura é decorativa e escondida até o 1º toque: o HTML tem aria-hidden e hidden, e a conversa não depende dela', () => {
   const html = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');
   assert.match(html, /<div class="nasce" id="o-nasce" aria-hidden="true" hidden>/);
   assert.doesNotMatch(html, /id="o-nasce"[^>]*style=/);
-  assert.match(N.ligar.toString(), /typeof rotulos === 'function'/, 'os rótulos carregam depois do nasce: a leitura é na hora do evento');
   assert.match(html, /orcamento-nasce\.js" defer><\/script>\s*<script src="js\/orcamento-rotulos\.js" defer><\/script>\s*<script src="js\/orcamento-toques\.js"/, 'rótulos, toques e perguntas seguem colados (planta-orcamento-leve.test.mjs)');
   assert.ok(html.indexOf('<script src="js/orcamento-icones.js"') < html.indexOf('<script src="js/orcamento-toques.js"'), 'os ícones vêm antes dos toques que os usam');
 });

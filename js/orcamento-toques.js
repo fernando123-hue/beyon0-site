@@ -128,7 +128,11 @@
   function contar() {
     if (window.BZPerguntas && typeof window.BZPerguntas.definir === 'function') window.BZPerguntas.definir(s.respostas);
     /* (o site que nasce em cima da conversa, js/orcamento-nasce.js: um evento por resposta, com tudo o que ela respondeu até agora) */
-    try { doc.dispatchEvent(new CustomEvent('bz:respostas', { detail: s.respostas })); } catch (e) { /* a miniatura é enfeite: sem ela, a conversa segue */ }
+    avisarRespostas();
+  }
+  /* (uma CÓPIA: quem escuta o evento não recebe o estado vivo da conversa) */
+  function avisarRespostas() {
+    try { doc.dispatchEvent(new CustomEvent('bz:respostas', { detail: copiar(s.respostas) })); } catch (e) { /* a miniatura é enfeite: sem ela, a conversa segue */ }
   }
 
   /* ---------- os passos ---------- */
@@ -264,10 +268,10 @@
     var f = fala(FALAS.mudar);
     /* (os quatro grupos ficam abertos juntos: um "Pronto" no fim fecha todos) */
     var li = el('li', 'orc-toque orc-toque--mudar');
-    li.appendChild(grupoMarcavel('Tipo de negócio', itensDe(R.RAMOS, Object.keys(R.RAMOS).filter(function (k) { return k !== 'outro' || novas.ramo === 'outro'; })), [novas.ramo], false, function (v) { novas.ramo = v[0]; }));
-    li.appendChild(grupoMarcavel('O que o site precisa trazer', itensDe(R.OBJETIVOS), novas.objetivos || [], true, function (v) { novas.objetivos = v; }));
-    li.appendChild(grupoMarcavel('Já tem site?', itensDe(R.SITE_ATUAL), [novas.site_atual], false, function (v) { novas.site_atual = v[0]; }));
-    li.appendChild(grupoMarcavel('Logo e textos', itensDe(R.MATERIAL), [novas.material], false, function (v) { novas.material = v[0]; }));
+    li.appendChild(grupoMarcavel('Tipo de negócio', itensDe(R.RAMOS, Object.keys(R.RAMOS).filter(function (k) { return k !== 'outro' || novas.ramo === 'outro'; })), [novas.ramo], false, function (v) { novas.ramo = v[0]; }, 'ramo'));
+    li.appendChild(grupoMarcavel('O que o site precisa trazer', itensDe(R.OBJETIVOS), novas.objetivos || [], true, function (v) { novas.objetivos = v; }, 'objetivos'));
+    li.appendChild(grupoMarcavel('Já tem site?', itensDe(R.SITE_ATUAL), [novas.site_atual], false, function (v) { novas.site_atual = v[0]; }, 'site'));
+    li.appendChild(grupoMarcavel('Logo e textos', itensDe(R.MATERIAL), [novas.material], false, function (v) { novas.material = v[0]; }, 'material'));
     var pronto = el('button', 'btn btn--primary btn--sm orc-toque__pronto', PRONTO);
     pronto.type = 'button';
     pronto.addEventListener('click', function (ev) { if (li.hasAttribute('data-feito')) return; porTeclado = !!ev && ev.detail === 0; fechar(li, null); concluirMudanca(novas); });
@@ -277,13 +281,15 @@
     focar(li.querySelector('button'));
   }
   /* um grupo de marcar (um ou vários) sem fechar sozinho: o "Pronto" do bloco fecha */
-  function grupoMarcavel(rotulo, itens, marcados, multi, aoMudar) {
+  function grupoMarcavel(rotulo, itens, marcados, multi, aoMudar, idGrupo) {
     var grupo = el('div', 'orc-toque__ops'), atual = marcados.filter(Boolean), titulo = el('p', 'orc-toque__titulo', rotulo);
     titulo.id = 'o-toque-titulo-' + (++nFala);
     grupo.setAttribute('role', 'group');
     grupo.setAttribute('aria-labelledby', titulo.id);
     var botoes = itens.map(function (it) {
       var b = el('button', 'orc-op orc-op--toque', it.rotulo);
+      var ic = window.BZOrcIcones ? window.BZOrcIcones.desenhar(it.valor, idGrupo, doc) : null;
+      if (ic) { b.textContent = ''; b.appendChild(ic); b.appendChild(el('span', 'orc-op__t', it.rotulo)); b.classList.add('orc-op--ic'); }
       b.type = 'button';
       b.setAttribute('aria-pressed', String(atual.indexOf(it.valor) >= 0));
       b.addEventListener('click', function () {
@@ -372,6 +378,7 @@
       if (s.iniciado || !E || !E.conversa) return;
       var b = E.conversa.briefing || {}, t = b.fluxo_toques;
       if (t && typeof t === 'object') s.respostas = soMudanca(copiar(t));
+      if (s.respostas && s.respostas.ramo) avisarRespostas();   /* (conversa retomada: o site dela já nasce com o que ela tocou) */
       if (b.fluxo_conversa === true && E.mensagens && E.mensagens.length) s.entregue = true;
     },
     comConsultor: function () { return s.consultor; },

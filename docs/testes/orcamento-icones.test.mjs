@@ -42,6 +42,14 @@ test('desenhar monta um <svg> decorativo só com <path> (aria-hidden, sem foco),
   assert.equal(I.desenhar('nao_existe', 'ramo', doc), null);
 });
 
+test('os nomes de grupo que js/orcamento-toques.js passa (conversa e "Mudar") são os que a lista de ícones conhece: um erro de digitação não some em silêncio', () => {
+  const fonte = fs.readFileSync(new URL('../../js/orcamento-toques.js', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const grupos = [...new Set(Object.keys(I.DE).map(k => k.split(':')[0]))].sort();
+  assert.deepEqual(grupos, ['dor', 'material', 'objetivos', 'ramo', 'site']);
+  for (const g of grupos) assert.ok(fonte.includes("grupo: '" + g + "'"), 'a conversa não passa grupo: ' + g);
+  for (const g of ['ramo', 'objetivos', 'site', 'material']) assert.ok(fonte.includes(", '" + g + "'));"), 'o "Mudar" não passa o grupo ' + g);
+});
+
 test('o módulo não escreve HTML: sem innerHTML, sem style inline (CSP style-src self)', () => {
   const fonte = fs.readFileSync(new URL('../../js/orcamento-icones.js', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.doesNotMatch(fonte, /innerHTML|insertAdjacentHTML|\.style\b|setAttribute\(\s*['"]style/);
