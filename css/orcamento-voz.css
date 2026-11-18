@@ -1,0 +1,17 @@
+/* O microfone do Zero (js/orcamento-voz.js). Um ponto cheio e o tempo; sem blur, sem brilho, sem animação. */
+.orc-mic { gap: .55rem; }
+.orc-mic[hidden] { display: none; }
+.orc-mic__ponto { display: inline-block; flex: none; width: .7rem; height: .7rem; border-radius: 50%; border: 2px solid currentColor; box-sizing: border-box; }
+.orc-mic.is-gravando { border-color: var(--ac); }
+.orc-mic.is-gravando .orc-mic__ponto { background: var(--ac); border-color: var(--ac); }
+.orc-mic__cancelar { flex: none; background: none; border: 0; padding: .5rem .25rem; min-height: 44px; color: var(--t1); font: inherit; font-size: var(--fs-s); text-decoration: underline; text-decoration-color: var(--line-hi); text-underline-offset: .2em; cursor: pointer; }
+.orc-mic__cancelar:hover { text-decoration-color: var(--ac); }
+.orc-mic__cancelar:focus-visible, .orc-mic:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-mic__cancelar[hidden] { display: none; }
+.orc-voz { margin-top: .6rem; color: var(--t2, var(--t3)); font-size: var(--fs-s); }
+.orc-voz[hidden] { display: none; }
+/* celular estreito: o microfone e o Enviar ocupam a largura, como o resto do formulário (o .orc-envio já vira coluna) */
+@media (max-width: 479px) {
+  .orc-envio .orc-mic { width: 100%; min-height: 48px; justify-content: center; }
+  .orc-mic__cancelar { width: 100%; text-align: center; }
+}

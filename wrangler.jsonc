@@ -25,7 +25,10 @@
     "AVISO_PARA": "contato.beyon.zero@gmail.com",
     // o modo sombra do JEV (F3, api/_classificador/sombra.mjs): só MEDE cada turno do Zero, nunca muda a resposta; teto do dia
     // US$ 0,30 no código. Só a produção liga: o staging usa a IA simulada. Precisa de app.jev_sombra no banco (migration de 10/11)
-    "JEV_SOMBRA": "1" },
+    "JEV_SOMBRA": "1",
+    // o microfone do Zero (api/_vendas/voz.mjs): a voz vira texto pelo Whisper do Workers AI (binding AI); "1" liga o botão Falar
+    "BZ_VOZ": "1" },
+  "ai": { "binding": "AI" },
   "send_email": [{ "name": "AVISO_EMAIL", "destination_address": "contato.beyon.zero@gmail.com" }],
   "observability": { "enabled": true, "logs": { "enabled": true, "head_sampling_rate": 1 }, "traces": { "enabled": true } },
   "env": {
@@ -36,10 +39,11 @@
       "workers_dev": true,
       "preview_urls": true,
       "triggers": { "crons": ["23 * * * *", "41 6 * * *"] },
-      "vars": { "BZ_AMBIENTE": "previa", "MP_AMBIENTE": "teste", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "", "BZ_IA": "simulada" },
+      "ai": { "binding": "AI" },
+      "vars": { "BZ_AMBIENTE": "previa", "MP_AMBIENTE": "teste", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "", "BZ_IA": "simulada", "BZ_VOZ": "1" },
       // as prévias de branch NÃO herdam vars: sem este bloco elas rodariam como produção (2ª revisão, ALTO-2)
       "previews": {
-        "vars": { "BZ_AMBIENTE": "previa", "MP_AMBIENTE": "teste", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "", "BZ_IA": "simulada" }
+        "vars": { "BZ_AMBIENTE": "previa", "MP_AMBIENTE": "teste", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "", "BZ_IA": "simulada", "BZ_VOZ": "1" }
       }
     }
   }
