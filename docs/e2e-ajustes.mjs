@@ -50,6 +50,7 @@ export async function passoDosAjustes(page, { ok, espera, foto, semRolagemLatera
   ok((await page.textContent('#o-livre-resposta')).trim() === 'Pedido enviado. Você pode fazer mais 2 pedidos.' && await page.locator('#o-aj-resposta').textContent() === '', 'pedido livre: a confirmação aparece junto do formulário');
   ok(await page.locator('#o-aviso').isHidden(), 'pedido livre: nenhum aviso de erro');
   ok(await semRolagemLateral(page), 'ajustes: celular sem rolagem lateral');
+  ok(await page.locator('#o-aj-opcoes .orc-aj__tile svg').count() > 0 && await page.locator('#o-aj-opcoes .orc-aj__tile').first().evaluate(b => b.textContent === b.querySelector('.orc-op__t').textContent), 'ajustes: as opções prontas são cartões com ícone e o texto do botão continua o mesmo');
   await aj.scrollIntoViewIfNeeded();
   await foto(page, '8-ajustes-cel');
   await page.setViewportSize({ width: 320, height: 700 });

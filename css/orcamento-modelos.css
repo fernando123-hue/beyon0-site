@@ -12,16 +12,23 @@
   .orc-dirs::-webkit-scrollbar { display: none; }
   .orc-dirs > .dir { flex: 0 0 84%; min-width: 0; scroll-snap-align: start; }
   .orc-dirs > .dir:only-child { flex-basis: 100%; }
+  .orc-dirs > .btn { flex: 1 1 100%; }   /* (o "Gerar os três modelos" continua com a largura toda, como era no grid) */
+}
+/* quem usa mouse comum não arrasta nem rola de lado: a barra de rolagem fica à vista (no toque ela segue escondida) */
+@media (max-width: 899px) and (hover: hover) and (pointer: fine) {
+  .orc-dirs { scrollbar-width: thin; scrollbar-color: var(--stroke) transparent; }
+  .orc-dirs::-webkit-scrollbar { display: block; height: 8px; }
+  .orc-dirs::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 4px; }
 }
 .dir { position: relative; }
 .dir__mini { height: 340px; }
 /* a recomendação do Zero vira um selo cheio no canto da prévia (antes era uma linha de texto no meio do cartão) */
-.dir__recomendado { position: absolute; top: .7rem; left: .7rem; z-index: 2; padding: .3rem .65rem; border-radius: 999px; background: var(--ac); color: var(--bg); font-weight: 600; }
+.dir__recomendado { position: absolute; top: .7rem; left: .7rem; z-index: 2; padding: .3rem .65rem; border-radius: 999px; background: var(--ac); color: var(--ac-tinta); font-weight: 600; }
 .dir__nome { font-size: 1.35rem; font-weight: 300; letter-spacing: -.01em; }
-/* uma ação por linha e a principal em cima, grande: escolher é o que se faz aqui */
+/* uma ação por linha e a principal em cima, grande (a ordem do DOM já é essa: Tab e leitor de tela seguem o que se vê) */
 .dir__acoes { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: .5rem; }
 .dir__acoes .btn { width: 100%; justify-content: center; text-align: center; min-height: 44px; }
-.dir__acoes .btn--primary { order: -1; min-height: 3.2rem; font-size: 1.05rem; font-family: var(--sans); text-transform: none; letter-spacing: normal; }
+.dir__acoes .btn--primary { min-height: 3.2rem; font-size: 1.05rem; font-family: var(--sans); text-transform: none; letter-spacing: normal; }
 .dir__selo { width: 100%; justify-content: center; }
 
 /* os pontos de "em qual dos três eu estou" (js/orcamento-carrossel.js) */
@@ -38,7 +45,7 @@
 .orc-aj__tile:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 .orc-aj__tile[aria-disabled="true"] { opacity: .55; }
 .orc-aj__tile .orc-ic { flex: none; width: 1.6rem; height: 1.6rem; fill: none; stroke: var(--ac); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.orc-aj__tile .orc-op__t { min-width: 0; overflow-wrap: break-word; hyphens: auto; }
+.orc-aj__tile .orc-op__t { min-width: 0; overflow-wrap: break-word; hyphens: manual; }
 
 @media (prefers-reduced-motion: no-preference) {
   html:not(.menos-movimento) .orc-aj__tile { transition: transform .12s ease-out, border-color .15s; }

@@ -431,9 +431,13 @@ try {
   await page.locator('#o-direcoes').scrollIntoViewIfNeeded();
   await foto(page, '2-direcoes-cel');
   /* a casca nova dos modelos (parte 2): o cartão com o botão grande à vista e os pontos do carrossel */
-  await page.locator('#o-dirs .dir').first().scrollIntoViewIfNeeded();
   await page.evaluate(() => { const c = document.querySelector('#o-dirs .dir'); c.scrollIntoView({ block: 'end' }); });
   await foto(page, '2b-direcoes-cartao-cel');
+  ok(await page.evaluate(() => { const p = document.getElementById('o-dirs-pontos'); return !p.hidden && p.children.length === 3 && p.children[0].classList.contains('is-atual'); }), 'modelos: os 3 pontos do carrossel aparecem e o 1º está aceso');
+  ok(await page.evaluate(() => { const b = document.querySelector('#o-dirs .dir .dir__acoes').children; return b[0].classList.contains('btn--primary') && b[1].hasAttribute('data-abrir'); }), 'modelos: "Escolher este" vem primeiro no DOM (a ordem do Tab é a que se vê)');
+  await page.locator('#o-dirs .dir').nth(2).locator('.dir__acoes .btn').first().focus();
+  ok(await espera(page, () => document.getElementById('o-dirs').scrollLeft > 20 && document.querySelectorAll('#o-dirs-pontos .is-atual').length === 1 && document.querySelectorAll('#o-dirs-pontos span')[2].classList.contains('is-atual'), 8000), 'modelos: o foco no 3º cartão rola o carrossel até ele e acende o 3º ponto');
+  await page.evaluate(() => { document.getElementById('o-dirs').scrollLeft = 0; });
   /* (PR 2b-2) abrir o pedido pelo link do aviso, num aparelho novo. O dono gera o link no painel; o código chega no
      fragmento, sai da barra na hora e só é gasto no toque. O aparelho antigo perde o acesso (e volta por outro link,
      para o resto do teste seguir nele) */

@@ -4,7 +4,7 @@
    aqui só moram os pontinhos que dizem em qual dos três a pessoa está. Decorativo (aria-hidden): os modelos são uma lista
    comum para quem usa leitor de tela, e o desktop continua com as três colunas (os pontos somem acima de 900 px).
    Sem JS, a rolagem lateral e o encaixe seguem funcionando; só faltam os pontos. Nenhum texto: só classes.
-   Um módulo só, para a tela e para o teste (docs/testes/orcamento-carrossel.test.mjs). ES5 sintático.
+   Um módulo só, para a tela e para o teste (docs/testes/orcamento-modelos-casca.test.mjs). ES5 sintático.
    ========================================================================== */
 (function (raiz, fabrica) {
   'use strict';
@@ -24,7 +24,8 @@
 
   function ligar(doc) {
     var lista = doc.getElementById('o-dirs'), pontos = doc.getElementById('o-dirs-pontos');
-    if (!lista || !pontos) return;
+    if (!lista || !pontos || pontos.getAttribute('data-ligado')) return;   /* (uma vez só: chamar de novo não duplica ouvinte nem observador) */
+    pontos.setAttribute('data-ligado', '1');
     var quadro = 0;
 
     function cartoes() { return [].filter.call(lista.children, function (li) { return li.classList && li.classList.contains('dir'); }); }

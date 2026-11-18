@@ -67,10 +67,10 @@
     'dor:matricula_demora': 'livro', 'dor:ninguem_sabe': 'megafone',
     /* os ajustes (js/orcamento-ajustes.js): usar as cores ou as fontes de outro modelo, e acrescentar uma seção */
     'ajuste:paleta': 'paleta', 'ajuste:fonte': 'fonte',
-    'ajuste:sec_hero': 'loja', 'ajuste:sec_servicos': 'ferramenta', 'ajuste:sec_sobre': 'loja', 'ajuste:sec_diferenciais': 'certo',
+    'ajuste:sec_hero': 'loja', 'ajuste:sec_servicos': 'ferramenta', 'ajuste:sec_sobre': 'livro', 'ajuste:sec_diferenciais': 'certo',
     'ajuste:sec_processo': 'relogio', 'ajuste:sec_depoimentos': 'coracao', 'ajuste:sec_numeros': 'pontos', 'ajuste:sec_galeria': 'camera',
     'ajuste:sec_faq': 'pergunta', 'ajuste:sec_cta': 'megafone', 'ajuste:sec_contato': 'conversa', 'ajuste:sec_equipe': 'pessoas',
-    'ajuste:sec_destaque': 'megafone', 'ajuste:sec_localizacao': 'local'
+    'ajuste:sec_destaque': 'mais', 'ajuste:sec_localizacao': 'local'
   });
 
   function nomeDe(valor, grupo) {

@@ -588,7 +588,7 @@
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
   /* (dono, 15/11) a regra dos ajustes, clara antes de escolher: um modelo só, e trazer algo de outro conta como um ajuste */
-  var REGRA_DOS_MODELOS = 'Deslize, abra a prévia e escolha um. Trazer cores ou uma seção de outro modelo conta como um ajuste.';
+  var REGRA_DOS_MODELOS = 'Abra a prévia e escolha um: os ajustes são feitos dentro dele. Trazer cores ou uma seção de outro modelo conta como um ajuste.';
   var TEXTOS_MANUAL = {
     direcoes: 'Prontos em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página.',
     prontas: REGRA_DOS_MODELOS
@@ -624,9 +624,10 @@
       var acoes = el('div', 'dir__acoes');
       var abrir = botao('btn btn--sm', 'Abrir prévia', function () { visor.abrir(d.id); });
       abrir.setAttribute('data-abrir', d.id);
-      acoes.appendChild(abrir);
+      /* (a ação principal vem PRIMEIRO no DOM: é a ordem do Tab e do leitor de tela, e a que se vê, css/orcamento-modelos.css) */
       if (escolhida) acoes.appendChild(el('span', 'dir__selo', 'Escolhida'));
       else if (podeEscolher()) acoes.appendChild(botaoAcao('btn btn--sm btn--primary', 'Escolher este', function () { escolher(d.id); }));
+      acoes.appendChild(abrir);
       corpo.appendChild(acoes);
     } else if (manual()) {
       var f = el('div', 'dir__progresso');

@@ -278,6 +278,6 @@
     };
   }
 
-  window.BZAjustes = { criar: criar, opcoesDe: opcoesDe, iconeDe: iconeDe, NOMES: NOMES, textoDaConta: textoDaConta, textoDoLimite: textoDoLimite, contagem: contagem, frase: frase,
+  window.BZAjustes = { criar: criar, opcoesDe: opcoesDe, iconeDe: iconeDe, NOMES: Object.freeze(Object.assign({}, NOMES)), textoDaConta: textoDaConta, textoDoLimite: textoDoLimite, contagem: contagem, frase: frase,
     talvezGravou: talvezGravou, MAX_SECOES: MAX_SECOES };
 })();
