@@ -1,12 +1,15 @@
-Fontes hospedadas para as prévias dos modelos (css/previa.css). Todas sob a SIL Open Font License 1.1 (texto abaixo, igual nos três pacotes @fontsource 5.3.0).
+Fontes hospedadas para as prévias dos modelos (css/previa.css), arquivos dos pacotes @fontsource 5.3.0 (subconjunto latino). Todas sob a SIL Open Font License 1.1.
 
-== Fraunces ==
-Copyright 2020 The Fraunces Project Authors (github.com/undercasetype/Fraunces) Fraunces-Italic[SOFT,WONK,opsz,wght].ttf
-== DM Sans ==
-Copyright 2014 The DM Sans Project Authors (https://github.com/googlefonts/dm-fonts) DMSans-Italic[opsz,wght].
-== Lora ==
-Copyright 2011 The Lora Project Authors (https://github.com/cyrealtype/Lora-Cyrillic), with Reserved Font Name "Lora". L
+== fraunces-5.3.0 ==
+Copyright 2020 The Fraunces Project Authors (github.com/undercasetype/Fraunces) Fraunces-Italic[SOFT,WONK,opsz,wght].ttf: Copyright 2020 The Fraunces Project Authors (github.com/undercasetype/Fraunces)
 
+== dm-sans-5.3.0 ==
+Copyright 2014 The DM Sans Project Authors (https://github.com/googlefonts/dm-fonts) DMSans-Italic[opsz,wght].ttf: Copyright 2014 The DM Sans Project Authors (https://github.com/googlefonts/dm-fonts)
+
+== lora 5.3.0 ==
+Copyright 2011 The Lora Project Authors (https://github.com/cyrealtype/Lora-Cyrillic), with Reserved Font Name "Lora". Lora-Italic[wght].ttf: Copyright 2011 The Lora Project Authors (https://github.com/cyrealtype/Lora-Cyrillic), with Reserved Font Name "Lora".
+
+----- Texto da licença (igual nos três pacotes) -----
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
 http://scripts.sil.org/OFL

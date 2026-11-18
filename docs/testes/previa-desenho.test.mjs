@@ -140,5 +140,33 @@ test('o CSS do topo: arte sem listras, título do topo maior, texto longo do top
   assert.ok(!/repeating-linear-gradient/.test(css), 'a caixa riscada vazia saiu');
   assert.ok(/\.pv-sec--hero \.pv-h1\s*\{[^}]*font-size:\s*clamp\(3\dpx,[^)]*,\s*4\dpx\)[^}]*overflow-wrap:\s*break-word/.test(css), 'título do topo de 34 a 44 px conforme a largura (cqw), sem estourar em 320 px');
   assert.ok(/\.pv-hero--faixa[^{]*\{[^}]*background:\s*var\(--pv-dest\)/.test(css), 'topo em faixa: fundo de destaque');
-  assert.ok(/@container[^{]*\{[\s\S]*\.pv-sec--hero \.pv-texto\s*\{[^}]*display:\s*block/.test(css), 'o texto longo do topo volta no container largo');
+  const largo = css.slice(css.indexOf('@container'));
+  assert.ok(/\.pv-sec--hero \.pv-texto\s*\{[^}]*display:\s*block/.test(largo), 'o texto longo do topo volta DENTRO do bloco do container largo');
+  assert.ok(/\.pv-sec--hero \.pv-texto\s*\{[^}]*display:\s*none/.test(css.slice(0, css.indexOf('@container'))), 'e some fora dele (celular)');
+  assert.ok(/\.pv-arte svg \*\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(css), 'o traço da arte não engrossa quando estica');
+  assert.ok(/\.pv-arte__leg\s*\{[^}]*color:\s*var\(--pv-texto\)/.test(css), 'a legenda usa a cor de texto (contraste de leitura, não o texto suave)');
+  assert.ok(/\.pv-sec--hero\s*\{[^}]*padding:\s*calc\(var\(--pv-esp\)/.test(css), 'a densidade vale no topo do celular');
+  assert.ok(/\.pv-hero--faixa \.pv-reservado/.test(css), 'o espaço reservado não some no topo em faixa');
+});
+
+test('encaixar com ajuste de altura mede de novo quando as fontes hospedadas assentam (document.fonts.ready); sem document.fonts não quebra', async () => {
+  const feito = [];
+  const janela = { clientWidth: 350, style: {} };
+  const tela = { style: {}, offsetHeight: 1000 };
+  let liberar;
+  doc.fonts = { ready: new Promise(r => { liberar = r; }) };
+  try {
+    const D = carregar();
+    const escala = D.encaixar(janela, tela, 390, true);
+    assert.ok(escala < 1 && /scale/.test(tela.style.transform));
+    assert.equal(janela.style.height, Math.ceil(1000 * escala) + 'px', 'altura no primeiro encaixe');
+    tela.offsetHeight = 1200; feito.push('fonte chegou');
+    liberar();
+    await doc.fonts.ready; await new Promise(r => setImmediate(r));
+    assert.equal(janela.style.height, Math.ceil(1200 * escala) + 'px', 'altura refeita depois das fontes');
+    delete doc.fonts;
+    assert.doesNotThrow(() => D.encaixar({ clientWidth: 390, style: {} }, { style: {}, offsetHeight: 10 }, 390, true));
+    assert.doesNotThrow(() => D.encaixar({ clientWidth: 390, style: {} }, { style: {}, offsetHeight: 10 }, 390, false));
+  } finally { delete doc.fonts; }
+  assert.deepEqual(feito, ['fonte chegou']);
 });

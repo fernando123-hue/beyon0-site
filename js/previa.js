@@ -90,7 +90,7 @@
     function arcos() {
       var f = [];
       for (var i = 0; i < 6; i++) f.push(['circle', { cx: 195, cy: 330, r: 50 + i * 36 }, i % 2 ? 'a-fraco' : 'a-forte']);
-      f.push(['circle', { cx: 320, cy: 70, r: 26 }, 'a-cheio']);
+      f.push(['circle', { cx: 320, cy: 120, r: 26 }, 'a-cheio']);   /* as marcas de destaque ficam na faixa y 90–210: o topo largo corta o resto (slice) */
       return f;
     },
     function trama() {
@@ -112,7 +112,7 @@
         var y = 40 + i * 32;
         f.push(['path', { d: 'M0 ' + y + ' Q 49 ' + (y - 34) + ' 98 ' + y + ' T 195 ' + y + ' T 293 ' + y + ' T 390 ' + y }, i % 3 === 0 ? 'a-forte' : 'a-fraco']);
       }
-      f.push(['circle', { cx: 60, cy: 60, r: 30 }, 'a-cheio']);
+      f.push(['circle', { cx: 60, cy: 110, r: 30 }, 'a-cheio']);
       return f;
     },
     function losangos() {   /* quadrados girados e encaixados (nada que lembre gráfico de barras: a arte não "mostra dado") */
@@ -193,7 +193,12 @@
   function encaixar(janela, tela, larguraBase, ajustarAltura) {
     var escala = Math.min(1, janela.clientWidth / larguraBase) || 1;
     tela.style.transform = escala < 1 ? 'scale(' + escala + ')' : '';
-    if (ajustarAltura) janela.style.height = Math.ceil(tela.offsetHeight * escala) + 'px';
+    var medir = function () { janela.style.height = Math.ceil(tela.offsetHeight * escala) + 'px'; };
+    if (ajustarAltura) {
+      medir();
+      /* as fontes hospedadas chegam depois do primeiro desenho e mudam a altura do conteúdo: mede de novo quando assentarem */
+      if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') document.fonts.ready.then(medir);
+    }
     return escala;
   }
 
