@@ -762,8 +762,8 @@
     var pct = PIX ? PIX.percentuais(pr) : null, sinal = valorDoSinal(pr);
     if (!mudou('pagamento', [pr, sinal])) return;
     $('o-pag-escopo').textContent = pr.escopo || '';
-    $('o-pag-titulo').textContent = 'Para começar';   /* (o restante, js/orcamento-restante.js, troca o título: a entrada o devolve) */
-    var lead = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + dias(pr.prazo_dias) + '.';
+    $('o-pag-titulo').textContent = 'Destravar o seu site';   /* (o restante, js/orcamento-restante.js, troca o título: a entrada o devolve) */
+    var lead = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + dias(pr.prazo_dias) + '.';   /* (o texto de falha fechada; com o percentual, o lead abaixo é mais curto) */
     /* falha fechada (PR 3b-1): sem o percentual da proposta, a tela não cobra nem chuta um número (o banco também recusa) */
     if (!pct || sinal == null) {
       $('o-pag-lead').textContent = lead;
@@ -771,7 +771,7 @@
       mostrar('o-pag-indisponivel', true);
       return;
     }
-    $('o-pag-lead').textContent = lead + ' Para começar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante quando o site estiver no ar.';
+    $('o-pag-lead').textContent = lead + ' Para destravar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante só quando o site estiver no ar.';
     if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada, {});   /* ({}: solta o "só Pix" que o restante tenha pedido) */
   }
 
@@ -919,6 +919,7 @@
     var temProposta = !!(E.proposta && et === 'escopo');
     mostrar('o-escopo', temProposta);
     if (temProposta && mudou('escopo', E.proposta.escopo)) $('o-esc-texto').textContent = E.proposta.escopo;
+    if (temProposta && window.BZOrcResumo && mudou('resumo', E.proposta)) window.BZOrcResumo.atualizar(E.proposta, PIX, dinheiro);   /* o número do resumo (js/orcamento-resumo.js); sem o módulo a tela segue igual */
     if (et === 'aguardando_pagamento' && $('o-pagamento').hidden) delete assinaturas.pagamento;   /* (reapareceu: a tela de pagamento confere de novo, inclusive a configuração) */
     mostrar('o-pagamento', et === 'aguardando_pagamento');
     mostrar('o-antes', temProposta || et === 'aguardando_pagamento');   /* (PR 3b-1) as perguntas antes de pagar: no resumo e na entrada */

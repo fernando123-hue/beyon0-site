@@ -467,6 +467,7 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 }
 
 /* ---------- PERGUNTAS ANTES DE PAGAR (PR 3b-1): <details> separados pela régua de 1 px, texto de 16 px ---------- */
+.orc-antes h2 { font-size: 1.05rem; font-weight: 400; color: var(--t2); margin-bottom: .4rem; }   /* (parte 3: as perguntas acompanham, não disputam com o número e o botão) */
 .orc-antes__item { margin-top: 0; border-top: 1px solid var(--line-2); }
 .orc-antes__item:last-of-type { border-bottom: 1px solid var(--line-2); }
 .orc-antes__item summary { font-size: var(--fs-b); color: var(--t1); }

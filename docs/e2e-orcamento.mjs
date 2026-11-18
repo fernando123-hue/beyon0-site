@@ -810,6 +810,9 @@ try {
   await page.waitForSelector('#o-escopo:not([hidden])');
   ok((await page.textContent('#o-esc-titulo')).trim() === 'Resumo do que será feito', 'o título é "Resumo do que será feito"');
   ok((await page.textContent('#o-esc-texto')).includes('INVESTIMENTO'), 'resumo com investimento');
+  ok(await page.locator('#o-esc-numero').isVisible() && /R\$\s?[\d.]+/.test(await page.textContent('#o-esc-total')), 'resumo: o cartão do número mostra o investimento total');
+  ok(/\d+ dias? úteis?/.test(await page.textContent('#o-esc-prazo')), 'resumo: o cartão traz o prazo em dias úteis');
+  ok(await page.evaluate(() => { const n = document.getElementById('o-esc-numero'), t = document.getElementById('o-esc-texto'); return !!(n.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING); }), 'resumo: o número vem antes do texto do escopo, que segue à vista');
   const resumo = await page.textContent('#o-esc-texto');
   ok(resumo.includes('- Pedidos escritos: 1 não incluído neste valor (aguardando ou recusado).') && !resumo.includes('Quero o mapa'), 'resumo: o pedido escrito só conta, sem o texto da pessoa (fora do contrato)');
   ok(!(await page.textContent('#o-esc-texto')).includes('hero'), 'escopo sem nome técnico de seção');
