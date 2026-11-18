@@ -103,6 +103,8 @@ export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral, fo
   const estilo = await page.locator('#o-pix-copiar').evaluate(b => { const s = getComputedStyle(b); return { fonte: s.fontFamily, caixa: s.textTransform, tamanho: parseFloat(s.fontSize) }; });
   ok(/Sora/.test(estilo.fonte) && estilo.caixa === 'none' && estilo.tamanho >= 16, 'Pix: botão em Sora, frase normal, 16 px ou mais (' + estilo.fonte.split(',')[0] + ', ' + estilo.caixa + ', ' + estilo.tamanho + ' px)');
   ok(await page.locator('.pix__passos li').count() === 3, 'Pix: os 3 passos no app do banco');
+  ok(await page.locator('#o-pix-relogio').isVisible() && /^dd:dd$/.test((await page.textContent('#o-pix-tempo')).trim()), 'Pix: o relógio vivo mostra mm:ss');
+  ok(await page.locator('#o-pix-anel').getAttribute('stroke-dashoffset') !== null && await page.locator('#o-pix-relogio').getAttribute('aria-hidden') === 'true', 'Pix: o anel do relógio está desenhado e escondido do leitor de tela (a validade em texto segue)');
   ok(await espera(page, () => document.getElementById('o-pag-status').textContent === 'Esperando o pagamento. Esta tela muda sozinha quando ele cair.'), 'Pix: o status diz que a tela muda sozinha');
   const statusPx = await page.locator('#o-pag-status').evaluate(p => { const s = getComputedStyle(p); return { tamanho: parseFloat(s.fontSize), fonte: s.fontFamily }; });
   ok(statusPx.tamanho >= 16 && /Sora/.test(statusPx.fonte), 'Pix: o status em Sora, 16 px ou mais (' + statusPx.tamanho + ' px)');
