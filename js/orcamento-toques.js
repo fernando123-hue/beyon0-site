@@ -70,6 +70,8 @@
     function atualizarPronto() { if (pronto) pronto.setAttribute('aria-disabled', String(!escolhidos.length && !o.prontoVazio)); }
     itens.forEach(function (it) {
       var b = el('button', 'orc-op orc-op--toque', it.rotulo);
+      var ic = window.BZOrcIcones ? window.BZOrcIcones.desenhar(it.valor, o.grupo, doc) : null;
+      if (ic) { b.textContent = ''; b.appendChild(ic); b.appendChild(el('span', 'orc-op__t', it.rotulo)); b.classList.add('orc-op--ic'); }
       b.type = 'button';
       b.setAttribute('data-valor', it.valor);
       if (o.multi) b.setAttribute('aria-pressed', String(escolhidos.indexOf(it.valor) >= 0));
@@ -125,6 +127,8 @@
   /* ---------- a conta silenciosa: o radar se preenche a cada toque ---------- */
   function contar() {
     if (window.BZPerguntas && typeof window.BZPerguntas.definir === 'function') window.BZPerguntas.definir(s.respostas);
+    /* (o site que nasce em cima da conversa, js/orcamento-nasce.js: um evento por resposta, com tudo o que ela respondeu até agora) */
+    try { doc.dispatchEvent(new CustomEvent('bz:respostas', { detail: s.respostas })); } catch (e) { /* a miniatura é enfeite: sem ela, a conversa segue */ }
   }
 
   /* ---------- os passos ---------- */
@@ -137,7 +141,7 @@
       bolha(rotulo);
       contar();
       passoObjetivos();
-    }, { focar: false });
+    }, { focar: false, grupo: 'ramo' });
   }
   /* "Outro": uma escrita curta, que vai só ao briefing (nunca como mensagem) e no tamanho que o servidor guarda */
   function passoOutro() {
@@ -171,7 +175,7 @@
       bolha(lista && lista.length ? rotulos.join(' · ') : NAO_SEI);
       contar();
       passoSite();
-    }, { multi: true, naoSei: true, falaId: ultimaFala });
+    }, { multi: true, naoSei: true, falaId: ultimaFala, grupo: 'objetivos' });
   }
   function passoSite() {
     s.passo = 'site';
@@ -181,7 +185,7 @@
       bolha(rotulo || NAO_SEI);
       contar();
       passoMaterial();
-    }, { naoSei: true, falaId: ultimaFala });
+    }, { naoSei: true, falaId: ultimaFala, grupo: 'site' });
   }
   function passoMaterial() {
     s.passo = 'material';
@@ -191,7 +195,7 @@
       bolha(rotulo || NAO_SEI);
       contar();
       passoDor();
-    }, { naoSei: true, falaId: ultimaFala });
+    }, { naoSei: true, falaId: ultimaFala, grupo: 'material' });
   }
   /* a dor: com o consultor, escrever é o caminho principal e as sugestões ajudam (o "Pronto" manda os rótulos como a fala dela);
      sem ele, só as sugestões, e depois o resumo fixo */
@@ -216,7 +220,7 @@
       }
       bolha(rotulos && rotulos.length ? rotulos.join(' · ') : NAO_SEI);
       resumoSemConsultor();
-    }, { multi: true, naoSei: !consultor, focar: !consultor, semFoco: consultor, falaId: ultimaFala, marcados: marcados });
+    }, { multi: true, naoSei: !consultor, focar: !consultor, semFoco: consultor, falaId: ultimaFala, marcados: marcados, grupo: 'dor' });
     /* com o consultor, escrever é o caminho principal da dor: o foco (do teclado, do grupo que saiu de cena ou do mouse) vai à caixa de texto */
     if (consultor && $('o-texto') && (focoPendente || porTeclado || podeFocar())) { focoPendente = false; focar($('o-texto')); }
   }

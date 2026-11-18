@@ -791,13 +791,15 @@
     var atual = E ? passoAtual() : 'conversa', passou = true;
     if (atual === 'estimativa') atual = 'conversa';   /* (o preço mora na conversa: a etapa "Preço" saiu da barra) */
     if (!mudou('etapas', atual)) return;
-    [].forEach.call(document.querySelectorAll('#o-etapas li'), function (li) {
+    var ordem = 0, nomeAtual = '';
+    [].forEach.call(document.querySelectorAll('#o-etapas li'), function (li, i) {
       var eh = li.getAttribute('data-passo') === atual;
-      if (eh) passou = false;
+      if (eh) { passou = false; ordem = i + 1; nomeAtual = (li.querySelector('.orc-etapas__nome') || li).textContent; }
       li.classList.toggle('is-feita', passou);
       if (eh) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
     });
     var ol = $('o-etapas'), cur = ol.querySelector('[aria-current]');
+    ol.setAttribute('data-n', String(ordem || 1)); ol.setAttribute('data-nome', nomeAtual);   /* (o "3 de 5 · Ajustes" da barra de progresso, css/orcamento-casca.css) */
     if (cur && ol.scrollWidth > ol.clientWidth) ol.scrollLeft = Math.max(0, cur.offsetLeft - ol.offsetLeft - 16);   /* celular: a etapa atual à vista */
   }
   function conversa() {
