@@ -816,6 +816,8 @@ try {
   const resumo = await page.textContent('#o-esc-texto');
   ok(resumo.includes('- Pedidos escritos: 1 não incluído neste valor (aguardando ou recusado).') && !resumo.includes('Quero o mapa'), 'resumo: o pedido escrito só conta, sem o texto da pessoa (fora do contrato)');
   ok(!(await page.textContent('#o-esc-texto')).includes('hero'), 'escopo sem nome técnico de seção');
+  await page.evaluate(() => document.getElementById('o-escopo').scrollIntoView({ block: 'start', behavior: 'instant' }));
+  await foto(page, '5-resumo-cel');
   if (CONSULTOR) {
     /* no escopo a conversa também fica aberta para dúvidas, com o lembrete do cartão na caixa (revisões do PR 34) */
     ok(await page.locator('#o-form').isVisible() && await page.locator('#o-conversa-fechada').isHidden(), 'escopo: a caixa da conversa continua');
