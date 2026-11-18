@@ -234,6 +234,24 @@
       var m = Math.ceil(ms / 60000);
       return 'expira em ' + m + (m === 1 ? ' minuto' : ' minutos');
     }
+    /* o relógio do Pix: o anel esvazia e o mm:ss corre; só roda com o Pix na tela e para sozinho */
+    var RELOGIO_TOTAL_MS = 30 * 60e3, RELOGIO_CURTO_MS = 5 * 60e3, ANEL_CIRC = 339.292, relogio = null, relogioFim = 0;
+    function tiqueDoPix() {
+      var r = $('o-pix-relogio');
+      if ($('o-pix').hidden || !relogioFim) { clearInterval(relogio); relogio = null; return; }
+      var ms = Math.max(0, relogioFim - Date.now()), s = Math.ceil(ms / 1000);
+      $('o-pix-tempo').textContent = ('0' + Math.floor(s / 60)).slice(-2) + ':' + ('0' + (s % 60)).slice(-2);
+      $('o-pix-anel').setAttribute('stroke-dashoffset', String(ANEL_CIRC * (1 - Math.min(1, ms / Math.max(RELOGIO_TOTAL_MS, ms)))));
+      r.classList.toggle('is-curto', ms > 0 && ms <= RELOGIO_CURTO_MS);
+      if (ms <= 0) { clearInterval(relogio); relogio = null; }
+    }
+    function relogioDoPix(iso) {
+      var fim = iso ? new Date(iso).getTime() : NaN;
+      relogioFim = fim > 0 ? fim : 0;
+      mostrar('o-pix-relogio', !!relogioFim);
+      tiqueDoPix();
+      if (relogioFim && !relogio) relogio = setInterval(tiqueDoPix, 1000);
+    }
     function desenharPix(t) {
       var PIX = window.BZPix;   /* (sem o módulo, a linha sem percentual e o QR fechado: nada quebra) */
       $('o-pix-valor').textContent = PIX ? PIX.linhaDoValor(valor, pct, o.dinheiro) : o.dinheiro(valor) + ', por Pix';
@@ -246,6 +264,7 @@
       if (temQr && !qrDecidido) { qrDecidido = true; $('o-pix-outro').open = !!(PIX && PIX.qrAbertoEm(document.documentElement.clientWidth)); }
       $('o-pix-codigo').value = t.pix_qr || '';
       $('o-pix-expira').textContent = t.expira_em ? minutosAte(t.expira_em) : '';
+      relogioDoPix(t.expira_em);
       mostrar('o-pix-simular', cfg && cfg.ambiente === 'simulado');
     }
     /* uma troca de tela (consulta de fundo) escondeu o que tinha o foco: ele vai para o que apareceu, nunca para o body (A3) */

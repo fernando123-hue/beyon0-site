@@ -629,3 +629,15 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .orc-aceite__link { justify-self: start; font-size: var(--fs-b); color: var(--t1); text-decoration: underline; text-underline-offset: 4px; }
 .orc-aceite__concordo { justify-self: start; font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
 .orc-aceite__concordo[aria-disabled="true"] { opacity: .6; }
+
+/* O RELÓGIO DO PIX (remodelação 18/11): o anel esvazia com o tempo e o número corre em mm:ss; nos últimos 5 minutos o anel esquenta.
+   Só texto e traço nítidos (sem blur). aria-hidden: quem usa leitor de tela ouve o 'expira em N minutos' de sempre. */
+.pix__relogio { position: relative; width: 132px; height: 132px; margin: .2rem auto .4rem; }
+.pix__anel { display: block; width: 100%; height: 100%; }
+.pix__anel-fundo, .pix__anel-vivo { fill: none; stroke-width: 6; }
+.pix__anel-fundo { stroke: var(--line-2); }
+.pix__anel-vivo { stroke: var(--ac); stroke-linecap: round; stroke-dasharray: 339.292; transition: stroke-dashoffset .9s linear, stroke .4s; }
+.pix__tempo { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--sans); font-weight: 300; font-size: 1.9rem; letter-spacing: .02em; font-variant-numeric: tabular-nums; color: var(--t1); }
+.pix__relogio.is-curto .pix__anel-vivo { stroke: rgb(var(--ouro-rgb)); }
+.pix__relogio.is-curto .pix__tempo { color: rgb(var(--ouro-rgb)); }
+@media (prefers-reduced-motion: reduce) { .pix__anel-vivo { transition: none; } }

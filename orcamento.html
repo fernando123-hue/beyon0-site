@@ -420,6 +420,10 @@
            dono de 21/10, Decisões.md, "Nome que aparece no Pix") → copiar → os passos no app do banco. O QR fica em
            "Pagar por outro aparelho", logo depois do status: fechado no celular, aberto a partir de 768 px (js/orcamento-pix.js) -->
       <div class="pix" id="o-pix" hidden>
+        <div class="pix__relogio" id="o-pix-relogio" aria-hidden="true">
+          <svg class="pix__anel" viewBox="0 0 120 120" focusable="false"><circle class="pix__anel-fundo" cx="60" cy="60" r="54"/><circle class="pix__anel-vivo" id="o-pix-anel" cx="60" cy="60" r="54" transform="rotate(-90 60 60)" stroke-dashoffset="0"/></svg>
+          <span class="pix__tempo" id="o-pix-tempo">--:--</span>
+        </div>
         <p class="pix__valor" id="o-pix-valor"></p>
         <p class="pix__nome">No seu banco vai aparecer:<br /><b>Fernando Ferreira Dos Santos</b><br /><span class="pix__abrev">(alguns bancos mostram o nome abreviado)</span></p>
         <button class="btn btn--primary pix__copiar" type="button" id="o-pix-copiar">Copiar o código Pix</button>
