@@ -26,8 +26,10 @@
     // o modo sombra do JEV (F3, api/_classificador/sombra.mjs): só MEDE cada turno do Zero, nunca muda a resposta; teto do dia
     // US$ 0,30 no código. Só a produção liga: o staging usa a IA simulada. Precisa de app.jev_sombra no banco (migration de 10/11)
     "JEV_SOMBRA": "1",
-    // o microfone do Zero (api/_vendas/voz.mjs): a voz vira texto pelo Whisper do Workers AI (binding AI); "1" liga o botão Falar
-    "BZ_VOZ": "1" },
+    // o microfone do Zero (api/_vendas/voz.mjs): a voz vira texto pelo Whisper do Workers AI (binding AI); "1" liga o botão Falar.
+    // DESLIGADO na produção até o teste na prévia (docs/PROCESSO.md do PR): ninguém provou ainda que o Whisper decodifica o áudio
+    // do Safari (mp4/AAC) e do Chrome (webm/Opus); só depois disso um PR de uma linha troca "" por "1"
+    "BZ_VOZ": "" },
   "ai": { "binding": "AI" },
   "send_email": [{ "name": "AVISO_EMAIL", "destination_address": "contato.beyon.zero@gmail.com" }],
   "observability": { "enabled": true, "logs": { "enabled": true, "head_sampling_rate": 1 }, "traces": { "enabled": true } },

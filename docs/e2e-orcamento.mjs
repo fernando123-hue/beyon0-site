@@ -116,6 +116,16 @@ try {
     const depois = await page.inputValue('#o-texto');
     ok(/descartada/.test(await page.locator('#o-mic-aviso').textContent()) && /confeitaria em Niterói/.test(depois) && !/confeitaria.*confeitaria/.test(depois), 'microfone: descartar não manda nada e não mexe no que já estava na caixa');
     await page.fill('#o-texto', '');
+    /* duplo toque em Parar (revisão de 18/11): o 2º toque cai no "parando" e não faz nada; a frase entra UMA vez e o botão volta a Falar */
+    await page.locator('#o-mic').click();
+    await page.waitForFunction(() => document.getElementById('o-mic').getAttribute('aria-pressed') === 'true', null, { timeout: 10000 });
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => { const b = document.getElementById('o-mic'); b.click(); b.click(); });
+    await page.waitForFunction(() => /confeitaria em Niterói/.test(document.getElementById('o-texto').value), null, { timeout: 40000 });
+    await page.waitForTimeout(1200);
+    const dobro = await page.inputValue('#o-texto');
+    ok((dobro.match(/confeitaria/g) || []).length === 1 && /^Falar$/.test((await page.locator('#o-mic-rotulo').textContent()).trim()), 'microfone: duplo toque em Parar transcreve uma vez só e o botão volta a Falar');
+    await page.fill('#o-texto', '');
   }
   const tocar = async texto => { const b = page.locator('#o-log .orc-toque:not([data-feito]) button', { hasText: texto }).first(); await b.scrollIntoViewIfNeeded(); await b.click(); };
   await tocar('Serviços');   /* (o caminho até o Pix por um nicho comum; a saúde e a advocacia, que fecham pelo site com a ciência do dono, em docs/testes/saude-pedido.test.mjs) */
@@ -771,7 +781,10 @@ try {
 
   await passoDosAjustes(page, { ok, espera, foto, semRolagemLateral, forcar: v => { falhaForcada = v; } });
 
-  /* sair e voltar */
+  /* sair e voltar. Antes, espera a janela do freio geral (90 chamadas por minuto por IP, api/vendas.mjs) esvaziar: os ajustes e o
+     microfone somam chamadas e, numa máquina rápida, o recarregar da retomada levava 429 (a conversa não voltava). O freio é
+     real e fica como está; quem espera é o teste, como nos outros pontos deste arquivo */
+  await new Promise(r => setTimeout(r, 61e3));
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('#o-ajustes:not([hidden])', { timeout: 30000 });
   if (CONSULTOR) ok(await page.locator('#o-log .msg').count() >= 5, 'recarregar: a conversa volta');

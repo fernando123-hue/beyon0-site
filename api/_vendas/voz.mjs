@@ -25,7 +25,14 @@ export function limparTexto(t) {
   return String(t == null ? '' : t).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, VOZ_MAX_TEXTO);
 }
 
-const paraBase64 = buf => (typeof Buffer !== 'undefined' ? Buffer.from(buf).toString('base64') : btoa(String.fromCharCode(...new Uint8Array(buf))));
+/* (sem Buffer, em blocos: o spread de 2 MB estoura a pilha) */
+export function paraBase64(buf) {
+  if (typeof Buffer !== 'undefined') return Buffer.from(buf).toString('base64');
+  const bytes = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
 
 /* o transcritor do ambiente: { transcrever(buffer, tipo) → texto } ou null (recurso desligado) */
 export function criarTranscritor(env) {
@@ -44,14 +51,26 @@ export function criarTranscritor(env) {
   };
 }
 
-/* lê o corpo com teto: recusa pelo Content-Length antes de ler e confere o tamanho real depois */
+/* lê o corpo com teto: recusa pelo Content-Length antes de ler e corta a leitura em streaming no teto (corpo "chunked" não
+   traz Content-Length: sem o corte, um visitante encheria a memória antes do 413) */
 export async function lerAudio(request) {
   const declarado = Number(request.headers.get('content-length'));
   if (Number.isFinite(declarado) && declarado > VOZ_MAX_BYTES) return { erro: 413 };
-  const buffer = await request.arrayBuffer();
-  if (buffer.byteLength > VOZ_MAX_BYTES) return { erro: 413 };
-  if (buffer.byteLength < VOZ_MIN_BYTES) return { erro: 400 };
-  return { buffer };
+  if (!request.body) return { erro: 400 };
+  const leitor = request.body.getReader();
+  const partes = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await leitor.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > VOZ_MAX_BYTES) { await leitor.cancel(); return { erro: 413 }; }
+    partes.push(value);
+  }
+  if (total < VOZ_MIN_BYTES) return { erro: 400 };
+  const tudo = new Uint8Array(total);
+  partes.reduce((pos, p) => { tudo.set(p, pos); return pos + p.byteLength; }, 0);
+  return { buffer: tudo.buffer };
 }
 
 /* devolve { status, corpo }: quem chama monta a resposta (a mesma de api/vendas.mjs) */
@@ -59,10 +78,20 @@ export async function transcrever({ request, transcritor, visitantes, freios, lo
   if (!transcritor) return { status: 503, corpo: { erro: 'O microfone não está disponível agora. Escreva a sua mensagem.' } };
   const tipo = request.headers.get('content-type') || '';
   if (!TIPO_AUDIO.test(tipo)) return { status: 415, corpo: { erro: 'Esse tipo de áudio não é aceito.' } };
-  const vid = await visitantes.quem(request);
+  let vid;
+  try { vid = await visitantes.quem(request); }
+  catch (e) {   /* (o Auth caiu por um instante: falha passageira, não "sessão expirada"; o navegador não joga a conversa fora) */
+    log('erro', { request_id: requestId, evento: 'voz: sessão não conferida', erro: e && e.name ? e.name : 'erro' });
+    return { status: 503, corpo: { erro: 'Não consegui conferir a sua sessão agora. Escreva a mensagem ou tente de novo.' } };
+  }
   if (!vid) return { status: 401, corpo: { erro: 'Sessão inválida ou expirada.' } };
   if (freios.visitante(vid)) return { status: 429, corpo: { erro: 'Você gravou várias vezes seguidas. Espere um pouco ou escreva a mensagem.' } };
-  const lido = await lerAudio(request);
+  let lido;
+  try { lido = await lerAudio(request); }
+  catch (e) {   /* (o cliente cortou a conexão no meio do envio) */
+    log('erro', { request_id: requestId, evento: 'voz: envio interrompido', erro: e && e.name ? e.name : 'erro' });
+    return { status: 400, corpo: { erro: 'A gravação não chegou inteira. Tente gravar de novo.' } };
+  }
   if (lido.erro === 413) return { status: 413, corpo: { erro: 'A gravação ficou longa demais. Grave um trecho menor.' } };
   if (lido.erro === 400) return { status: 400, corpo: { erro: 'Não consegui ouvir nada. Tente gravar de novo.' } };
   const inicio = Date.now();
