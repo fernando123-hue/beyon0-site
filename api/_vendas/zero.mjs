@@ -321,7 +321,7 @@ export function garantirValor(texto, { mensagem, estimativa } = {}) {
   const original = String(texto);
   const v = valoresDe(estimativa);
   if (!v || /R\$/.test(original) || !pedeValor(mensagem)) return { texto: original, acrescentou: false };
-  const linha = `Em resumo, o site fica ${dinheiro(v.total)}, com entrada de ${dinheiro(v.sinal)} no Pix e ${dinheiro(v.restante)} quando o site entrar no ar.`;
+  const linha = `Em resumo, o site fica ${dinheiro(v.total)}, com entrada de ${dinheiro(v.sinal)} no Pix e ${dinheiro(v.restante)} quando o site estiver pronto.`;
   return { texto: (original.trim() ? original.trimEnd() + '\n\n' : '') + linha, acrescentou: true };
 }
 

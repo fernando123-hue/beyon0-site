@@ -66,7 +66,8 @@ test('o aviso da tela (22/10: 3 dias do aviso "no ar", lembretes do dono no 2º 
   }
   assert.match(R.avisoDoRestante(12, 3, 'suspensa'), /saiu do ar/); assert.match(R.avisoDoRestante(12, 3, 'suspensa'), /quando o pagamento cair/i);
   assert.match(R.avisoDoRestante(null, 3, 'suspensa'), /saiu do ar/, 'suspensa mostra o aviso mesmo sem a contagem');
-  assert.match(texto(NOAR), /Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, o site sai do ar até o pagamento\./);
+  assert.match(texto(NOAR), /Com o restante pago, o site vai ao ar e passa para uma conta no seu nome\./, '19/11: a nota do passo 4 é a da ordem nova');
+  assert.doesNotMatch(texto(NOAR), /3 dias depois do nosso aviso/);
   for (const d of [2, 3, 4]) assert.doesNotMatch(R.avisoDoRestante(d, 3, 'no_ar'), /\d+\s*horas|fique à vontade|solução|Prezad/i);
 });
 
@@ -219,7 +220,7 @@ test('criar: o site que saiu do ar (suspensa) ainda cobra o restante: título, a
 });
 
 test('criar: fora do passo 4 (outra etapa, outro passo, sem entrega) a seção some, a classe do restante sai e o Pix não é pedido', () => {
-  for (const E of [{ conversa: { etapa: 'aguardando_pagamento' }, entrega: null, proposta, pagamentos: [] }, estado('previa'), estado('aprovada'), estado('material'), { ...estado('no_ar'), conversa: { etapa: 'aguardando_pagamento' } }, { ...estado('no_ar'), entrega: null }]) {
+  for (const E of [{ conversa: { etapa: 'aguardando_pagamento' }, entrega: null, proposta, pagamentos: [] }, estado('previa'), estado('ajustes'), estado('material'), { ...estado('no_ar'), conversa: { etapa: 'aguardando_pagamento' } }, { ...estado('no_ar'), entrega: null }]) {
     const t = montar(); t.E('o-noar').hidden = false; t.E('o-pagamento').classList.toggle('is-restante', true);
     assert.equal(t.rest.atualizar(E), false);
     assert.equal(t.E('o-noar').hidden, true); assert.equal(t.E('o-fim').hidden, true); assert.equal(t.E('o-pagamento').classes.has('is-restante'), false); assert.equal(t.chamadas.length, 0);
@@ -341,9 +342,11 @@ test('a ligação no orcamento.js: a barra de etapas não volta atrás no pedido
 
 /* ---------- as decisões do passo 4 que o orcamento.js usa: EXECUTADAS (o render e o retomar chamam estas funções) ---------- */
 const comPasso = (passo, extra = {}) => ({ conversa: { etapa: extra.etapa || 'em_producao' }, entrega: extra.semEntrega ? null : { passo }, ...('ligada' in extra ? { entrega_ligada: extra.ligada } : {}) });
-test('restanteAberto (a decisão do render: parar a espera do Pix ou não): material, prévia, aprovada e outros passos PARAM; no ar e suspensa NÃO; interruptor desligado, conversa fora da produção ou sem entrega PARAM', () => {
+test('restanteAberto (a decisão do render: parar a espera do Pix ou não): material, prévia, ajustes e outros passos PARAM; aprovada (19/11), no ar e suspensa NÃO; interruptor desligado, conversa fora da produção ou sem entrega PARAM', () => {
   const para = E => !R.restanteAberto(E);   /* orcamento.js: if (telaPagamento && !restanteAberto()) telaPagamento.parar() */
-  for (const passo of ['material', 'producao', 'previa', 'ajustes', 'aprovada']) assert.equal(para(comPasso(passo)), true, passo + ': para');
+  for (const passo of ['material', 'producao', 'previa', 'ajustes']) assert.equal(para(comPasso(passo)), true, passo + ': para');
+  assert.equal(para(comPasso('aprovada')), false, '19/11: o restante abre com a prévia aprovada');
+  assert.equal(para(comPasso('aprovada', { ligada: false })), true);
   for (const passo of ['no_ar', 'suspensa']) { assert.equal(para(comPasso(passo)), false, passo + ': a espera do Pix segue'); assert.equal(para(comPasso(passo, { ligada: true })), false); }
   for (const passo of ['no_ar', 'suspensa']) assert.equal(para(comPasso(passo, { ligada: false })), true, passo + ' com o interruptor desligado com a página aberta: para');
   assert.equal(para(comPasso('no_ar', { etapa: 'encerrada' })), true); assert.equal(para(comPasso('no_ar', { etapa: 'aguardando_pagamento' })), true);
@@ -381,4 +384,34 @@ test('o restante abre sem o "Pagamento confirmado" da entrada: no ramo sem pagam
   await tela.mostrar(1800, 60, { metodos: ['pix'] });
   assert.equal(doc.getElementById('o-pag-status').textContent, '', 'o restante começa com o status limpo');
   assert.equal(doc.getElementById('o-pag-form').hidden, false);
+});
+
+/* ---------- a ORDEM NOVA (dono, 19/11): o restante com o site pronto (prévia aprovada); o site só vai ao ar com ele pago ---------- */
+test('19/11: prévia aprovada -> o passo 4 aparece com "Seu site está pronto", sem endereço no ar, e o Pix do restante (só Pix)', () => {
+  const t = montar();
+  assert.equal(t.rest.atualizar(estado('aprovada', { site: { url: null, dias_do_aviso: null } })), false);
+  assert.equal(t.E('o-noar').hidden, false); assert.equal(t.E('o-noar-titulo').textContent, 'Seu site está pronto');
+  assert.equal(t.E('o-noar-endereco').textContent, ''); assert.equal(t.E('o-noar-abrir').hidden, true);
+  assert.match(t.E('o-noar-aviso').textContent, /Com o restante pago, o site vai ao ar e passa para uma conta no seu nome/);
+  assert.equal(t.E('o-noar-nota').hidden, false);
+  assert.equal(t.E('o-pagamento').hidden, false); assert.equal(t.E('o-pagamento').classes.has('is-restante'), true);
+  assert.deepEqual(t.chamadas, [['mostrar', 1800, 60, { metodos: ['pix'] }]]);
+});
+
+test('19/11: restante PAGO com a prévia aprovada -> "Restante pago", nada a cobrar (o Pix para e some) e a frase de que a Beyon põe no ar', () => {
+  const t = montar();
+  t.rest.atualizar(estado('aprovada', { site: { url: null } }));
+  const pago = { ...estado('aprovada', { site: { url: null } }), pagamentos: [...pagos, { parcela: 'saldo', status: 'pago', valor: '1800.00' }] };
+  assert.equal(R.restantePago(pago), true); assert.equal(R.restantePago(estado('aprovada')), false);
+  assert.equal(t.rest.atualizar(pago), false, 'não é o fim: o pedido conclui quando o site entra no ar');
+  assert.equal(t.E('o-noar-titulo').textContent, 'Restante pago'); assert.match(t.E('o-noar-aviso').textContent, /coloca o site no ar/);
+  assert.equal(t.E('o-pagamento').hidden, true); assert.equal(t.E('o-noar-nota').hidden, true);
+  assert.deepEqual(t.chamadas, [['mostrar', 1800, 60, { metodos: ['pix'] }], ['parar']], 'não pede o Pix de novo; a espera para');
+  const u = montar(); u.rest.atualizar(pago);
+  assert.deepEqual(u.chamadas, [['parar']], 'abriu já pago: nunca cobra');
+});
+
+test('19/11: a retomada na aprovada cai na seção da prévia (a frase de lá aponta o restante logo abaixo)', () => {
+  assert.equal(R.alvoDaRetomada(comPasso('aprovada')), 'o-previa');
+  assert.ok(HTML.indexOf('id="o-previa"') < HTML.indexOf('id="o-noar"'), 'o passo 4 vem logo depois da prévia');
 });

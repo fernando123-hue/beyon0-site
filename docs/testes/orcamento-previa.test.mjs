@@ -79,7 +79,7 @@ test('ajustes recebidos e aprovada: "Previsão", nunca "Pronto até" (M2); sem "
   assert.equal(B.fase(entrega({ passo: 'ajustes', entrega_ate: null })).texto, 'A nova prévia aparece aqui.');
   for (const importada of [true, false]) assert.doesNotMatch(B.fase(entrega({ passo: 'ajustes', importada })).texto, /Pronto até/, 'M2: só "Previsão" até existir o importar-site da captação (importada: ' + importada + ')');
   const ap = B.fase(entrega({ passo: 'aprovada' }));
-  assert.equal(ap.fase, 'aprovada'); assert.match(ap.texto, /pôr o site no ar/);
+  assert.equal(ap.fase, 'aprovada'); assert.match(ap.texto, /Falta só o restante/); assert.match(ap.texto, /com ele pago, o site vai ao ar/);   /* (19/11: o restante na aprovação) */
   for (const p of ['material', 'producao', 'no_ar', 'suspensa', 'concluida', 'encerrada']) assert.equal(B.fase(entrega({ passo: p })).fase, 'nenhuma', p);
   assert.equal(B.fase(null).fase, 'nenhuma');
   assert.doesNotMatch(semComentario(FONTE) + SECAO, /Pronto até/);
@@ -112,7 +112,7 @@ test('a seção #o-previa: aprovar num <dialog> (nunca confirm), o campo único 
   const s = SECAO;
   assert.ok(s.length > 500, 'a seção existe');
   assert.match(s, /<dialog class="orc-dialogo" id="o-prv-dialogo"/); assert.ok(!/window\.confirm|\bconfirm\(/.test(semComentario(FONTE)));
-  assert.match(texto(s), /Depois de aprovar, o próximo passo é pôr o site no ar\./);
+  assert.match(texto(s), /Depois de aprovar, falta só o restante: com ele pago, o site vai ao ar\./);
   assert.match(texto(s), /Escreva tudo de uma vez/); assert.match(texto(s), /Enquanto esperamos a sua lista de ajustes, o prazo fica parado\./);
   assert.match(texto(s), /Não escreva CPF, CNPJ nem dados de outras pessoas\./);
   assert.match(texto(s), /Telefone e e-mail escritos aqui são apagados\. Para trocar os do site, use os campos abaixo\./);   /* M3: a lista de texto livre é redigida no servidor; a tela avisa antes e aponta os campos */

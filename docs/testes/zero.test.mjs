@@ -427,7 +427,7 @@ test('valor pedido: sem R$ na resposta e com estimativa válida, o código acres
   const e = { valor_total: '2900.00', sinal: '1160.00' };
   const r = garantirValor('Pra oficina, uma página só resolve.', { mensagem: 'só fala o valor', estimativa: e });
   assert.equal(r.acrescentou, true);
-  assert.equal(r.texto, 'Pra oficina, uma página só resolve.\n\nEm resumo, o site fica R$ 2.900, com entrada de R$ 1.160 no Pix e R$ 1.740 quando o site entrar no ar.');
+  assert.equal(r.texto, 'Pra oficina, uma página só resolve.\n\nEm resumo, o site fica R$ 2.900, com entrada de R$ 1.160 no Pix e R$ 1.740 quando o site estiver pronto.');
   assert.equal(garantirValor('A landing fica R$ 2.900.', { mensagem: 'quanto fica', estimativa: e }).acrescentou, false, 'já tem número');
   assert.equal(garantirValor('Uma página só.', { mensagem: 'oi', estimativa: e }).acrescentou, false, 'ninguém pediu o valor');
   assert.equal(garantirValor('Uma página só.', { mensagem: 'quanto fica', estimativa: null }).acrescentou, false, 'sem estimativa não inventa número');
@@ -571,7 +571,7 @@ test('tela: a página de orçamento mostra o Zero como IA (etiqueta e primeira f
 
 test('prompt: fatos decididos pelo dono em 01/11 (domínio, hospedagem, nota) e a negociação sem desconto', () => {
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
-  for (const trecho of ['fica no nome do cliente', 'hospedado de graça no plano gratuito da Cloudflare: vai ao ar na conta da Beyon e, com o restante pago, passa para uma conta no nome do cliente', 'Nota fiscal: ainda não há', 'negocie sem baixar o valor', 'o resto entra depois, item a item, pela tabela'])
+  for (const trecho of ['fica no nome do cliente', 'hospedado de graça no plano gratuito da Cloudflare: fica pronto na conta da Beyon e, com o restante pago, vai ao ar e passa para uma conta no nome do cliente', 'Nota fiscal: ainda não há', 'negocie sem baixar o valor', 'o resto entra depois, item a item, pela tabela'])
     assert.ok(s.includes(trecho), 'falta no prompt: ' + trecho);
   assert.doesNotMatch(s, /mensalidade, hospedagem e de quem é/, 'mensalidade e hospedagem saíram da lista do que não se confirma');
   assert.doesNotMatch(s, /R\$ ?(800|1\.900)/, 'a oferta de lançamento não entra no texto do Zero');
@@ -1250,18 +1250,18 @@ test('público: o prompt do Zero e as respostas fixas não dizem "operação peq
 test('hospedagem e código: o Zero diz conta no nome do cliente e código do cliente; páginas sem "conta da Beyon"', async () => {
   const { montarPromptEfetivo } = await import('../zero/gerar.mjs');
   const p = montarPromptEfetivo();
-  assert.match(p, /vai ao ar na conta da Beyon e, com o restante pago, passa para uma conta no nome do cliente/);
+  assert.match(p, /fica pronto na conta da Beyon e, com o restante pago, vai ao ar e passa para uma conta no nome do cliente/);   /* (19/11: o ar só com o restante pago) */
   assert.match(p, /O código também é do cliente/);
   assert.doesNotMatch(p, /não confirma: de quem fica o código/);
   for (const pag of ['../../condicoes.html', '../../sites.html', '../../index.html', '../../privacidade.html']) {
     const html = fs.readFileSync(new URL(pag, import.meta.url), 'utf8');
     assert.doesNotMatch(html, /hospedado na conta da Beyon|Cloudflare, na conta da Beyon|numa conta no seu nome(:| que nós ajudamos a criar na entrega)|valor por mês escrito na proposta/, pag);
   }
-  /* decisão do dono 14/11 noite: ao ar na conta da Beyon até o restante; depois, conta do cliente */
+  /* decisão do dono 14/11 noite: a conta passa ao cliente com o restante pago. 19/11 (a ordem nova): o site NÃO vai ao ar antes do restante, nem na conta da Beyon */
   for (const pag of ['../../condicoes.html', '../../sites.html', '../../privacidade.html']) {
     const html = fs.readFileSync(new URL(pag, import.meta.url), 'utf8');
-    assert.match(html, /vai ao ar (primeiro )?na (conta da Beyon|nossa conta)/, pag + ': diz que o site vai ao ar primeiro na conta da Beyon');
-    assert.match(html, /com o restante pago|até o restante ser pago/, pag + ': diz que a conta passa ao cliente com o restante pago');
+    assert.doesNotMatch(html, /vai ao ar (primeiro )?na (conta da Beyon|nossa conta)/, pag + ': o site não vai ao ar na conta da Beyon antes do restante');
+    assert.match(html, /com o restante pago, (ele|o site) vai ao ar e passa para uma conta (da Cloudflare )?no seu nome/i, pag + ': com o restante pago, o site vai ao ar e passa ao cliente');
   }
 });
 

@@ -51,7 +51,7 @@ test('condições: CSP sem inline e página de texto sem script próprio', () =>
 });
 
 test('condições: preço, entrada e restante fecham, e a entrada é 40%', () => {
-  const [, preco, entrada, restante] = (texto.match(/R\$ ([\d.]+) por site.*?R\$ ([\d.]+) \(40%\) para começar.*?R\$ ([\d.]+) \(60%\) quando o site estiver no ar/) || []).map(v => v && v.replace('.', ''));
+  const [, preco, entrada, restante] = (texto.match(/R\$ ([\d.]+) por site.*?R\$ ([\d.]+) \(40%\) para começar.*?R\$ ([\d.]+) \(60%\) quando o site estiver pronto, antes de ir ao ar/) || []).map(v => v && v.replace('.', ''));
   assert.ok(preco, 'não achei preço, entrada (40%) e restante (60%) no texto');
   assert.equal(Number(entrada) + Number(restante), Number(preco), 'entrada + restante diferem do preço');
   assert.equal(Number(entrada) / Number(preco), 0.4);
@@ -61,7 +61,7 @@ test('condições: preço, entrada e restante fecham, e a entrada é 40%', () =>
 
 /* fundador: landing R$ 1.500 e institucional R$ 4.500 (o piso da tabela), nada nos outros formatos (dono 2026-10-14; valores subidos em 2026-11-02, escolha delegada pelo dono) */
 test('condições: o institucional de fundador custa R$ 4.500 e também fecha em 40% + 60%', () => {
-  const [, preco, entrada, restante] = texto.match(/site institucional, de até 5 páginas, por R\$ ([\d.]+), nas mesmas condições: dentro das 10 vagas e até 31\/12\/2026\..*?No institucional: R\$ ([\d.]+) \(40%\) para começar e R\$ ([\d.]+) \(60%\) com o site no ar\./) || [];
+  const [, preco, entrada, restante] = texto.match(/site institucional, de até 5 páginas, por R\$ ([\d.]+), nas mesmas condições: dentro das 10 vagas e até 31\/12\/2026\..*?No institucional: R\$ ([\d.]+) \(40%\) para começar e R\$ ([\d.]+) \(60%\) com o site pronto\./) || [];
   assert.ok(preco, 'não achei o institucional (nas mesmas condições) com entrada e restante');
   const n = v => Number(v.replace('.', ''));
   assert.deepEqual([n(preco), n(entrada), n(restante)], [4500, 1800, 2700]);
@@ -226,7 +226,7 @@ test('voz da empresa: o contrato e /condicoes usam a mesma voz no plural', () =>
   const condicoes = readFileSync(new URL('../../condicoes.html', import.meta.url), 'utf8');
   for (const t of [escopo, condicoes]) {
     assert.match(t, /nós avisamos que estamos aguardando/);
-    assert.match(t, /nós lembramos duas vezes/);
+    assert.match(t, /O site só vai ao ar com o restante pago\./);   /* (19/11, a ordem nova: os 3 dias e os lembretes saíram junto com o site no ar antes do restante) */
     assert.match(t, /devolvemos a entrada inteira/);
   }
 });

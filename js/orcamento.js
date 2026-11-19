@@ -776,7 +776,7 @@
       mostrar('o-pag-indisponivel', true);
       return;
     }
-    $('o-pag-lead').textContent = lead + ' Para destravar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante só quando o site estiver no ar.';
+    $('o-pag-lead').textContent = lead + ' Para destravar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante só quando o site estiver pronto, antes de ir ao ar.';
     if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada, {});   /* ({}: solta o "só Pix" que o restante tenha pedido) */
   }
 

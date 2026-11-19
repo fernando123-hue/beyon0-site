@@ -175,7 +175,7 @@ async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, convers
   /* 5. aprovar (D5: só o cliente), com o <dialog>: Esc fecha e devolve o foco ao botão */
   await B.p.click('#o-prv-aprovar');
   ok(await B.p.evaluate(() => document.getElementById('o-prv-dialogo').open), 'aprovar: o dialog abre');
-  ok(/Depois de aprovar, o próximo passo é pôr o site no ar\./.test(await B.p.textContent('#o-prv-dialogo')), 'aprovar: a frase do contrato no dialog');
+  ok(/Depois de aprovar, falta só o restante: com ele pago, o site vai ao ar\./.test(await B.p.textContent('#o-prv-dialogo')), 'aprovar: a frase do contrato no dialog (19/11: o restante na aprovação)');
   const fundo = await B.p.evaluate(() => {
     const x = getComputedStyle(document.getElementById('o-prv-dialogo'), '::backdrop');
     const regras = [...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch { return []; } }).filter(r => r.selectorText && /::backdrop/.test(r.selectorText));
@@ -191,40 +191,37 @@ async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, convers
   await aoTopo(B.p, '#o-previa');
   await foto(B.p, '6d-aprovada-cel');
 
-  /* 6. o dono põe no ar; o aviso do ar; o cliente vê o ar e o Pix do restante (o mesmo componente da entrada, só Pix) */
-  ok((await painel('POST', '', { no_ar: codigo, url: SITE })).status === 200, 'o dono põe o site no ar');
-  const avisos = (await painel('GET', '?fila=avisos')).corpo.itens || [];
-  ok(avisos.some(i => i.codigo === codigo && i.momento === 'no_ar') && !avisos.some(i => i.codigo === codigo && i.momento === 'previa'), 'D1: o aviso do site no ar está na fila (e o da prévia não)');
-  ok((await painel('POST', '', { aviso_feito: codigo, momento: 'no_ar' })).status === 200, 'D1 (22/10): o dono registra o aviso "site no ar": daqui contam os 3 dias do restante');
-  const susp = await painel('POST', '', { suspender: codigo });
-  ok(susp.status === 409 && /Ainda não: o aviso do site no ar foi há/.test(susp.corpo.erro || ''), '22/10: o site não sai do ar antes do fim do 3º dia do aviso (' + susp.status + ': ' + (susp.corpo.erro || '') + ')');
+  /* 6. (ordem nova, 19/11) com a prévia aprovada o site está PRONTO: o restante abre (o mesmo componente da entrada, só Pix) e o dono NÃO põe no ar antes dele */
+  const cedoAr = await painel('POST', '', { no_ar: codigo, url: SITE });
+  ok(cedoAr.status === 409 && /restante ainda não foi pago/.test(cedoAr.corpo.erro || ''), '19/11: o dono não põe no ar sem o restante pago (' + cedoAr.status + ': ' + (cedoAr.corpo.erro || '') + ')');
+  ok((await painel('GET', '?fila=entregas')).corpo.entregas.find(e => e.codigo === codigo).restante_pago === false, '19/11: o listar do dono sabe que falta o restante');
   await voltaAba(B.p);
   await B.p.waitForSelector('#o-noar:not([hidden])', { timeout: ESPERA });
-  ok(/Seu site está no ar/.test(await B.p.textContent('#o-noar-titulo')), 'no ar: o título');
-  ok(await B.p.locator('#o-noar-endereco').textContent() === SITE, 'no ar: o endereço do site em texto');
-  ok(await B.p.getAttribute('#o-noar-abrir', 'href') === SITE && /noopener/.test(await B.p.getAttribute('#o-noar-abrir', 'rel')) && await B.p.getAttribute('#o-noar-abrir', 'target') === '_blank', 'no ar: "Abrir o site" abre em outra aba, seguro');
-  ok(/Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, o site sai do ar até o pagamento\./.test(await B.p.textContent('#o-noar')), 'no ar: a frase da D4 (3 dias, 22/10) exata');
-  ok(await B.p.evaluate(() => { const n = document.getElementById('o-noar'), p = document.getElementById('o-pagamento'); return !p.hidden && !!(n.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING); }), 'restante: o Pix vem depois do "no ar" no DOM e está visível');
-  ok(await escondido(B.p, '#o-previa') && await escondido(B.p, '#o-fim'), 'no ar: a prévia e o fim não aparecem');
+  ok(/Seu site está pronto/.test(await B.p.textContent('#o-noar-titulo')), 'pronto: o título');
+  ok(await B.p.locator('#o-noar-endereco').textContent() === '' && await escondido(B.p, '#o-noar-abrir'), 'pronto: nenhum endereço no ar (o site ainda não foi ao ar)');
+  ok(/Com o restante pago, o site vai ao ar e passa para uma conta no seu nome\./.test(await B.p.textContent('#o-noar')), 'pronto: a frase da ordem nova (19/11)');
+  ok(!/3 dias depois do nosso aviso/.test(await B.p.textContent('#o-noar')), 'pronto: a regra antiga dos 3 dias saiu');
+  ok(await B.p.evaluate(() => { const n = document.getElementById('o-noar'), p = document.getElementById('o-pagamento'); return !p.hidden && !!(n.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING); }), 'restante: o Pix vem depois do bloco do site pronto no DOM e está visível');
+  ok(await escondido(B.p, '#o-fim'), 'pronto: o fim não aparece');
   ok(await escondido(B.p, '#o-pag-metodos') && await escondido(B.p, '#o-pix-trocar'), 'restante: só Pix (o seletor de cartão e o "trocar" ficam escondidos)');
   ok(/Falta o restante/.test(await B.p.textContent('#o-pag-titulo')), 'restante: o título "Falta o restante"');
   const conta = await B.p.evaluate(async () => { const E = await window.BZOrcamento.estado(); const paga = (E.pagamentos || []).find(p => p.parcela === 'sinal' && p.status === 'pago'); return { total: Number(E.proposta.valor_total), entrada: paga ? Number(paga.valor) : null }; });
   const esperado = reais(Math.round((conta.total - conta.entrada) * 100) / 100);
   const botao = semEspacoEstranho((await B.p.textContent('#o-pag-enviar')).trim());
   ok(conta.entrada > 0 && botao === 'Gerar o Pix de ' + esperado, 'restante: o botão traz total − entrada (' + reais(conta.total) + ' − ' + reais(conta.entrada) + ' = ' + esperado + '): "' + botao + '"');
-  ok(await altura(B.p, '#o-pag-enviar') >= 44 && await altura(B.p, '#o-noar-abrir') >= 44, 'no ar: "Abrir o site" e o botão do Pix têm 44 px ou mais');
-  ok(await B.p.evaluate(() => [...document.querySelectorAll('#o-noar, #o-noar *, #o-pagamento, #o-pagamento *')].every(e => { const s = getComputedStyle(e); return !/blur/.test(s.filter + ' ' + s.backdropFilter) && !/\)\s-?[\d.]+px\s-?[\d.]+px\s[1-9]/.test(s.boxShadow); })), 'no ar: nenhum desfoque nem sombra difusa');
-  await varrerLinks(B.p, 'no ar', codigoDeB);
-  ok(await semRolagemLateral(B.p), 'celular no ar: sem rolagem lateral');
+  ok(await altura(B.p, '#o-pag-enviar') >= 44, 'pronto: o botão do Pix tem 44 px ou mais');
+  ok(await B.p.evaluate(() => [...document.querySelectorAll('#o-noar, #o-noar *, #o-pagamento, #o-pagamento *')].every(e => { const s = getComputedStyle(e); return !/blur/.test(s.filter + ' ' + s.backdropFilter) && !/\)\s-?[\d.]+px\s-?[\d.]+px\s[1-9]/.test(s.boxShadow); })), 'pronto: nenhum desfoque nem sombra difusa');
+  await varrerLinks(B.p, 'site pronto', codigoDeB);
+  ok(await semRolagemLateral(B.p), 'celular com o site pronto: sem rolagem lateral');
   await aoTopo(B.p, '#o-noar');
-  await foto(B.p, '7-noar-cel');
+  await foto(B.p, '7-pronto-cel');
   await B.p.setViewportSize({ width: 320, height: 640 });
-  ok(await semRolagemLateral(B.p), '320 px no ar: sem rolagem lateral');
+  ok(await semRolagemLateral(B.p), '320 px com o site pronto: sem rolagem lateral');
   await aoTopo(B.p, '#o-noar');
-  await foto(B.p, '7b-noar-320');
+  await foto(B.p, '7b-pronto-320');
   await B.p.setViewportSize({ width: 390, height: 844 });
 
-  /* 7. o restante: o pagador, o Pix e o simulador local (o aviso assinado passa pelo caminho real) */
+  /* 7. o restante: o pagador, o Pix e o simulador local (o aviso assinado passa pelo caminho real); pago, a tela diz que a Beyon põe no ar */
   await B.p.fill('#o-pag-nome', PAGADOR.nome); await B.p.fill('#o-pag-sobrenome', PAGADOR.sobrenome);
   await B.p.fill('#o-pag-email', PAGADOR.email); await B.p.fill('#o-pag-doc', PAGADOR.documento);
   await B.p.click('#o-pag-enviar');
@@ -234,15 +231,29 @@ async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, convers
   await aoTopo(B.p, '#o-pix');
   await foto(B.p, '7c-pix-restante-cel');
   ok(await escondido(B.p, '#o-fim'), 'restante: antes de pagar o fim continua escondido');
-  ok(((await painel('GET', '?fila=entregas')).corpo.entregas || []).some(e => e.codigo === codigo), 'restante: antes de pagar o pedido ainda está na lista do dono');
   await B.p.click('#o-pix-simular');
+  await B.p.waitForFunction(() => /Restante pago/.test(document.getElementById('o-noar-titulo').textContent), null, { timeout: 40000 });
+  ok(await escondido(B.p, '#o-pagamento') && await escondido(B.p, '#o-fim'), 'restante pago: o Pix sai e o fim ainda não (o site vai ao ar pelo dono)');
+  ok(/coloca o site no ar/.test(await B.p.textContent('#o-noar-aviso')), 'restante pago: a tela diz que a Beyon Zero põe o site no ar');
+  ok((await painel('GET', '?fila=entregas')).corpo.entregas.find(e => e.codigo === codigo).restante_pago === true, 'restante pago: o listar do dono mostra (o próximo passo é pôr no ar)');
+  await aoTopo(B.p, '#o-noar');
+  await foto(B.p, '7d-restante-pago-cel');
+
+  /* 7b. o dono põe no ar (só agora): o pedido conclui; o aviso do ar fica na fila; nada a suspender */
+  ok((await painel('POST', '', { no_ar: codigo, url: SITE })).status === 200, 'o dono põe o site no ar com o restante pago');
+  const avisos = (await painel('GET', '?fila=avisos')).corpo.itens || [];
+  ok(avisos.some(i => i.codigo === codigo && i.momento === 'no_ar') && !avisos.some(i => i.codigo === codigo && i.momento === 'previa'), 'D1: o aviso do site no ar está na fila (e o da prévia não)');
+  ok((await painel('POST', '', { aviso_feito: codigo, momento: 'no_ar' })).status === 200, 'D1: o dono registra o aviso "site no ar"');
+  ok((await painel('POST', '', { suspender: codigo })).status === 409, '19/11: o pedido concluído não tem o que suspender');
+  await voltaAba(B.p);
   await B.p.waitForSelector('#o-fim:not([hidden])', { timeout: 40000 });
   ok(/Pedido concluído/.test(await B.p.textContent('#o-fim-titulo')), 'fim: "Pedido concluído"');
   const entradaTxt = semEspacoEstranho(await B.p.textContent('#o-fim-entrada')), restanteTxt = semEspacoEstranho(await B.p.textContent('#o-fim-restante')), totalTxt = semEspacoEstranho(await B.p.textContent('#o-fim-total'));
   ok(entradaTxt === reais(conta.entrada) && restanteTxt === esperado && totalTxt === reais(conta.total), 'fim: as duas partes ✓ e o total conferem (' + entradaTxt + ' + ' + restanteTxt + ' = ' + totalTxt + ')');
   ok(/Entrada paga/.test(await B.p.textContent('#o-fim-partes')) && /Restante pago/.test(await B.p.textContent('#o-fim-partes')), 'fim: "Entrada paga" e "Restante pago"');
   ok(await B.p.locator('#o-fim-endereco').textContent() === SITE && await B.p.getAttribute('#o-fim-abrir', 'href') === SITE, 'fim: o endereço e "Abrir o site"');
-  ok(await escondido(B.p, '#o-noar') && await escondido(B.p, '#o-pagamento') && await escondido(B.p, '#o-pedido') && await escondido(B.p, '#o-previa'), 'fim: o ar, o Pix, o pedido e a prévia saem de cena');
+  ok(/noopener/.test(await B.p.getAttribute('#o-fim-abrir', 'rel')) && await B.p.getAttribute('#o-fim-abrir', 'target') === '_blank' && await altura(B.p, '#o-fim-abrir') >= 44, 'fim: "Abrir o site" abre em outra aba, seguro, com 44 px ou mais');
+  ok(await escondido(B.p, '#o-noar') && await escondido(B.p, '#o-pagamento') && await escondido(B.p, '#o-pedido') && await escondido(B.p, '#o-previa'), 'fim: o site pronto, o Pix, o pedido e a prévia saem de cena');
   ok(await B.p.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'pagamento', 'fim: a barra de etapas fica no passo "pagamento"');
   await varrerLinks(B.p, 'no fim', codigoDeB);
   ok(await semRolagemLateral(B.p), 'celular no fim: sem rolagem lateral');

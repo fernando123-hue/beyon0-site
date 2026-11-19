@@ -40,7 +40,7 @@
       return { fase: 'ajustes', titulo: 'Recebemos a sua lista', texto: 'A nova prévia aparece aqui.' + (ate ? ' Previsão: ' + ate + '.' : ''), href: null, listaN: r.usadas, listaMax: max, ultima: false, podeResponder: false, podeAjustes: false };
     }
     if (e.passo === 'aprovada') {
-      return { fase: 'aprovada', titulo: 'Prévia aprovada', texto: 'O próximo passo é pôr o site no ar. Quando ele entrar no ar, o endereço e o restante aparecem aqui.', href: null, listaN: r.usadas, listaMax: max, ultima: false, podeResponder: false, podeAjustes: false };
+      return { fase: 'aprovada', titulo: 'Prévia aprovada', texto: 'Seu site está pronto. Falta só o restante, logo abaixo: com ele pago, o site vai ao ar.', href: null, listaN: r.usadas, listaMax: max, ultima: false, podeResponder: false, podeAjustes: false };
     }
     return { fase: 'nenhuma' };
   }
