@@ -35,6 +35,7 @@
   <link rel="stylesheet" href="css/tokens.css" />
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/orcamento.css" />
+  <link rel="stylesheet" href="css/orcamento-casca.css" />
   <link rel="stylesheet" href="css/orcamento-voz.css" />
   <link rel="stylesheet" href="css/orcamento-entrega.css" />
   <link rel="stylesheet" href="css/orcamento-painel.css" />
@@ -72,7 +73,7 @@
       <p class="orc-kicker"><span class="dot" aria-hidden="true"></span>Monte seu orçamento</p>
       <h1 id="orc-titulo">Veja o seu site <em>antes</em> de fechar.</h1>
       <p class="orc-lead">Conte do seu negócio para o Zero: ele desenha o site que trabalha por você e mostra quanto custa, sem cadastro. Depois nós fazemos três modelos e você só paga se escolher um.</p>
-      <ol class="orc-etapas" id="o-etapas" aria-label="Etapas">
+      <ol class="orc-etapas" id="o-etapas" aria-label="Etapas" data-n="1" data-nome="Conversa">
         <li data-passo="conversa" aria-current="step"><span class="orc-etapas__n">01</span><span class="orc-etapas__nome">Conversa</span></li>
         <li data-passo="direcoes"><span class="orc-etapas__n">02</span><span class="orc-etapas__nome">Modelos</span></li>
         <li data-passo="ajustes"><span class="orc-etapas__n">03</span><span class="orc-etapas__nome">Ajustes</span></li>
@@ -116,6 +117,14 @@
       <!-- A CONVERSA é a página (spec 2026-11-13): as perguntas fixas são falas do Zero com opções para tocar (js/orcamento-toques.js) -->
       <section class="orc-conversa" id="o-conversa" data-origem="orcamento-conversa" aria-labelledby="o-conversa-titulo">
         <h2 id="o-conversa-titulo" class="orc-rotulo">Zero, assistente virtual (IA) da Beyon Zero</h2>
+        <!-- O SITE NASCE (js/orcamento-nasce.js): a miniatura do site dela, que ganha uma peça a cada toque. Decorativa (a conversa é o caminho de quem usa leitor de tela); escondida até o 1º toque -->
+        <div class="nasce" id="o-nasce" aria-hidden="true" hidden>
+          <div class="nasce__barra"><span class="nasce__pontos"><i></i><i></i><i></i></span><span class="nasce__nome" id="o-nasce-nome">Seu site</span></div>
+          <div class="nasce__corpo">
+            <p class="nasce__titulo" id="o-nasce-titulo"></p>
+            <ul class="nasce__pecas" id="o-nasce-pecas"></ul>
+          </div>
+        </div>
         <div class="orc-log" id="o-log-caixa" tabindex="0" role="region" aria-label="Conversa">
           <ol class="orc-log__lista" id="o-log">
             <li class="msg msg--agente"><p>Oi, eu sou o Zero, a IA da Beyon Zero. Vou entender o seu negócio e desenhar o site que trabalha por você. Que tipo de negócio é o seu?</p></li>
@@ -701,6 +710,8 @@
   <script src="js/orcamento-pix.js" defer></script>
   <script src="js/orcamento-pagamento.js" defer></script>
   <script src="js/orcamento-recibo.js" defer></script>
+  <script src="js/orcamento-icones.js" defer></script>
+  <script src="js/orcamento-nasce.js" defer></script>
   <script src="js/orcamento-rotulos.js" defer></script>
   <script src="js/orcamento-toques.js" defer></script>
   <script src="js/orcamento-perguntas.js" defer></script>
