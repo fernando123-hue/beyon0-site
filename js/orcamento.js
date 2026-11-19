@@ -288,7 +288,12 @@
      inteiros: 472 px contra 526 em 390x844, medido em 12/11) a fala nova fica no topo da caixa e o cartão logo abaixo dela */
   function rolarConversa(li) {
     var caixa = $('o-log-caixa');
-    if (!li || !ficaNoFim()) { caixa.scrollTop = caixa.scrollHeight; return; }
+    if (!li || !ficaNoFim()) {
+      /* sem o cartão: até o fim, mas a fala do Zero maior que a caixa começa no topo dela, nunca cortada em cima (achado da revisão de 19/11) */
+      if (li && li.classList.contains('msg--agente')) caixa.scrollTop = Math.max(0, Math.min(caixa.scrollHeight - caixa.clientHeight, caixa.scrollTop + li.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA_FALA));
+      else caixa.scrollTop = caixa.scrollHeight;
+      return;
+    }
     caixa.scrollTop = Math.max(0, caixa.scrollTop + li.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA_FALA);
   }
   /* (aria-disabled, não disabled: o botão desligado com o foco nele jogava o foco no body, A3; o "enviando" já protege) */
@@ -791,13 +796,15 @@
     var atual = E ? passoAtual() : 'conversa', passou = true;
     if (atual === 'estimativa') atual = 'conversa';   /* (o preço mora na conversa: a etapa "Preço" saiu da barra) */
     if (!mudou('etapas', atual)) return;
-    [].forEach.call(document.querySelectorAll('#o-etapas li'), function (li) {
+    var ordem = 0, nomeAtual = '';
+    [].forEach.call(document.querySelectorAll('#o-etapas li'), function (li, i) {
       var eh = li.getAttribute('data-passo') === atual;
-      if (eh) passou = false;
+      if (eh) { passou = false; ordem = i + 1; nomeAtual = (li.querySelector('.orc-etapas__nome') || li).textContent; }
       li.classList.toggle('is-feita', passou);
       if (eh) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
     });
     var ol = $('o-etapas'), cur = ol.querySelector('[aria-current]');
+    ol.setAttribute('data-n', String(ordem || 1)); ol.setAttribute('data-nome', nomeAtual);   /* (o "3 de 5 · Ajustes" da barra de progresso, css/orcamento-casca.css) */
     if (cur && ol.scrollWidth > ol.clientWidth) ol.scrollLeft = Math.max(0, cur.offsetLeft - ol.offsetLeft - 16);   /* celular: a etapa atual à vista */
   }
   function conversa() {
