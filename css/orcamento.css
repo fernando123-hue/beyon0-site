@@ -155,6 +155,9 @@ html.orc-retomando .orc-lead, html.orc-retomando .orc-etapas, html.orc-retomando
 .orc-form input[aria-invalid="true"] { border-color: rgb(var(--aviso-rgb)); }
 .orc-check { display: flex; gap: .7rem; align-items: flex-start; margin-top: .9rem; font-size: var(--fs-s); color: var(--t2); line-height: 1.5; cursor: pointer; }
 .orc-check input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--ac); }
+/* (19/11) a caixinha herdava o min-height de 52 px e o padding de .orc-form input: ficava 30 px abaixo da 1ª linha do texto e abria um vão
+   grande entre duas confirmações. Ela tem o tamanho dela, alinhada à 1ª linha */
+.orc-form .orc-check input, .orc-check input { min-height: 0; height: 22px; padding: 0; border: 0; margin-top: .1em; }
 .orc-erro { min-height: 1.4em; color: rgb(var(--aviso-rgb)); font-size: var(--fs-s); }
 .orc-form .btn { margin-top: .4rem; align-self: flex-start; }
 
@@ -243,6 +246,8 @@ html.orc-retomando .orc-lead, html.orc-retomando .orc-etapas, html.orc-retomando
 
 .orc-escopo { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: var(--fs-s); line-height: 1.7; color: var(--t1); background: var(--s1); border: 1px solid var(--line); border-radius: var(--raio); padding: 1rem; max-height: 60vh; overflow-y: auto; margin-bottom: 1rem; }
 .orc-escopo:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+/* (19/11) no celular o escopo rola com a página: a caixa com rolagem própria cortava uma linha ao meio e escondia que havia mais texto */
+@media (max-width: 599px) { .orc-escopo { max-height: none; overflow-y: visible; } }
 /* (revisão do 3b-1) o status é frase que acalma, não rótulo: Sora, 16 px, claro */
 .orc-pag-status { margin-top: 1rem; min-height: 1.5em; font-family: var(--sans); font-size: var(--fs-b); line-height: 1.5; color: var(--t1); }
 .orc-pag-status a { color: var(--t1); text-decoration: underline; text-decoration-color: var(--line-hi); text-underline-offset: 4px; }
@@ -422,7 +427,7 @@ html.menos-movimento .orc-est__valor.is-novo { animation: none; }
 html.menos-movimento .orc-log { scroll-behavior: auto; }
 
 /* ---------- pagamento do sinal (Pix e cartão no próprio site) ---------- */
-.pag { max-width: 560px; gap: .4rem; }
+.pag { max-width: 560px; gap: .4rem; margin-top: 1.2rem; }   /* (19/11) os cartões Pix/Cartão encostavam no texto de cima */
 .pag-metodos { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: .6rem; }
 .pag-metodo { display: flex; flex-direction: column; align-items: flex-start; gap: .2rem; min-height: 64px; padding: .8rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio); background: var(--s1); color: var(--t1); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--t-micro) var(--ease-micro); }
 .pag-metodo:hover { border-color: var(--t1); }
@@ -434,7 +439,7 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .pag-grupo legend { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); padding: 0; margin-bottom: .2rem; }
 .pag-grupo label, .pag-rotulo { display: block; font-size: var(--fs-s); color: var(--t2); margin-top: .5rem; }
 .pag-par { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
-.pag-par > div { min-width: 0; display: flex; flex-direction: column; gap: .4rem; }
+.pag-par > div { min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: .4rem; }   /* (19/11) o rótulo que quebra em 2 linhas ("Sobrenome (obrigatório)" a 390 px) não desalinha os campos: eles assentam embaixo */
 .pag-par label, .pag-par .pag-rotulo { margin-top: .5rem; }
 .pag select { width: 100%; min-height: 52px; padding: .7rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); color: var(--t1); font: inherit; font-size: 1rem; }
 .pag select:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; border-color: var(--ac); }
