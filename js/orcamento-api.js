@@ -19,6 +19,7 @@
   function ler() { try { return JSON.parse(localStorage.getItem(CHAVE) || 'null'); } catch (e) { return null; } }
   var sessao = ler();
   var perdida = false;   /* a sessão existia e o servidor a recusou de vez: a página avisa em vez de abrir conversa nova em silêncio */
+  var RECADO_MAX = 1000;   /* o mesmo MAX_RECADO de api/_vendas/fluxo-recado.mjs e o MAX de js/recado.js */
   var codigoPerdido = null;   /* a referência curta do pedido da sessão perdida: o recado a leva sozinho (ela saiu do aparelho junto com a sessão) */
   var falhaDaRenovacao = null;   /* a renovação não concluiu por rede ou servidor instável (503 recuperável): a sessão fica e o erro sobe */
   var esquecida = function () { try { return localStorage.getItem(ESQUECIDA); } catch (e) { return null; } };
@@ -249,7 +250,12 @@
       /* (dono, 19/11: o cliente não cita código) sessão perdida: o servidor não liga o recado ao pedido sem a sessão (ninguém anexa a
          conversa de outra pessoa), então a página põe no texto a referência curta do pedido que saiu daqui, a mesma que antes o cliente
          teria de digitar. É informada pela página, não verificada, e o dono a vê assim */
-      if (!base.conversa_id && codigoPerdido && typeof base.texto === 'string') base.texto = base.texto + '\n\n(referência do pedido anterior, informada pela página: ' + codigoPerdido + ')';
+      if (!base.conversa_id && codigoPerdido && typeof base.texto === 'string') {
+        /* só se couber no limite do recado (1.000 caracteres, contados pelo servidor depois de juntar): um recado longo nunca deixa de sair
+           por causa da referência (achado da revisão de segurança, 19/11) */
+        var ref = '\n\n(referência do pedido anterior, informada pela página: ' + codigoPerdido + ')';
+        if (Array.from(base.texto.trim()).length + Array.from(ref).length <= RECADO_MAX) base.texto = base.texto.trim() + ref;
+      }
       return chamar('POST', 'recado', await comAntiRobo(base, true), undefined, ESTADO_MS);
     },
     abrirRecado: function (opcoes) { return carregarRecado().then(function (R) { return R.abrir(Object.assign({ origem: 'orcamento' }, opcoes)); }); },
