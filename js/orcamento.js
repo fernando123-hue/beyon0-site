@@ -288,7 +288,12 @@
      inteiros: 472 px contra 526 em 390x844, medido em 12/11) a fala nova fica no topo da caixa e o cartão logo abaixo dela */
   function rolarConversa(li) {
     var caixa = $('o-log-caixa');
-    if (!li || !ficaNoFim()) { caixa.scrollTop = caixa.scrollHeight; return; }
+    if (!li || !ficaNoFim()) {
+      /* sem o cartão: até o fim, mas a fala do Zero maior que a caixa começa no topo dela, nunca cortada em cima (achado da revisão de 19/11) */
+      if (li && li.classList.contains('msg--agente')) caixa.scrollTop = Math.max(0, Math.min(caixa.scrollHeight - caixa.clientHeight, caixa.scrollTop + li.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA_FALA));
+      else caixa.scrollTop = caixa.scrollHeight;
+      return;
+    }
     caixa.scrollTop = Math.max(0, caixa.scrollTop + li.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA_FALA);
   }
   /* (aria-disabled, não disabled: o botão desligado com o foco nele jogava o foco no body, A3; o "enviando" já protege) */
