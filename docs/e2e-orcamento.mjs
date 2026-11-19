@@ -98,7 +98,17 @@ try {
   ok(await page.locator('#o-nasce').isHidden() && await page.locator('#o-log .orc-toque:not([data-feito]) .orc-op--ic svg').count() === 8, 'casca: a miniatura espera o 1º toque e as 8 opções do ramo vêm com ícone');
   /* a pergunta do Zero aparece INTEIRA na caixa da conversa: com os cartões com ícone, fala + opções passam da altura da caixa, e rolar até o fim
      cortava o começo da pergunta (achado das fotos de 19/11: 51 px cortados na chegada, 46 a cada toque). A fala fica no topo; as opções seguem abaixo */
-  const falaInteira = () => espera(page, () => { const c = document.getElementById('o-log-caixa'), f = [...document.querySelectorAll('#o-log .msg--agente')].pop(); return !!f && f.getBoundingClientRect().top >= c.getBoundingClientRect().top - 1; }, 3000);
+  const falaInteira = async () => {
+    /* a pergunta mais recente do Zero fica no TOPO da caixa (não acima, cortada; nem abaixo, fora da vista) depois que a rolagem suave assenta:
+       3 leituras seguidas iguais, 200 ms entre elas */
+    let antes = null, iguais = 0;
+    for (let t = 0; t < 40 && iguais < 3; t++) {
+      const agora = await page.evaluate(() => { const c = document.getElementById('o-log-caixa'), f = [...document.querySelectorAll('#o-log .msg--agente')].filter(x => x.getClientRects().length).pop(); if (!f) return null; const dc = f.getBoundingClientRect().top - c.getBoundingClientRect().top; return { dc: Math.round(dc), cabe: c.scrollHeight <= c.clientHeight + 1, st: Math.round(c.scrollTop) }; });
+      iguais = agora && antes && agora.st === antes.st ? iguais + 1 : 0; antes = agora;
+      await page.waitForTimeout(200);
+    }
+    return !!antes && antes.dc >= -1 && (antes.cabe || antes.dc <= 24);
+  };
   ok(await falaInteira(), 'casca: na chegada, a 1ª pergunta do Zero aparece inteira na caixa (não começa cortada)');
   ok(await page.getAttribute('#o-etapas', 'data-n') === '1' && /1 de 5/.test(await page.evaluate(() => getComputedStyle(document.getElementById('o-etapas'), '::after').content)), 'casca: a barra de progresso diz "1 de 5"');
   /* O MICROFONE DO ZERO (18/11): o botão Falar grava, o servidor local devolve a frase simulada e ela cai na caixa para a pessoa conferir;
