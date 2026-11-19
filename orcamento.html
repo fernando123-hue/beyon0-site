@@ -214,7 +214,7 @@
             <ul class="orc-est__itens" id="o-est-itens"></ul>
             <dl class="orc-est__dados">
               <div><dt>Prazo</dt><dd id="o-est-prazo"></dd></div>
-              <div><dt>Para começar</dt><dd id="o-est-sinal"></dd></div>
+              <div><dt>Para destravar</dt><dd id="o-est-sinal"></dd></div>
               <div><dt>Com o site no ar</dt><dd id="o-est-resto"></dd></div>
             </dl>
             <p class="orc-est__total"><span>Investimento total</span> <b class="orc-est__valor" id="o-est-valor"></b></p>
@@ -363,7 +363,16 @@
     <!-- O RESUMO DO QUE SERÁ FEITO (o escopo final) -->
     <section class="orc-bloco" id="o-escopo" aria-labelledby="o-esc-titulo" hidden>
       <h2 id="o-esc-titulo">Resumo do que será feito</h2>
-      <p class="orc-bloco__lead">Confira tudo. É isto que será feito, pelo valor e no prazo abaixo.</p>
+      <!-- O NÚMERO (js/orcamento-resumo.js, remodelação parte 3): o total, a entrada e o prazo da proposta, num cartão. O texto do escopo logo abaixo segue inteiro: é ele que a pessoa confirma -->
+      <div class="esc-numero" id="o-esc-numero" hidden>
+        <p class="esc-numero__rot">Investimento total</p>
+        <p class="esc-numero__valor" id="o-esc-total"></p>
+        <dl class="esc-numero__fatos">
+          <div id="o-esc-entrada-caixa" hidden><dt>Para destravar</dt><dd id="o-esc-entrada"></dd></div>
+          <div id="o-esc-prazo-caixa" hidden><dt>Prazo</dt><dd id="o-esc-prazo"></dd></div>
+        </dl>
+      </div>
+      <p class="orc-bloco__lead">Confira tudo. É isto que será feito, pelo valor e no prazo deste resumo.</p>
       <div class="orc-escopo" id="o-esc-texto" tabindex="0" role="region" aria-label="Texto do escopo"></div>
       <p class="orc-nota">Quer mudar algo antes de confirmar? <a href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a>.</p>
       <p class="orc-nota orc-perguntar" hidden>Alguma dúvida? <a href="#o-texto" data-perguntar>Pergunte ao Zero</a>, aqui na conversa. Ele tira dúvidas, mas não muda o escopo nem o valor: vale o que está escrito aqui.</p>
@@ -377,7 +386,7 @@
 
     <!-- PAGAMENTO DO SINAL -->
     <section class="orc-bloco" id="o-pagamento" aria-labelledby="o-pag-titulo" hidden>
-      <h2 id="o-pag-titulo">Para começar</h2>
+      <h2 id="o-pag-titulo">Destravar o seu site</h2>
       <p class="orc-bloco__lead" id="o-pag-lead"></p>
       <p class="orc-nota orc-so-entrada"><a href="#o-antes">Perguntas antes de pagar</a>: posso desistir? quando fica pronto? quantos ajustes?<span id="o-atalho-fotos" hidden> como mando fotos e textos?</span><span id="o-atalho-restante" hidden> quando pago o restante?</span></p>
       <p class="orc-nota orc-perguntar orc-so-entrada" hidden>Alguma dúvida antes de pagar? <a href="#o-texto" data-perguntar>Pergunte ao Zero</a>. Ele tira dúvidas, mas não confirma pagamento nem muda o valor: quem mostra que o pagamento entrou é esta tela.</p>
@@ -741,6 +750,7 @@
   <script src="js/orcamento-escopo-desenho.js" defer></script>
   <script src="js/orcamento-escopo-barra.js" defer></script>
   <script src="js/orcamento-escopo.js" defer></script>
+  <script src="js/orcamento-resumo.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>

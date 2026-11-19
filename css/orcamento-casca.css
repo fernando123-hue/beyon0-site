@@ -60,3 +60,29 @@
 @keyframes nasce-pulo { from { opacity: 0; transform: translateY(10px) scale(.85); } to { opacity: 1; transform: none; } }
 @keyframes nasce-selo { from { transform: scale(.4); } to { transform: none; } }
 
+/* ---------- o número do resumo: um valor grande, a entrada e o prazo (js/orcamento-resumo.js) ---------- */
+.esc-numero { margin: .2rem 0 1.1rem; padding: 1rem 1.1rem 1.1rem; border: 1px solid var(--line-2); border-radius: 16px; background: var(--s1); }
+.esc-numero[hidden] { display: none; }
+.esc-numero__rot { margin: 0; font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--t2); }
+.esc-numero__valor { margin: .25rem 0 .8rem; font-weight: 300; font-size: clamp(2.1rem, 1.4rem + 3.4vw, 3rem); line-height: 1.05; letter-spacing: -.02em; color: var(--t1); overflow-wrap: anywhere; }
+.esc-numero__fatos { display: flex; flex-wrap: wrap; gap: .6rem 1.6rem; margin: 0; }
+.esc-numero__fatos > div { min-width: 0; }
+.esc-numero__fatos > div[hidden] { display: none; }
+.esc-numero__fatos dt { font-size: .78rem; color: var(--t2); }
+.esc-numero__fatos dd { margin: .1rem 0 0; font-size: 1.05rem; color: var(--t1); overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .esc-numero:not([hidden]) { animation: nasce-entra .4s ease-out both; }
+}
+
+/* ---------- parte 4: a trilha do pedido (os 4 passos depois do pagamento): cada passo é uma bolinha que enche quando fecha ---------- */
+.orc-pedido .orc-passo, .orc-antes-passos .orc-passo { align-items: center; }
+.orc-pedido .orc-passo__n, .orc-antes-passos .orc-passo__n { position: relative; display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--stroke); border-radius: 50%; line-height: 1; color: var(--t3); }
+.orc-pedido .orc-passo.is-feito .orc-passo__n { background: var(--ac); border-color: var(--ac); color: var(--bg); }
+.orc-pedido .orc-passo.is-agora .orc-passo__n { border-color: var(--ac); color: var(--ac); }
+.orc-pedido .orc-passo.is-agora .orc-passo__n::after { content: ""; position: absolute; inset: -5px; border: 1px solid var(--ac); border-radius: 50%; opacity: .35; }
+.orc-noar .orc-noar__endereco, .orc-fim .orc-noar__endereco { font-size: clamp(1.1rem, .9rem + 1.2vw, 1.5rem); }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .orc-pedido .orc-passo.is-agora .orc-passo__n::after { animation: trilha-pulsa 2.4s ease-in-out infinite; }
+  html:not(.menos-movimento) .orc-pedido .orc-passo.is-feito .orc-passo__n { animation: nasce-selo .3s cubic-bezier(.2, .9, .3, 1.4) both; }
+}
+@keyframes trilha-pulsa { 0%, 100% { opacity: .15; transform: scale(.94); } 50% { opacity: .45; transform: scale(1.06); } }

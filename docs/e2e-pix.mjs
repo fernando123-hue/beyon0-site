@@ -60,6 +60,7 @@ export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral, fo
   page.off('request', contar);
   await new Promise(r => setTimeout(r, 61e3));
   ok(/a entrada de 40%: /.test(await page.textContent('#o-pag-lead')), 'entrada: o percentual vem da proposta (o servidor local usa o rascunho, a 40)');
+  ok((await page.textContent('#o-pag-titulo')).trim() === 'Destravar o seu site', 'pagamento: o título é "Destravar o seu site"');
   const perguntasAntes = page.locator('#o-antes');
   ok(await perguntasAntes.isVisible(), 'perguntas antes de pagar: na tela da entrada');
   /* D3 (a): nenhum WhatsApp preso na tela (fixed/sticky) nos passos do pedido. O menu do site (nav) é do site todo e fica fora */
