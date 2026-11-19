@@ -129,7 +129,7 @@
       endereco(pronto ? '' : s.url, 'o-noar-endereco', 'o-noar-abrir', e.passo !== 'suspensa');   /* (pronto: o site ainda não tem endereço no ar; a prévia está logo acima) */
       var aviso = t ? t.aviso : avisoDoRestante(s.dias_do_aviso, Number(s.limite_dias) || LIMITE_PADRAO, e.passo);
       $('o-noar-aviso').textContent = aviso; $('o-noar-aviso').hidden = !aviso;
-      $('o-noar-nota').hidden = pago;
+      $('o-noar-nota').hidden = !pronto || pago;   /* (a frase da ordem nova só vale para o site pronto ainda por pagar; a entrega antiga já está no ar ou saiu dele) */
       if (pago) {   /* pago: nada a cobrar; a espera do Pix para e o bloco some (o fim aparece quando o site entrar no ar) */
         chavePix = null; pag.hidden = true;
         if (tela && typeof tela.parar === 'function') tela.parar();

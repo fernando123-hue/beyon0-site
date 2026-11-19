@@ -188,3 +188,43 @@ test('(e) o restante pago devolve o alerta "restante_pago" (o dono põe no ar); 
   const r = await aprovarRestante(db, await iniciarRestante(db, c));
   assert.deepEqual(r.alerta, { codigo: await codigoDe(db, c), evento: 'restante_pago', parcela: 'restante' });
 });
+
+/* ---------- acréscimos da revisão técnica ---------- */
+test('revisão: o restante pago por uma order que ainda não estava vinculada (a resposta da criação se perdeu) também devolve o alerta', async () => {
+  const c = await entregaEm(db, 'aprovada');
+  const t = await rpc('pagamentos_iniciar_tentativa', { ...base(c), metodo: 'pix', provedor: 'mercadopago' });
+  const order = 'ORDSOLTA' + t.tentativa_id.replace(/-/g, '').slice(0, 16).toUpperCase();
+  const r = await aprovarRestante(db, { t, order });   /* (sem pagamentos_vincular: a base acha pela referência e vincula) */
+  assert.equal(r.aplicado, 'aprovada');
+  assert.deepEqual(r.alerta, { codigo: await codigoDe(db, c), evento: 'restante_pago', parcela: 'restante' });
+});
+
+test('revisão: o restante pago de uma entrega ANTIGA (no ar) conclui sozinho e não pede "ponha no ar" ao dono', async () => {
+  const c = await entregaEm(db, 'no_ar');
+  const r = await aprovarRestante(db, await iniciarRestante(db, c));
+  assert.equal(r.aplicado, 'aprovada'); assert.equal(r.alerta, undefined);
+  assert.equal(await passo(c), 'concluida');
+});
+
+test('revisão: encerrar com o restante PAGO é recusado (motivo restante_pago); estornado o restante, encerra', async () => {
+  const c = await aprovadaComRestantePago();
+  const encerrar = async () => rpc('vendas_encerrar', { org_slug: 'beyon-zero', codigo: await codigoDe(db, c), motivo: 'atraso' });
+  assert.deepEqual(await encerrar(), { ok: false, motivo: 'restante_pago' });
+  assert.equal(await passo(c), 'aprovada');
+  await aplicar(c, 'estornada', 'saldo');
+  assert.deepEqual(await encerrar(), { ok: true });
+});
+
+test('revisão: o pedido concluído pela ordem nova aceita o link de retomada do aviso "no ar" (criar e usar); o encerrado por desistência, não', async () => {
+  const c = await aprovadaComRestantePago();
+  assert.deepEqual(await noAr(c), { ok: true });
+  const hash = h => h.repeat(64);
+  const r = await rpc('vendas_criar_retomada', { org_slug: 'beyon-zero', conversa_id: c.conversa_id, codigo_hash: hash('a'), dias: 7 });
+  assert.ok(r.expira_em);
+  const novo = (await db.query('select gen_random_uuid() as id')).rows[0].id;
+  await db.query('insert into auth.users (id) values ($1)', [novo]);
+  assert.deepEqual(await rpc('vendas_usar_retomada', { org_slug: 'beyon-zero', codigo_hash: hash('a'), visitante_id: novo }), { ok: true, conversa_id: c.conversa_id });
+  const d = await entregaEm(db, 'producao');
+  assert.deepEqual(await rpc('vendas_encerrar', { org_slug: 'beyon-zero', codigo: await codigoDe(db, d), motivo: 'desistencia' }), { ok: true });
+  assert.equal((await erroDe(rpc('vendas_criar_retomada', { org_slug: 'beyon-zero', conversa_id: d.conversa_id, codigo_hash: hash('b'), dias: 7 }))).codigo, '55000');
+});

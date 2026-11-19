@@ -37,7 +37,15 @@
       texto: function (link) { return QUEM + 'Esse é o último lembrete do restante do seu site. Você paga por Pix por este link. Ele' + LINK_UNICO + link + '\nSem o pagamento, o site sai do ar à meia-noite, no fim do 3º dia depois do nosso aviso. Se você já pagou, pode ignorar esta mensagem.'; }
     }
   };
-  window.BZPainelEntregas = { TEXTOS: TEXTOS };   /* (exposto antes da guarda: o teste lê os textos sem o painel) */
+  /* (19/11) a entrega ANTIGA, que foi ao ar antes da ordem nova e ainda deve o restante, recebe o texto de antes (o Pix e os 3 dias): registrar este aviso começa a contagem
+     dos lembretes e da suspensão, então o cliente precisa ler o prazo. A da ordem nova (concluída: o restante já foi pago) recebe TEXTOS.no_ar */
+  var NO_AR_ANTIGO = {
+    titulo: 'Site no ar', rotulo: 'aviso do site no ar', assunto: 'Seu site está no ar',
+    texto: function (link) { return QUEM + 'O seu site está no ar!\nPor este link você vê o endereço e paga o restante por Pix. Ele' + LINK_UNICO + link + '\nO restante tem 3 dias, contados desta mensagem. Sem o pagamento, o site sai do ar à meia-noite, no fim do 3º dia.'; }
+  };
+  /* o texto de cada item da fila: o do momento; o "no ar" da entrega antiga, o de antes */
+  function textoDo(a) { return a && a.momento === 'no_ar' && a.passo === 'no_ar' ? NO_AR_ANTIGO : (a && TEXTOS[a.momento]) || null; }
+  window.BZPainelEntregas = { TEXTOS: TEXTOS, NO_AR_ANTIGO: NO_AR_ANTIGO, textoDo: textoDo };   /* (exposto antes da guarda: o teste lê os textos sem o painel) */
 
   var P = window.BZPainel, C = window.BZPainelPedido;
   var $ = function (id) { return document.getElementById(id); };
@@ -52,7 +60,7 @@
       .catch(function (e) { if (P.recusada(e)) return; $('avisos-estado').textContent = e.message; botao.disabled = false; });
   }
   function cartao(a) {
-    var t = TEXTOS[a.momento];
+    var t = textoDo(a);
     if (!t) return null;   /* (momento que este painel não conhece: não inventa mensagem) */
     if (a.momento === 'no_ar' && a.passo !== 'no_ar' && a.passo !== 'concluida') return null;   /* (o site não está no ar, p. ex. suspensa: "O seu site está no ar!" seria falso. O servidor já filtra; aqui é a segunda trava, e a resposta sem o passo também não oferece. 19/11: na ordem nova o pedido CONCLUI ao entrar no ar, com o restante já pago) */
     var c = el('div', 'pn__alerta pn__fila');

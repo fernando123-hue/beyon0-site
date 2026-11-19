@@ -458,3 +458,9 @@ test('a volta à aba em produção recarrega o estado (a nova prévia aparece se
   doc.hidden = false; E = { conversa: { etapa: 'conversa' } }; ouvintes.visibilitychange(); assert.equal(leituras, 1, 'etapa que não espera nada de fora: não lê');
   E = { conversa: { etapa: 'aguardando_pagamento' } }; ouvintes.visibilitychange(); assert.equal(leituras, 2, 'o pagamento por fora continua lendo');
 });
+
+test('19/11 (revisão): a prévia aprovada com o restante já pago não diz mais "falta o restante"', () => {
+  const ap = B.fase(entrega({ passo: 'aprovada', previa: { url: null } }), true);
+  assert.equal(ap.fase, 'aprovada'); assert.doesNotMatch(ap.texto, /Falta/); assert.match(ap.texto, /restante foi pago/); assert.match(ap.texto, /coloca o site no ar/);
+  assert.match(B.fase(entrega({ passo: 'aprovada', previa: { url: null } })).texto, /Falta só o restante/, 'sem o restante pago, a frase de antes');
+});

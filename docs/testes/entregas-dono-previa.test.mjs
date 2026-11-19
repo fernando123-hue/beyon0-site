@@ -134,6 +134,8 @@ test('alertas por passo: 30 dias sem material (dispensar com a autorização exp
   assert.match(aprovadaNoPrazo({ restante_pago: true }).join(' '), /o restante foi pago: ponha o site no ar \(no-ar BZ-K7M3Q/);
   const bloq = aprovadaNoPrazo({ restante_pago: true, bloqueada: true });
   assert.equal(bloq.length, 1); assert.match(bloq[0], /BLOQUEADA/); assert.ok(!/ponha o site no ar/.test(bloq[0]));
+  const bloqMaterial = alertasDe(base({ passo: 'material', dias_desde_entrada: 200, apagar_material_devido: true, bloqueada: true }), HOJE);
+  assert.equal(bloqMaterial.length, 1, 'bloqueada: uma linha só, sem sugerir o que o banco recusa'); assert.match(bloqMaterial[0], /BLOQUEADA/);
   assert.deepEqual(alertasDe(base({ passo: 'producao', prazo_dias: 5, prazo: { conta_desde: '2026-10-01T12:00:00-04:00', pausas: [{ desde: '2026-10-05T12:00:00-04:00', ate: null }] } }), HOJE), [], 'pausa aberta: não vence');
   /* 22/10: o restante vale 3 dias do REGISTRO do aviso "no ar"; lembretes no 2º e no 3º dia; à 00:00 depois do 3º dia o site sai do ar */
   const noAr = extra => base({ passo: 'no_ar', ...extra });
@@ -164,7 +166,7 @@ test('o próximo comando de cada passo (pronto para copiar); em prévia, nenhum:
   assert.equal(cmd(base({ passo: 'previa' })), null);
   assert.equal(cmd(base({ passo: 'aprovada' })), null, '19/11: sem o restante pago o site não vai ao ar');
   assert.match(cmd(base({ passo: 'aprovada', restante_pago: true })), /no-ar BZ-K7M3Q <endereço do site>/);
-  assert.equal(cmd(base({ passo: 'aprovada', restante_pago: true, bloqueada: true })), null, 'bloqueada (estorno, contestação): nada avança');
+  for (const passo of ['aprovada', 'producao', 'ajustes', 'material']) assert.equal(cmd(base({ passo, restante_pago: true, material_status: 'enviado', cliente_captacao: 'c-k7m3qa', apagar_material_devido: true, bloqueada: true })), null, passo + ' bloqueada (estorno, contestação): nada avança');
   assert.equal(cmd(base({ passo: 'no_ar' })), null);
   assert.match(cmd(base({ passo: 'no_ar', dias_do_aviso: 4 })), /suspender BZ-K7M3Q/, '22/10: passou da 00:00 depois do 3º dia do aviso');
   assert.match(cmd(base({ passo: 'concluida', religar_pendente: true })), /religado BZ-K7M3Q/);

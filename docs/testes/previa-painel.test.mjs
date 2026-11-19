@@ -423,3 +423,12 @@ test('19/11: com o projeto pausado (estorno ou contestação), o painel recusa p
   assert.equal(ar.status, 409); assert.match(ar.corpo.erro, /BLOQUEADA/); assert.equal(await passo(q.c), 'aprovada', 'restante pago, mas bloqueada: não vai ao ar');
   assert.equal((await cen.painelPost({ encerrar: codigo, motivo: 'desistencia' })).status, 200, 'o caminho da devolução continua aberto');
 });
+
+test('19/11 (revisão): encerrar com o restante PAGO é recusado pelo painel com a frase do estorno (o pedido não fecha com o valor inteiro recebido)', async () => {
+  const q = await emProducao();
+  assert.equal((await publicar(q.codigo)).status, 200);
+  assert.equal((await q.n.chamar('POST', 'previa-aprovar', { conversa_id: q.c, rodada_base: 0 })).status, 200);
+  await pagarRestante(q.n, q.c);
+  const r = await cen.painelPost({ encerrar: q.codigo, motivo: 'atraso' });
+  assert.equal(r.status, 409); assert.match(r.corpo.erro, /estorne o restante/); assert.equal(await passo(q.c), 'aprovada');
+});

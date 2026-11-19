@@ -26,7 +26,7 @@
   function dia(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || '')); return m ? Number(m[3]) + ' de ' + MESES[Number(m[2]) - 1] : ''; }
 
   /* o que a seção mostra, a partir da entrega que o servidor mandou. Sem endereço que passe na regra, o cliente não pode responder (não aprova o que não consegue ver) */
-  function fase(e) {
+  function fase(e, restantePago) {
     if (!e) return { fase: 'nenhuma' };
     var r = e.rodadas || { usadas: 0, max: 2 }, max = r.max == null ? null : r.max;
     var listaN = r.usadas + 1, ultima = max != null && listaN === max;
@@ -40,7 +40,7 @@
       return { fase: 'ajustes', titulo: 'Recebemos a sua lista', texto: 'A nova prévia aparece aqui.' + (ate ? ' Previsão: ' + ate + '.' : ''), href: null, listaN: r.usadas, listaMax: max, ultima: false, podeResponder: false, podeAjustes: false };
     }
     if (e.passo === 'aprovada') {
-      return { fase: 'aprovada', titulo: 'Prévia aprovada', texto: 'Seu site está pronto. Falta só o restante, logo abaixo: com ele pago, o site vai ao ar.', href: null, listaN: r.usadas, listaMax: max, ultima: false, podeResponder: false, podeAjustes: false };
+      return { fase: 'aprovada', titulo: 'Prévia aprovada', texto: restantePago ? 'Seu site está pronto e o restante foi pago. A Beyon Zero coloca o site no ar e te avisa.' : 'Seu site está pronto. Falta só o restante, logo abaixo: com ele pago, o site vai ao ar.', href: null, listaN: r.usadas, listaMax: max, ultima: false, podeResponder: false, podeAjustes: false };
     }
     return { fase: 'nenhuma' };
   }
@@ -94,7 +94,7 @@
     function contar() { $('o-prv-contador').textContent = $('o-prv-lista').value.length + ' de ' + MAX_TEXTO + ' caracteres'; }
 
     function atualizar(E) {
-      var f = fase(E.entrega), s = $('o-previa');
+      var f = fase(E.entrega, (E.pagamentos || []).some(function (p) { return p.parcela === 'saldo' && p.status === 'pago'; })), s = $('o-previa');   /* (o restante pago: o registro do banco) */
       var ativa = E.conversa.etapa === 'em_producao' && f.fase !== 'nenhuma';
       var pronta = ativa && f.fase === 'pronta';
       s.hidden = !ativa;

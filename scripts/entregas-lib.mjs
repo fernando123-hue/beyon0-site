@@ -55,6 +55,8 @@ const validarCodigo = codigo => { if (!CODIGO.test(String(codigo))) throw new Er
 const acao = (buscar, origem, chave, corpo) => painel(buscar, origem, chave, '/api/painel', { method: 'POST', body: JSON.stringify(corpo) });
 
 export function alertasDe(it, agora = new Date()) {
+  /* (19/11) reembolso bloqueia a entrega: nada avança nem vai ao ar (o banco recusa). Uma linha só: as outras sugeririam ações que o banco recusa */
+  if (it.bloqueada) return ['BLOQUEADA: o pagamento foi estornado, contestado ou está em disputa no Mercado Pago (projeto pausado). Nada avança nem vai ao ar; confira no Mercado Pago e, se houver devolução, encerre (encerrar ' + it.codigo + ' desistencia; com o restante pago, estorne o restante antes)'];
   const a = [];
   const diasDeEntrada = it.dias_desde_entrada;
   if (it.passo === 'material' && diasDeEntrada >= 30) {
@@ -79,10 +81,8 @@ export function alertasDe(it, agora = new Date()) {
         + (it.passo === 'aprovada' ? '. Com o prazo vencido o site NÃO vai ao ar: registre a devolução antes (a captação recusa publicar)' : ''));
     }
   }
-  /* (19/11) reembolso bloqueia a entrega: nada avança nem vai ao ar (o banco recusa); o caminho é conferir no Mercado Pago e, havendo devolução, encerrar */
-  if (it.bloqueada) a.push('BLOQUEADA: o pagamento foi estornado, contestado ou está em disputa no Mercado Pago (projeto pausado). Nada avança nem vai ao ar; confira no Mercado Pago e, se houver devolução, encerre (encerrar ' + it.codigo + ' desistencia)');
   /* (19/11) a ordem nova: o restante é cobrado com a prévia aprovada; o site só vai ao ar com ele pago */
-  if (it.passo === 'aprovada' && !it.bloqueada) a.push(it.restante_pago ? 'o restante foi pago: ponha o site no ar (no-ar ' + it.codigo + ' <endereço>)' : 'esperando o cliente pagar o restante (a cobrança abriu quando ele aprovou a prévia): o site só vai ao ar com ele pago');
+  if (it.passo === 'aprovada') a.push(it.restante_pago ? 'o restante foi pago: ponha o site no ar (no-ar ' + it.codigo + ' <endereço>)' : 'esperando o cliente pagar o restante (a cobrança abriu quando ele aprovou a prévia): o site só vai ao ar com ele pago');
   if (it.passo === 'previa') a.push('esperando o cliente há ' + (it.dias_na_previa == null ? '?' : paraTerminal(it.dias_na_previa, 10)) + ' dia(s): o projeto para até ele responder (D5). Nada a fazer; não aprova nem encerra por silêncio');
   if (it.aviso_previa_pendente) a.push('avisar o cliente: prévia pronta (painel, Avisos, com o link de uso único)');
   if (it.aviso_no_ar_pendente && it.passo === 'no_ar') a.push('avisar o cliente: site no ar (painel, Avisos, com o link de uso único). Os 3 dias do restante só começam a contar quando você registrar este aviso');
@@ -103,12 +103,12 @@ export function alertasDe(it, agora = new Date()) {
 }
 
 export function proximoComando(it, raiz) {
+  if (it.bloqueada) return null;   /* (19/11) bloqueada: nada avança; o dono confere no Mercado Pago (encerrar é decisão dele, não sugestão automática) */
   const sh = c => `node "${path.join(raiz, 'scripts', 'entregas.mjs')}" ${c}`;
   if (it.passo === 'material' && it.apagar_material_devido && !it.material_apagado_em) return sh(`aviso ${it.codigo} material-apagar`);
   if (it.passo === 'producao' && it.material_status === 'enviado') return sh(`baixar ${it.codigo} --destino "<pasta do cliente>/${it.codigo}"`);
   if (it.passo === 'producao' && it.cliente_captacao) return 'na captação: montar, checklist, enviar-versao e a revisão; depois: ' + sh(`previa ${it.codigo} <endereço da prévia>`);
   if (it.passo === 'ajustes') return sh(`ajustes ${it.codigo} --destino "<pasta>/${it.codigo}-ajustes"`) + '; refeita a versão e revisada: ' + sh(`previa ${it.codigo} <endereço da prévia>`);
-  if (it.bloqueada) return null;   /* (19/11) bloqueada: nada avança; o dono confere no Mercado Pago (encerrar é decisão dele, não sugestão automática) */
   if (it.passo === 'aprovada') return it.restante_pago ? sh(`no-ar ${it.codigo} <endereço do site>`) : null;   /* (19/11) sem o restante pago o site não vai ao ar */
   if (it.passo === 'no_ar' && it.dias_do_aviso > 3) return sh(`suspender ${it.codigo}`);   /* passou da 00:00 depois do 3º dia do aviso "no ar" */
   if (it.passo === 'concluida' && it.religar_pendente) return sh(`religado ${it.codigo}`);

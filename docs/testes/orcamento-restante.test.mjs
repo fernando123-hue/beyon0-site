@@ -415,3 +415,8 @@ test('19/11: a retomada na aprovada cai na seção da prévia (a frase de lá ap
   assert.equal(R.alvoDaRetomada(comPasso('aprovada')), 'o-previa');
   assert.ok(HTML.indexOf('id="o-previa"') < HTML.indexOf('id="o-noar"'), 'o passo 4 vem logo depois da prévia');
 });
+
+test('19/11 (revisão): a nota da ordem nova ("Com o restante pago, o site vai ao ar") só aparece com o site pronto ainda por pagar; a entrega antiga no ar ou suspensa não a mostra', () => {
+  for (const passo of ['no_ar', 'suspensa']) { const t = montar(); t.rest.atualizar(estado(passo)); assert.equal(t.E('o-noar-nota').hidden, true, passo); }
+  const u = montar(); u.rest.atualizar(estado('aprovada', { site: { url: null } })); assert.equal(u.E('o-noar-nota').hidden, false);
+});

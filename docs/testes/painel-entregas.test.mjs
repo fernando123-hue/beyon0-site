@@ -243,3 +243,14 @@ test('a voz é uma só no painel: as mensagens da fila de modelos e do lembrete 
     assert.match(s, /Aqui é o Fernando, da Beyon Zero\./, f);
   }
 });
+
+test('19/11 (revisão): o aviso "no ar" da entrega ANTIGA (no ar sem o restante) mantém o texto do Pix e dos 3 dias; o da ordem nova (concluída) não cobra nada', () => {
+  const P = janela.BZPainelEntregas;
+  assert.equal(P.textoDo({ momento: 'no_ar', passo: 'no_ar' }), P.NO_AR_ANTIGO);
+  assert.equal(P.textoDo({ momento: 'no_ar', passo: 'concluida' }), T.no_ar);
+  assert.equal(P.textoDo({ momento: 'previa', passo: 'previa' }), T.previa);
+  assert.equal(P.textoDo({ momento: 'inventado' }), null);
+  const antigo = P.NO_AR_ANTIGO.texto('L');
+  assert.match(antigo, /paga o restante por Pix/); assert.match(antigo, /3 dias/); assert.match(antigo, /sai do ar à meia-noite/);
+  assert.doesNotMatch(T.no_ar.texto('L'), /restante|3 dias/);
+});

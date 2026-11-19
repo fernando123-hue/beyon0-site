@@ -49,6 +49,7 @@ const MOTIVO_RECUSA = {
   fora_do_ar: 'O site não está no ar: o lembrete do restante só existe com o site no ar.',
   dispensar: 'O número já está autorizado: o caminho é dispensar o material (dispensar BZ-…), não o aviso de material parado.',
   ja: 'Isso já foi registrado.',
+  restante_pago: 'O restante deste pedido já foi pago: estorne o restante no Mercado Pago antes de encerrar (o pedido não fecha com o valor inteiro recebido e sem entrega).',
   sem_restante: 'O restante ainda não foi pago: o site só vai ao ar com ele pago (nem na conta da Beyon). A cobrança abriu quando o cliente aprovou a prévia.'
 };
 /* (19/11) "bloquear automaticamente a nossa entrega quando o cliente pedir reembolso": com a entrada estornada (inteira ou em parte), contestada ou com o projeto

@@ -10,6 +10,8 @@
 --    (no_ar/suspensa) continuam podendo pagar e concluir como antes (privado.concluir_entrega não muda).
 -- 3. (c) O estorno PARCIAL deixa o pagamento "pago" no Mercado Pago, mas a entrada deixa de contar como paga (privado.parcela_quitada).
 --    (d) Estado não reconhecido DEPOIS da aprovação é tratado como contestação (falha fechada: pausa o projeto e bloqueia a entrega).
+-- 4. A contestação REVERTIDA a favor da Beyon (contestada_revertida) devolve o pagamento a "pago", mas o projeto continua pausado e a entrega bloqueada até uma
+--    pessoa reativar o projeto (como já dizia docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md: as fontes oficiais do provedor se contradizem; falha fechada).
 -- Só `create or replace` com as MESMAS assinaturas (e os mesmos privilégios, repetidos no fim); funções novas nascem fechadas (revoke de public, anon,
 -- authenticated e service_role, menos as app.* que o servidor chama). Ordem de travas de sempre: conversa → entrega → pagamento → tentativa.
 -- Erros: 55000 (entrega bloqueada ou passo errado), como as travas que já existiam; o painel lê vendas_entrega_info (bloqueada, restante_pago) para
@@ -162,6 +164,11 @@ begin
     raise exception 'encerrar: motivo fora da lista' using errcode = '22023';
   end if;
   e := privado.entrega_do_dono_travar(p, array['material', 'producao', 'previa', 'ajustes', 'aprovada', 'no_ar', 'suspensa']);
+  -- (19/11) na ordem nova o restante pode estar PAGO com a entrega ainda aprovada: encerrar assim deixaria 100% do valor recebido sem entrega e sem
+  -- ninguém lembrar a devolução. Primeiro o estorno do restante no Mercado Pago (o pagamento vira estornado), depois o encerrar
+  if exists (select 1 from app.pagamentos where proposta_id = e.proposta_id and parcela = 'saldo' and status = 'pago') then
+    return jsonb_build_object('ok', false, 'motivo', 'restante_pago');
+  end if;
   if exists (select 1 from app.tentativas_pagamento t join app.pagamentos pg on pg.id = t.pagamento_id
               where pg.proposta_id = e.proposta_id and pg.parcela = 'saldo' and t.status in ('criada', 'processando', 'aguardando', 'requer_acao')) then
     return jsonb_build_object('ok', false, 'motivo', 'pagamento_em_andamento');
@@ -195,9 +202,10 @@ begin
      where e.org_id = v_org and e.passo = 'material' and e.aviso_material_em is null
        and (now() at time zone 'America/Campo_Grande')::date - ((e.prazo ->> 'entrada_em')::timestamptz at time zone 'America/Campo_Grande')::date >= 30
        and not privado.material_autorizado(m) and not privado.entrega_bloqueada(e)
-    union all   -- (22/10) o aviso prévio do apagamento do material: o projeto parado completou 5 meses (privado.material_apagar_devido); vale com a entrega bloqueada (é sobre apagar dado)
+    union all   -- (22/10) o aviso prévio do apagamento do material: o projeto parado completou 5 meses (privado.material_apagar_devido). Bloqueada (19/11), o registro do
+                -- aviso é recusado como as outras ações do dono: a fila não oferece o que o dono não consegue marcar; o caminho dela é encerrar o pedido
     select e.conversa_id, 'material_apagar', ((privado.material_parado_desde(e) at time zone 'America/Campo_Grande')::date + interval '5 months') at time zone 'America/Campo_Grande', e.passo from app.entregas e
-     where e.org_id = v_org and privado.material_apagar_devido(e)
+     where e.org_id = v_org and privado.material_apagar_devido(e) and not privado.entrega_bloqueada(e)
     union all   -- (22/10) o lembrete do 2º dia depois do aviso "no ar" (só as entregas antigas, no ar sem o restante)
     select e.conversa_id, 'restante_lembrete_1', e.aviso_no_ar_feito_em + interval '2 days', e.passo from app.entregas e
      where e.org_id = v_org and e.passo = 'no_ar' and e.aviso_no_ar_feito_em is not null and e.lembrete_restante_1_em is null
@@ -354,6 +362,7 @@ create function app.pagamentos_aplicar(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   v_prov text := p ->> 'provedor'; v_order text := p -> 'retrato' ->> 'order_id'; v_estado text := coalesce(p -> 'retrato' ->> 'estado', '');
+  v_origem text := case when p ->> 'origem' in ('criacao', 'webhook', 'consulta', 'reconciliacao', 'operacao') then p ->> 'origem' else 'consulta' end;   -- (a mesma regra da base: a trilha só aceita estas)
   v_tid uuid; v_cid uuid; t app.tentativas_pagamento; pg app.pagamentos; r jsonb; v_virou boolean := false; v_evento text; v_codigo text;
 begin
   -- as travas na ordem de sempre (conversa → pagamento → tentativa) ANTES de olhar o estado da tentativa; a base trava de novo (a mesma transação: não espera)
@@ -372,22 +381,38 @@ begin
 
   r := app.pagamentos_aplicar_base(p);
 
-  if v_tid is null or r ->> 'aplicado' is null or r ? 'divergencia' then return r; end if;
+  if r ->> 'aplicado' is null or r ? 'divergencia' then return r; end if;
+  if v_tid is null then
+    -- (a resposta da criação se perdeu: a base achou a tentativa pela referência e acabou de vincular a order; ainda sem dinheiro antes, então o (d) não se aplica)
+    select id into v_tid from app.tentativas_pagamento where provedor = v_prov and provedor_order_id = v_order;
+    if v_tid is null then return r; end if;
+    select pr.conversa_id into v_cid from app.tentativas_pagamento t2 join app.pagamentos p2 on p2.id = t2.pagamento_id
+      join app.propostas pr on pr.id = p2.proposta_id where t2.id = v_tid;
+    select p2.* into pg from app.pagamentos p2 join app.tentativas_pagamento t2 on t2.pagamento_id = p2.id where t2.id = v_tid;
+  end if;
   if v_virou and r ->> 'aplicado' = 'contestada' then
-    perform privado.auditar_pagamento(t.org_id, t.pagamento_id, t.id, 'payment.unknown_status', v_prov, v_order, p ->> 'origem', t.status, 'contestada',
+    perform privado.auditar_pagamento(t.org_id, t.pagamento_id, t.id, 'payment.unknown_status', v_prov, v_order, v_origem, t.status, 'contestada',
       jsonb_build_object('motivo', 'estado não reconhecido depois da aprovação: tratado como contestação', 'status', left(p -> 'retrato' -> 'pagamento' ->> 'status', 40),
                          'status_detail', left(p -> 'retrato' -> 'pagamento' ->> 'status_detail', 60)), p ->> 'request_id');
   end if;
+  -- o alerta é só leitura e NUNCA derruba o pagamento já aplicado (a mesma regra do gatilho da entrega): qualquer erro aqui devolve o resultado sem alerta
+  begin
   select * into pg from app.pagamentos where id = pg.id;
   if pg.gateway_ref is distinct from v_order then return r; end if;   -- (a order duplicada, reembolsada pela equipe: sem alerta)
   v_evento := case when r ->> 'aplicado' = 'estornada' then 'estorno'
                    when r ->> 'aplicado' = 'estornada_parcial' then 'estorno_parcial'
                    when r ->> 'aplicado' = 'contestada' then 'contestacao'
-                   when r ->> 'aplicado' = 'aprovada' and pg.parcela = 'saldo' then 'restante_pago' end;
+                   -- (o restante pago avisa só na ordem nova: a entrega aprovada, sem bloqueio, espera o dono pôr no ar; as antigas concluem sozinhas)
+                   when r ->> 'aplicado' = 'aprovada' and pg.parcela = 'saldo'
+                        and exists (select 1 from app.entregas e where e.proposta_id = pg.proposta_id and e.passo = 'aprovada' and not privado.entrega_bloqueada(e)) then 'restante_pago' end;
   if v_evento is null then return r; end if;
   select codigo into v_codigo from app.pedidos where conversa_id = v_cid;
   return r || jsonb_build_object('alerta', jsonb_strip_nulls(jsonb_build_object('codigo', v_codigo, 'evento', v_evento,
     'parcela', case when pg.parcela = 'sinal' then 'entrada' else 'restante' end)));
+  exception when others then
+    raise warning 'alerta do pagamento não montado (order %): %', v_order, sqlerrm;
+    return r;
+  end;
 end $$;
 
 -- ---------- a lista do painel e do `listar`: a de 20261024120400_pr3b3_lista.sql com `bloqueada` e `restante_pago` (o próximo passo certo: esperar o restante ou pôr no ar) ----------
@@ -433,12 +458,71 @@ begin
   return jsonb_build_object('itens', v_itens, 'total', jsonb_array_length(v_itens));
 end $$;
 
+-- ---------- a retomada do pedido concluído (19/11): na ordem nova, pôr no ar conclui o pedido e encerra a conversa, mas o aviso "seu site está no ar" do dono
+-- leva um link de retomada (painel › Avisos). A conversa encerrada com a entrega CONCLUÍDA (site no ar) há até 30 dias passa a aceitar o link (o mesmo prazo do link do
+-- pedido, privado.encerrar_links_do_pedido): abre o recibo final. As de 20261016120000_pr2b2_retomada.sql, só com a conferência da etapa trocada por esta ----------
+create function privado.conversa_retomavel(c app.conversas) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select privado.etapa_retomavel(c.etapa)
+      or (c.etapa = 'encerrada' and exists (select 1 from app.entregas e where e.conversa_id = c.id and e.passo = 'concluida' and e.site_url is not null
+                                                and e.concluida_em > now() - interval '30 days'));
+$$;
+revoke all on function privado.conversa_retomavel(app.conversas) from public, anon, authenticated, service_role;
+
+create or replace function app.vendas_criar_retomada(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare c app.conversas; v_dias integer; v_expira timestamptz;
+begin
+  if coalesce(p ->> 'codigo_hash', '') !~ '^[0-9a-f]{64}$' or coalesce(p ->> 'dias', '') !~ '^[0-9]{1,2}$' then
+    raise exception 'retomada: parâmetros inválidos' using errcode = '22023';
+  end if;
+  v_dias := (p ->> 'dias')::integer;
+  if v_dias not between 1 and 14 then raise exception 'retomada: validade inválida' using errcode = '22023'; end if;
+  select cv.* into c from app.conversas cv join app.organizacoes o on o.id = cv.org_id
+   where cv.id = (p ->> 'conversa_id')::uuid and o.slug = p ->> 'org_slug'
+   for update of cv;
+  if not found then raise exception 'conversa não encontrada' using errcode = 'P0002'; end if;
+  if not privado.conversa_retomavel(c)
+     or not exists (select 1 from app.pedidos pd where pd.conversa_id = c.id and pd.status = 'confirmado') then
+    raise exception 'retomada: só para pedido confirmado, nas etapas do pedido' using errcode = '55000';
+  end if;
+  -- um link valendo por vez: o novo apaga os que não foram usados
+  delete from app.retomadas where conversa_id = c.id and usada_em is null;
+  v_expira := now() + make_interval(days => v_dias);
+  insert into app.retomadas (org_id, conversa_id, codigo_hash, expira_em) values (c.org_id, c.id, p ->> 'codigo_hash', v_expira);
+  perform privado.evento(c.org_id, c.id, 'retomada_criada');
+  return jsonb_build_object('expira_em', v_expira);
+end $$;
+
+create or replace function app.vendas_usar_retomada(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare v_conversa uuid; c app.conversas; r app.retomadas; v_vid uuid;
+begin
+  if coalesce(p ->> 'codigo_hash', '') !~ '^[0-9a-f]{64}$' then return jsonb_build_object('ok', false); end if;
+  v_vid := (p ->> 'visitante_id')::uuid;
+  -- 1º a conversa (sem trava, só para saber qual), depois a trava da conversa, depois a da retomada: a mesma ordem do criar
+  select rt.conversa_id into v_conversa from app.retomadas rt join app.organizacoes o on o.id = rt.org_id
+   where rt.codigo_hash = p ->> 'codigo_hash' and o.slug = p ->> 'org_slug';
+  if not found then return jsonb_build_object('ok', false); end if;
+  select * into c from app.conversas where id = v_conversa for update;
+  select * into r from app.retomadas where codigo_hash = p ->> 'codigo_hash' and conversa_id = v_conversa for update;
+  if not found or r.usada_em is not null or r.expira_em <= now() or not privado.conversa_retomavel(c)
+     or not exists (select 1 from app.pedidos pd where pd.conversa_id = c.id and pd.status = 'confirmado') then
+    return jsonb_build_object('ok', false);
+  end if;
+  update app.retomadas set usada_em = now() where id = r.id;
+  update app.conversas set visitante_id = v_vid, ultima_atividade = now() where id = c.id;
+  update app.escolhas set visitante_id = v_vid where conversa_id = c.id;
+  perform privado.evento(c.org_id, c.id, 'retomada_usada');
+  return jsonb_build_object('ok', true, 'conversa_id', c.id);
+end $$;
+
 -- ---------- privilégios: os mesmos das funções originais (só o servidor) ----------
 do $$
 declare f text;
 begin
   foreach f in array array['pagamentos_aplicar', 'pagamentos_iniciar_tentativa', 'pagamentos_estado', 'vendas_entrega_info', 'vendas_no_ar',
-                           'vendas_suspender', 'vendas_encerrar', 'vendas_avisos_lista', 'vendas_entregas_lista'] loop
+                           'vendas_suspender', 'vendas_encerrar', 'vendas_avisos_lista', 'vendas_entregas_lista', 'vendas_criar_retomada', 'vendas_usar_retomada'] loop
     execute format('revoke all on function app.%I(jsonb) from public, anon, authenticated', f);
     execute format('grant execute on function app.%I(jsonb) to service_role', f);
   end loop;
