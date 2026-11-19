@@ -263,6 +263,9 @@
     reler: function () { recarregar().catch(function (e) { falhou(e, function () { recarregar(); }); }); } });
 
   /* ---------- o código do pedido (F1, F6) ---------- */
+  /* (dono, 19/11: "o cliente não tem que se preocupar com nenhum código; isso é do nosso sistema") o código continua guardado na
+     página, num elemento SEMPRE escondido, para o sistema e os testes; o cliente nunca o vê. Ele volta ao pedido pela própria página
+     (o navegador lembra) e o recado daqui leva a conversa junto */
   var codigoMostrado = null;
   function identificar() {
     /* o código do pedido (BZ-XXXXX) depois dos detalhes; antes, o id curto da conversa */
@@ -270,7 +273,6 @@
     if (!c || c === codigoMostrado) return;
     codigoMostrado = c;
     $('o-codigo-v').textContent = c;
-    mostrar('o-codigo', true);
   }
 
   /* ---------- a conversa ---------- */

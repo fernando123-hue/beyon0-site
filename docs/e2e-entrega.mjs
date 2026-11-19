@@ -39,7 +39,9 @@ export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral
 
   /* 1. Seu pedido */
   await page.waitForSelector('#o-pedido:not([hidden])', { timeout: 30000 });
-  ok(/^Seu pedido · BZ-/.test((await page.textContent('#o-pedido .orc-pedido__rotulo')).trim()), 'Seu pedido: o código do pedido no topo');
+  /* (dono, 19/11) o cliente não vê código: o rótulo diz só "Seu pedido"; o código fica guardado, escondido, para o sistema */
+  ok(/^seu pedido$/i.test((await page.innerText('#o-pedido .orc-pedido__rotulo')).trim()) && /^BZ-/.test((await page.textContent('#o-ped-codigo')).trim())
+    && await page.locator('#o-ped-codigo').isHidden(), 'Seu pedido: só o rótulo à vista; o código do pedido guardado e escondido');
   ok(JSON.stringify(await passosDe(page)) === JSON.stringify(['is-feito', 'is-agora', 'is-depois', 'is-depois']), 'Seu pedido: entrada feita, material agora, o resto depois');
   ok(/O prazo começa quando você enviar\./.test(await page.textContent('#o-ped-passos')), 'Seu pedido: "O prazo começa quando você enviar."');
   ok(!/A Beyon Zero fala com você/.test(await page.textContent('#o-pronto')), 'o recibo não manda esperar contato do dono (D1)');
