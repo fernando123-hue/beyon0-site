@@ -450,6 +450,12 @@ try {
   await foto(page, '2b-direcoes-cartao-cel');
   ok(await page.evaluate(() => { const p = document.getElementById('o-dirs-pontos'); return !p.hidden && p.children.length === 3 && p.children[0].classList.contains('is-atual'); }), 'modelos: os 3 pontos do carrossel aparecem e o 1º está aceso');
   ok(await page.evaluate(() => { const b = document.querySelector('#o-dirs .dir .dir__acoes').children; return b[0].classList.contains('btn--primary') && b[1].hasAttribute('data-abrir'); }), 'modelos: "Escolher este" vem primeiro no DOM (a ordem do Tab é a que se vê)');
+  /* o selo "Recomendado pelo Zero" não cobre a marca do negócio na miniatura (achado das fotos de 19/11: cobria o nome no topo da prévia) */
+  ok(await page.evaluate(() => [...document.querySelectorAll('#o-dirs .dir')].filter(d => d.querySelector('.dir__recomendado')).every(d => {
+    const s = d.querySelector('.dir__recomendado').getBoundingClientRect(), m = d.querySelector('.pv-marca');
+    if (!m) return true; const r = m.getBoundingClientRect();
+    return s.right <= r.left || r.right <= s.left || s.bottom <= r.top || r.bottom <= s.top;
+  })), 'modelos: o selo "Recomendado pelo Zero" não cobre a marca do negócio na miniatura');
   await page.locator('#o-dirs .dir').nth(2).locator('.dir__acoes .btn').first().focus();
   ok(await espera(page, () => document.getElementById('o-dirs').scrollLeft > 20 && document.querySelectorAll('#o-dirs-pontos .is-atual').length === 1 && document.querySelectorAll('#o-dirs-pontos span')[2].classList.contains('is-atual'), 8000), 'modelos: o foco no 3º cartão rola o carrossel até ele e acende o 3º ponto');
   await page.evaluate(() => { document.getElementById('o-dirs').scrollLeft = 0; });
@@ -805,6 +811,9 @@ try {
   await page.locator('#o-visor-abas .chip').nth(1).click();
   await page.click('#o-visor-escolher');
   await page.waitForSelector('#o-ajustes:not([hidden])');
+  /* as seções com Subir/Descer/Tirar têm todas o mesmo desenho no celular: o nome numa linha e os botões embaixo (achado das fotos de
+     19/11: "Serviços" com os botões ao lado e as outras embaixo, a lista ficava torta) */
+  ok(await page.evaluate(() => { const formas = new Set([...document.querySelectorAll('#o-ajustes .orc-aj__secao')].filter(li => li.querySelector('.orc-aj__botoes')).map(li => li.querySelector('.orc-aj__botoes').getBoundingClientRect().top >= li.querySelector('.orc-aj__nome').getBoundingClientRect().bottom - 1)); return formas.size === 1 && formas.has(true); }), 'ajustes (celular): toda seção com botões tem o nome em cima e os botões embaixo');
   ok(await page.locator('.dir.is-escolhida .dir__estrategia').textContent().then(t => t.startsWith('02')), 'direção 2 escolhida');
   ok(await espera(page, () => document.getElementById('o-etapas').getAttribute('data-n') === '3' && document.getElementById('o-etapas').getAttribute('data-nome') === 'Ajustes', 8000), 'casca: a barra anda sozinha com a etapa (3 de 5 · Ajustes)');
 
