@@ -105,13 +105,13 @@ test('nenhuma chamada sem ambiente em api/ (revisão do plano, A2)', () => {
   assert.deepEqual(achados, []);
 });
 
-const SO_LOCAIS = new Set(['BZ_LOCAL', 'BZ_IA', 'BZ_IA_REAL', 'BZ_SEM_CONSULTOR', 'BZ_JEV', 'BZ_PLATAFORMA', 'VERCEL', 'VERCEL_ENV']);
+const SO_LOCAIS = new Set(['BZ_LOCAL', 'BZ_IA', 'BZ_IA_REAL', 'BZ_SEM_CONSULTOR', 'BZ_SEM_VOZ', 'BZ_JEV', 'BZ_PLATAFORMA', 'VERCEL', 'VERCEL_ENV']);
 test('todo env.X lido em api/ está no .env.example ou na lista de chaves só locais', () => {
   const exemplo = fs.readFileSync(path.join(RAIZ, '.env.example'), 'utf8');
   const declarados = new Set([...exemplo.matchAll(/^\s*#?\s*([A-Z][A-Z0-9_]+)=/gm)].map(m => m[1]));
   const lidos = new Set(arquivosDe(path.join(RAIZ, 'api')).flatMap(a => [...fs.readFileSync(a, 'utf8').matchAll(/\benv\.([A-Z][A-Z0-9_]+)/g)].map(m => m[1])));
   /* bindings do wrangler.jsonc (não são variáveis nem segredos): o vigia lê o ASSETS para conferir as páginas (auto-reparo, 15/11) */
-  const BINDINGS = new Set(['ASSETS']);
+  const BINDINGS = new Set(['ASSETS', 'AI']);   /* (o AI é o binding do Workers AI, o Whisper do microfone, api/_vendas/voz.mjs) */
   const faltam = [...lidos].filter(n => !declarados.has(n) && !SO_LOCAIS.has(n) && !BINDINGS.has(n)).sort();
   assert.deepEqual(faltam, []);
 });

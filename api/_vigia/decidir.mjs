@@ -42,7 +42,7 @@ function textoConfiguracao(nomes) {
 }
 const textoUrgentes = n => (n === 1 ? 'Há 1 alerta urgente no painel esperando você.' : 'Há ' + n + ' ' + ITENS.alertas_urgentes.quebrou);
 
-/* leitura = app.rotinas_vigia_ler; conferencias = conferir() + { pagamentosLigados } */
+/* leitura = app.rotinas_vigia_ler; conferencias = conferir() (a chave recusada pela Anthropic vale como a conta da IA recusada) */
 export function achadosDe(leitura, conferencias, agora) {
   const estreia = Number.isFinite(ms(leitura.estreia_em)) ? ms(leitura.estreia_em) : agora;
   const parado = (ultima, prazo) => agora - Math.max(Number.isFinite(ms(ultima)) ? ms(ultima) : -Infinity, estreia) > prazo;
@@ -51,7 +51,9 @@ export function achadosDe(leitura, conferencias, agora) {
   const iaSemProvaDeVolta = iaAtiva && !depois(leitura.ultima_ok_ia_em, leitura.ultima_falha_ia_em);
   const urgentes = Number(leitura.urgentes) || 0;
   return {
-    ia_conta: depois(leitura.ultima_falha_conta_em, leitura.ultima_ok_ia_em) ? ITENS.ia_conta.quebrou : null,
+    /* LIMITE CONHECIDO: a chave recusada alarma pela conferência, mas o alarme só limpa quando uma conversa de verdade dá certo
+       (ultima_ok_ia_em); a pergunta gratuita aceita a chave e não prova crédito nem modelo, então ela não limpa sozinha */
+    ia_conta: depois(leitura.ultima_falha_conta_em, leitura.ultima_ok_ia_em) || conferencias.chaveIaRecusada === true ? ITENS.ia_conta.quebrou : null,
     paginas: conferencias.paginas ? null : ITENS.paginas.quebrou,
     configuracao: conferencias.configuracao.length ? textoConfiguracao(conferencias.configuracao) : null,
     pagamentos: conferencias.pagamentosLigados && parado(leitura.ultima_reconciliacao_em, PRAZO_RECONCILIACAO_MS) ? ITENS.pagamentos.quebrou : null,

@@ -35,6 +35,7 @@
   <link rel="stylesheet" href="css/tokens.css" />
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/orcamento.css" />
+  <link rel="stylesheet" href="css/orcamento-voz.css" />
   <link rel="stylesheet" href="css/orcamento-entrega.css" />
   <link rel="stylesheet" href="css/orcamento-painel.css" />
   <link rel="stylesheet" href="css/orcamento-escopo.css" />
@@ -129,11 +130,15 @@
         <form class="orc-envio" id="o-form" novalidate>
           <label class="sr-only" for="o-texto">Sua mensagem</label>
           <textarea id="o-texto" rows="3" maxlength="2000" placeholder="Ex.: tenho uma clínica em Niterói e quero mais agendamentos" autocomplete="off"></textarea>
+          <button class="btn orc-mic" type="button" id="o-mic" hidden aria-pressed="false"><span class="orc-mic__ponto" aria-hidden="true"></span><span id="o-mic-rotulo">Falar</span></button>
+          <button class="orc-mic__cancelar" type="button" id="o-mic-cancelar" hidden>Descartar gravação</button>
           <button class="btn btn--primary" type="submit" id="o-enviar">Enviar</button>
         </form>
+        <p class="orc-nota orc-voz" id="o-mic-aviso" hidden></p>
         <p class="orc-nota" id="o-conversa-fechada" hidden>A conversa com o Zero ficou registrada acima. Daqui em diante, o seu orçamento segue pelas etapas abaixo.</p>
         <p class="orc-nota">Prefere escrever antes? <a class="orc-sem-quebra" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado</a>.</p>
         <p class="orc-nota">Não escreva senhas nem dados de cartão aqui. <a href="/privacidade#orcamento">Como a conversa é tratada</a>.</p>
+        <p class="orc-nota orc-voz-nota" id="o-voz-nota" hidden>O botão Falar grava a sua voz por até 1 minuto e meio e a transforma em texto aqui. O áudio não fica guardado e você confere o texto antes de enviar. <a href="/privacidade#voz">Como a voz é tratada</a>.</p>
       </section>
 
       <!-- O INVESTIMENTO (do motor de preço; o modelo nunca escreve estes números). O painel abre pelo RADAR DO ESCOPO (js/orcamento-escopo.js;
@@ -695,6 +700,7 @@
   <script src="js/previa.js" defer></script>
   <script src="js/orcamento-turnstile.js" defer></script>
   <script src="js/orcamento-api.js" defer></script>
+  <script src="js/orcamento-voz.js" defer></script>
   <script src="js/orcamento-visor.js" defer></script>
   <script src="js/orcamento-pix.js" defer></script>
   <script src="js/orcamento-pagamento.js" defer></script>

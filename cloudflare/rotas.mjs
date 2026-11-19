@@ -16,13 +16,17 @@ import * as atendente from '../api/atendente.mjs';
 import { LIMITE_BYTES as LIMITE_EVENTO } from '../api/_valida.mjs';
 import { naCloudflare } from '../api/_ambiente.mjs';
 import { normalizarIp } from '../api/_vendas/ip.mjs';
+import { tokenDe } from '../api/_supabase.mjs';
+import { VOZ_MAX_BYTES } from '../api/_vendas/voz.mjs';
 
 const BYTES_POR_UNIDADE = 3;
 const LIMITE_ROTINAS = 4096;
 export const ROTAS = Object.freeze({
   /* ctx: true = a rota recebe o ctx do Worker como 3º argumento (só a de vendas: a sombra do JEV roda em waitUntil). As outras
      não recebem: pagamentos e rotinas leem o 3º argumento como dependências de teste */
-  vendas:     { limite: BYTES_POR_UNIDADE * vendas.LIMITE_BYTES, ctx: true, GET: (r, e) => vendas.atender(r, e, 'GET'), POST: (r, e, c) => vendas.atender(r, e, 'POST', undefined, c) },
+  /* corpo: o áudio do microfone (acao=transcrever) é binário e passa de 48 KB; ele ganha o teto próprio, MAS só com um token de
+     visitante de forma válida: sem isso, 401 antes de ler um byte (um anônimo não faz o Worker guardar 2 MB por requisição) */
+  vendas:     { limite: BYTES_POR_UNIDADE * vendas.LIMITE_BYTES, corpo: (url, request) => (url.searchParams.get('acao') === 'transcrever' ? (tokenDe(request) ? { limite: VOZ_MAX_BYTES } : { resposta: json({ erro: 'Sessão inválida ou expirada.' }, 401) }) : null), ctx: true, GET: (r, e) => vendas.atender(r, e, 'GET'), POST: (r, e, c) => vendas.atender(r, e, 'POST', undefined, c) },
   pagamentos: { limite: BYTES_POR_UNIDADE * pagamentos.LIMITE_BYTES, GET: pagamentos.receber, POST: pagamentos.receber },
   rotinas:    { limite: LIMITE_ROTINAS, GET: rotinas.executar, POST: rotinas.executar },
   evento:     { limite: BYTES_POR_UNIDADE * LIMITE_EVENTO, POST: evento.receber },
@@ -90,8 +94,11 @@ export function criarRoteador(rotas = ROTAS) {
       if (!headers) return json({ erro: 'Proibido.' }, 403);
       let corpo;
       if (request.method === 'POST') {
-        if (Number(request.headers.get('content-length') || 0) > rota.limite) return json({ erro: 'Corpo grande demais.' }, 413);
-        corpo = await lerLimitado(request, rota.limite);
+        const especial = typeof rota.corpo === 'function' ? rota.corpo(url, request) : null;
+        if (especial && especial.resposta) return especial.resposta;
+        const limite = especial && especial.limite ? especial.limite : rota.limite;
+        if (Number(request.headers.get('content-length') || 0) > limite) return json({ erro: 'Corpo grande demais.' }, 413);
+        corpo = await lerLimitado(request, limite);
         if (corpo === null) return json({ erro: 'Corpo grande demais.' }, 413);
       }
       /* um Request NOVO: o corpo já foi lido; o handler lê o dele normalmente */
