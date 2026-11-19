@@ -38,9 +38,13 @@ async function paginasAbrem(assets, esperar) {
 async function chaveIaRecusada(env, buscar) {
   if (typeof env.ASSETS?.fetch !== 'function' || !env.ANTHROPIC_API_KEY) return false;
   try {
-    const r = await buscar(CHAVE_IA_URL, { headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': CHAVE_IA_VERSAO }, signal: AbortSignal.timeout(CHAVE_IA_PRAZO_MS) });
+    const r = await buscar(CHAVE_IA_URL, { headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': CHAVE_IA_VERSAO }, redirect: 'manual', signal: AbortSignal.timeout(CHAVE_IA_PRAZO_MS) });
     return r.status === NAO_AUTORIZADO;
-  } catch { return false; }
+  } catch (e) {
+    /* sem resposta não há prova: não alarma, mas deixa rastro (só o nome do erro, nunca a mensagem nem a chave) */
+    console.error(JSON.stringify({ origem: 'vigia', nivel: 'erro', evento: 'conferência da chave da IA sem resposta', erro: String(e?.name || 'erro').slice(0, 20) }));
+    return false;
+  }
 }
 
 function faltando(env) {

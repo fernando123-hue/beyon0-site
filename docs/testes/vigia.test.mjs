@@ -121,7 +121,7 @@ test('decidir: várias novidades numa ronda viram um e-mail só, urgentes primei
   assert.deepEqual(d.linhas, [ITENS.ia_conta.quebrou, ITENS.rotina_diaria.quebrou]);
 });
 
-/* ---- conferir: o que o Worker confere sozinho (sem rede externa) ---- */
+/* ---- conferir: o que o Worker confere sozinho (sem IA; a única rede externa é a pergunta gratuita da chave) ---- */
 import { conferir, PAGINAS } from '../../api/_vigia/conferir.mjs';
 import { avisarDonoLinhas } from '../../api/_aviso.mjs';
 
@@ -172,9 +172,17 @@ test('conferir: no Worker, a chave da IA é provada com a chamada gratuita de li
   assert.equal(chamadas[0].headers['x-api-key'], 'k');
   assert.equal(chamadas[0].headers['anthropic-version'], '2023-06-01');
   assert.ok(!chamadas[0].method || chamadas[0].method === 'GET');
+  assert.ok(chamadas[0].signal instanceof AbortSignal, 'a pergunta tem prazo: uma chamada que trava não prende a ronda');
+  assert.equal(chamadas[0].redirect, 'manual', 'a chave nunca acompanha um redirecionamento para outro host');
   for (const status of [200, 403, 429, 500, 529]) assert.equal((await com(status)).chaveIaRecusada, false, 'status ' + status + ' não prova chave ruim');
   const caiu = await conferir({ ...ENV_CONF, ASSETS: assets(pagina) }, { esperar: semEspera, buscar: async () => { throw new Error('rede'); } });
   assert.equal(caiu.chaveIaRecusada, false, 'sem resposta da Anthropic não há prova');
+  const logs = [], erro0 = console.error; console.error = l => logs.push(String(l));
+  try { await conferir({ ...ENV_CONF, ASSETS: assets(pagina), ANTHROPIC_API_KEY: 'segredo-nao-pode-vazar' }, { esperar: semEspera, buscar: async () => { throw new TypeError('x segredo-nao-pode-vazar'); } }); }
+  finally { console.error = erro0; }
+  assert.equal(logs.length, 1);
+  assert.match(logs[0], /"erro":"TypeError"/);
+  assert.ok(!logs[0].includes('segredo-nao-pode-vazar'), 'o log não leva a chave nem a mensagem');
 });
 
 test('conferir: sem chave configurada ou sem ASSETS (servidor local, testes) não chama a Anthropic', async () => {
@@ -242,6 +250,16 @@ async function cenario() {
   const ronda = (agora, conf = {}) => rondar({}, { banco: rpcDe(db), avisar, agora, conferir: CONF_FALSA(conf), esperar: semEspera, memoria: new Map() });
   return { db, enviados, ronda, quebrarCanal: v => { canalOk = !v; } };
 }
+
+test('ronda: a chave recusada pela Anthropic avisa o dono na hora (e só 1 vez em 24 h), sem conversa falhando e sem banco', async () => {
+  const c = await cenario();
+  await c.ronda(AGORA);
+  const r = await c.ronda(AGORA + H, { chaveIaRecusada: true });
+  assert.deepEqual(r.linhas, [ITENS.ia_conta.quebrou]);
+  assert.deepEqual((await c.ronda(AGORA + 2 * H, { chaveIaRecusada: true })).linhas, [], 'continua quebrada e já avisada: nada novo');
+  const sem = await rondar({}, { banco: null, avisar: async () => true, agora: Date.UTC(2026, 10, 15, 1, 23), conferir: CONF_FALSA({ chaveIaRecusada: true }), esperar: semEspera, memoria: new Map() });
+  assert.ok(sem.linhas.includes(ITENS.ia_conta.quebrou), 'com o banco fora o aviso também sai');
+});
 
 test('ronda: a 1ª manda a estreia e grava; a 2ª, sem novidade, não manda nada', async () => {
   const c = await cenario();

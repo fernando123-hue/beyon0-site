@@ -51,6 +51,8 @@ export function achadosDe(leitura, conferencias, agora) {
   const iaSemProvaDeVolta = iaAtiva && !depois(leitura.ultima_ok_ia_em, leitura.ultima_falha_ia_em);
   const urgentes = Number(leitura.urgentes) || 0;
   return {
+    /* LIMITE CONHECIDO: a chave recusada alarma pela conferência, mas o alarme só limpa quando uma conversa de verdade dá certo
+       (ultima_ok_ia_em); a pergunta gratuita aceita a chave e não prova crédito nem modelo, então ela não limpa sozinha */
     ia_conta: depois(leitura.ultima_falha_conta_em, leitura.ultima_ok_ia_em) || conferencias.chaveIaRecusada === true ? ITENS.ia_conta.quebrou : null,
     paginas: conferencias.paginas ? null : ITENS.paginas.quebrou,
     configuracao: conferencias.configuracao.length ? textoConfiguracao(conferencias.configuracao) : null,
