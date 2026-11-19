@@ -1,0 +1,62 @@
+/* ==========================================================================
+   MODELOS E AJUSTES, A CASCA NOVA (remodelação do orçamento, parte 2, 18/11, direção B; dono: "tudo deve ser legal, divertido,
+   dopaminérgico... as pessoas não gostam de ler"). No celular os três modelos viram cartões grandes que deslizam de lado, com
+   a prévia viva em cima e UM botão grande embaixo; os ajustes viram cartões com ícone em vez de uma fila de botões iguais.
+   Sem desfoque e sem brilho: traço de 1 px, cor chapada; só transform e opacidade se movem; parado, tudo já está no lugar.
+   Celular primeiro; do 900 px para cima os três modelos seguem em colunas (css/orcamento.css).
+   ========================================================================== */
+
+/* ---------- os modelos: cartões que deslizam, um já espiando o outro ---------- */
+@media (max-width: 899px) {
+  .orc-dirs { display: flex; gap: .75rem; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: .15rem; }
+  .orc-dirs::-webkit-scrollbar { display: none; }
+  .orc-dirs > .dir { flex: 0 0 84%; min-width: 0; scroll-snap-align: start; }
+  .orc-dirs > .dir:only-child { flex-basis: 100%; }
+  .orc-dirs > .btn { flex: 1 1 100%; }   /* (o "Gerar os três modelos" continua com a largura toda, como era no grid) */
+}
+/* quem usa mouse comum não arrasta nem rola de lado: a barra de rolagem fica à vista (no toque ela segue escondida) */
+@media (max-width: 899px) and (hover: hover) and (pointer: fine) {
+  .orc-dirs { scrollbar-width: thin; scrollbar-color: var(--stroke) transparent; }
+  .orc-dirs::-webkit-scrollbar { display: block; height: 8px; }
+  .orc-dirs::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 4px; }
+}
+.dir { position: relative; }
+.dir { --mini-h: 340px; }   /* a altura da miniatura: o selo do recomendado se ancora nela */
+.dir__mini { height: var(--mini-h); }
+/* a recomendação do Zero vira um selo cheio no canto da prévia (antes era uma linha de texto no meio do cartão). No canto de BAIXO da
+   miniatura (que tem 340 px): em cima ele cobria a marca do negócio na barra da prévia (fotos de 19/11) */
+.dir__recomendado { position: absolute; top: var(--mini-h); left: .7rem; transform: translateY(calc(-100% - .7rem)); z-index: 2; padding: .3rem .65rem; border-radius: 999px; background: var(--ac); color: var(--ac-tinta); font-weight: 600; }
+.dir__nome { font-size: 1.35rem; font-weight: 300; letter-spacing: -.01em; }
+/* uma ação por linha e a principal em cima, grande (a ordem do DOM já é essa: Tab e leitor de tela seguem o que se vê) */
+.dir__acoes { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: .5rem; }
+.dir__acoes .btn { width: 100%; justify-content: center; text-align: center; min-height: 44px; }
+.dir__acoes .btn--primary { min-height: 3.2rem; font-size: 1.05rem; font-family: var(--sans); text-transform: none; letter-spacing: normal; }
+.dir__selo { width: 100%; justify-content: center; }
+
+/* os pontos de "em qual dos três eu estou" (js/orcamento-carrossel.js) */
+.orc-pontos { display: flex; justify-content: center; gap: .45rem; margin-top: .9rem; }
+.orc-pontos[hidden] { display: none; }
+.orc-pontos__p { width: 7px; height: 7px; border-radius: 50%; background: var(--line-2); }
+.orc-pontos__p.is-atual { background: var(--ac); }
+@media (min-width: 900px) { .orc-pontos { display: none; } }
+
+/* ---------- os ajustes: cartões com ícone, dois por linha ---------- */
+.orc-aj__botoes:has(.orc-aj__tile) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; width: 100%; }
+.orc-aj .orc-aj__tile { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: .6rem; height: auto; min-height: 4.6rem; padding: .8rem .7rem; border: 1px solid var(--stroke); border-radius: 16px; background: var(--s1); color: var(--t1); font-size: 1rem; line-height: 1.25; text-align: left; }
+.orc-aj__tile:hover { border-color: var(--t1); }
+.orc-aj__tile:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-aj__tile[aria-disabled="true"] { opacity: .55; }
+.orc-aj__tile .orc-ic { flex: none; width: 1.6rem; height: 1.6rem; fill: none; stroke: var(--ac); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.orc-aj__tile .orc-op__t { min-width: 0; overflow-wrap: break-word; hyphens: manual; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .orc-aj__tile { transition: transform .12s ease-out, border-color .15s; }
+  html:not(.menos-movimento) .orc-aj__tile:active { transform: scale(.97); }
+  html:not(.menos-movimento) .orc-pontos__p { transition: background-color .2s; }
+}
+
+/* as seções dos ajustes no celular: o nome em cima e os botões embaixo, em TODAS (com flex-wrap, a que tinha 2 botões cabia na linha e
+   a lista ficava torta; fotos de 19/11). No computador cabe tudo numa linha. "Fica no topo" (sem botões) continua ao lado do nome */
+@media (max-width: 599px) {
+  .orc-aj__secao:has(.orc-aj__botoes) .orc-aj__nome { flex: 1 1 100%; }
+}

@@ -62,6 +62,15 @@
     return opcoes.length ? 'Feito: ' + opcoes[opcoes.length - 1].pedido + '.' : 'Feito.';
   }
 
+  /* o desenho de uma opção pronta, pelo que ela faz (a chave que js/orcamento-icones.js conhece no grupo "ajuste") */
+  function iconeDe(opcao) {
+    if (!opcao) return '';
+    if (opcao.operacao === 'usar_paleta_de') return 'paleta';
+    if (opcao.operacao === 'usar_tipografia_de') return 'fonte';
+    if (opcao.operacao === 'adicionar_secao' && tem(NOMES, opcao.secao)) return 'sec_' + opcao.secao;
+    return '';
+  }
+
   function opcoesDe(E) {
     if (!E || !E.conversa || !E.escolha) return null;
     var prontas = (E.direcoes || []).filter(function (d) { return d.status === 'pronta' && d.conteudo; });
@@ -115,8 +124,11 @@
     var E = null, visto = null, pendente = null, voltarPara = null;
     var aviso = $('o-aj-aviso');
     function el(tag, classe, texto) { var e = document.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; }
-    function botao(texto, aoClicar, rotulo) {
+    function botao(texto, aoClicar, rotulo, icone) {
       var b = el('button', 'btn btn--sm', texto);
+      /* (a opção pronta ganha o desenho dela: js/orcamento-icones.js, grupo "ajuste"; o texto continua no botão, dentro de um <span>) */
+      var ic = icone && window.BZOrcIcones ? window.BZOrcIcones.desenhar(icone, 'ajuste', document) : null;
+      if (ic) { b.textContent = ''; b.appendChild(ic); b.appendChild(el('span', 'orc-op__t', texto)); b.classList.add('orc-aj__tile'); }
       b.type = 'button';
       b.setAttribute('data-acao', '');   /* (a trava de "uma ação por vez" de js/orcamento.js) */
       if (rotulo) b.setAttribute('aria-label', rotulo);
@@ -193,7 +205,7 @@
       var g = el('div', 'orc-aj__grupo');
       g.appendChild(el('h3', 'orc-aj__titulo', titulo));
       var linha = el('div', 'orc-aj__botoes');
-      itens.forEach(function (i) { linha.appendChild(botao(i.rotulo, function (b) { ajustar(i.opcao, b); })); });
+      itens.forEach(function (i) { linha.appendChild(botao(i.rotulo, function (b) { ajustar(i.opcao, b); }, undefined, iconeDe(i.opcao))); });
       g.appendChild(linha);
       return g;
     }
@@ -266,6 +278,6 @@
     };
   }
 
-  window.BZAjustes = { criar: criar, opcoesDe: opcoesDe, textoDaConta: textoDaConta, textoDoLimite: textoDoLimite, contagem: contagem, frase: frase,
+  window.BZAjustes = { criar: criar, opcoesDe: opcoesDe, iconeDe: iconeDe, NOMES: Object.freeze(Object.assign({}, NOMES)), textoDaConta: textoDaConta, textoDoLimite: textoDoLimite, contagem: contagem, frase: frase,
     talvezGravou: talvezGravou, MAX_SECOES: MAX_SECOES };
 })();

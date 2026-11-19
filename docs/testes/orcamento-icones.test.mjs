@@ -45,8 +45,8 @@ test('desenhar monta um <svg> decorativo só com <path> (aria-hidden, sem foco),
 test('os nomes de grupo que js/orcamento-toques.js passa (conversa e "Mudar") são os que a lista de ícones conhece: um erro de digitação não some em silêncio', () => {
   const fonte = fs.readFileSync(new URL('../../js/orcamento-toques.js', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const grupos = [...new Set(Object.keys(I.DE).map(k => k.split(':')[0]))].sort();
-  assert.deepEqual(grupos, ['dor', 'material', 'objetivos', 'ramo', 'site']);
-  for (const g of grupos) assert.ok(fonte.includes("grupo: '" + g + "'"), 'a conversa não passa grupo: ' + g);
+  assert.deepEqual(grupos, ['ajuste', 'dor', 'material', 'objetivos', 'ramo', 'site']);
+  for (const g of grupos.filter(x => x !== 'ajuste')) assert.ok(fonte.includes("grupo: '" + g + "'"), 'a conversa não passa grupo: ' + g);   /* (o grupo "ajuste" é do orcamento-ajustes.js, conferido no teste de baixo) */
   for (const g of ['ramo', 'objetivos', 'site', 'material']) assert.ok(fonte.includes(", '" + g + "'));"), 'o "Mudar" não passa o grupo ' + g);
 });
 

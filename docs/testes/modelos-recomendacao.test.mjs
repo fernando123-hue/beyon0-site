@@ -59,7 +59,7 @@ test('os nomes que dizem o que cada modelo faz: a tela, o visor e a recomendaç�
   }
   const html = ler('orcamento.html');
   assert.match(html, /id="o-recomenda"/);
-  assert.match(html, /trazer algo de outro modelo, como as cores ou uma seção, conta como um pedido de ajuste/);
+  assert.match(html, /Trazer cores ou uma seção de outro modelo conta como um ajuste/);
   assert.match(html, /Três modelos para o seu site/);
   assert.match(ler('js/orcamento.js'), /'O Zero recomenda'/);
   const zero = ler('docs/zero/prompt-efetivo.txt');
