@@ -96,6 +96,10 @@ try {
   await foto(page, '1a-conversa-cel');
   /* A CASCA NOVA (remodelação de 18/11, direção B): a miniatura do site espera o 1º toque, cada opção do ramo vem com ícone, a barra diz "1 de 5" */
   ok(await page.locator('#o-nasce').isHidden() && await page.locator('#o-log .orc-toque:not([data-feito]) .orc-op--ic svg').count() === 8, 'casca: a miniatura espera o 1º toque e as 8 opções do ramo vêm com ícone');
+  /* a pergunta do Zero aparece INTEIRA na caixa da conversa: com os cartões com ícone, fala + opções passam da altura da caixa, e rolar até o fim
+     cortava o começo da pergunta (achado das fotos de 19/11: 51 px cortados na chegada, 46 a cada toque). A fala fica no topo; as opções seguem abaixo */
+  const falaInteira = () => espera(page, () => { const c = document.getElementById('o-log-caixa'), f = [...document.querySelectorAll('#o-log .msg--agente')].pop(); return !!f && f.getBoundingClientRect().top >= c.getBoundingClientRect().top - 1; }, 3000);
+  ok(await falaInteira(), 'casca: na chegada, a 1ª pergunta do Zero aparece inteira na caixa (não começa cortada)');
   ok(await page.getAttribute('#o-etapas', 'data-n') === '1' && /1 de 5/.test(await page.evaluate(() => getComputedStyle(document.getElementById('o-etapas'), '::after').content)), 'casca: a barra de progresso diz "1 de 5"');
   /* O MICROFONE DO ZERO (18/11): o botão Falar grava, o servidor local devolve a frase simulada e ela cai na caixa para a pessoa conferir;
      nada é enviado ao Zero sozinho. Só com o consultor (é a caixa de texto dele) */
@@ -134,6 +138,7 @@ try {
   await tocar('Serviços');   /* (o caminho até o Pix por um nicho comum; a saúde e a advocacia, que fecham pelo site com a ciência do dono, em docs/testes/saude-pedido.test.mjs) */
   ok(await espera(page, () => localStorage.getItem('bz-orcamento') !== null, 15000), 'a sessão nasce no 1º toque (com o anti-robô), não ao abrir a página');
   ok(await espera(page, () => !document.getElementById('o-nasce').hidden && /Peça o seu orçamento/.test(document.getElementById('o-nasce-titulo').textContent), 8000), 'casca: o site nasce no 1º toque (o ramo vira a chamada do site)');
+  ok(await falaInteira(), 'casca: depois do 1º toque, a pergunta seguinte aparece inteira (com a miniatura em cima)');
   await tocar('Agendamentos');
   await tocar('Pronto');
   ok(await espera(page, () => [].some.call(document.querySelectorAll('#o-nasce-pecas li'), l => l.textContent === 'Agenda de horários'), 8000), 'casca: cada objetivo tocado vira uma peça do site');
