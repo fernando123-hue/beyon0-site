@@ -7,7 +7,7 @@
      4. só então grava o estado: o que não saiu no e-mail não fica "avisado" e volta na ronda seguinte.
    Banco fora: sem memória, regra fixa de horário (D3). A função do vigia que não existe (migration ainda não aplicada)
    não é "banco fora": só log, para não mandar alarme falso ao dono.
-   Subpedidos externos: no máximo 3 (a leitura com a 2ª tentativa e a gravação).
+   Subpedidos externos: no máximo 4 (a leitura com a 2ª tentativa, a gravação e a pergunta gratuita da chave da IA).
    ========================================================================== */
 import { criarTransporte } from '../_vendas/transporte.mjs';
 import { ORG } from '../_vendas/org.mjs';
