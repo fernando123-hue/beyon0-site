@@ -8,8 +8,8 @@
 
 /* ---------- topo curto: o título e a barra, nada de parágrafo antes da ação ---------- */
 .orc-topo h1 { font-size: clamp(1.7rem, 1.1rem + 3vw, 3rem); margin: .6rem 0 .8rem; max-width: 18ch; }
-/* o parágrafo continua na página (leitor de tela e busca), só sai da frente do olho */
-.orc-topo .orc-lead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* (o parágrafo do topo sai da frente do olho e segue para leitor de tela e busca pela classe .sr-only de css/tokens.css, no HTML: a mesma
+   regra que o verificador reconhece; uma cópia própria aqui fazia o "fonte-grande" ver texto cortado) */
 
 /* ---------- a barra de progresso: cinco traços e "3 de 5 · Ajustes" ---------- */
 .orc-topo .orc-etapas { max-width: 32rem; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .35rem; margin: 1rem 0 0; padding: 0; overflow: visible; border-top: 0; }

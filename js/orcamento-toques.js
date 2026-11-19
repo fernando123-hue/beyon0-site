@@ -36,7 +36,19 @@
   /* ---------- a caixa da conversa ---------- */
   function el(tag, classe, texto) { var e = doc.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; }
   function ficaNoFim() { var u = $('o-log').lastElementChild; return u && u.hasAttribute('data-fica') ? u : null; }
-  function rolar() { var c = $('o-log-caixa'); if (c) c.scrollTop = c.scrollHeight; }
+  /* rola a caixa até o fim, mas NUNCA além do começo da última fala do Zero: com os cartões com ícone, fala + opções passam da altura da caixa,
+     e o fim puro cortava o começo da pergunta (achado das fotos de 19/11). A pergunta fica inteira no topo; as opções seguem abaixo dela */
+  var FOLGA_FALA = 8;   /* (a mesma folga de js/orcamento.js e do esboço da planta) */
+  function rolar() {
+    var c = $('o-log-caixa'), falas, f = null, i;
+    if (!c) return;
+    falas = c.querySelectorAll('.msg--agente');
+    for (i = falas.length - 1; i >= 0 && !f; i--) if (falas[i].getClientRects().length) f = falas[i];   /* (a fala escondida, num cartão já feito, não conta) */
+    if (!f) { c.scrollTop = c.scrollHeight; return; }
+    var topoDaFala = c.scrollTop + f.getBoundingClientRect().top - c.getBoundingClientRect().top - FOLGA_FALA;
+    c.scrollTop = Math.max(0, Math.min(c.scrollHeight - c.clientHeight, topoDaFala));
+  }
+
   /* (o que nasce DEPOIS de a conversa ir ao servidor é tardio: a página o recoloca depois das falas do servidor, js/orcamento.js conversa()) */
   function inserir(li) { li.setAttribute('data-toque', ''); if (s.entregue) li.setAttribute('data-toque-tardio', ''); $('o-log').insertBefore(li, ficaNoFim()); rolar(); return li; }
   function anunciar(texto) { var c = window.BZOrcConversa; if (c && typeof c.anunciar === 'function') c.anunciar(texto); }

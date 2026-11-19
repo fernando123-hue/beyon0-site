@@ -21,9 +21,11 @@
   .orc-dirs::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 4px; }
 }
 .dir { position: relative; }
-.dir__mini { height: 340px; }
-/* a recomendação do Zero vira um selo cheio no canto da prévia (antes era uma linha de texto no meio do cartão) */
-.dir__recomendado { position: absolute; top: .7rem; left: .7rem; z-index: 2; padding: .3rem .65rem; border-radius: 999px; background: var(--ac); color: var(--ac-tinta); font-weight: 600; }
+.dir { --mini-h: 340px; }   /* a altura da miniatura: o selo do recomendado se ancora nela */
+.dir__mini { height: var(--mini-h); }
+/* a recomendação do Zero vira um selo cheio no canto da prévia (antes era uma linha de texto no meio do cartão). No canto de BAIXO da
+   miniatura (que tem 340 px): em cima ele cobria a marca do negócio na barra da prévia (fotos de 19/11) */
+.dir__recomendado { position: absolute; top: var(--mini-h); left: .7rem; transform: translateY(calc(-100% - .7rem)); z-index: 2; padding: .3rem .65rem; border-radius: 999px; background: var(--ac); color: var(--ac-tinta); font-weight: 600; }
 .dir__nome { font-size: 1.35rem; font-weight: 300; letter-spacing: -.01em; }
 /* uma ação por linha e a principal em cima, grande (a ordem do DOM já é essa: Tab e leitor de tela seguem o que se vê) */
 .dir__acoes { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: .5rem; }
@@ -51,4 +53,10 @@
   html:not(.menos-movimento) .orc-aj__tile { transition: transform .12s ease-out, border-color .15s; }
   html:not(.menos-movimento) .orc-aj__tile:active { transform: scale(.97); }
   html:not(.menos-movimento) .orc-pontos__p { transition: background-color .2s; }
+}
+
+/* as seções dos ajustes no celular: o nome em cima e os botões embaixo, em TODAS (com flex-wrap, a que tinha 2 botões cabia na linha e
+   a lista ficava torta; fotos de 19/11). No computador cabe tudo numa linha. "Fica no topo" (sem botões) continua ao lado do nome */
+@media (max-width: 599px) {
+  .orc-aj__secao:has(.orc-aj__botoes) .orc-aj__nome { flex: 1 1 100%; }
 }

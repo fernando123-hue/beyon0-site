@@ -96,6 +96,20 @@ try {
   await foto(page, '1a-conversa-cel');
   /* A CASCA NOVA (remodelação de 18/11, direção B): a miniatura do site espera o 1º toque, cada opção do ramo vem com ícone, a barra diz "1 de 5" */
   ok(await page.locator('#o-nasce').isHidden() && await page.locator('#o-log .orc-toque:not([data-feito]) .orc-op--ic svg').count() === 8, 'casca: a miniatura espera o 1º toque e as 8 opções do ramo vêm com ícone');
+  /* a pergunta do Zero aparece INTEIRA na caixa da conversa: com os cartões com ícone, fala + opções passam da altura da caixa, e rolar até o fim
+     cortava o começo da pergunta (achado das fotos de 19/11: 51 px cortados na chegada, 46 a cada toque). A fala fica no topo; as opções seguem abaixo */
+  const falaInteira = async () => {
+    /* a pergunta mais recente do Zero fica no TOPO da caixa (não acima, cortada; nem abaixo, fora da vista) depois que a rolagem suave assenta:
+       3 leituras seguidas iguais, 200 ms entre elas */
+    let antes = null, iguais = 0;
+    for (let t = 0; t < 40 && iguais < 3; t++) {
+      const agora = await page.evaluate(() => { const c = document.getElementById('o-log-caixa'), f = [...document.querySelectorAll('#o-log .msg--agente')].filter(x => x.getClientRects().length).pop(); if (!f) return null; const dc = f.getBoundingClientRect().top - c.getBoundingClientRect().top; return { dc: Math.round(dc), cabe: c.scrollHeight <= c.clientHeight + 1, st: Math.round(c.scrollTop) }; });
+      iguais = agora && antes && agora.st === antes.st ? iguais + 1 : 0; antes = agora;
+      await page.waitForTimeout(200);
+    }
+    return !!antes && antes.dc >= -1 && (antes.cabe || antes.dc <= 24);
+  };
+  ok(await falaInteira(), 'casca: na chegada, a 1ª pergunta do Zero aparece inteira na caixa (não começa cortada)');
   ok(await page.getAttribute('#o-etapas', 'data-n') === '1' && /1 de 5/.test(await page.evaluate(() => getComputedStyle(document.getElementById('o-etapas'), '::after').content)), 'casca: a barra de progresso diz "1 de 5"');
   /* O MICROFONE DO ZERO (18/11): o botão Falar grava, o servidor local devolve a frase simulada e ela cai na caixa para a pessoa conferir;
      nada é enviado ao Zero sozinho. Só com o consultor (é a caixa de texto dele) */
@@ -134,6 +148,7 @@ try {
   await tocar('Serviços');   /* (o caminho até o Pix por um nicho comum; a saúde e a advocacia, que fecham pelo site com a ciência do dono, em docs/testes/saude-pedido.test.mjs) */
   ok(await espera(page, () => localStorage.getItem('bz-orcamento') !== null, 15000), 'a sessão nasce no 1º toque (com o anti-robô), não ao abrir a página');
   ok(await espera(page, () => !document.getElementById('o-nasce').hidden && /Peça o seu orçamento/.test(document.getElementById('o-nasce-titulo').textContent), 8000), 'casca: o site nasce no 1º toque (o ramo vira a chamada do site)');
+  ok(await falaInteira(), 'casca: depois do 1º toque, a pergunta seguinte aparece inteira (com a miniatura em cima)');
   await tocar('Agendamentos');
   await tocar('Pronto');
   ok(await espera(page, () => [].some.call(document.querySelectorAll('#o-nasce-pecas li'), l => l.textContent === 'Agenda de horários'), 8000), 'casca: cada objetivo tocado vira uma peça do site');
@@ -435,6 +450,17 @@ try {
   await foto(page, '2b-direcoes-cartao-cel');
   ok(await page.evaluate(() => { const p = document.getElementById('o-dirs-pontos'); return !p.hidden && p.children.length === 3 && p.children[0].classList.contains('is-atual'); }), 'modelos: os 3 pontos do carrossel aparecem e o 1º está aceso');
   ok(await page.evaluate(() => { const b = document.querySelector('#o-dirs .dir .dir__acoes').children; return b[0].classList.contains('btn--primary') && b[1].hasAttribute('data-abrir'); }), 'modelos: "Escolher este" vem primeiro no DOM (a ordem do Tab é a que se vê)');
+  /* o selo "Recomendado pelo Zero" não cobre a marca do negócio na miniatura (achado das fotos de 19/11: cobria o nome no topo da prévia) */
+  ok(await page.evaluate(() => {
+    /* exatamente 1 cartão recomendado (o roteiro do E2E é fixo), com a marca na miniatura: sem eles a asserção passaria sem testar nada */
+    const d = [...document.querySelectorAll('#o-dirs .dir')].filter(x => x.querySelector('.dir__recomendado'));
+    if (d.length !== 1) return false;
+    const s = d[0].querySelector('.dir__recomendado').getBoundingClientRect(), mk = d[0].querySelector('.pv-marca'), mi = d[0].querySelector('.dir__mini');
+    if (!mk || !mi) return false;
+    const r = mk.getBoundingClientRect(), m = mi.getBoundingClientRect();
+    const longeDaMarca = s.right <= r.left || r.right <= s.left || s.bottom <= r.top || r.bottom <= s.top;
+    return longeDaMarca && s.top >= m.top - 1 && s.bottom <= m.bottom + 1;   /* e o selo fica DENTRO da miniatura */
+  }), 'modelos: o selo "Recomendado pelo Zero" fica dentro da miniatura e não cobre a marca do negócio');
   await page.locator('#o-dirs .dir').nth(2).locator('.dir__acoes .btn').first().focus();
   ok(await espera(page, () => document.getElementById('o-dirs').scrollLeft > 20 && document.querySelectorAll('#o-dirs-pontos .is-atual').length === 1 && document.querySelectorAll('#o-dirs-pontos span')[2].classList.contains('is-atual'), 8000), 'modelos: o foco no 3º cartão rola o carrossel até ele e acende o 3º ponto');
   await page.evaluate(() => { document.getElementById('o-dirs').scrollLeft = 0; });
@@ -790,6 +816,9 @@ try {
   await page.locator('#o-visor-abas .chip').nth(1).click();
   await page.click('#o-visor-escolher');
   await page.waitForSelector('#o-ajustes:not([hidden])');
+  /* as seções com Subir/Descer/Tirar têm todas o mesmo desenho no celular: o nome numa linha e os botões embaixo (achado das fotos de
+     19/11: "Serviços" com os botões ao lado e as outras embaixo, a lista ficava torta) */
+  ok(await page.evaluate(() => { const formas = new Set([...document.querySelectorAll('#o-ajustes .orc-aj__secao')].filter(li => li.querySelector('.orc-aj__botoes')).map(li => li.querySelector('.orc-aj__botoes').getBoundingClientRect().top >= li.querySelector('.orc-aj__nome').getBoundingClientRect().bottom - 1)); return formas.size === 1 && formas.has(true); }), 'ajustes (celular): toda seção com botões tem o nome em cima e os botões embaixo');
   ok(await page.locator('.dir.is-escolhida .dir__estrategia').textContent().then(t => t.startsWith('02')), 'direção 2 escolhida');
   ok(await espera(page, () => document.getElementById('o-etapas').getAttribute('data-n') === '3' && document.getElementById('o-etapas').getAttribute('data-nome') === 'Ajustes', 8000), 'casca: a barra anda sozinha com a etapa (3 de 5 · Ajustes)');
 
