@@ -29,6 +29,12 @@ test('achados: cada item quebra pelo motivo dele, com texto fixo', () => {
   for (const t of Object.values(a)) assert.ok(!/@|BZ-|\+55/.test(t), t);
 });
 
+test('achados: a Anthropic recusar a chave (conferência do Worker) vale como a IA ter recusado a conta, mesmo sem conversa falhando', () => {
+  assert.equal(achadosDe(LEITURA_OK, { ...CONF_OK, chaveIaRecusada: true }, AGORA).ia_conta, ITENS.ia_conta.quebrou);
+  assert.equal(achadosDe(LEITURA_OK, { ...CONF_OK, chaveIaRecusada: false }, AGORA).ia_conta, null);
+  assert.equal(achadosDe(LEITURA_OK, CONF_OK, AGORA).ia_conta, null, 'sem a conferência (servidor local) não alarma');
+});
+
 test('achados: os prazos das rotinas contam a partir da estreia do vigia (sem alarme falso no 1º dia)', () => {
   const recemLigado = { ...LEITURA_OK, estreia_em: iso(AGORA - 2 * H), ultima_reconciliacao_em: null, ultima_diaria_em: null };
   assert.deepEqual(ativos(achadosDe(recemLigado, CONF_OK, AGORA)), []);
@@ -125,23 +131,24 @@ const ENV_CONF = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_CHAVE_SECRETA
 const assets = resposta => { const vistos = []; return { vistos, fetch: async req => { vistos.push(new URL(req.url).pathname); return resposta(new URL(req.url).pathname, vistos.length); } }; };
 const pagina = () => new Response('<!doctype html><html lang="pt-BR"><body>ok</body></html>', { status: 200 });
 const semEspera = async () => {};
+const aceita = async () => new Response('{}', { status: 200 });
 
 test('conferir: páginas pelo ASSETS (sem rede), todas com 200 e <html; configuração completa → nada falta', async () => {
   const a = assets(pagina);
-  const r = await conferir({ ...ENV_CONF, ASSETS: a }, { esperar: semEspera });
-  assert.deepEqual(r, { paginas: true, configuracao: [], pagamentosLigados: true });
+  const r = await conferir({ ...ENV_CONF, ASSETS: a }, { esperar: semEspera, buscar: aceita });
+  assert.deepEqual(r, { paginas: true, configuracao: [], pagamentosLigados: true, chaveIaRecusada: false });
   assert.deepEqual(a.vistos, PAGINAS);
   assert.deepEqual(PAGINAS, ['/', '/sites', '/automacao', '/orcamento']);
 });
 
 test('conferir: página com erro ou sem <html falha (depois da 2ª tentativa); uma falha passageira não', async () => {
   for (const ruim of [() => new Response('x', { status: 500 }), () => new Response('vazio', { status: 200 }), () => { throw new Error('caiu'); }]) {
-    const r = await conferir({ ...ENV_CONF, ASSETS: assets((p) => (p === '/sites' ? ruim() : pagina())) }, { esperar: semEspera });
+    const r = await conferir({ ...ENV_CONF, ASSETS: assets((p) => (p === '/sites' ? ruim() : pagina())) }, { esperar: semEspera, buscar: aceita });
     assert.equal(r.paginas, false);
   }
   let vez = 0;
   const passageira = assets(p => (p === '/orcamento' && vez++ === 0 ? new Response('x', { status: 503 }) : pagina()));
-  assert.equal((await conferir({ ...ENV_CONF, ASSETS: passageira }, { esperar: semEspera })).paginas, true);
+  assert.equal((await conferir({ ...ENV_CONF, ASSETS: passageira }, { esperar: semEspera, buscar: aceita })).paginas, true);
   assert.deepEqual(passageira.vistos.filter(p => p === '/orcamento').length, 2);
 });
 
@@ -154,6 +161,28 @@ test('conferir: sem ASSETS (servidor local, testes) as páginas não são confer
   const semMp = await falta(['MP_ACCESS_TOKEN']);
   assert.deepEqual(semMp.configuracao, ['pagamentos']); assert.equal(semMp.pagamentosLigados, false);
   assert.deepEqual((await conferir({}, { esperar: semEspera })).configuracao, ['supabase', 'anthropic', 'cron', 'pagamentos']);
+});
+
+test('conferir: no Worker, a chave da IA é provada com a chamada gratuita de listar modelos; só 401 conta como recusada', async () => {
+  const chamadas = [];
+  const buscar = status => async (url, opcoes) => { chamadas.push({ url, ...opcoes }); return new Response('{}', { status }); };
+  const com = status => conferir({ ...ENV_CONF, ASSETS: assets(pagina) }, { esperar: semEspera, buscar: buscar(status) });
+  assert.equal((await com(401)).chaveIaRecusada, true);
+  assert.equal(chamadas[0].url, 'https://api.anthropic.com/v1/models?limit=1');
+  assert.equal(chamadas[0].headers['x-api-key'], 'k');
+  assert.equal(chamadas[0].headers['anthropic-version'], '2023-06-01');
+  assert.ok(!chamadas[0].method || chamadas[0].method === 'GET');
+  for (const status of [200, 403, 429, 500, 529]) assert.equal((await com(status)).chaveIaRecusada, false, 'status ' + status + ' não prova chave ruim');
+  const caiu = await conferir({ ...ENV_CONF, ASSETS: assets(pagina) }, { esperar: semEspera, buscar: async () => { throw new Error('rede'); } });
+  assert.equal(caiu.chaveIaRecusada, false, 'sem resposta da Anthropic não há prova');
+});
+
+test('conferir: sem chave configurada ou sem ASSETS (servidor local, testes) não chama a Anthropic', async () => {
+  let n = 0;
+  const buscar = async () => { n++; return new Response('{}', { status: 401 }); };
+  assert.equal((await conferir({ ...ENV_CONF, ASSETS: assets(pagina), ANTHROPIC_API_KEY: '' }, { esperar: semEspera, buscar })).chaveIaRecusada, false);
+  assert.equal((await conferir(ENV_CONF, { esperar: semEspera, buscar })).chaveIaRecusada, false);
+  assert.equal(n, 0);
 });
 
 /* ---- o e-mail de várias linhas (mesmo canal e mesmo modelo dos outros avisos) ---- */
