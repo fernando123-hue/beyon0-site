@@ -36,7 +36,7 @@ export function configPagamentos(env = process.env) {
   if (local && !env.MP_ACCESS_TOKEN && globalThis.__BZ_LOCAL.mp) {
     const s = globalThis.__BZ_LOCAL.mp;
     return { ativo: true, ambiente: 'simulado', provedor: 'mercadopago', token: s.token, publicKey: 'simulado', segredoWebhook: s.segredo,
-      contaEsperada: s.userId, tresDS: null, pixExpiracao: 'PT1H', base: 'https://api.mercadopago.com', fetch: s.fetch, cronSecret: s.cronSecret,
+      contaEsperada: s.userId, tresDS: null, pixExpiracao: 'PT30M', base: 'https://api.mercadopago.com', fetch: s.fetch, cronSecret: s.cronSecret,
       metodos: metodosDe(env, 'local') };
   }
   const desligado = motivo => ({ ativo: false, motivo });
@@ -61,7 +61,7 @@ export function configPagamentos(env = process.env) {
   if (sufixo && sufixo[1] !== contaEsperada) return desligado('MP_ACCESS_TOKEN não é da conta MP_USER_ID');
   const tresDS = env.MP_3DS === 'on_fraud_risk' ? 'on_fraud_risk' : null;
   return { ativo: true, ambiente, provedor: 'mercadopago', token, publicKey, segredoWebhook: segredo, contaEsperada, tresDS,
-    pixExpiracao: 'PT1H', base: 'https://api.mercadopago.com', fetch: null, cronSecret: segredoDoCron(env), metodos: metodosDe(env, amb) };
+    pixExpiracao: 'PT30M', base: 'https://api.mercadopago.com', fetch: null, cronSecret: segredoDoCron(env), metodos: metodosDe(env, amb) };
 }
 
 /* o que pode ir ao navegador */

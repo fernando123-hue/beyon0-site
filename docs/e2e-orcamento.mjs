@@ -45,7 +45,8 @@ const TELEFONE = '(21) 9' + String(1000 + Math.floor(Math.random() * 9000)) + '-
 const EXEC = process.env.CHROMIUM || undefined;
 const PASTA = new URL('./olhar-orcamento/', import.meta.url);
 await mkdir(PASTA, { recursive: true });
-const nav = await chromium.launch({ executablePath: EXEC });
+/* o microfone do Zero: o Chromium com aparelho de áudio de mentira (um bipe) e a licença já dada, para a gravação rodar sem pessoa */
+const nav = await chromium.launch({ executablePath: EXEC, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
 let falhou = false;
 /* CONSULTOR=1: o servidor local com a IA simulada mostrando o consultor (sem BZ_SEM_CONSULTOR); as checagens da
    conversa só valem aí. Sem ele, o caminho é só o das perguntas (rodar o servidor com BZ_SEM_CONSULTOR=1) */
@@ -69,6 +70,7 @@ const foto = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome 
 
 try {
   const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await ctx.grantPermissions(['microphone'], { origin: new URL(BASE).origin });
   const page = await ctx.newPage();
   pagina = page;
   anotar(page, 'principal');
@@ -92,6 +94,39 @@ try {
   ok(await page.locator('#o-perguntas').count() === 0 && await page.locator('#o-conversar').count() === 0, 'sem tela de perguntas e sem "Prefere conversar?"');
   ok(CONSULTOR ? await page.locator('#o-form').isVisible() : await page.locator('#o-form').isHidden(), CONSULTOR ? 'com consultor: a caixa de texto está à mão' : 'sem consultor: tudo por toques, sem caixa de texto');
   await foto(page, '1a-conversa-cel');
+  /* O MICROFONE DO ZERO (18/11): o botão Falar grava, o servidor local devolve a frase simulada e ela cai na caixa para a pessoa conferir;
+     nada é enviado ao Zero sozinho. Só com o consultor (é a caixa de texto dele) */
+  if (CONSULTOR) {
+    await page.waitForSelector('#o-mic:not([hidden])', { timeout: 10000 });
+    ok(await page.locator('#o-mic').isVisible() && await page.locator('#o-voz-nota').isVisible(), 'microfone: o botão Falar e o aviso de privacidade aparecem');
+    ok(await semRolagemLateral(page), 'microfone: celular sem rolagem lateral com o botão');
+    await page.locator('#o-mic').click();
+    await page.waitForFunction(() => document.getElementById('o-mic').getAttribute('aria-pressed') === 'true', null, { timeout: 10000 });
+    ok(/Parar/.test(await page.locator('#o-mic-rotulo').textContent()) && await page.locator('#o-mic-cancelar').isVisible(), 'microfone: gravando, o botão vira Parar e aparece Descartar');
+    await page.waitForTimeout(1500);
+    await foto(page, '1b-microfone-gravando-cel');
+    await page.locator('#o-mic').click();
+    await page.waitForFunction(() => /confeitaria em Niterói/.test(document.getElementById('o-texto').value), null, { timeout: 40000 });
+    ok(/confeitaria em Niterói/.test(await page.inputValue('#o-texto')), 'microfone: a transcrição cai na caixa, para conferir');
+    ok(/Confira o texto/.test(await page.locator('#o-mic-aviso').textContent()) && await page.locator('#o-log .msg--visitante').count() === 0, 'microfone: nada foi enviado ao Zero sozinho');
+    await page.locator('#o-mic').click();
+    await page.waitForFunction(() => document.getElementById('o-mic').getAttribute('aria-pressed') === 'true', null, { timeout: 10000 });
+    await page.locator('#o-mic-cancelar').click();
+    await page.waitForFunction(() => /descartada/.test(document.getElementById('o-mic-aviso').textContent), null, { timeout: 10000 });   /* (o botão deixa de ficar pressionado já no 'parando'; o aviso vem no onstop) */
+    const depois = await page.inputValue('#o-texto');
+    ok(/descartada/.test(await page.locator('#o-mic-aviso').textContent()) && /confeitaria em Niterói/.test(depois) && !/confeitaria.*confeitaria/.test(depois), 'microfone: descartar não manda nada e não mexe no que já estava na caixa');
+    await page.fill('#o-texto', '');
+    /* duplo toque em Parar (revisão de 18/11): o 2º toque cai no "parando" e não faz nada; a frase entra UMA vez e o botão volta a Falar */
+    await page.locator('#o-mic').click();
+    await page.waitForFunction(() => document.getElementById('o-mic').getAttribute('aria-pressed') === 'true', null, { timeout: 10000 });
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => { const b = document.getElementById('o-mic'); b.click(); b.click(); });
+    await page.waitForFunction(() => /confeitaria em Niterói/.test(document.getElementById('o-texto').value), null, { timeout: 40000 });
+    await page.waitForTimeout(1200);
+    const dobro = await page.inputValue('#o-texto');
+    ok((dobro.match(/confeitaria/g) || []).length === 1 && /^Falar$/.test((await page.locator('#o-mic-rotulo').textContent()).trim()), 'microfone: duplo toque em Parar transcreve uma vez só e o botão volta a Falar');
+    await page.fill('#o-texto', '');
+  }
   const tocar = async texto => { const b = page.locator('#o-log .orc-toque:not([data-feito]) button', { hasText: texto }).first(); await b.scrollIntoViewIfNeeded(); await b.click(); };
   await tocar('Serviços');   /* (o caminho até o Pix por um nicho comum; a saúde e a advocacia, que fecham pelo site com a ciência do dono, em docs/testes/saude-pedido.test.mjs) */
   ok(await espera(page, () => localStorage.getItem('bz-orcamento') !== null, 15000), 'a sessão nasce no 1º toque (com o anti-robô), não ao abrir a página');
@@ -746,7 +781,10 @@ try {
 
   await passoDosAjustes(page, { ok, espera, foto, semRolagemLateral, forcar: v => { falhaForcada = v; } });
 
-  /* sair e voltar */
+  /* sair e voltar. Antes, espera a janela do freio geral (90 chamadas por minuto por IP, api/vendas.mjs) esvaziar: os ajustes e o
+     microfone somam chamadas e, numa máquina rápida, o recarregar da retomada levava 429 (a conversa não voltava). O freio é
+     real e fica como está; quem espera é o teste, como nos outros pontos deste arquivo */
+  await new Promise(r => setTimeout(r, 61e3));
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('#o-ajustes:not([hidden])', { timeout: 30000 });
   if (CONSULTOR) ok(await page.locator('#o-log .msg').count() >= 5, 'recarregar: a conversa volta');
