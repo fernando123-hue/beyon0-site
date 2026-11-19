@@ -33,8 +33,9 @@ test('os 6 textos: o link entra, valem 7 dias e abrem uma vez, sem preço, sem "
   }
   assert.match(T.previa.texto('L'), /aprova ou manda a sua lista de ajustes/);
   assert.match(T.material_parado.texto('L'), /^Aqui é o Fernando, da Beyon Zero\./);
-  assert.match(T.no_ar.texto('L'), /paga o restante por Pix/);
-  assert.match(T.no_ar.texto('L'), /3 dias/); assert.match(T.no_ar.texto('L'), /sai do ar à meia-noite/);   /* 22/10: o aviso "no ar" diz o prazo de 3 dias */
+  /* 19/11, a ordem nova: o site só vai ao ar com o restante PAGO; o aviso "no ar" não cobra nada nem fala de sair do ar, e diz a passagem para a conta do cliente */
+  assert.match(T.no_ar.texto('L'), /passamos o site para uma conta no seu nome/);
+  assert.doesNotMatch(T.no_ar.texto('L'), /paga o restante|3 dias|sai do ar/);
   assert.match(T.material_parado.texto('L'), /projeto fica parado/); assert.match(T.material_parado.texto('L'), /Nada vai ao ar sem a sua autorização/);
   for (const m of ['restante_lembrete_1', 'restante_lembrete_2']) assert.match(T[m].texto('L'), /sai do ar à meia-noite, no fim do 3º dia/, m);
   assert.equal(new Set(Object.values(T).map(x => x.assunto)).size, 6, 'cada aviso tem o seu assunto');
@@ -156,8 +157,8 @@ test('o painel de verdade: um cartão por momento, momento desconhecido ignorado
   assert.ok(achar(ids.avisos.children[0], n => n.textContent === 'WhatsApp +55 67 99123-4500'), 'o telefone vem como o banco manda e aparece formatado');
 });
 
-test('o painel de verdade: o aviso "no ar" de uma entrega que não está no ar (suspensa, encerrada, concluída ou sem o passo) NÃO vira cartão: não se oferece "O seu site está no ar!"', async () => {
-  for (const passo of ['suspensa', 'encerrada', 'concluida', undefined]) {
+test('o painel de verdade: o aviso "no ar" de uma entrega que não está no ar (suspensa, encerrada ou sem o passo) NÃO vira cartão: não se oferece "O seu site está no ar!"; a concluída da ordem nova (19/11) oferece', async () => {
+  for (const passo of ['suspensa', 'encerrada', undefined]) {
     const { ids, ouvintes } = montarPainel({ itens: [{ ...ITEM('no_ar', 5), passo }], aoPostar: ok({}) });
     ouvintes['bz-painel:entrou'](); await esperar();
     assert.equal(ids.avisos.children.length, 0, 'passo ' + passo + ': nenhum cartão');
@@ -166,6 +167,9 @@ test('o painel de verdade: o aviso "no ar" de uma entrega que não está no ar (
   const certo = montarPainel({ itens: [ITEM('no_ar', 5)], aoPostar: ok({}) });
   certo.ouvintes['bz-painel:entrou'](); await esperar();
   assert.equal(certo.ids.avisos.children.length, 1, 'no ar de verdade: o cartão aparece');
+  const concluida = montarPainel({ itens: [{ ...ITEM('no_ar', 5), passo: 'concluida' }], aoPostar: ok({}) });
+  concluida.ouvintes['bz-painel:entrou'](); await esperar();
+  assert.equal(concluida.ids.avisos.children.length, 1, '19/11: o pedido conclui ao entrar no ar (restante já pago) e o aviso "no ar" ainda é devido');
 });
 
 test('o painel de verdade: fila vazia diz que não há aviso; um item só diz "1 aviso"', async () => {

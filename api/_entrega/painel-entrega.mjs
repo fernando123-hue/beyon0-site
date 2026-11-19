@@ -3,6 +3,7 @@
    (vendas_entrega_info), CONFERE com a mensagem certa para o dono (o banco confere de novo, como rede), calcula o prazo no servidor (a regra da captação) e chama
    a função do banco. O endereço gravado é sempre a ORIGEM do que o dono digitou (sem barra final, sem caminho). Nada aqui grava texto do cliente no log.
    D5: não existe aqui nada que aprove, publique ou encerre "por silêncio": pôr no ar exige a aprovação do cliente, e o motivo de encerrar é de lista fechada.
+   (19/11) Pôr no ar exige também o RESTANTE pago (a ordem nova: ele é cobrado com o site pronto, na aprovação) e a entrega sem bloqueio (estorno, contestação).
    ========================================================================== */
 import { criarTransporte } from '../_vendas/transporte.mjs';
 import { ORG } from '../_vendas/org.mjs';
@@ -47,8 +48,13 @@ const MOTIVO_RECUSA = {
   sem_aviso: 'O aviso "seu site está no ar" ainda não foi registrado: os 3 dias do restante só contam a partir dele (aviso BZ-… no-ar).',
   fora_do_ar: 'O site não está no ar: o lembrete do restante só existe com o site no ar.',
   dispensar: 'O número já está autorizado: o caminho é dispensar o material (dispensar BZ-…), não o aviso de material parado.',
-  ja: 'Isso já foi registrado.'
+  ja: 'Isso já foi registrado.',
+  sem_restante: 'O restante ainda não foi pago: o site só vai ao ar com ele pago (nem na conta da Beyon). A cobrança abriu quando o cliente aprovou a prévia.'
 };
+/* (19/11) "bloquear automaticamente a nossa entrega quando o cliente pedir reembolso": com a entrada estornada (inteira ou em parte), contestada ou com o projeto
+   pausado, o banco recusa toda ação que anda com a entrega (55000). O painel lê `bloqueada` antes e diz o porquê; o banco é a trava de verdade */
+const BLOQUEADA = 'Entrega BLOQUEADA: o pagamento deste pedido foi estornado, contestado ou está em disputa no Mercado Pago (o projeto está pausado). Nada avança nem vai ao ar. Confira no Mercado Pago; se houver devolução, encerre o pedido (encerrar BZ-… desistencia).';
+const barrarBloqueada = info => (info && info.bloqueada ? json({ erro: BLOQUEADA }, 409) : null);
 const RECUSA_GENERICA = 'O banco recusou esta ação: confira o passo da entrega na lista e tente de novo.';
 /* a recusa de regra do banco ({ ok:false, motivo }) vira 409 com a frase em português; só o endereço fora do padrão é 422. `frases` troca a frase de um motivo para esta ação */
 function recusar(r, frases = {}) {
@@ -100,6 +106,7 @@ export function criarAcoesDoDono(env) {
       if (!rpc) return FALHA();
       const { info, resposta } = await lerInfo(rpc, codigo); if (resposta) return resposta;
       if (!['producao', 'ajustes'].includes(info.passo)) return json({ erro: 'A entrega está em "' + info.passo + '": só se publica prévia quando ela está em produção ou em ajustes.' }, 409);
+      const bloqueada = barrarBloqueada(info); if (bloqueada) return bloqueada;
       const problema = problemaDaPrevia(bruto.url, info.cliente_captacao);
       if (problema) return json({ erro: problema }, 422);
       const t = agoraDe();
@@ -118,6 +125,8 @@ export function criarAcoesDoDono(env) {
           ? 'O cliente ainda não aprovou a prévia: o projeto para até ele responder (D5). Nada é publicado antes.'
           : 'A entrega está em "' + info.passo + '": só se põe no ar depois da aprovação.' }, 409);
       }
+      const bloqueada = barrarBloqueada(info); if (bloqueada) return bloqueada;
+      if (info.restante_pago !== true) return json({ erro: MOTIVO_RECUSA.sem_restante }, 409);   /* (19/11) o site só vai ao ar com o restante pago */
       const problema = problemaDoSite(bruto.url);
       if (problema) return json({ erro: problema }, 422);
       const t = agoraDe();
@@ -154,6 +163,7 @@ export function criarAcoesDoDono(env) {
       if (!rpc) return FALHA();
       const { info, resposta } = await lerInfo(rpc, codigo); if (resposta) return resposta;
       if (info.passo !== 'material') return json({ erro: 'A entrega está em "' + info.passo + '": só se dispensa o material de quem ainda não o enviou.' }, 409);
+      const bloqueada = barrarBloqueada(info); if (bloqueada) return bloqueada;
       if (!instanteOk(info.entrada_em)) return json({ erro: 'A entrada desta entrega não tem data legível: confira na lista de entregas antes de dispensar o material.' }, 409);
       const dias = diasCorridosDesde(info.entrada_em);
       if (dias < LIMITES.material_dias) return json({ erro: fraseDoDia30(dias) }, 409);

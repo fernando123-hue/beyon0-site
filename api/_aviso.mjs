@@ -1,6 +1,7 @@
 /* ==========================================================================
    O AVISO AO DONO. Um só lugar para quem manda: os avisos de "pedido novo na fila", "recado novo", "fila cheia" e os do
-   atendente (api/_vendas, api/atendente.mjs), e o e-mail do vigia (avisarDonoLinhas, api/_vigia/rondar.mjs).
+   atendente (api/_vendas, api/atendente.mjs), o e-mail do vigia (avisarDonoLinhas, api/_vigia/rondar.mjs) e o do estorno,
+   da contestação e do restante pago (avisarDonoPagamento, api/_pagamentos/servico.mjs).
    CANAL HOJE: e-mail pelo binding send_email da Cloudflare (AVISO_EMAIL), de avisos@ do domínio para AVISO_PARA (wrangler.jsonc,
    só produção). Dono, 10/11/2026: "Primeiro e mail até termos o APP, depois disso exclua o email e mantenha apenas no
    APP" — quando o app do dono com push existir, este canal SAI (e o binding também).
@@ -78,6 +79,34 @@ export async function avisarDono(env, tipo, deps = {}) {
   const saiu = await enviar(env, texto, tipo, agora, deps);
   if (saiu && COM_FREIO.has(tipo)) memoria.set(tipo, agora);
   return saiu;
+}
+
+/* O AVISO DE PAGAMENTO NA HORA (decisão do dono, 19/11): o estorno, o estorno parcial e a contestação de uma parcela bloqueiam a entrega
+   (supabase/migrations/20261119120000_seguranca_pagamentos.sql) e o dono sabe NA HORA, não só na rotina do dia seguinte; e o restante pago avisa
+   que o site pode ir ao ar (a ordem nova: ele só vai ao ar com o restante pago). O alerta vem do banco (app.pagamentos_aplicar): { codigo, evento,
+   parcela }. O texto é FIXO por evento e parcela; o único dado é o código do pedido (BZ-…), conferido pelo MESMO formato do banco (app.pedidos):
+   fora dele, o aviso sai sem o código ("um pedido"), nunca com o que veio. Sem nome, contato, valor nem id do Mercado Pago. Sem freio: cada alerta é
+   uma mudança real de estado (o banco não alerta o aviso repetido do provedor). */
+const CODIGO_PEDIDO = /^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/;
+const PARCELAS = Object.freeze({ entrada: 'a entrada', restante: 'o restante' });
+const ACONTECEU = Object.freeze({
+  estorno: { entrada: 'foi estornada', restante: 'foi estornado' },
+  estorno_parcial: { entrada: 'foi estornada em parte', restante: 'foi estornado em parte' },
+  contestacao: { entrada: 'foi contestada ou entrou em disputa no Mercado Pago', restante: 'foi contestado ou entrou em disputa no Mercado Pago' }
+});
+export function textoDoAvisoDePagamento(alerta) {
+  const evento = alerta && alerta.evento, parcela = Object.hasOwn(PARCELAS, String(alerta && alerta.parcela)) ? alerta.parcela : 'entrada';
+  const codigo = typeof (alerta && alerta.codigo) === 'string' && CODIGO_PEDIDO.test(alerta.codigo) ? alerta.codigo : null;
+  const pedido = codigo ? 'pedido ' + codigo : 'um pedido';
+  if (evento === 'restante_pago') return (codigo ? 'Pedido ' + codigo : 'Um pedido') + ': o restante foi pago. O site já pode ir ao ar: ponha no ar pelo painel e mande o aviso ao cliente.';
+  if (!Object.hasOwn(ACONTECEU, String(evento))) return null;
+  return 'URGENTE: ' + pedido + ': ' + PARCELAS[parcela] + ' ' + ACONTECEU[evento][parcela] + '. A entrega ficou bloqueada: nada avança nem vai ao ar. Veja o Mercado Pago e o painel.';
+}
+/* avisarDonoPagamento(env, alerta, deps) → true se o e-mail saiu; false em qualquer outro caso (nunca lança) */
+export async function avisarDonoPagamento(env, alerta, deps = {}) {
+  const texto = textoDoAvisoDePagamento(alerta);
+  if (!texto) return false;
+  return enviar(env, texto, 'pagamento', (deps.agora ?? Date.now)(), deps);
 }
 
 /* o e-mail do VIGIA (api/_vigia): várias linhas fixas num e-mail só (as linhas vêm de api/_vigia/decidir.mjs, textos fixos,

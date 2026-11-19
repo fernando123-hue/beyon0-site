@@ -7,7 +7,8 @@
    ========================================================================== */
 (function () {
   /* os textos: o Fernando falando com o cliente no WhatsApp (o componente comum põe o "Oi, nome!" na frente). Sem preço, sem prazo inventado, sem prometer o que o código não faz.
-     As frases do contrato ficam como estão ("Nada vai ao ar sem a sua autorização", o prazo de 3 dias do restante). O link vale 7 dias e abre uma vez (PR 2b-2). */
+     As frases do contrato ficam como estão ("Nada vai ao ar sem a sua autorização"). Os lembretes do restante (3 dias) só valem para as entregas antigas, que foram ao ar antes da
+     ordem nova de 19/11 (o restante na aprovação; o site só vai ao ar com ele pago). O link vale 7 dias e abre uma vez (PR 2b-2). */
   var QUEM = 'Aqui é o Fernando, da Beyon Zero. ';
   var LINK_UNICO = ' vale por 7 dias e abre uma vez:\n';
   var TEXTOS = {
@@ -17,7 +18,7 @@
     },
     no_ar: {
       titulo: 'Site no ar', rotulo: 'aviso do site no ar', assunto: 'Seu site está no ar',
-      texto: function (link) { return QUEM + 'O seu site está no ar!\nPor este link você vê o endereço e paga o restante por Pix. Ele' + LINK_UNICO + link + '\nO restante tem 3 dias, contados desta mensagem. Sem o pagamento, o site sai do ar à meia-noite, no fim do 3º dia.'; }
+      texto: function (link) { return QUEM + 'O seu site está no ar!\nPor este link você vê o endereço. Ele' + LINK_UNICO + link + '\nAgora nós passamos o site para uma conta no seu nome e te mandamos o passo a passo.'; }
     },
     material_parado: {
       titulo: 'Material parado', rotulo: 'aviso de material parado', assunto: 'Estamos aguardando o material do seu site',
@@ -53,7 +54,7 @@
   function cartao(a) {
     var t = TEXTOS[a.momento];
     if (!t) return null;   /* (momento que este painel não conhece: não inventa mensagem) */
-    if (a.momento === 'no_ar' && a.passo !== 'no_ar') return null;   /* (o site não está no ar, p. ex. suspensa: "O seu site está no ar!" seria falso. O servidor já filtra; aqui é a segunda trava, e a resposta sem o passo também não oferece) */
+    if (a.momento === 'no_ar' && a.passo !== 'no_ar' && a.passo !== 'concluida') return null;   /* (o site não está no ar, p. ex. suspensa: "O seu site está no ar!" seria falso. O servidor já filtra; aqui é a segunda trava, e a resposta sem o passo também não oferece. 19/11: na ordem nova o pedido CONCLUI ao entrar no ar, com o restante já pago) */
     var c = el('div', 'pn__alerta pn__fila');
     var texto = el('div', 'pn__fila-texto');
     texto.appendChild(el('p', 'pn__codigo', a.codigo));

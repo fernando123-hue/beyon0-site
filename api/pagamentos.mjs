@@ -22,6 +22,7 @@ import { confirmacaoDoAmbiente } from './_pagamentos/confirmacao.mjs';
 import { verificarAssinatura } from './_pagamentos/assinatura.mjs';
 import { ErroProvedor } from './_pagamentos/mercadopago.mjs';
 import { criarFreio, ipDe } from './_freio.mjs';
+import { avisarDonoPagamento } from './_aviso.mjs';
 
 export const LIMITE_BYTES = 65536;
 const ID_ORDER = /^ORD[0-9A-Za-z]{10,60}$/;
@@ -41,7 +42,8 @@ export async function receber(request, env, deps = {}) {
   const banco = deps.banco || criarTransporte(env);
   const cfg = deps.cfg || configPagamentos(env);
   if (!banco || !cfg.ativo) { console.error('[pagamentos] desligado:', cfg.motivo || 'sem banco'); return json({ erro: 'Indisponível.' }, 503); }
-  const servico = deps.servico || criarServicoPagamentos({ banco, cfg, confirmacao: confirmacaoDoAmbiente(env) });
+  /* (19/11) o estorno, a contestação e o restante pago avisam o dono NA HORA (api/_aviso.mjs: só o código do pedido e o evento) */
+  const servico = deps.servico || criarServicoPagamentos({ banco, cfg, confirmacao: confirmacaoDoAmbiente(env), avisar: alerta => avisarDonoPagamento(env, alerta) });
 
   if (acao === 'reconciliar') return reconciliar(request, cfg, servico);
   if (acao === 'simular') return simular(request, cfg, env, deps);

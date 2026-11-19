@@ -128,7 +128,12 @@ test('alertas por passo: 30 dias sem material (dispensar com a autorização exp
   /* M1: o prazo corre até PUBLICAR (captação, entrega.mjs:192-202): aprovada com o prazo vencido também alarma, e o site não vai ao ar sem a devolução registrada */
   const vencAprovada = alertasDe(base({ passo: 'aprovada', prazo_dias: 5, entrega_ate: '2026-10-08', prazo: { conta_desde: '2026-10-01T12:00:00-04:00', pausas: [{ desde: '2026-10-02T12:00:00-04:00', ate: '2026-10-03T12:00:00-04:00' }] } }), HOJE);
   assert.match(vencAprovada[0], /prazo vencido/); assert.match(vencAprovada[0], /NÃO vai ao ar/);
-  assert.deepEqual(alertasDe(base({ passo: 'aprovada', prazo_dias: 10, entrega_ate: '2026-11-05', prazo: { conta_desde: '2026-10-20T12:00:00-04:00', pausas: [] } }), HOJE), [], 'aprovada dentro do prazo: nada');
+  /* 19/11, a ordem nova: aprovada dentro do prazo espera o RESTANTE (a cobrança abriu na aprovação); com ele pago, pôr no ar; bloqueada, nada anda */
+  const aprovadaNoPrazo = extra => alertasDe(base({ passo: 'aprovada', prazo_dias: 10, entrega_ate: '2026-11-05', prazo: { conta_desde: '2026-10-20T12:00:00-04:00', pausas: [] }, ...extra }), HOJE);
+  assert.deepEqual(aprovadaNoPrazo(), ['esperando o cliente pagar o restante (a cobrança abriu quando ele aprovou a prévia): o site só vai ao ar com ele pago'], 'aprovada dentro do prazo: só a espera do restante');
+  assert.match(aprovadaNoPrazo({ restante_pago: true }).join(' '), /o restante foi pago: ponha o site no ar \(no-ar BZ-K7M3Q/);
+  const bloq = aprovadaNoPrazo({ restante_pago: true, bloqueada: true });
+  assert.equal(bloq.length, 1); assert.match(bloq[0], /BLOQUEADA/); assert.ok(!/ponha o site no ar/.test(bloq[0]));
   assert.deepEqual(alertasDe(base({ passo: 'producao', prazo_dias: 5, prazo: { conta_desde: '2026-10-01T12:00:00-04:00', pausas: [{ desde: '2026-10-05T12:00:00-04:00', ate: null }] } }), HOJE), [], 'pausa aberta: não vence');
   /* 22/10: o restante vale 3 dias do REGISTRO do aviso "no ar"; lembretes no 2º e no 3º dia; à 00:00 depois do 3º dia o site sai do ar */
   const noAr = extra => base({ passo: 'no_ar', ...extra });
@@ -157,7 +162,9 @@ test('o próximo comando de cada passo (pronto para copiar); em prévia, nenhum:
   assert.match(cmd(base({ passo: 'producao', material_status: 'importado', cliente_captacao: 'c-k7m3qa' })), /previa BZ-K7M3Q <endereço da prévia>/);
   assert.match(cmd(base({ passo: 'ajustes', cliente_captacao: 'c-k7m3qa' })), /ajustes BZ-K7M3Q --destino/);
   assert.equal(cmd(base({ passo: 'previa' })), null);
-  assert.match(cmd(base({ passo: 'aprovada' })), /no-ar BZ-K7M3Q <endereço do site>/);
+  assert.equal(cmd(base({ passo: 'aprovada' })), null, '19/11: sem o restante pago o site não vai ao ar');
+  assert.match(cmd(base({ passo: 'aprovada', restante_pago: true })), /no-ar BZ-K7M3Q <endereço do site>/);
+  assert.equal(cmd(base({ passo: 'aprovada', restante_pago: true, bloqueada: true })), null, 'bloqueada (estorno, contestação): nada avança');
   assert.equal(cmd(base({ passo: 'no_ar' })), null);
   assert.match(cmd(base({ passo: 'no_ar', dias_do_aviso: 4 })), /suspender BZ-K7M3Q/, '22/10: passou da 00:00 depois do 3º dia do aviso');
   assert.match(cmd(base({ passo: 'concluida', religar_pendente: true })), /religado BZ-K7M3Q/);

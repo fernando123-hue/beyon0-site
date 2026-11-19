@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { montarLocal } from '../banco-local.mjs';
 import { criarCenario, BASE } from './_ajustes.mjs';
 import { ateEntregaCriada, enviarMaterial } from './_entrega.mjs';
-import { CLIENTE, PREVIA, SITE } from './_previa.mjs';
+import { CLIENTE, PREVIA, SITE, forcarEntrega } from './_previa.mjs';
 import { ACOES_PAINEL, mudar, ler } from '../../api/painel.mjs';
 import { receber } from '../../api/pagamentos.mjs';
 
@@ -27,6 +27,14 @@ async function emProducao() {
   return { n, c, codigo };
 }
 const publicar = (codigo, url = PREVIA) => cen.painelPost({ previa: codigo, url });
+/* (19/11, a ordem nova) o cliente paga o restante com a prévia aprovada, pelas portas reais: o Pix e o aviso do Mercado Pago (simulado) */
+async function pagarRestante(n, c) {
+  const pg = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR });
+  assert.equal(pg.status, 200, JSON.stringify(pg.corpo)); assert.equal(pg.corpo.pagamento.parcela, 'saldo');
+  await receber(new Request(BASE + '/api/pagamentos?acao=simular', { method: 'POST', body: JSON.stringify({ tentativa_id: pg.corpo.tentativa.id }), headers: { 'content-type': 'application/json' } }), {}, { banco: local.rpc });
+}
+/* a entrega ANTIGA, no ar antes do restante (as que foram ao ar antes de 19/11): só pelo banco, com a licença das transições */
+const paraNoArAntigo = c => forcarEntrega(local.db, { conversa_id: c }, { passo: 'no_ar', site_url: SITE, no_ar_em: new Date().toISOString(), aviso_no_ar_desde: new Date().toISOString() });
 
 test('o painel conhece as ações novas (a lista que o ensaio de CPU confere contra o código)', () => {
   for (const k of ['previa', 'no_ar', 'suspender', 'encerrar', 'material_dispensar', 'aviso_feito', 'religado']) assert.ok(ACOES_PAINEL.POST.includes(k), k);
@@ -76,6 +84,7 @@ test('M1: o prazo corre até PUBLICAR (a regra única da captação): com o praz
   await porPrazo(original);
   assert.equal((await publicar(codigo)).status, 200);
   assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 200);   /* o cliente responde: a pausa fecha e o prazo CONTINUA correndo até o ar */
+  await pagarRestante(n, c);   /* (19/11: sem o restante pago o site não vai ao ar, com ou sem prazo) */
   const aprovado = await prazoAtual();
   await porPrazo({ ...aprovado, conta_desde: '2020-01-06T12:00:00-04:00', pausas: [] });
   const v2 = await cen.painelPost({ no_ar: codigo, url: SITE });
@@ -85,7 +94,7 @@ test('M1: o prazo corre até PUBLICAR (a regra única da captação): com o praz
   assert.equal((await cen.painelPost({ no_ar: codigo, url: SITE })).status, 200);
 });
 
-test('o caminho inteiro pelas portas reais: prévia → aviso → lista → nova prévia → aprovar → no ar → aviso → restante → concluído', async () => {
+test('o caminho inteiro pelas portas reais (ordem nova, 19/11): prévia → aviso → lista → nova prévia → aprovar → restante → no ar → concluído → aviso', async () => {
   const { n, c, codigo } = await emProducao();
   assert.equal((await publicar(codigo)).status, 200);
   /* a D1: o aviso da prévia pronta, com o contato; "já avisei" tira da fila */
@@ -103,21 +112,24 @@ test('o caminho inteiro pelas portas reais: prévia → aviso → lista → nova
   assert.equal((await publicar(codigo, 'https://v2.bz-' + CLIENTE + '.pages.dev')).status, 200, 'a nova prévia depois da lista');
   assert.equal((await cen.painelGet('?ajustes-previa=' + codigo)).corpo.ajustes.length, 0, 'a lista virou "feito"');
   assert.deepEqual((await cen.painelGet('?fila=avisos')).corpo.itens.filter(i => i.codigo === codigo).map(i => i.momento), ['previa'], 'cada prévia nova tem o seu aviso (decisão C do plano)');
-  /* o cliente aprova, o dono põe no ar */
+  /* o cliente aprova; o restante abre na aprovação; o dono NÃO põe no ar antes de o restante cair */
   assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 1 })).status, 200);
+  const cedo = await cen.painelPost({ no_ar: codigo, url: SITE });
+  assert.equal(cedo.status, 409); assert.match(cedo.corpo.erro, /restante ainda não foi pago/);
+  assert.equal((await cen.painelGet('?fila=entregas')).corpo.entregas.find(e => e.codigo === codigo).restante_pago, false, 'o listar sabe que falta o restante');
+  /* o restante: só Pix, valor do banco, pago pelo aviso do Mercado Pago; a entrega espera o dono */
+  await pagarRestante(n, c);
+  assert.equal((await cen.estado(n, c)).entrega.passo, 'aprovada', 'o restante pago não põe o site no ar sozinho');
+  assert.equal((await cen.painelGet('?fila=entregas')).corpo.entregas.find(e => e.codigo === codigo).restante_pago, true);
   assert.equal((await cen.painelPost({ no_ar: codigo, url: 'https://evil.com/caminho?x=1' })).status, 422);
   assert.equal((await cen.painelPost({ no_ar: codigo, url: SITE + '/' })).status, 200);
-  assert.deepEqual((await cen.painelGet('?fila=avisos')).corpo.itens.filter(i => i.codigo === codigo).map(i => i.momento), ['no_ar'], 'a prévia aprovada não pede mais aviso');
-  assert.equal((await cen.painelGet('?fila=avisos')).corpo.itens.find(i => i.codigo === codigo).passo, 'no_ar', 'a fila traz o passo da entrega até o painel');
-  const ar = (await cen.estado(n, c)).entrega;
-  assert.equal(ar.passo, 'no_ar'); assert.equal(ar.site.url, SITE); assert.equal(ar.site.dias_do_aviso, null, 'a contagem dos 3 dias só começa quando o dono registra o aviso "no ar" (22/10)');
-  /* o restante: só Pix, valor do banco, a conclusão pelo aviso do Mercado Pago */
-  const pg = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR });
-  assert.equal(pg.status, 200, JSON.stringify(pg.corpo));
-  await receber(new Request(BASE + '/api/pagamentos?acao=simular', { method: 'POST', body: JSON.stringify({ tentativa_id: pg.corpo.tentativa.id }), headers: { 'content-type': 'application/json' } }), {}, { banco: local.rpc });
+  assert.deepEqual((await cen.painelGet('?fila=avisos')).corpo.itens.filter(i => i.codigo === codigo).map(i => i.momento), ['no_ar'], 'a prévia aprovada não pede mais aviso; o "no ar" sim');
+  assert.equal((await cen.painelGet('?fila=avisos')).corpo.itens.find(i => i.codigo === codigo).passo, 'concluida', 'a fila traz o passo da entrega até o painel (no ar com o restante pago: concluída)');
   const fim = await cen.estado(n, c);
-  assert.equal(fim.entrega.passo, 'concluida'); assert.equal(fim.conversa.etapa, 'encerrada');
+  assert.equal(fim.entrega.passo, 'concluida'); assert.equal(fim.conversa.etapa, 'encerrada'); assert.equal(fim.entrega.site.url, SITE);
   assert.ok(!(await cen.painelGet('?fila=entregas')).corpo.entregas.some(e => e.codigo === codigo), 'concluída sai da lista');
+  assert.equal((await cen.painelPost({ aviso_feito: codigo, momento: 'no_ar' })).status, 200);
+  assert.deepEqual((await cen.painelGet('?fila=avisos')).corpo.itens.filter(i => i.codigo === codigo), [], '"já avisei" tira da fila');
 });
 
 test('encerrar (lista fechada, sem "sem_material"), dispensar o material (D4, dia 30, só com o número AUTORIZADO) e o aviso de material parado (22/10: o projeto fica PARADO)', async () => {
@@ -150,11 +162,11 @@ test('encerrar (lista fechada, sem "sem_material"), dispensar o material (D4, di
   assert.match((await cen.estado(m.n, m.c)).entrega.entrega_ate, /^\d{4}-\d{2}-\d{2}$/, 'o prazo passa a correr desde agora');
 });
 
-test('suspender pelo painel (22/10): sem o aviso "no ar" registrado ou antes do fim do 3º dia, 409 com a frase; depois, 200 e a conta dos lembretes', async () => {
+test('suspender pelo painel (22/10; só as entregas antigas, no ar antes do restante): sem o aviso "no ar" registrado ou antes do fim do 3º dia, 409 com a frase; depois, 200 e a conta dos lembretes', async () => {
   const { n, c, codigo } = await emProducao();
   await publicar(codigo);
   assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 200);
-  assert.equal((await cen.painelPost({ no_ar: codigo, url: SITE })).status, 200);
+  await paraNoArAntigo(c);
   const sem = await cen.painelPost({ suspender: codigo });
   assert.equal(sem.status, 409); assert.match(sem.corpo.erro, /aviso/i);
   assert.equal((await cen.painelPost({ aviso_feito: codigo, momento: 'no_ar' })).status, 200);
@@ -182,11 +194,11 @@ test('M3 (22/10): a lista de ajustes chega ao dono com o telefone e o e-mail do 
 });
 
 /* ---------- o que a revisão das tarefas anteriores pediu aqui ---------- */
-const noAr = async () => {   /* um pedido no ar, com o aviso "no ar" registrado há 4 dias */
+const noAr = async () => {   /* um pedido ANTIGO no ar sem o restante (antes de 19/11), com o aviso "no ar" registrado há 4 dias */
   const p = await emProducao();
   await publicar(p.codigo);
   assert.equal((await p.n.chamar('POST', 'previa-aprovar', { conversa_id: p.c, rodada_base: 0 })).status, 200);
-  assert.equal((await cen.painelPost({ no_ar: p.codigo, url: SITE })).status, 200);
+  await paraNoArAntigo(p.c);
   assert.equal((await cen.painelPost({ aviso_feito: p.codigo, momento: 'no_ar' })).status, 200);
   await local.db.query("update app.entregas set aviso_no_ar_feito_em = now() - interval '4 days' where conversa_id = $1", [p.c]);
   return p;
@@ -240,6 +252,7 @@ test('(c) prazo guardado com data ilegível: 409 com a frase, nunca 500, e nada 
   await porPrazo(original);
   assert.equal((await publicar(codigo)).status, 200);
   assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 200);
+  await pagarRestante(n, c);
   const aprovado = (await local.db.query('select prazo from app.entregas where conversa_id = $1', [c])).rows[0].prazo;
   await porPrazo({ ...aprovado, pausas: [{ desde: 'amanhã', ate: 'depois' }] });
   const r = await cen.painelPost({ no_ar: codigo, url: SITE });
@@ -344,6 +357,7 @@ test('m3: 22023 do banco (relógio fora da janela, data fora do padrão) nas aç
   assert.equal(r.status, 409); assert.match(r.corpo.erro, /relógio/i); assert.equal(await passo(c), 'producao');
   assert.equal((await publicar(codigo)).status, 200);
   assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 200);
+  await pagarRestante(n, c);
   const ar = await comRpc(falha22023(['vendas_no_ar']), () => cen.painelPost({ no_ar: codigo, url: SITE }));
   assert.equal(ar.status, 409); assert.match(ar.corpo.erro, /relógio/i);
   const m = await ateEntregaCriada(cen, local);
@@ -389,4 +403,23 @@ test('22/10: o aviso prévio do apagamento do material pelo painel (material_apa
   assert.equal(ja.status, 409); assert.match(ja.corpo.erro, /já foi registrado/);
   assert.equal(await passo(m.c), 'material', 'o passo não muda');
   assert.equal((await cen.painelPost({ aviso_feito: cm, momento: 'inventado' })).status, 400);
+});
+
+/* ---------- 19/11: reembolso bloqueia a entrega, inclusive para o dono ---------- */
+test('19/11: com o projeto pausado (estorno ou contestação), o painel recusa publicar a prévia, pôr no ar e dispensar com a frase do bloqueio; encerrar continua', async () => {
+  const { c, codigo } = await emProducao();
+  const pausar = conversa => local.db.query("update app.projetos set status = 'pausado' where id = (select pr.projeto_id from app.propostas pr join app.entregas e on e.proposta_id = pr.id where e.conversa_id = $1)", [conversa]);
+  await pausar(c);
+  const p = await publicar(codigo);
+  assert.equal(p.status, 409); assert.match(p.corpo.erro, /BLOQUEADA/); assert.equal(await passo(c), 'producao');
+  const item = (await cen.painelGet('?fila=entregas')).corpo.entregas.find(e => e.codigo === codigo);
+  assert.equal(item.bloqueada, true, 'o listar mostra o bloqueio');
+  const q = await emProducao();
+  assert.equal((await publicar(q.codigo)).status, 200);
+  assert.equal((await q.n.chamar('POST', 'previa-aprovar', { conversa_id: q.c, rodada_base: 0 })).status, 200);
+  await pagarRestante(q.n, q.c);
+  await pausar(q.c);
+  const ar = await cen.painelPost({ no_ar: q.codigo, url: SITE });
+  assert.equal(ar.status, 409); assert.match(ar.corpo.erro, /BLOQUEADA/); assert.equal(await passo(q.c), 'aprovada', 'restante pago, mas bloqueada: não vai ao ar');
+  assert.equal((await cen.painelPost({ encerrar: codigo, motivo: 'desistencia' })).status, 200, 'o caminho da devolução continua aberto');
 });

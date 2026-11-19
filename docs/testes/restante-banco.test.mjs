@@ -1,4 +1,5 @@
-/* O RESTANTE no banco (PR 3b-3; spec §5): o saldo só abre com o site no ar (no_ar ou suspensa), vale EXATAMENTE valor_total − entrada, o estado olha a
+/* O RESTANTE no banco (PR 3b-3; spec §5): o saldo só abre com o site no ar (no_ar ou suspensa; desde 19/11 também com a prévia aprovada, a ordem nova, que tem
+   os seus testes em seguranca-pagamentos-banco.test.mjs; aqui ficam as entregas antigas, no ar antes do restante), vale EXATAMENTE valor_total − entrada, o estado olha a
    parcela certa, e o saldo pago conclui a entrega, encerra a conversa e entrega o projeto, sem derrubar o pagamento se a entrega falhar.
    Postgres real (PGlite) com as migrations.  node --test */
 import { test, before } from 'node:test';
@@ -14,14 +15,16 @@ before(async () => { db = await novoBanco(); rpc = rpcDe(db); await prepararOrg(
 const base = c => ({ conversa_id: c.conversa_id, visitante_id: c.visitante_id });
 const iniciar = c => rpc('pagamentos_iniciar_tentativa', { ...base(c), metodo: 'pix', provedor: 'mercadopago' });
 
-test('o restante só abre com o site no ar: em produção, na prévia e aprovada, 55000; no ar, cobra', async () => {
-  for (const passo of ['producao', 'previa', 'aprovada']) {
+test('o restante só abre com o site pronto (19/11: a prévia aprovada) ou com a entrega antiga no ar: em produção e na prévia, 55000; aprovada e no ar, cobra', async () => {
+  for (const passo of ['producao', 'previa']) {
     const c = await entregaEm(db, passo);
     assert.equal((await erroDe(iniciar(c))).codigo, '55000', passo);
   }
-  const c = await entregaEm(db, 'no_ar');
-  const t = await iniciar(c);
-  assert.equal(t.ativa, false); assert.ok(t.tentativa_id);
+  for (const passo of ['aprovada', 'no_ar']) {
+    const c = await entregaEm(db, passo);
+    const t = await iniciar(c);
+    assert.equal(t.ativa, false, passo); assert.ok(t.tentativa_id, passo);
+  }
 });
 
 test('B3: o restante é só Pix também no banco (cartão para o saldo dá 22023 e nada é criado); a entrada continua aceitando os dois métodos da 3b-1', async () => {

@@ -248,11 +248,11 @@ test('interruptor desligado: a lista, a aprovação e o pagamento do restante d�
   assert.equal(pg.status, 503); assert.equal(pg.corpo.erro, FRASE_DESLIGADA);
 });
 
-test('o restante: só com o site no ar (409 antes), só por Pix (400 com cartão), valor = total − entrada; paga → pedido concluído, conversa encerrada', async () => {
-  const { n, c } = await noPasso({}, 'aprovada');
+test('o restante (ordem nova, 19/11): só com a prévia APROVADA (409 antes), só por Pix (400 com cartão), valor = total − entrada; pago, a entrega espera o dono pôr no ar; no ar, pedido concluído', async () => {
+  const { n, c } = await noPasso({}, 'ajustes');
   const antes = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR });
-  assert.equal(antes.status, 409); assert.match(antes.corpo.erro, /site estiver no ar/);
-  await forcarEntrega(local.db, { conversa_id: c }, { passo: 'no_ar', site_url: SITE, no_ar_em: agora() });
+  assert.equal(antes.status, 409); assert.match(antes.corpo.erro, /aprovar a prévia final/);
+  await forcarEntrega(local.db, { conversa_id: c }, { passo: 'aprovada' });
   const cartao = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'cartao', pagador: PAGADOR });
   assert.equal(cartao.status, 400, 'o restante é só Pix'); assert.match(cartao.corpo.erro, /Pix/, 'a frase é a do servidor (o banco também recusa, mas com "Dados inválidos")');
   /* a parcela e o valor são do banco: o que o navegador mandar a mais não conta */
@@ -262,6 +262,11 @@ test('o restante: só com o site no ar (409 antes), só por Pix (400 com cartão
   const q = (await local.db.query("select (pr.valor_total - s.valor) as saldo from app.propostas pr join app.pagamentos s on s.proposta_id = pr.id and s.parcela = 'sinal' join app.conversas cv on cv.id = pr.conversa_id where cv.id = $1", [c])).rows[0];
   assert.equal(Number(pg.corpo.pagamento.valor), Number(q.saldo), 'o valor é do banco: total − entrada');
   await receber(new Request(BASE + '/api/pagamentos?acao=simular', { method: 'POST', body: JSON.stringify({ tentativa_id: pg.corpo.tentativa.id }), headers: { 'content-type': 'application/json' } }), {}, { banco: local.rpc });
+  const pago = await cen.estado(n, c);
+  assert.equal(pago.entrega.passo, 'aprovada', 'o restante pago não põe o site no ar sozinho: o dono põe'); assert.equal(pago.conversa.etapa, 'em_producao');
+  const codigo = (await local.db.query('select codigo from app.pedidos where conversa_id = $1', [c])).rows[0].codigo;
+  const versao = (await local.db.query("select (to_jsonb(updated_at) #>> '{}') as v from app.entregas where conversa_id = $1", [c])).rows[0].v;
+  assert.deepEqual(await local.rpc('vendas_no_ar', { org_slug: 'beyon-zero', codigo, url: SITE, agora: agora(), versao }), { ok: true });
   const est = await cen.estado(n, c);
   assert.equal(est.entrega.passo, 'concluida'); assert.equal(est.conversa.etapa, 'encerrada');
 });
