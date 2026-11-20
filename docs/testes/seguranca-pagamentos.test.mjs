@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { criarServicoPagamentos } from '../../api/_pagamentos/servico.mjs';
+import { ErroProvedor } from '../../api/_pagamentos/mercadopago.mjs';
 import { avisarDonoPagamento, textoDoAvisoDePagamento } from '../../api/_aviso.mjs';
 
 const ORDER = 'ORD01JQ4S4KY8HWQ6NA5PXB65B3D3';
@@ -219,4 +220,46 @@ test('S2: sem cancelar_restante no resultado do banco, nada é cancelado', async
   const servico = criarServicoPagamentos({ banco, cfg, provedor: { ...mp, cancelarOrdem: async () => { n++; return orderCancelada; } }, avisar: async () => true });
   await servico.processarAviso({ orderId: ORDER });
   assert.equal(n, 0);
+});
+
+/* ---------- S2 (re-revisão): na reconciliação, o cancelamento do Pix do restante GASTA o orçamento de subpedidos da execução ---------- */
+test('S2: o cancelarOrdem da reconciliação é contado no orçamento: com o orçamento curto ele NÃO sai e a rotina para (parcial); com folga ele sai', async () => {
+  const chamadas = { provedor: 0, cancelamentos: 0 };
+  const banco = async (nome, p) => {
+    if (nome === 'pagamentos_para_reconciliar') return [{ tentativa_id: '00000000-0000-4000-8000-000000000001', provedor: 'mercadopago', provedor_order_id: ORDER, status: 'aprovada', criada_em: new Date().toISOString() }];
+    if (nome === 'pagamentos_aplicar') return p.retrato.order_id === ORDER ? { aplicado: 'estornada', alerta: ALERTA, cancelar_restante: [PIX_DO_RESTANTE] } : { aplicado: 'cancelada' };
+    return {};
+  };
+  const servico = () => criarServicoPagamentos({ banco, cfg, avisar: async () => true, provedor: { ...mp, buscarRecentes: async () => [],
+    consultarOrdem: async () => { chamadas.provedor++; return order; },
+    cancelarOrdem: async () => { chamadas.provedor++; chamadas.cancelamentos++; return orderCancelada; } } });
+  const erros = console.error; console.error = () => {};
+  try {
+    /* orçamento 5, com 2 guardados para o fim: sobram 3 (a lista do banco, a consulta da order, o aplicar). O cancelamento seria o 4º: não pode sair */
+    const apertado = await servico().reconciliar({ varrerDias: 0, orcamento: 5 });
+    assert.equal(chamadas.cancelamentos, 0, 'o orçamento acabou antes do cancelamento: ele não sai (e não passa sem contar)');
+    assert.equal(apertado.parcial, true);
+    /* com folga, ele sai */
+    chamadas.cancelamentos = 0;
+    const folgado = await servico().reconciliar({ varrerDias: 0 });
+    assert.equal(chamadas.cancelamentos, 1);
+    assert.equal(folgado.parcial, false);
+  } finally { console.error = erros; }
+});
+
+test('S2 (re-revisão): se o provedor responde "conflito" ao cancelar (o Pix foi pago agora mesmo), o serviço reconsulta a order e aplica o retrato: o pagamento cai direto no restante pago com a entrega bloqueada', async () => {
+  const aplicadas = [];
+  const banco = async (nome, p) => {
+    if (nome === 'pagamentos_aplicar') { aplicadas.push(p.retrato.order_id); return p.retrato.order_id === ORDER ? { aplicado: 'estornada', alerta: ALERTA, cancelar_restante: [PIX_DO_RESTANTE] } : { aplicado: 'aprovada' }; }
+    return {};
+  };
+  const paga = { ...orderCancelada, transactions: { payments: [{ id: 'PAY2', amount: '1800.00', paid_amount: '1800.00', status: 'processed', status_detail: 'accredited', payment_method: { id: 'pix', type: 'bank_transfer' } }] } };
+  const consultas = [];
+  const provedor = { ...mp, consultarOrdem: async id => { consultas.push(id); return id === ORDER ? order : paga; },
+    cancelarOrdem: async () => { throw new ErroProvedor('conflito', 409, 'cannot_cancel'); } };
+  const erros = console.error; console.error = () => {};
+  try { await criarServicoPagamentos({ banco, cfg, provedor, avisar: async () => true }).processarAviso({ orderId: ORDER }); }
+  finally { console.error = erros; }
+  assert.deepEqual(consultas, [ORDER, PIX_DO_RESTANTE.order], 'reconsultou a order do restante');
+  assert.deepEqual(aplicadas, [ORDER, PIX_DO_RESTANTE.order], 'e aplicou o retrato dela (o banco decide: paga com a entrega bloqueada)');
 });

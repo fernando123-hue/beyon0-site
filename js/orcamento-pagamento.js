@@ -20,6 +20,8 @@
      e nunca com a aba escondida (retoma ao voltar) */
   var CONFIG_DE_NOVO_MS = 15000, CONFIG_DE_NOVO_MAX_MS = 60000;
   var ERRO_CARTAO = 'Não foi possível reconhecer o cartão. Confira o número.';
+  /* a mesma frase que o servidor devolve quando a entrega está bloqueada (api/_pagamentos/servico.mjs): sem a palavra do sistema, o dono já foi avisado */
+  var CONFERINDO = 'Estamos conferindo o seu pagamento. A Beyon Zero fala com você antes de seguir.';
   var MENSAGENS = {
     bad_filled_card_data: 'Algum dado do cartão não confere. Confira e tente de novo.',
     insufficient_amount: 'O cartão não tem limite para este valor.',
@@ -289,14 +291,17 @@
       if (e.pagamento.status === 'pago') { pararEspera(); $('o-pag-status').textContent = 'Pagamento confirmado pelo Mercado Pago.'; if (chave !== ultimoEstado) { ultimoEstado = chave; o.aoPagar(); } return; }
       ultimoEstado = chave;
       var ativo = t && ['criada', 'processando', 'aguardando', 'requer_acao'].indexOf(t.status) >= 0;
-      mostrar('o-pix', !!(t && t.status === 'aguardando' && t.metodo === 'pix'));
+      /* (S2) Pix aguardando SEM o código: o servidor não o devolve quando a entrega foi bloqueada (estorno, contestação, pausa); sem painel, sem relógio e sem código vazio */
+      var pixSemCodigo = !!(t && t.status === 'aguardando' && t.metodo === 'pix' && !t.pix_qr);
+      var pixAberto = !!(t && t.status === 'aguardando' && t.metodo === 'pix' && !pixSemCodigo);
+      mostrar('o-pix', pixAberto);
       mostrar('o-desafio', !!(t && t.status === 'requer_acao' && t.desafio_url));
-      var pixAberto = !!(t && t.status === 'aguardando' && t.metodo === 'pix');
       mostrar('o-pag-form', !ativo || (pixAberto && trocando));   /* com Pix aberto, o formulário só volta se a pessoa quiser o cartão */
       if (pixAberto) desenharPix(t); else mostrar('o-pix-outro', false);
       if (t && t.status === 'requer_acao' && t.desafio_url) $('o-desafio-link').href = t.desafio_url;
       var st = $('o-pag-status');
       if (!t) st.textContent = '';
+      else if (pixSemCodigo) st.textContent = CONFERINDO;
       else if (t.status === 'aguardando') st.textContent = 'Esperando o pagamento. Esta tela muda sozinha quando ele cair.';
       else if (t.status === 'processando' || t.status === 'criada') st.textContent = 'O Mercado Pago está analisando o pagamento. Esta tela atualiza sozinha.';
       else if (t.status === 'requer_acao') st.textContent = 'Falta a confirmação no seu banco.';

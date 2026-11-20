@@ -466,3 +466,34 @@ test('revisão 2/7: o estorno parcial do restante SOZINHO (quitada=false, sem o 
   assert.equal(R.estadoDoRestante(com(true)), 'pago');
   assert.equal(R.estadoDoRestante(com(undefined)), 'pago');
 });
+
+/* ---------- S2 (re-revisão): Pix "aguardando" SEM QR (a entrega foi bloqueada): a tela não desenha o painel do Pix (nem relógio, nem código vazio) e diz a frase humana que o servidor já usa ---------- */
+test('S2: com a tentativa "aguardando" sem pix_qr, o painel do Pix fica escondido, sem relógio nem código vazio, e a tela diz "Estamos conferindo o seu pagamento"', async () => {
+  const doc = montarDoc(), win = { BZPix: janela.BZPix };
+  new Function('window', 'document', PAGAMENTO)(win, doc);
+  const sem = { pagamento: { status: 'pendente', valor: 1800, parcela: 'saldo' }, tentativa: { id: 't1', metodo: 'pix', status: 'aguardando', pix_qr: null, pix_qr_base64: null, expira_em: new Date(Date.now() + 1800e3).toISOString() } };
+  const API = { pagamentoConfig: async () => CFG({ metodos: ['pix'] }), pagamento: async () => sem, pagar: async () => ({}) };
+  const tela = win.BZPagamentoTela.criar({ API, dinheiro, aoPagar() {} });
+  try {
+    await tela.mostrar(1800, 60, { metodos: ['pix'] });
+    const E = doc.getElementById.bind(doc);
+    assert.ok(nuncaVisivel(E('o-pix')), 'o painel do Pix nunca aparece sem o QR: ' + JSON.stringify(E('o-pix').historicoHidden));
+    assert.equal(E('o-pix-codigo').value, '', 'nenhum código vazio desenhado');
+    assert.equal(E('o-pix-expira').textContent, '', 'nenhum relógio');
+    assert.equal(E('o-pag-status').textContent, 'Estamos conferindo o seu pagamento. A Beyon Zero fala com você antes de seguir.');
+    assert.equal(E('o-pag-form').hidden, true, 'e não oferece gerar outro Pix');
+  } finally { tela.parar(); }
+});
+
+test('S2: com QR a tela do Pix segue como sempre (o painel aparece, o código é o do banco)', async () => {
+  const doc = montarDoc(), win = { BZPix: janela.BZPix };
+  new Function('window', 'document', PAGAMENTO)(win, doc);
+  const com = { pagamento: { status: 'pendente', valor: 1800, parcela: 'saldo' }, tentativa: { id: 't1', metodo: 'pix', status: 'aguardando', pix_qr: '00020126PIX', pix_qr_base64: null, expira_em: new Date(Date.now() + 1800e3).toISOString() } };
+  const API = { pagamentoConfig: async () => CFG({ metodos: ['pix'] }), pagamento: async () => com, pagar: async () => ({}) };
+  const tela = win.BZPagamentoTela.criar({ API, dinheiro, aoPagar() {} });
+  try {
+    await tela.mostrar(1800, 60, { metodos: ['pix'] });
+    const E = doc.getElementById.bind(doc);
+    assert.equal(E('o-pix').hidden, false); assert.equal(E('o-pix-codigo').value, '00020126PIX');
+  } finally { tela.parar(); }
+});

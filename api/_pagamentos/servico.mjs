@@ -125,6 +125,11 @@ function criarNucleo({ banco, mp, cfg, agora, confirmacao = null, avisar = null 
         if (e instanceof SemOrcamento) throw e;
         if (e instanceof ErroProvedor) await erroDoProvedor(e, o.tentativa_id, o.order, 'consulta');
         console.error('[pagamentos] o Pix do restante não foi cancelado no provedor:', (e && (e.codigo || e.tipo)) || 'erro');
+        /* conflito = a order mudou agora mesmo (talvez paga): reconsulta e aplica, como resolverAtiva; o banco decide (paga com a entrega bloqueada = rastro e aviso) */
+        if (e instanceof ErroProvedor && e.tipo === 'conflito') {
+          try { await aplicar(await mp.consultarOrdem(o.order), 'consulta'); }
+          catch (e2) { if (e2 instanceof SemOrcamento) throw e2; console.error('[pagamentos] a reconsulta do Pix do restante falhou:', (e2 && (e2.codigo || e2.tipo)) || 'erro'); }
+        }
       }
     }
   }
@@ -291,7 +296,9 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
       const gasto = orcamentoDe(orcamento, RESERVA_FINAL);
       const bancoContado = gasto.contar(banco);
       const mpContado = { ...mp, consultarOrdem: gasto.contar(mp.consultarOrdem), buscarRecentes: gasto.contar(mp.buscarRecentes),
-        buscarPorReferencia: gasto.contar(mp.buscarPorReferencia) };
+        buscarPorReferencia: gasto.contar(mp.buscarPorReferencia),
+        /* (S2, re-revisão) o cancelamento do Pix do restante também é uma ida ao provedor: gasta o orçamento de subpedidos da execução */
+        cancelarOrdem: typeof mp.cancelarOrdem === 'function' ? gasto.contar(mp.cancelarOrdem) : undefined };
       const nucleo = criarNucleo({ banco: bancoContado, mp: mpContado, cfg, agora, avisar });   /* (o estorno achado aqui, com o aviso do provedor perdido, também avisa na hora) */
       let parou = false, paginaCheia = false;
       const contar = r => { if (r && r.aplicado) resumo.aplicadas++; if (r && r.ignorado === 'order desconhecida') resumo.desconhecidas++; if (r && r.erro_provedor) resumo.erros++; };

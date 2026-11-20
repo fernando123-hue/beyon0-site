@@ -3,6 +3,7 @@
    Desbloqueada, volta à regra de sempre. Reaproveita a rotina de material (privado.material_vencido_pelo_fim, app.rotinas_material_pendencias e _baixar).  PGlite real.  node --test */
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { novoBanco } from './_banco.mjs';
 import { rpcDe, prepararOrg, conversaComEntradaPaga } from './_entrega.mjs';
 import { forcarEntrega } from './_previa.mjs';
@@ -155,3 +156,33 @@ test('T4: fronteira do aviso ao dono: 52 dias não avisa, 53 avisa, 59 ainda avi
   }
 });
 const DATAR_ESTADO_DO_PROJETO = (c, dias) => BLOQUEIOS['o projeto pausado'](c, dias);
+
+/* ---------- S1 (re-revisão): linha ANTIGA, de antes da coluna status_em (nula), também não reinicia a guarda quando a reconciliação a reconsulta ---------- */
+const ZERAR_MARCA = (c, dias) => db.transaction(async tx => {
+  await tx.exec("set local bz.restaurando = 'on'");
+  for (const t of ['app.tentativas_pagamento', 'app.pagamentos', 'app.projetos']) {
+    const onde = t === 'app.tentativas_pagamento' ? 'pagamento_id in (select id from app.pagamentos where proposta_id = $1)'
+      : t === 'app.pagamentos' ? 'proposta_id = $1' : 'id = (select projeto_id from app.propostas where id = $1)';
+    await tx.query('update ' + t + ' set status_em = null, updated_at = now() - make_interval(days => $2) where ' + onde, [c.proposta, dias]);
+  }
+});
+
+test('S1/backfill: com status_em nulo (linha antiga), reaplicar o mesmo retrato 3 vezes NÃO move a data do bloqueio nem reinicia os 60 dias', async () => {
+  const c = await entrega();
+  await aplicarRetrato(c, 'estornada_parcial');
+  await ZERAR_MARCA(c, 70);
+  assert.equal(await vencida(c), true, 'linha antiga com 70 dias: vencida (cai no updated_at)');
+  const antes = new Date(await desde(c)).getTime();
+  for (let i = 0; i < 3; i++) await aplicarRetrato(c, 'estornada_parcial');
+  assert.equal(await vencida(c), true, 'depois de reaplicar, segue vencida');
+  assert.equal(new Date(await desde(c)).getTime(), antes, 'a data não anda');
+});
+
+test('S1/backfill: a migration preenche status_em com o updated_at ANTES de criar os gatilhos, sem tocar updated_at (modo restauração)', () => {
+  const sql = fs.readFileSync(new URL('../../supabase/migrations/20261119120000_seguranca_pagamentos.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const preencher = sql.indexOf("set_config('bz.restaurando', 'on', true)");
+  const gatilho = sql.indexOf('create trigger status_em before insert or update on app.tentativas_pagamento');
+  assert.ok(preencher > 0 && gatilho > preencher, 'o preenchimento vem antes do primeiro gatilho');
+  const bloco = sql.slice(preencher, gatilho);
+  for (const t of ['app.tentativas_pagamento', 'app.pagamentos', 'app.projetos']) assert.match(bloco, new RegExp('update ' + t.replace('.', '\\.') + ' set status_em = updated_at where status_em is null'), t);
+});

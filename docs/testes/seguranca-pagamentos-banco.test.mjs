@@ -535,3 +535,15 @@ test('S2: o estorno em parte e a contestação também mandam cancelar o Pix do 
   const sem = await entregaEm(db, 'aprovada');
   assert.equal((await aplicar(sem, 'estornada')).cancelar_restante, undefined, 'sem tentativa ativa do restante: nada a cancelar');
 });
+
+test('S2 (re-revisão): o cancelamento do restante também lista a tentativa "criada" que já tem order no provedor (o Pix pode existir sem o QR ter voltado)', async () => {
+  const c = await entregaEm(db, 'aprovada');
+  const { t, order } = await iniciarRestante(db, c);
+  await db.transaction(async tx => {
+    await tx.exec("set local bz.restaurando = 'on'");
+    await tx.query("update app.tentativas_pagamento set status = 'criada' where id = $1", [t.tentativa_id]);
+  });
+  assert.equal((await um('select status from app.tentativas_pagamento where id = $1', [t.tentativa_id])).status, 'criada');
+  const r = await aplicar(c, 'estornada');
+  assert.deepEqual(r.cancelar_restante, [{ tentativa_id: t.tentativa_id, order }]);
+});

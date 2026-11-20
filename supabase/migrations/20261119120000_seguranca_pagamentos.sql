@@ -484,7 +484,7 @@ begin
   if v_evento in ('estorno', 'estorno_parcial', 'contestacao') and pg.parcela = 'sinal' then
     select coalesce(jsonb_agg(jsonb_build_object('tentativa_id', t3.id, 'order', t3.provedor_order_id) order by t3.created_at), '[]'::jsonb) into v_cancelar
       from app.tentativas_pagamento t3 join app.pagamentos p3 on p3.id = t3.pagamento_id
-     where p3.proposta_id = pg.proposta_id and p3.parcela = 'saldo' and t3.status in ('aguardando', 'requer_acao', 'processando') and t3.provedor_order_id is not null;
+     where p3.proposta_id = pg.proposta_id and p3.parcela = 'saldo' and t3.status in ('criada', 'aguardando', 'requer_acao', 'processando') and t3.provedor_order_id is not null;
   end if;
   return r || case when coalesce(jsonb_array_length(v_cancelar), 0) > 0 then jsonb_build_object('cancelar_restante', v_cancelar) else '{}'::jsonb end || jsonb_build_object('alerta', jsonb_strip_nulls(jsonb_build_object('codigo', v_codigo, 'evento', v_evento,
     'parcela', case when pg.parcela = 'sinal' then 'entrada' else 'restante' end)));
@@ -670,6 +670,15 @@ revoke all on function privado.restante_pago_em(app.entregas) from public, anon,
 alter table app.tentativas_pagamento add column status_em timestamptz;
 alter table app.pagamentos add column status_em timestamptz;
 alter table app.projetos add column status_em timestamptz;
+-- (re-revisão) as linhas que já existem ganham a marca = o updated_at de hoje, ANTES dos gatilhos e em modo restauração (o carimbo não mexe em updated_at). Num bloco só,
+-- para o modo valer mesmo fora de uma transação explícita da ferramenta de migrations
+do $$
+begin
+  perform set_config('bz.restaurando', 'on', true);
+  update app.tentativas_pagamento set status_em = updated_at where status_em is null;
+  update app.pagamentos set status_em = updated_at where status_em is null;
+  update app.projetos set status_em = updated_at where status_em is null;
+end $$;
 
 create function privado.carimbar_status() returns trigger
 language plpgsql set search_path = '' as $$
@@ -681,7 +690,7 @@ begin
   elsif new.status is distinct from old.status then
     new.status_em := now();
   else
-    new.status_em := old.status_em;   -- sem mudança de estado a marca não anda, nem se alguém tentar mudá-la
+    new.status_em := coalesce(old.status_em, old.updated_at);   -- sem mudança de estado a marca não anda, nem se alguém tentar mudá-la; sem marca, congela no updated_at de ANTES deste UPDATE
   end if;
   return new;
 end $$;
