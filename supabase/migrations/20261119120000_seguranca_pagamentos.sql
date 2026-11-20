@@ -321,18 +321,72 @@ begin
       'consultada_em', t.consultada_em, 'criada_em', t.created_at) end);
 end $$;
 
+-- ---------- a conclusão (revisão 2, item 2): a de 20261024120200_pr3b3_restante.sql, que só conferia status = 'pago'. O restante pago com a entrega BLOQUEADA (entrada estornada ou
+-- contestada, projeto pausado, restante estornado em parte...) NÃO conclui o pedido nem fecha a conversa: grava o rastro project.error (uma vez por dia e por pagamento; o MESMO
+-- que o alerta do banco grava, então não duplica) e devolve false. Mesma assinatura, mesmos privilégios ----------
+create or replace function privado.concluir_entrega(p_proposta uuid) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare v_conversa uuid; e app.entregas; v_projeto uuid; pg app.pagamentos;
+begin
+  select conversa_id into v_conversa from app.entregas where proposta_id = p_proposta;
+  if not found then return false; end if;
+  -- NÃO RETIRAR a trava da conversa: chamada pelo gatilho dentro de pagamentos_aplicar, esta função já chega com conversa → pagamento → tentativa travados e
+  -- só então pega a entrega (a ordem de iniciar_tentativa é conversa → entrega → pagamento). Sem ciclo porque TODA função que toca a entrega toma a conversa primeiro.
+  perform 1 from app.conversas where id = v_conversa for update;   -- trava 1: conversa
+  select * into e from app.entregas where proposta_id = p_proposta for update;   -- trava 2: entrega
+  if e.passo not in ('no_ar', 'suspensa') then return false; end if;
+  if not exists (select 1 from app.pagamentos where proposta_id = p_proposta and parcela = 'saldo' and status = 'pago') then return false; end if;
+  -- (19/11) a parcela paga tem de estar QUITADA (sem estorno parcial, contestação ou divergência) e a entrega livre: senão uma pessoa decide
+  if privado.entrega_bloqueada(e) then
+    select * into pg from app.pagamentos where proposta_id = p_proposta and parcela = 'saldo' and status = 'pago';
+    perform privado.auditar_uma_vez(pg.org_id, pg.id, null, 'project.error', 'sistema', pg.gateway_ref, 'operacao', null, null,
+      jsonb_build_object('motivo', 'restante pago com a entrega bloqueada: o dinheiro entrou e nada vai ao ar; devolver ou resolver com o Mercado Pago'), null);
+    return false;
+  end if;
+  update app.entregas set passo = 'concluida', concluida_em = now(), religar_pendente = (e.passo = 'suspensa'), aviso_no_ar_desde = null, updated_at = now() where id = e.id;
+  update app.conversas set etapa = 'encerrada', ultima_atividade = now() where id = e.conversa_id and etapa = 'em_producao';
+  select projeto_id into v_projeto from app.propostas where id = p_proposta;
+  update app.projetos set status = 'entregue', entregue_em = (now() at time zone 'America/Campo_Grande')::date where id = v_projeto and status in ('pronto_para_producao', 'em_producao', 'em_revisao');
+  if not found and not exists (select 1 from app.projetos where id = v_projeto and status = 'entregue') then
+    -- projeto pausado (estorno da entrada), cancelado ou sem projeto: a entrega conclui, o projeto não muda e uma pessoa decide
+    select * into pg from app.pagamentos where proposta_id = p_proposta and parcela = 'saldo' and status = 'pago';
+    perform privado.auditar_pagamento(pg.org_id, pg.id, null, 'project.error', 'sistema', null, 'operacao', null, null,
+      jsonb_build_object('motivo', 'restante pago com o projeto fora de produção (' || coalesce((select status from app.projetos where id = v_projeto), 'sem projeto') || ')'), null);
+  end if;
+  perform privado.encerrar_links_do_pedido(e.conversa_id, 30);   -- o link continua abrindo o recibo final por mais 30 dias
+  perform privado.evento(e.org_id, e.conversa_id, 'restante_pago');
+  return true;
+end $$;
+revoke all on function privado.concluir_entrega(uuid) from public, anon, authenticated, service_role;
+
+-- a leitura do cliente só conserta a conclusão do que está LIVRE: bloqueada, não toca nada (e não grava rastro a cada leitura)
+create or replace function privado.concluir_pendente(p_conversa uuid) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare v_prop uuid;
+begin
+  select e.proposta_id into v_prop from app.entregas e
+   where e.conversa_id = p_conversa and e.passo in ('no_ar', 'suspensa') and not privado.entrega_bloqueada(e)
+     and exists (select 1 from app.pagamentos pg where pg.proposta_id = e.proposta_id and pg.parcela = 'saldo' and pg.status = 'pago');
+  if v_prop is null then return false; end if;
+  return privado.concluir_entrega(v_prop);
+end $$;
+revoke all on function privado.concluir_pendente(uuid) from public, anon, authenticated, service_role;
+
 -- ---------- o restante pago: na ordem nova a entrega está APROVADA e espera o "no ar" do dono (nada de erro na auditoria) ----------
 create or replace function privado.entrega_apos_saldo() returns trigger
 language plpgsql security definer set search_path = '' as $$
-declare v_passo text;
+declare v_passo text; e app.entregas; v_tem boolean;
 begin
   begin
-    select passo into v_passo from app.entregas where proposta_id = new.proposta_id;
+    select * into e from app.entregas where proposta_id = new.proposta_id;
+    v_tem := found; v_passo := e.passo;
     if v_passo = 'aprovada' then
       -- (19/11) o caminho normal: o restante caiu com o site pronto; o dono põe no ar (app.vendas_no_ar) e o aviso dele sai na hora (alerta restante_pago)
       perform privado.evento(new.org_id, (select conversa_id from app.entregas where proposta_id = new.proposta_id), 'restante_pago');
     elsif not privado.concluir_entrega(new.proposta_id)
-       and not exists (select 1 from app.entregas where proposta_id = new.proposta_id and passo = 'concluida') then
+       and not exists (select 1 from app.entregas where proposta_id = new.proposta_id and passo = 'concluida')
+       -- (revisão 2, item 4) bloqueada: o rastro já foi gravado (por concluir_entrega e pelo alerta do banco, o mesmo, uma vez): este não duplica
+       and not (v_tem and privado.entrega_bloqueada(e)) then
       -- o restante caiu e a entrega não está aprovada, no ar nem suspensa (encerrada?): o dinheiro fica registrado e o caso vai para uma pessoa
       perform privado.auditar_pagamento(new.org_id, new.id, null, 'project.error', 'sistema', null, 'operacao', null, null,
         jsonb_build_object('motivo', 'restante pago com a entrega fora do ar (' || coalesce(v_passo, 'sem entrega') || ')'), null);
@@ -395,6 +449,18 @@ begin
       jsonb_build_object('motivo', 'estado não reconhecido depois da aprovação: tratado como contestação', 'status', left(p -> 'retrato' -> 'pagamento' ->> 'status', 40),
                          'status_detail', left(p -> 'retrato' -> 'pagamento' ->> 'status_detail', 60)), p ->> 'request_id');
   end if;
+  -- (revisão 2, item 5) o rastro do restante pago com a entrega bloqueada vem ANTES do trecho que monta o alerta: se a montagem falhar, o rastro (que a rotina diária conta em
+  -- pagamentos_atencao) já está gravado e o dono o vê no painel. Uma vez só (auditar_uma_vez, a mesma de concluir_entrega); um erro aqui também NUNCA derruba o pagamento
+  begin
+    select * into pg from app.pagamentos where id = pg.id;
+    if pg.gateway_ref is not distinct from v_order and r ->> 'aplicado' = 'aprovada' and pg.parcela = 'saldo'
+       and exists (select 1 from app.entregas e where e.proposta_id = pg.proposta_id and privado.entrega_bloqueada(e)) then
+      perform privado.auditar_uma_vez(pg.org_id, pg.id, null, 'project.error', 'sistema', v_order, 'operacao', null, null,
+        jsonb_build_object('motivo', 'restante pago com a entrega bloqueada: o dinheiro entrou e nada vai ao ar; devolver ou resolver com o Mercado Pago'), null);
+    end if;
+  exception when others then
+    raise warning 'rastro do restante pago bloqueado não gravado (order %): %', v_order, sqlerrm;
+  end;
   -- o alerta é só leitura e NUNCA derruba o pagamento já aplicado (a mesma regra do gatilho da entrega): qualquer erro aqui devolve o resultado sem alerta
   begin
   select * into pg from app.pagamentos where id = pg.id;
@@ -410,12 +476,7 @@ begin
                    when r ->> 'aplicado' = 'aprovada' and pg.parcela = 'saldo'
                         and exists (select 1 from app.entregas e where e.proposta_id = pg.proposta_id and e.passo = 'aprovada' and not privado.entrega_bloqueada(e)) then 'restante_pago' end;
   if v_evento is null then return r; end if;
-  -- o alerta só vive na RESPOSTA desta chamada: se ela se perder depois do commit, o aviso repetido do provedor não alerta de novo (sem mudança). O rastro na trilha (project.error,
-  -- que a rotina diária conta em pagamentos_atencao) fica no MESMO commit e é gravado uma vez só (o base devolve "aprovada" só na mudança), então o dono vê no painel de qualquer jeito
-  if v_evento = 'restante_pago_bloqueada' then
-    perform privado.auditar_pagamento(pg.org_id, pg.id, null, 'project.error', 'sistema', null, 'operacao', null, null,
-      jsonb_build_object('motivo', 'restante pago com a entrega bloqueada: o dinheiro entrou e nada vai ao ar; devolver ou resolver com o Mercado Pago'), null);
-  end if;
+  -- (o alerta só vive na RESPOSTA desta chamada: se ela se perder depois do commit, o aviso repetido do provedor não alerta de novo; o rastro acima já está gravado no MESMO commit)
   select codigo into v_codigo from app.pedidos where conversa_id = v_cid;
   return r || jsonb_build_object('alerta', jsonb_strip_nulls(jsonb_build_object('codigo', v_codigo, 'evento', v_evento,
     'parcela', case when pg.parcela = 'sinal' then 'entrada' else 'restante' end)));

@@ -218,15 +218,15 @@ test('entrada estornada ou contestada: o restante NÃO abre (55000) e nenhum sal
   }
 });
 
-test('o restante pago com o projeto fora de produção (pausado): a entrega conclui, o projeto não muda e o caso vai para a auditoria', async () => {
+test('o restante pago com o projeto PAUSADO (entrega bloqueada, 19/11): a entrega NÃO conclui, o projeto não muda e o caso vai para a auditoria (um rastro só)', async () => {
   const c = await entregaEm(db, 'no_ar');
   const x = await iniciarRestante(db, c);
   await db.query("update app.projetos set status = 'pausado' where id = (select projeto_id from app.propostas where id = $1)", [c.proposta]);
   assert.equal((await aprovarRestante(db, x)).aplicado, 'aprovada');
-  assert.equal((await um('select passo from app.entregas where conversa_id = $1', [c.conversa_id])).passo, 'concluida');
+  assert.equal((await um('select passo from app.entregas where conversa_id = $1', [c.conversa_id])).passo, 'no_ar', 'bloqueada: nada avança, nem a conclusão (antes de 19/11 concluía)');
   assert.equal((await um('select pj.status from app.projetos pj join app.propostas pr on pr.projeto_id = pj.id where pr.id = $1', [c.proposta])).status, 'pausado');
-  const aud = await um("select a.detalhe from app.pagamentos_auditoria a join app.pagamentos p on p.id = a.pagamento_id where p.proposta_id = $1 and p.parcela = 'saldo' and a.evento = 'project.error'", [c.proposta]);
-  assert.match(aud.detalhe.motivo, /projeto fora de produção/);
+  const aud = (await db.query("select a.detalhe from app.pagamentos_auditoria a join app.pagamentos p on p.id = a.pagamento_id where p.proposta_id = $1 and p.parcela = 'saldo' and a.evento = 'project.error'", [c.proposta])).rows;
+  assert.equal(aud.length, 1); assert.match(aud[0].detalhe.motivo, /entrega bloqueada/);
 });
 
 test('o restante só cobra a proposta da entrega: com outra proposta aceita mais nova na conversa, 55000 e nenhum saldo é criado', async () => {

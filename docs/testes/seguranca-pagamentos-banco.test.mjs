@@ -382,3 +382,53 @@ test('revisão H: o restante estornado, em parte ou contestado bloqueia a entreg
     assert.equal((await erroDe(noAr(c))).codigo, '55000', estado);
   }
 });
+
+/* ---------- revisão 2, itens 2 e 4: o restante pago NÃO conclui uma entrega bloqueada (nem pelo gatilho nem pela leitura), com UM rastro só ---------- */
+const rastrosDoRestante = c => um(`select count(*)::int n from app.pagamentos_auditoria a join app.pagamentos pg on pg.id = a.pagamento_id
+  where pg.proposta_id = $1 and pg.parcela = 'saldo' and a.evento = 'project.error'`, [c.proposta]);
+
+test('revisão 2/2 e 2/4: o restante pago (Pix emitido antes) com a entrega ANTIGA no ar e a entrada estornada NÃO conclui o pedido e deixa UM rastro, não dois', async () => {
+  for (const p of ['no_ar', 'suspensa']) {
+    const c = await entregaEm(db, p);
+    const pix = await iniciarRestante(db, c);
+    await aplicar(c, 'estornada');
+    const r = await aprovarRestante(db, pix);
+    assert.equal(r.aplicado, 'aprovada', p);
+    assert.equal(await passo(c), p, p + ': não concluiu');
+    assert.equal((await um('select etapa from app.conversas where id = $1', [c.conversa_id])).etapa, 'em_producao', p + ': a conversa segue aberta');
+    assert.equal((await rastrosDoRestante(c)).n, 1, p + ': um rastro só para a rotina diária (o gatilho não grava o dele além do novo)');
+    assert.equal(r.alerta?.evento, 'restante_pago_bloqueada', p);
+  }
+});
+
+test('revisão 2/2: a leitura do cliente (concluir_pendente) não conclui a entrega no ar com o restante estornado em parte, e não grava rastro a cada leitura', async () => {
+  const c = await entregaEm(db, 'aprovada');
+  assert.equal((await aprovarRestante(db, await iniciarRestante(db, c))).aplicado, 'aprovada');
+  await forcarEntrega(db, c, { passo: 'no_ar', site_url: SITE, no_ar_em: agora() });   /* (o restante pago e o site no ar, a conclusão ainda por fazer: o caso que a leitura conserta) */
+  await aplicar(c, 'estornada_parcial', 'saldo');
+  const antes = (await rastrosDoRestante(c)).n;
+  for (let i = 0; i < 3; i++) await rpc('vendas_estado', base(c));
+  assert.equal(await passo(c), 'no_ar', 'a leitura não concluiu');
+  assert.equal((await um('select etapa from app.conversas where id = $1', [c.conversa_id])).etapa, 'em_producao');
+  assert.equal((await rastrosDoRestante(c)).n, antes, 'ler não grava rastro');
+});
+
+test('revisão 2/2: controle — com tudo limpo, o restante pago com a entrega no ar continua concluindo, sem rastro', async () => {
+  const c = await entregaEm(db, 'no_ar');
+  assert.equal((await aprovarRestante(db, await iniciarRestante(db, c))).aplicado, 'aprovada');
+  assert.equal(await passo(c), 'concluida');
+  assert.equal((await rastrosDoRestante(c)).n, 0);
+});
+
+test('revisão 2/5: se a montagem do alerta falhar (aqui: a tabela de pedidos some por um instante), o pagamento NÃO cai e o rastro da rotina diária já está gravado', async () => {
+  const c = await entregaEm(db, 'aprovada');
+  const pix = await iniciarRestante(db, c);
+  await aplicar(c, 'estornada');
+  await db.exec('alter table app.pedidos rename to pedidos_fora');
+  let r;
+  try { r = await aprovarRestante(db, pix); } finally { await db.exec('alter table app.pedidos_fora rename to pedidos'); }
+  assert.equal(r.aplicado, 'aprovada', 'o pagamento foi aplicado mesmo assim');
+  assert.equal(r.alerta, undefined, 'sem o alerta (a montagem falhou)');
+  assert.equal((await um("select status from app.pagamentos where proposta_id = $1 and parcela = 'saldo'", [c.proposta])).status, 'pago');
+  assert.equal((await rastrosDoRestante(c)).n, 1, 'o rastro foi gravado ANTES do trecho que pode falhar: a rotina diária conta e o dono vê no painel');
+});
