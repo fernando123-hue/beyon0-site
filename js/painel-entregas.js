@@ -6,10 +6,10 @@
    O contato vem como o banco manda: { nome, telefone, email }.
    ========================================================================== */
 (function () {
-  /* os textos: o Fernando falando com o cliente no WhatsApp (o componente comum põe o "Oi, nome!" na frente). Sem preço, sem prazo inventado, sem prometer o que o código não faz.
+  /* os textos: a Beyon falando com o cliente no WhatsApp, sem o nome do dono (anonimato, Decisões 20/11) (o componente comum põe o "Oi, nome!" na frente). Sem preço, sem prazo inventado, sem prometer o que o código não faz.
      As frases do contrato ficam como estão ("Nada vai ao ar sem a sua autorização"). Os lembretes do restante (3 dias) só valem para as entregas antigas, que foram ao ar antes da
      ordem nova de 19/11 (o restante na aprovação; o site só vai ao ar com ele pago). O link vale 7 dias e abre uma vez (PR 2b-2). */
-  var QUEM = 'Aqui é o Fernando, da Beyon Zero. ';
+  var QUEM = 'Aqui é a Beyon Zero. ';
   var LINK_UNICO = ' vale por 7 dias e abre uma vez:\n';
   var TEXTOS = {
     previa: {

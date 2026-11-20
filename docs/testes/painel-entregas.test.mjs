@@ -20,19 +20,19 @@ test('há texto pronto para cada momento que a API do dono lista, nem um a mais 
   assert.equal(Object.keys(T).length, 6);
 });
 
-test('os 6 textos: o link entra, valem 7 dias e abrem uma vez, sem preço, sem "Prezado", em primeira pessoa do Fernando e sem fecho de telemarketing', () => {
+test('os 6 textos: o link entra, valem 7 dias e abrem uma vez, sem preço, sem "Prezado", em voz da empresa, sem o nome do dono e sem fecho de telemarketing', () => {
   for (const [momento, esperado] of [['previa', /prévia do seu site está pronta/i], ['no_ar', /site está no ar/i], ['material_parado', /aguardando o material/i], ['material_apagar', /material do seu site está parado/i],
     ['restante_lembrete_1', /lembrar do restante/i], ['restante_lembrete_2', /último lembrete do restante/i]]) {
     const t = T[momento].texto(LINK);
     assert.match(t, esperado, momento); assert.ok(t.includes('#retomar=ABC'), momento + ': o link entra no texto');
     assert.ok(!/R\$|\d+\s?%|prezad|estimado cliente|fico à disposição|aguardo (o )?retorno|solução|fique à vontade|qualquer dúvida/i.test(t), 'sem preço nem fórmula de carta: ' + t);
-    assert.match(t, /^Aqui é o Fernando, da Beyon Zero\./, momento + ': diz quem é, como o Fernando falaria (o "Oi, nome!" vem do componente)');
+    assert.match(t, /^Aqui é a Beyon Zero\./, momento + ': diz quem é, como a empresa falaria (o "Oi, nome!" vem do componente)');
     assert.match(t, /vale por 7 dias e abre uma vez/, momento);
     assert.ok(!/[—–]|\*\*|^\s*[-•]/m.test(t), momento + ': sem travessão, negrito nem lista');
     assert.ok(t.split(/\s+/).length <= 70, momento + ': mensagem curta (' + t.split(/\s+/).length + ' palavras)');
   }
   assert.match(T.previa.texto('L'), /aprova ou manda a sua lista de ajustes/);
-  assert.match(T.material_parado.texto('L'), /^Aqui é o Fernando, da Beyon Zero\./);
+  assert.match(T.material_parado.texto('L'), /^Aqui é a Beyon Zero./);
   /* 19/11, a ordem nova: o site só vai ao ar com o restante PAGO; o aviso "no ar" não cobra nada nem fala de sair do ar, e diz a passagem para a conta do cliente */
   assert.match(T.no_ar.texto('L'), /passamos o site para uma conta no seu nome/);
   assert.doesNotMatch(T.no_ar.texto('L'), /paga o restante|3 dias|sai do ar/);
@@ -44,7 +44,7 @@ test('os 6 textos: o link entra, valem 7 dias e abrem uma vez, sem preço, sem "
 
 test('o aviso prévio do apagamento (material_apagar): diz que o material parado vai ser apagado, quando (30 dias depois da mensagem), como evitar (pelo link) e o que NÃO é apagado', () => {
   const t = T.material_apagar.texto(LINK);
-  assert.match(t, /^Aqui é o Fernando, da Beyon Zero\. Faz meses que o material do seu site está parado\./, 'abre dizendo o que houve, sem pressão');
+  assert.match(t, /^Aqui é a Beyon Zero\. Faz meses que o material do seu site está parado\./, 'abre dizendo o que houve, sem pressão');
   assert.match(t, /Se você mandar ou mexer no material por este link, nós não apagamos nada\. Se não, nós apagamos o que você mandou/, 'abre pelo que o cliente pode fazer');
   assert.match(t, /30 dias depois desta mensagem/);
   assert.match(t, /\(a logomarca, as fotos e os textos\)/, 'diz o que é o material, com as palavras do cliente');
@@ -231,16 +231,22 @@ test('o painel de verdade: "Preparar" pede o link de retomada da conversa do avi
   await esperar();
   assert.deepEqual(chamadas.filter(c => c.metodo === 'POST').map(c => c.corpo), [{ link_retomada: itens[3].conversa_id }], 'o link é da conversa deste aviso');
   const msg = achar(cartao, n => n.tag === 'textarea');
-  assert.ok(msg.value.startsWith('Oi, Ana! Aqui é o Fernando, da Beyon Zero.'));
+  assert.ok(msg.value.startsWith('Oi, Ana! Aqui é a Beyon Zero.'));
   assert.ok(msg.value.includes('https://x.test/orcamento#retomar=' + codigo) && /nós apagamos o que você mandou/.test(msg.value));
   assert.equal(achar(cartao, n => n.tag === 'a').href, 'https://wa.me/5567991234530');
 });
 
-test('a voz é uma só no painel: as mensagens da fila de modelos e do lembrete dos modelos também abrem com "Aqui é o Fernando, da Beyon Zero."', () => {
+test('a voz é uma só no painel: as mensagens da fila de modelos e do lembrete dos modelos também abrem com "Aqui é a Beyon Zero."', () => {
   for (const f of ['js/painel-fila.js', 'js/painel-lembretes.js', 'js/painel-entregas.js']) {
     const s = ler(f);
     assert.doesNotMatch(s, /Aqui é da Beyon Zero/, f + ': a mensagem do dono diz quem é, com o nome dele');
-    assert.match(s, /Aqui é o Fernando, da Beyon Zero\./, f);
+    assert.match(s, /Aqui é a Beyon Zero\./, f);
+  }
+});
+
+test('anonimato (dono, 20/11): nenhum texto do painel carrega o nome do dono', () => {
+  for (const f of fs.readdirSync(new URL('../../js/', import.meta.url)).filter(n => /^(painel|orcamento-painel).*\.js$/.test(n))) {
+    assert.doesNotMatch(ler('js/' + f), /Fernando/i, f + ': o painel fala como a empresa, nunca com o nome do dono');
   }
 });
 
