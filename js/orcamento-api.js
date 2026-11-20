@@ -14,6 +14,7 @@
   var MENSAGEM_MS = 90e3;   /* tempo limite de um turno com a IA (a conversa; auditoria 2026-10-09, F2): sem ele, a rede caída deixava a página esperando para sempre */
   var configDaSessao = null;   /* a resposta de sessao-config, uma por página: o consultor e o microfone leem a mesma (cada GET a mais gasta o freio de 90 por minuto do IP) */
   var ESTADO_MS = 15e3;     /* a leitura do estado: curta, para a releitura depois de uma falha não pendurar a tela */
+  var DESISTIR_MS = 70e3;   /* a desistência: o servidor consulta o Mercado Pago, devolve a entrada e consulta de novo (até 15 s cada) */
   var ESQUECIDA = 'bz-orcamento-esquecida';   /* a conversa que a pessoa mandou recomeçar: nenhuma aba a grava de novo */
 
   function ler() { try { return JSON.parse(localStorage.getItem(CHAVE) || 'null'); } catch (e) { return null; } }
@@ -203,6 +204,8 @@
     },
     /* (B1) aprovar diz QUAL prévia a pessoa viu (a mesma `rodada_base` da lista de ajustes): numa aba velha o servidor recusa em vez de aprovar a prévia nova */
     previaAprovar: function (rodadaBase) { return chamar('POST', 'previa-aprovar', comConversa({ rodada_base: rodadaBase }), undefined, ESTADO_MS); },
+    /* (20/11) a desistência dentro dos 7 dias: SÓ o segundo toque (o painel de confirmação) chama; o corpo leva a conversa e o confirmo, nunca valor, order ou prazo. O servidor leva mais que uma leitura (consulta, estorno, consulta): tempo maior */
+    desistir: function () { return chamar('POST', 'desistir', comConversa({ confirmo: true }), undefined, DESISTIR_MS); },
     /* Recomeçar: apaga a sessão e marca a conversa como esquecida (outra aba aberta não a grava de volta) */
     esquecer: function () {
       try { if (sessao && sessao.conversa_id) localStorage.setItem(ESQUECIDA, sessao.conversa_id); } catch (e) { /* sem armazenamento */ }

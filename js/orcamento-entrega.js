@@ -92,6 +92,12 @@
     var API = o.API, dinheiro = o.dinheiro;
     var falhasLink = 0, codigo = null, pedindo = false, tentou = false, guardado = false, confirmando = null, jaTem = false, conversaId = null, marcaLida = false, prev = null;
     var rest = window.BZRestante ? window.BZRestante.criar({ dinheiro: dinheiro, telaPagamento: o.telaPagamento }) : null;   /* (3b-3c) o passo 4: o site no ar, o Pix do restante, o fim */
+    /* (20/11) "Preciso desistir da compra": o link discreto e o painel de confirmação (js/orcamento-desistencia.js); o servidor diz se a opção existe (entrega.pode_desistir). Depois do cancelamento, relê o pedido e leva o foco ao fim dele */
+    var desiste = window.BZDesistencia ? window.BZDesistencia.criar({ API: API, aoCancelar: async function () {
+      if (window.BZMaterialRecarregar) await window.BZMaterialRecarregar();
+      var t = $('o-fim-encerrado-titulo'), fim = $('o-fim-encerrado');
+      if (t && fim && !fim.hidden) t.focus();
+    } }) : null;
     var anunciar = function (t) { $('o-link-aviso').textContent = t; };
     /* "este aparelho já guardou o link" (M4): só a id da conversa no localStorage; sem armazenamento, o cartão aparece (no pior caso, a pessoa gera outro) */
     function lerMarca() { try { return localStorage.getItem(CHAVE_GUARDADO) === conversaId; } catch (e) { return false; } }
@@ -206,6 +212,7 @@
     var ligado = false;
     function atualizar(E) {
       var e = E.entrega, pronto = !!e && E.conversa.etapa === 'em_producao';
+      if (desiste) desiste.atualizar(E);   /* (antes dos retornos abaixo: o fim do pedido desistido também passa por aqui) */
       preencherAntes(E);
       PROMESSAS.forEach(function (id) { var el = $(id); if (el) el.hidden = !promessasVisiveis(E); });
       /* a pergunta do restante só aparece com a porcentagem da proposta (nunca "os outros % do total") */

@@ -588,6 +588,8 @@
           <input class="orc-link__campo" id="o-link-outro-campo" type="text" readonly spellcheck="false" autocomplete="off" hidden />
         </details>
         <p class="orc-pag-status" id="o-link-aviso" role="status" aria-live="polite"></p>
+        <!-- DESISTIR (20/11, js/orcamento-desistencia.js): só um lugar vazio; o link "Preciso desistir da compra" e o painel nascem por JS, e só quando o servidor diz que a opção existe -->
+        <div id="o-desiste" class="orc-desiste" hidden></div>
       </div>
     </section>
     <!-- O MATERIAL (PR 3b-2, js/orcamento-material.js): os 6 blocos, ou o que foi enviado -->
@@ -662,6 +664,7 @@
       </div>
       <div id="o-fim-encerrado" role="group" aria-labelledby="o-fim-encerrado-titulo" hidden>
         <h2 id="o-fim-encerrado-titulo" tabindex="-1">Este pedido foi encerrado</h2>
+        <p class="orc-bloco__lead" id="o-fim-desistiu" hidden></p>
         <p class="orc-bloco__lead">Outra dúvida? <a href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a></p>
       </div>
     </section>
@@ -742,6 +745,7 @@
   <script src="js/orcamento-material.js" defer></script>
   <script src="js/orcamento-previa.js" defer></script>
   <script src="js/orcamento-restante.js" defer></script>
+  <script src="js/orcamento-desistencia.js" defer></script>
   <script src="js/orcamento-entrega.js" defer></script>
   <script src="js/orcamento-planta.js" defer></script>
   <script src="js/orcamento-planta-esboco.js" defer></script>
