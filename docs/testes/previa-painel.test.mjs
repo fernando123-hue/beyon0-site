@@ -127,7 +127,8 @@ test('o caminho inteiro pelas portas reais (ordem nova, 19/11): prévia → avis
   assert.equal((await cen.painelGet('?fila=avisos')).corpo.itens.find(i => i.codigo === codigo).passo, 'concluida', 'a fila traz o passo da entrega até o painel (no ar com o restante pago: concluída)');
   const fim = await cen.estado(n, c);
   assert.equal(fim.entrega.passo, 'concluida'); assert.equal(fim.conversa.etapa, 'encerrada'); assert.equal(fim.entrega.site.url, SITE);
-  assert.ok(!(await cen.painelGet('?fila=entregas')).corpo.entregas.some(e => e.codigo === codigo), 'concluída sai da lista');
+  const naLista = (await cen.painelGet('?fila=entregas')).corpo.entregas.find(e => e.codigo === codigo);
+  assert.deepEqual([naLista && naLista.passo, naLista && naLista.bloqueada], ['concluida', false], 'concluída continua na lista até a passagem do site para a conta do cliente (revisão B)');
   assert.equal((await cen.painelPost({ aviso_feito: codigo, momento: 'no_ar' })).status, 200);
   assert.deepEqual((await cen.painelGet('?fila=avisos')).corpo.itens.filter(i => i.codigo === codigo), [], '"já avisei" tira da fila');
 });
