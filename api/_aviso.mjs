@@ -33,7 +33,12 @@ const linhas76 = s => s.match(/.{1,76}/g).join('\r\n');
    caractere UTF-8 ao meio, separadas pela dobra de linha do cabeçalho (CRLF e um espaço), que o leitor de e-mail junta de volta */
 const ASSUNTO_MAX = 100;
 const BYTES_POR_PALAVRA = 42;
-const assuntoDe = texto => { const s = texto.split(/[.\r\n]/)[0].trim(); return s.length <= ASSUNTO_MAX ? s : s.slice(0, ASSUNTO_MAX - 1).replace(/\s+\S*$/, '') + '…'; };
+const ASSUNTO_PADRAO = 'Aviso da Beyon Zero';   /* (texto que começa com ponto ou quebra de linha não deixa o assunto vazio) */
+const assuntoDe = texto => {
+  const letras = Array.from(texto.split(/[.\r\n]/)[0].trim());   /* (por caractere inteiro: o corte nunca parte um emoji ao meio) */
+  if (!letras.length) return ASSUNTO_PADRAO;
+  return letras.length <= ASSUNTO_MAX ? letras.join('') : letras.slice(0, ASSUNTO_MAX - 1).join('').replace(/\s+\S*$/, '') + '…';
+};
 function assuntoCodificado(assunto) {
   const palavras = []; let atual = '';
   for (const c of assunto) {   /* (por caractere inteiro, não por unidade UTF-16: um acento ou emoji nunca é partido) */

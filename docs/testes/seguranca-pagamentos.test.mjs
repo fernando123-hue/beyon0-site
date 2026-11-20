@@ -165,3 +165,15 @@ test('revisão 2/1: o 55000 "a entrega está bloqueada" vira frase humana (409, 
     return true;
   });
 });
+
+test('revisão 2/6: o corte do assunto é por caractere inteiro (emoji não vira U+FFFD) e um texto que começa com ponto ou quebra de linha ainda tem assunto (o padrão fixo)', async () => {
+  const { montarEmail } = await import('../../api/_aviso.mjs');
+  const mont = texto => montarEmail({ de: 'avisos@beyonzero.com.br', para: 'dono@exemplo.com', texto });
+  const emojis = mont('😀'.repeat(110) + '. Resto.');
+  const lido = assuntoCompleto(emojis);
+  assert.ok(!lido.includes('\uFFFD'), 'nenhum emoji partido ao meio');
+  assert.match(lido, /^(😀)+…$/);
+  for (const vazio of ['. Só o resto.', '\r\nSó o resto.', '   ', '\n\n']) {
+    assert.equal(assuntoCompleto(mont(vazio)), 'Aviso da Beyon Zero', JSON.stringify(vazio) + ': assunto padrão, nunca vazio');
+  }
+});
