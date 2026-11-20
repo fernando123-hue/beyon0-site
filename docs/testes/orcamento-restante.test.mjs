@@ -459,3 +459,10 @@ test('revisão 2/1: o restante ainda ABERTO com a entrega bloqueada (a entrada f
   const antiga = estado('no_ar'); antiga.entrega.bloqueada = true;
   assert.equal(R.estadoDoRestante(antiga), 'aberto', 'a entrega antiga no ar não muda de tela (o servidor traduz a recusa)');
 });
+
+test('revisão 2/7: o estorno parcial do restante SOZINHO (quitada=false, sem o sinal de entrega bloqueada) já vira conferência; quitada=true ou sem o campo continua "pago"', () => {
+  const com = quitada => ({ ...estado('aprovada', { site: { url: null } }), pagamentos: [...pagos, { parcela: 'saldo', status: 'pago', valor: '1800.00', ...(quitada === undefined ? {} : { quitada }) }] });
+  assert.equal(R.estadoDoRestante(com(false)), 'conferencia');
+  assert.equal(R.estadoDoRestante(com(true)), 'pago');
+  assert.equal(R.estadoDoRestante(com(undefined)), 'pago');
+});

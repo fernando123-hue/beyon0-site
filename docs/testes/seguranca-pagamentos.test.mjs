@@ -177,3 +177,12 @@ test('revisão 2/6: o corte do assunto é por caractere inteiro (emoji não vira
     assert.equal(assuntoCompleto(mont(vazio)), 'Aviso da Beyon Zero', JSON.stringify(vazio) + ': assunto padrão, nunca vazio');
   }
 });
+
+test('revisão 2/7: o emoji nunca é partido na fronteira entre duas palavras codificadas do assunto (a fatia é por caractere inteiro, em qualquer largura da palavra anterior)', async () => {
+  const { montarEmail } = await import('../../api/_aviso.mjs');
+  for (let n = 30; n <= 46; n++) {
+    const frase = 'a'.repeat(n) + '😀😀 fim';
+    const lido = assuntoCompleto(montarEmail({ de: 'avisos@beyonzero.com.br', para: 'dono@exemplo.com', texto: frase }));
+    assert.equal(lido, frase, 'n=' + n);
+  }
+});
