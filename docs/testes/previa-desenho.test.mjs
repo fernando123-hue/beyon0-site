@@ -287,3 +287,66 @@ test('CSS das seções: linhas editoriais, passos com linha, moldura de foto com
   }
   assert.ok(/\.pv-sec \.pv-itens\.pv-itens--galeria\s*\{[^}]*repeat\(3, 1fr\)/.test(largo), 'galeria com variante grade tem 3 colunas no desktop');
 });
+
+/* ---- segunda rodada de revisão (PR b): as combinações que o servidor aceita e que quebravam a leitura ---- */
+const semComentarios = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+const regraDe = (css, ancora) => { const i = css.indexOf(ancora); return i < 0 ? '' : css.slice(css.lastIndexOf('}', i) + 1, css.indexOf('}', i) + 1); };
+
+test('galeria em faixa de cor: a legenda da foto tem fundo próprio, então a descrição do cliente NÃO ganha a cor do texto do destaque (branco sobre branco)', () => {
+  const g = desenharCom(secao('galeria', 'faixa', [{ titulo: 'Cozinha', texto: 'Cozinha entregue em Contagem' }, { titulo: 'Closet', texto: '[Foto de um closet]' }]));
+  assert.ok(comClasse(g, 'pv-v--faixa').length >= 1, 'a faixa vira classe da seção');
+  assert.equal(comClasse(g, 'pv-foto__x')[0].textContent, 'Cozinha entregue em Contagem');
+  const regraCor = semComentarios.split('\n').find(l => /--pv-dest-texto\); \}$/.test(l) && /:not\(\.pv-itens--cartoes\) :is\(/.test(l));
+  assert.ok(regraCor && !/pv-foto__x|pv-foto__leg/.test(regraCor), 'a regra de cor da faixa não pega a descrição da legenda');
+  assert.ok(/\.pv-foto__leg \.pv-reservado\s*\{[^}]*color-mix\(in srgb, var\(--pv-dest\)/.test(semComentarios), 'o espaço reservado dentro da legenda volta ao contorno normal');
+});
+
+test('fecho com itens em lista ou passos desenha a lista (linhas numeradas e passos) dentro do bloco de cor', () => {
+  for (const [tipo, variante, modo] of [['cta', 'lista', 'linhas'], ['contato', 'linha_do_tempo', 'passos']]) {
+    const raiz = desenharCom(secao(tipo, variante, I3));
+    assert.ok(comClasse(raiz, 'pv-sec--fecho').length === 1, tipo + ' fecha em bloco de cor');
+    assert.ok(comClasse(raiz, 'pv-itens--' + modo).length === 1, tipo + ' + ' + variante + ' desenha ' + modo);
+  }
+});
+
+test('FAQ: só o modo cartões mexe no item; em faixa de cor o item vira cartão branco (texto sobre o destaque não é garantido); lista e passos não perdem o desenho', () => {
+  assert.ok(/\.pv-sec\.pv-sec--faq \.pv-itens--cartoes \.pv-item\s*\{/.test(semComentarios), 'a regra do FAQ vale só para o modo cartões');
+  assert.ok(!/\.pv-sec--faq \.pv-item\s*\{/.test(semComentarios), 'nenhuma regra do FAQ pega os itens de lista e de passos');
+  assert.ok(/\.pv-sec\.pv-sec--faq\.pv-v--faixa \.pv-itens--cartoes \.pv-item\s*\{[^}]*background:\s*var\(--pv-fundo\)/.test(semComentarios), 'em faixa o item do FAQ é cartão com o fundo da página');
+});
+
+test('o número grande e o índice das linhas leem a cor de leitura do destaque (com o destaque como padrão)', () => {
+  assert.ok(/\.pv-numero\s*\{[^}]*color:\s*var\(--pv-dest-leitura, var\(--pv-dest\)\)/.test(semComentarios));
+  assert.ok(/\.pv-linha__i\s*\{[^}]*color:\s*var\(--pv-dest-leitura, var\(--pv-dest\)\)/.test(semComentarios));
+});
+
+test('destaque claro demais sobre o fundo (amarelo sobre branco) cai para a cor do texto; destaque legível fica como está', () => {
+  const paleta = (destaque) => ({ identidade: { ...direcao().identidade, paleta: { ...direcao().identidade.paleta, destaque, destaque_texto: '#000000' } } });
+  const fraco = carregar().desenhar(direcao(paleta('#FFE66D')));
+  assert.equal(fraco.estilo['--pv-dest-leitura'], '#3A2420', 'amarelo sobre o fundo claro não lê: usa o texto');
+  const bom = carregar().desenhar(direcao(paleta('#B5476B')));
+  assert.equal(bom.estilo['--pv-dest-leitura'], undefined, 'o destaque que lê (≥ 3:1) segue como cor de leitura');
+});
+
+test('número da lista e do passo é decoração: aria-hidden; item com título/texto que não é string não vira <li> vazio nem gasta número', () => {
+  const raiz = desenharCom(secao('processo', 'lista', [{ titulo: 42, texto: {} }, { titulo: 'Primeiro', texto: '' }, null, { titulo: 'Segundo', texto: 'x' }]));
+  const itens = comClasse(raiz, 'pv-item');
+  assert.equal(itens.length, 2, 'só os dois itens com texto de verdade');
+  const n = comClasse(raiz, 'pv-passo__n');
+  assert.deepEqual(n.map(x => x.textContent), ['1', '2'], 'a numeração conta só os desenhados');
+  assert.ok(n.every(x => x.attrs['aria-hidden'] === 'true'));
+  const linhas = desenharCom(secao('servicos', 'lista', I3));
+  assert.ok(comClasse(linhas, 'pv-linha__i').every(x => x.attrs['aria-hidden'] === 'true'));
+});
+
+test('desktop: a galeria não deixa vão nem órfão (1/4/7 fotos abrem com faixa larga; 2/5/8 com foto de 2 colunas), os depoimentos do tipo centro ficam centralizados e o border-left dos números em faixa mantém a cor do destaque', () => {
+  const largo = semComentarios.slice(semComentarios.indexOf('@container'));
+  assert.ok(/\.pv-foto:first-child:nth-last-child\(3n\+1\)\s*\{[^}]*grid-column:\s*1 \/ -1/.test(largo));
+  assert.ok(/\.pv-foto:first-child:nth-last-child\(3n\+2\)\s*\{[^}]*grid-column:\s*span 2/.test(largo));
+  assert.ok(/\.pv-v--centro \.pv-itens--depoimentos\s*\{[^}]*margin-inline:\s*auto/.test(largo));
+  assert.ok(/\.pv-num:nth-child\(even\)\s*\{[^}]*border-left-color:\s*color-mix\(in srgb, var\(--pv-dest-texto\)/.test(largo));
+  for (const s of ['.pv-foto__leg', '.pv-citacao', '.pv-item__t', '.pv-item__x']) {
+    const linha = semComentarios.split('\n').find(l => l.startsWith(s + ' {')) || '';
+    assert.ok(/overflow-wrap:\s*anywhere/.test(linha), s + ' quebra palavra longa');
+  }
+});

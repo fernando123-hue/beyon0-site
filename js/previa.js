@@ -72,7 +72,7 @@
     var modo = modoDosItens(tipo, variante);
     var ul = el('ul', 'pv-itens pv-itens--' + modo);
     /* a numeração (passos 1, 2, 3; linhas 01, 02, 03) conta só os itens que vão para a tela */
-    var validos = lista.slice(0, 8).filter(function (i) { return i && (i.titulo || i.texto) && (modo !== 'depoimentos' || i.texto); });
+    var validos = lista.slice(0, 8).filter(function (i) { return i && (str(i.titulo) || str(i.texto)) && (modo !== 'depoimentos' || str(i.texto)); });
     validos.forEach(function (i, n) {
       var li = el('li', 'pv-item');
       if (modo === 'galeria') {   /* a moldura é o espaço da foto do cliente; a legenda é o título (o "[Foto de…]" do modelo não vira texto solto) */
@@ -91,11 +91,15 @@
         if (i.titulo) li.appendChild(el('p', 'pv-item__autor', i.titulo));
       } else if (modo === 'passos') {
         li.className = 'pv-item pv-passo';
-        li.appendChild(el('span', 'pv-passo__n', String(n + 1)));
+        var num = el('span', 'pv-passo__n', String(n + 1));
+        num.setAttribute('aria-hidden', 'true');
+        li.appendChild(num);
         titulado(li, i);
       } else if (modo === 'linhas') {
         li.className = 'pv-item pv-linha';
-        li.appendChild(el('span', 'pv-linha__i', String(n + 1).padStart(2, '0')));
+        var indice = el('span', 'pv-linha__i', String(n + 1).padStart(2, '0'));
+        indice.setAttribute('aria-hidden', 'true');
+        li.appendChild(indice);
         titulado(li, i);
       } else {
         titulado(li, i);
@@ -201,6 +205,27 @@
     return sec;
   }
 
+  /* o servidor só garante destaque_texto sobre destaque e texto sobre fundo; o destaque como COR DE TEXTO (números grandes, índice das linhas)
+     sobre o fundo e a superfície não é garantido: um destaque claro (amarelo) some. Abaixo de 3:1 (texto grande) o desenho usa a cor do texto. */
+  function luminancia(hex) {
+    var c = [1, 3, 5].map(function (p) {
+      var v = parseInt(hex.slice(p, p + 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  function contraste(a, b) {
+    var x = luminancia(a), y = luminancia(b);
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  }
+  function corDeLeituraDoDestaque(raiz, paleta) {
+    var dest = str(paleta.destaque);
+    if (!HEX.test(dest) || !HEX.test(str(paleta.texto))) return;
+    var bases = [paleta.fundo, paleta.superficie].filter(function (h) { return HEX.test(str(h)); });
+    var legivel = bases.every(function (b) { return contraste(dest, b) >= 3; });
+    if (!legivel) raiz.style.setProperty('--pv-dest-leitura', paleta.texto);
+  }
+
   function desenhar(d) {
     var id = (d && d.identidade) || {};
     var est = id.estilo || {};
@@ -209,6 +234,7 @@
       ' pv-dens--' + umDe(['arejada', 'equilibrada', 'compacta'], est.densidade, 'equilibrada'));
     var paleta = id.paleta || {};
     Object.keys(PALETA).forEach(function (k) { if (HEX.test(str(paleta[k]))) raiz.style.setProperty(PALETA[k], paleta[k]); });
+    corDeLeituraDoDestaque(raiz, paleta);
     var tip = id.tipografia || {};
     raiz.style.setProperty('--pv-f-tit', FONTES[tip.titulos] || FONTES.sans_geometrica);
     raiz.style.setProperty('--pv-f-txt', FONTES[tip.texto] || FONTES.sans_humanista);
