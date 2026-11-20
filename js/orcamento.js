@@ -156,7 +156,7 @@
     recarregar().then(abrirPedido)
       .catch(function (e) { falhou(e, function () { seguir(); }); });
   });
-  /* os detalhes viraram pedido (PR 2a): a tela segue o servidor e leva a pessoa até o código do pedido recebido */
+  /* os detalhes viraram pedido (PR 2a): a tela segue o servidor e leva a pessoa até o pedido recebido do pedido recebido */
   document.addEventListener('bz:detalhes-enviados', function seguir() {
     recarregar().then(function () { if (!$('o-confirmar').hidden) irPara('o-confirmar'); })
       .catch(function (e) { falhou(e, function () { seguir(); }); });
@@ -228,8 +228,8 @@
   function avisarSessao(quieto) {
     vigia.parar();
     if (telaPagamento) telaPagamento.parar();
-    var cod = API.codigoPerdido() || codigoMostrado;
-    avisar('Sua sessão terminou. Recomece o orçamento por aqui' + (cod ? ' ou deixe um recado citando o código do pedido ' + cod + '.' : ' ou deixe um recado para a equipe.'), recomecar, 'Recomeçar', quieto);
+    /* (dono, 19/11) sem código para o cliente citar: o recado desta página leva sozinho a referência do pedido (js/orcamento-api.js, recado) */
+    avisar('Sua sessão terminou. Recomece o orçamento por aqui ou deixe um recado para a equipe: ele chega junto com o seu pedido.', recomecar, 'Recomeçar', quieto);
   }
   /* Recomeçar: esquece a sessão (nenhuma outra aba a grava de volta) e limpa os dados digitados antes de
      recarregar, para o navegador não os restaurar num aparelho compartilhado */
@@ -263,6 +263,9 @@
     reler: function () { recarregar().catch(function (e) { falhou(e, function () { recarregar(); }); }); } });
 
   /* ---------- o código do pedido (F1, F6) ---------- */
+  /* (dono, 19/11: "o cliente não tem que se preocupar com nenhum código; isso é do nosso sistema") o código continua guardado na
+     página, num elemento SEMPRE escondido, para o sistema e os testes; o cliente nunca o vê. Ele volta ao pedido pela própria página
+     (o navegador lembra) e o recado daqui leva a conversa junto */
   var codigoMostrado = null;
   function identificar() {
     /* o código do pedido (BZ-XXXXX) depois dos detalhes; antes, o id curto da conversa */
@@ -270,7 +273,6 @@
     if (!c || c === codigoMostrado) return;
     codigoMostrado = c;
     $('o-codigo-v').textContent = c;
-    mostrar('o-codigo', true);
   }
 
   /* ---------- a conversa ---------- */

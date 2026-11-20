@@ -131,7 +131,7 @@
     $('o-fila-cheia').hidden = !(formulario && E.fila_cheia);
     $('o-detalhes-form').hidden = conversa || (formulario && !!E.fila_cheia);
     if (formulario) sugestoes((E.conversa.briefing && E.conversa.briefing.negocio && E.conversa.briefing.negocio.segmento) || '');
-    /* o pedido recebido: o código à vista até as direções ficarem prontas */
+    /* o pedido recebido: o pedido recebido (o código fica só para o sistema) até as direções ficarem prontas */
     var recebido = !!pedido && pedido.status === 'confirmado' && CODIGO.test(pedido.codigo) && (E.conversa.etapa === 'contato' || E.conversa.etapa === 'gerando');
     $('o-confirmar').hidden = !recebido;
     if (recebido) $('o-confirmar-codigo').textContent = pedido.codigo;

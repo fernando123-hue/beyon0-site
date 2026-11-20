@@ -150,4 +150,8 @@ export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral, fo
   await page.click('#o-pix-simular');
   await page.waitForSelector('#o-pronto:not([hidden])', { timeout: 20000 });
   ok(true, 'Pix confirmado pelo aviso assinado + consulta: projeto liberado');
+  /* (dono, 19/11) o cliente não vê código nenhum: o código do pagamento e o do pedido existem para o sistema (a página guarda, escondidos),
+     mas nada com cara de código BZ- aparece no texto visível do recibo e da trilha do pedido */
+  ok(await espera(page, () => document.getElementById('o-rec-codigo-v').textContent.trim() !== '', 15000)
+    && await page.evaluate(() => !/\bBZ-[0-9A-Z]{4,}/.test(document.body.innerText)), 'depois do pagamento o cliente não vê código nenhum (recibo e trilha)');
 }

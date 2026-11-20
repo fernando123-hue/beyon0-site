@@ -739,7 +739,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const est = await estado(vid, corpo.conversa_id);
       exigirNaoDescartado(est);
       exigirRestanteAberto(est, corpo, env);
-      if (!est.conversa.tem_contato) throw new Recusa(409, 'Antes de pagar, precisamos do seu contato de novo: deixe um recado para a equipe citando o código do pedido.', { recado: true });
+      if (!est.conversa.tem_contato) throw new Recusa(409, 'Antes de pagar, precisamos do seu contato de novo: deixe um recado para a equipe por aqui: ele chega junto com o seu pedido.', { recado: true });
       try {
         return await pagamentos.iniciar({ conversa_id: corpo.conversa_id, visitante_id: vid, metodo: corpo?.metodo, pagador: corpo?.pagador, cartao: corpo?.cartao });
       } catch (e) {

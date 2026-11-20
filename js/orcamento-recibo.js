@@ -28,7 +28,7 @@
     if (t.metodo === 'cartao' && Number.isInteger(t.parcelas) && t.parcelas > 1) nome += ' em ' + t.parcelas + 'x';
     return nome;
   }
-  /* o código que a pessoa cita ao falar com a Beyon Zero: o começo do id da tentativa */
+  /* o código do pagamento, só para o sistema (escondido) ao falar com a Beyon Zero: o começo do id da tentativa */
   function codigoDe(t) { return typeof t.id === 'string' && /^[0-9a-f]{8}/i.test(t.id) ? 'BZ-' + t.id.slice(0, 8).toUpperCase() : ''; }
 
   function criar(o) {
