@@ -111,6 +111,7 @@ export function textoDoAvisoDePagamento(alerta) {
   const evento = alerta && alerta.evento, parcela = Object.hasOwn(PARCELAS, String(alerta && alerta.parcela)) ? alerta.parcela : 'entrada';
   const codigo = typeof (alerta && alerta.codigo) === 'string' && CODIGO_PEDIDO.test(alerta.codigo) ? alerta.codigo : null;
   const pedido = codigo ? 'pedido ' + codigo : 'um pedido';
+  if (evento === 'restante_pago_bloqueada') return 'URGENTE: ' + pedido + ': o restante foi pago, mas a entrega está bloqueada. O site não vai ao ar até você resolver: veja o Mercado Pago e o painel.';
   if (evento === 'restante_pago') return (codigo ? 'Pedido ' + codigo : 'Um pedido') + ': o restante foi pago. O site já pode ir ao ar: ponha no ar pelo painel e mande o aviso ao cliente.';
   if (!Object.hasOwn(ACONTECEU, String(evento))) return null;
   return 'URGENTE: ' + pedido + ': ' + PARCELAS[parcela] + ' ' + ACONTECEU[evento][parcela] + '. A entrega ficou bloqueada: nada avança nem vai ao ar. Veja o Mercado Pago e o painel.';

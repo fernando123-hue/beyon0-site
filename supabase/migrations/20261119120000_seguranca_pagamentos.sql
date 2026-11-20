@@ -402,10 +402,20 @@ begin
   v_evento := case when r ->> 'aplicado' = 'estornada' then 'estorno'
                    when r ->> 'aplicado' = 'estornada_parcial' then 'estorno_parcial'
                    when r ->> 'aplicado' = 'contestada' then 'contestacao'
+                   -- (o restante pago com a entrega JÁ bloqueada, p. ex. o Pix emitido antes do estorno da entrada: o dinheiro entrou e nada vai ao ar; avisa também, e a revisão E
+                   -- deixa o rastro abaixo para a rotina diária)
+                   when r ->> 'aplicado' = 'aprovada' and pg.parcela = 'saldo'
+                        and exists (select 1 from app.entregas e where e.proposta_id = pg.proposta_id and privado.entrega_bloqueada(e)) then 'restante_pago_bloqueada'
                    -- (o restante pago avisa só na ordem nova: a entrega aprovada, sem bloqueio, espera o dono pôr no ar; as antigas concluem sozinhas)
                    when r ->> 'aplicado' = 'aprovada' and pg.parcela = 'saldo'
                         and exists (select 1 from app.entregas e where e.proposta_id = pg.proposta_id and e.passo = 'aprovada' and not privado.entrega_bloqueada(e)) then 'restante_pago' end;
   if v_evento is null then return r; end if;
+  -- o alerta só vive na RESPOSTA desta chamada: se ela se perder depois do commit, o aviso repetido do provedor não alerta de novo (sem mudança). O rastro na trilha (project.error,
+  -- que a rotina diária conta em pagamentos_atencao) fica no MESMO commit e é gravado uma vez só (o base devolve "aprovada" só na mudança), então o dono vê no painel de qualquer jeito
+  if v_evento = 'restante_pago_bloqueada' then
+    perform privado.auditar_pagamento(pg.org_id, pg.id, null, 'project.error', 'sistema', null, 'operacao', null, null,
+      jsonb_build_object('motivo', 'restante pago com a entrega bloqueada: o dinheiro entrou e nada vai ao ar; devolver ou resolver com o Mercado Pago'), null);
+  end if;
   select codigo into v_codigo from app.pedidos where conversa_id = v_cid;
   return r || jsonb_build_object('alerta', jsonb_strip_nulls(jsonb_build_object('codigo', v_codigo, 'evento', v_evento,
     'parcela', case when pg.parcela = 'sinal' then 'entrada' else 'restante' end)));

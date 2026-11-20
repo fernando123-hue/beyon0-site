@@ -144,3 +144,12 @@ test('revisão D: assunto com acento e longo fica em palavras codificadas inteir
   assert.ok(!/^Bcc:/m.test(bruto.split('\r\n\r\n')[0]), 'nada de cabeçalho vindo do texto');
   assert.equal(canal.enviados.length, 0);
 });
+
+test('revisão E: o texto do restante pago com a entrega bloqueada diz que o site NÃO vai ao ar, com o código, sem dado pessoal, e o assunto é a 1ª frase', async () => {
+  const t = textoDoAvisoDePagamento({ codigo: 'BZ-ACDEF', evento: 'restante_pago_bloqueada', parcela: 'restante' });
+  assert.match(t, /^URGENTE: pedido BZ-ACDEF: o restante foi pago, mas a entrega está bloqueada/);
+  assert.match(t, /não vai ao ar/); assert.doesNotMatch(t, /ponha no ar/); assert.ok(!/[\r\n]/.test(t));
+  const canal = canalFalso();
+  assert.equal(await avisarDonoPagamento({ AVISO_EMAIL: canal, AVISO_PARA: 'dono@exemplo.com' }, { codigo: 'BZ-ACDEF', evento: 'restante_pago_bloqueada', parcela: 'restante' }, { EmailMessage: EmailFalso }), true);
+  assert.equal(assuntoCompleto(canal.enviados[0].bruto), t.split('.')[0]);
+});

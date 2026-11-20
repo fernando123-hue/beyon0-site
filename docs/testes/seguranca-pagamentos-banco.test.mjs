@@ -263,3 +263,32 @@ test('revisão B: a lista não cresce para sempre: concluída há mais de 30 dia
   await rpc('vendas_encerrar', { org_slug: 'beyon-zero', codigo: await codigoDe(db, enc), motivo: 'desistencia' });
   assert.equal(await itemDaLista(enc), undefined, 'encerrada: fora');
 });
+
+/* ---------- revisão técnica E: o restante pago numa entrega JÁ bloqueada avisa o dono (e deixa rastro para a rotina, se a resposta se perder) ---------- */
+test('revisão E: o restante pago (Pix emitido antes do bloqueio) com a entrega bloqueada devolve o alerta "restante_pago_bloqueada", UMA vez, e deixa o rastro da rotina diária', async () => {
+  const c = await entregaEm(db, 'aprovada');
+  const pix = await iniciarRestante(db, c);   /* o Pix do restante já existe quando a entrada é estornada */
+  assert.equal((await aplicar(c, 'estornada')).aplicado, 'estornada');
+  const r = await aprovarRestante(db, pix);
+  assert.equal(r.aplicado, 'aprovada');
+  assert.deepEqual(r.alerta, { codigo: await codigoDe(db, c), evento: 'restante_pago_bloqueada', parcela: 'restante' });
+  assert.equal(await passo(c), 'aprovada', 'nada avançou');
+  const rastro = () => um(`select count(*)::int n from app.pagamentos_auditoria a join app.pagamentos pg on pg.id = a.pagamento_id
+    where pg.proposta_id = $1 and pg.parcela = 'saldo' and a.evento = 'project.error'`, [c.proposta]);
+  assert.equal((await rastro()).n, 1, 'o rastro que a rotina diária (pagamentos_atencao) conta, para o aviso não depender só da resposta');
+  assert.ok((await rpc('pagamentos_atencao', { horas: 1 })).eventos['project.error'] >= 1);
+  const de_novo = await aprovarRestante(db, pix);
+  assert.equal(de_novo.alerta, undefined, 'o aviso repetido do provedor não alerta de novo');
+  assert.equal((await rastro()).n, 1, 'nem repete o rastro');
+});
+
+test('revisão E: o restante pago com a entrega bloqueada por contestação ou projeto pausado também alerta; sem bloqueio, continua "restante_pago"', async () => {
+  for (const [nome, bloquear] of [['contestada', c => aplicar(c, 'contestada')], ['pausado', pausar]]) {
+    const c = await entregaEm(db, 'aprovada');
+    const pix = await iniciarRestante(db, c);
+    await bloquear(c);
+    assert.equal((await aprovarRestante(db, pix)).alerta?.evento, 'restante_pago_bloqueada', nome);
+  }
+  const livre = await entregaEm(db, 'aprovada');
+  assert.equal((await aprovarRestante(db, await iniciarRestante(db, livre))).alerta.evento, 'restante_pago');
+});
