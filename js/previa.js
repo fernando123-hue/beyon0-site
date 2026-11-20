@@ -63,16 +63,59 @@
     if (variante === 'lista') return 'linhas';
     return 'cartoes';
   }
+  /* ---------- os ícones dos itens: biblioteca FECHADA, traço de 1,75 em grade 24 (a mesma lista de api/_vendas/direcao.mjs: ICONES) ----------
+     Só o nome da lista chega à tela; o desenho é nosso, em formas simples; a cor vem da classe .pv-icone (a CSP proíbe style="") */
+  var ICONES_SVG = {
+    calendario: [['rect', { x: 3, y: 5, width: 18, height: 16, rx: 2 }], ['path', { d: 'M3 10h18M8 3v4M16 3v4' }]],
+    relogio: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M12 7v5l3.5 2' }]],
+    local: [['path', { d: 'M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z' }], ['circle', { cx: 12, cy: 10, r: 2.5 }]],
+    mensagem: [['path', { d: 'M4 5h16v11H9l-5 4z' }]],
+    telefone: [['path', { d: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z' }]],
+    escudo: [['path', { d: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z' }], ['path', { d: 'M8.5 12l2.5 2.5 4.5-5' }]],
+    estrela: [['path', { d: 'M12 3l2.8 6 6.2.7-4.6 4.3 1.3 6.5-5.7-3.3-5.7 3.3 1.3-6.5L3 9.7 9.2 9z' }]],
+    coracao: [['path', { d: 'M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z' }]],
+    casa: [['path', { d: 'M4 11l8-7 8 7v9H4z' }], ['path', { d: 'M10 20v-6h4v6' }]],
+    raio: [['path', { d: 'M13 2L5 13.5h6L10 22l9-12h-6z' }]],
+    folha: [['path', { d: 'M5 19C5 10 10 5 20 5c0 10-5 15-15 14z' }], ['path', { d: 'M5 19l7-7' }]],
+    gota: [['path', { d: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z' }]],
+    floco: [['path', { d: 'M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9' }], ['path', { d: 'M9.5 4.5L12 7l2.5-2.5M9.5 19.5L12 17l2.5 2.5' }]],
+    sol: [['circle', { cx: 12, cy: 12, r: 4 }], ['path', { d: 'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4' }]],
+    bolo: [['path', { d: 'M5 20v-7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v7z' }], ['path', { d: 'M5 16c2 1.5 3 1.5 4.5 0s3-1.5 4.5 0 3 1.5 5 0' }], ['path', { d: 'M12 12V8M12 5.5V6' }]],
+    documento: [['path', { d: 'M7 3h8l4 4v14H7z' }], ['path', { d: 'M15 3v4h4M10 12h6M10 16h6' }]],
+    caixa: [['path', { d: 'M4 8l8-4 8 4v8l-8 4-8-4z' }], ['path', { d: 'M4 8l8 4 8-4M12 12v8' }]],
+    equipe: [['circle', { cx: 9, cy: 8, r: 3 }], ['path', { d: 'M3 20a6 6 0 0 1 12 0' }], ['circle', { cx: 17, cy: 9, r: 2.5 }], ['path', { d: 'M17 14a5 5 0 0 1 4 5' }]],
+    check: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M8 12l3 3 5-6' }]],
+    lampada: [['path', { d: 'M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3z' }], ['path', { d: 'M10 19h4M10.5 21h3' }]],
+    regua: [['path', { d: 'M3 15L15 3l6 6L9 21z' }], ['path', { d: 'M7 11l2 2M10 8l2 2M13 5l2 2' }]]
+  };
+  function icone(nome) {
+    if (typeof nome !== 'string' || !Object.prototype.hasOwnProperty.call(ICONES_SVG, nome)) return null;
+    var svg = document.createElementNS(SVG, 'svg');
+    svg.setAttribute('class', 'pv-icone');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    ICONES_SVG[nome].forEach(function (f) {
+      var e = document.createElementNS(SVG, f[0]);
+      Object.keys(f[1]).forEach(function (k) { e.setAttribute(k, String(f[1][k])); });
+      svg.appendChild(e);
+    });
+    return svg;
+  }
+
   function titulado(li, i) {
     if (i.titulo) li.appendChild(el('h5', 'pv-item__t', i.titulo));
     if (i.texto) li.appendChild(el('p', 'pv-item__x', i.texto));
   }
   /* devolve null quando não sobra item para desenhar (a lista vazia desenharia só a régua de cima) */
+  /* os itens que vão para a tela: a numeração (passos 1, 2, 3; linhas 01, 02, 03) conta só eles */
+  function itensValidos(lista, modo) {
+    return (Array.isArray(lista) ? lista : []).slice(0, 8).filter(function (i) { return i && (str(i.titulo) || str(i.texto)) && (modo !== 'depoimentos' || str(i.texto)); });
+  }
   function itens(lista, tipo, variante) {
     var modo = modoDosItens(tipo, variante);
-    var ul = el('ul', 'pv-itens pv-itens--' + modo);
-    /* a numeração (passos 1, 2, 3; linhas 01, 02, 03) conta só os itens que vão para a tela */
-    var validos = lista.slice(0, 8).filter(function (i) { return i && (str(i.titulo) || str(i.texto)) && (modo !== 'depoimentos' || str(i.texto)); });
+    var validos = itensValidos(lista, modo);
+    /* os números levam a contagem: o CSS do desktop escolhe as colunas (3 ou 4) sem deixar item solto na última linha */
+    var ul = el('ul', 'pv-itens pv-itens--' + modo + (modo === 'numeros' ? ' pv-n' + validos.length : ''));
     validos.forEach(function (i, n) {
       var li = el('li', 'pv-item');
       if (modo === 'galeria') {   /* a moldura é o espaço da foto do cliente; a legenda é o título (o "[Foto de…]" do modelo não vira texto solto) */
@@ -97,11 +140,16 @@
         titulado(li, i);
       } else if (modo === 'linhas') {
         li.className = 'pv-item pv-linha';
-        var indice = el('span', 'pv-linha__i', String(n + 1).padStart(2, '0'));
-        indice.setAttribute('aria-hidden', 'true');
-        li.appendChild(indice);
+        var marca = icone(i.icone);   /* com ícone, ele ocupa o lugar do índice numérico */
+        if (!marca) {
+          marca = el('span', 'pv-linha__i', String(n + 1).padStart(2, '0'));
+          marca.setAttribute('aria-hidden', 'true');
+        }
+        li.appendChild(marca);
         titulado(li, i);
       } else {
+        var simbolo = icone(i.icone);
+        if (simbolo) li.appendChild(simbolo);
         titulado(li, i);
       }
       ul.appendChild(li);
@@ -221,9 +269,44 @@
   function corDeLeituraDoDestaque(raiz, paleta) {
     var dest = str(paleta.destaque);
     if (!HEX.test(dest) || !HEX.test(str(paleta.texto))) return;
-    var bases = [paleta.fundo, paleta.superficie].filter(function (h) { return HEX.test(str(h)); });
-    var legivel = bases.every(function (b) { return contraste(dest, b) >= 3; });
-    if (!legivel) raiz.style.setProperty('--pv-dest-leitura', paleta.texto);
+    /* paleta sem fundo ou superfície: o CSS usa #FFFFFF e #F4F4F4, e é contra eles que se confere */
+    var bases = [HEX.test(str(paleta.fundo)) ? paleta.fundo : '#FFFFFF', HEX.test(str(paleta.superficie)) ? paleta.superficie : '#F4F4F4'];
+    var minimo = Math.min(contraste(dest, bases[0]), contraste(dest, bases[1]));
+    if (minimo < 3) raiz.style.setProperty('--pv-dest-leitura', paleta.texto);
+    else if (minimo < 4.5) raiz.style.setProperty('--pv-dest-leitura-fina', paleta.texto);   /* serve ao número grande, não ao índice pequeno */
+  }
+
+  /* ---------- o ritmo da página (dono, 19/11): nunca dois blocos de itens iguais em sequência e no máximo 3 botões de seção ----------
+     Vale também para o modelo já gravado (é só o desenho; o JSON do cliente não muda). */
+  var MAX_BOTOES = 3;
+  var VARIANTES_QUE_ALTERNAM = ['cartoes', 'grade', 'centro', 'split'];   /* a faixa de cor cheia é um bloco próprio: não troca */
+  function botoesQueFicam(secoes) {
+    var comBotao = [];
+    secoes.forEach(function (s, n) { if (str(s.cta)) comBotao.push(n); });
+    if (comBotao.length <= MAX_BOTOES) return null;
+    var fica = {}, total = 0;
+    var manter = function (n) { if (!fica[n] && total < MAX_BOTOES) { fica[n] = true; total++; } };
+    if (comBotao.indexOf(0) >= 0) manter(0);   /* o do topo */
+    var fecho = -1;
+    comBotao.forEach(function (n) { if (n > 0 && (secoes[n].tipo === 'cta' || secoes[n].tipo === 'contato')) fecho = n; });
+    if (fecho >= 0) manter(fecho);   /* o do fecho */
+    comBotao.forEach(manter);   /* e os primeiros dos demais */
+    return fica;
+  }
+  /* a composição de itens da seção, com a troca quando é igual à da anterior: devolve { secao, assinatura } (assinatura '' = sem lista) */
+  function comRitmo(s, anterior) {
+    var tipo = umDe(TIPOS, s.tipo, 'destaque');
+    var variante = umDe(VARIANTES, s.variante, 'centro');
+    var modo = modoDosItens(tipo, variante);
+    if (!itensValidos(s.itens, modo).length) return { secao: s, assinatura: '' };
+    var assinatura = modo + '|' + variante;
+    var troca = '';
+    if (assinatura === anterior) {
+      if (modo === 'cartoes' && VARIANTES_QUE_ALTERNAM.indexOf(variante) >= 0) troca = 'lista';
+      else if (modo === 'linhas') troca = 'cartoes';
+    }
+    if (!troca) return { secao: s, assinatura: assinatura };
+    return { secao: Object.assign({}, s, { variante: troca }), assinatura: modoDosItens(tipo, troca) + '|' + troca };
   }
 
   function desenhar(d) {
@@ -248,7 +331,13 @@
     if (nav.cta) barra.appendChild(el('span', 'pv-btn pv-btn--nav', nav.cta));
     raiz.appendChild(barra);
 
-    (Array.isArray(d.secoes) ? d.secoes : []).slice(0, 12).forEach(function (s, n) { raiz.appendChild(secao(s || {}, n === 0, d)); });
+    var secoes = (Array.isArray(d.secoes) ? d.secoes : []).slice(0, 12).map(function (s) { return s && typeof s === 'object' ? s : {}; });
+    var fica = botoesQueFicam(secoes), anterior = '';
+    secoes.forEach(function (s, n) {
+      var r = comRitmo(fica && !fica[n] && s.cta ? Object.assign({}, s, { cta: '' }) : s, anterior);
+      anterior = r.assinatura;
+      raiz.appendChild(secao(r.secao, n === 0, d));
+    });
     if (d.rodape && d.rodape.texto) raiz.appendChild(el('footer', 'pv-rodape', d.rodape.texto));
     return raiz;
   }

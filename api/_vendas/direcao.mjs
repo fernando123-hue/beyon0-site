@@ -17,11 +17,19 @@ export const ESTRATEGIAS = {
 export const TIPOS_SECAO = ['hero', 'servicos', 'sobre', 'diferenciais', 'processo', 'depoimentos', 'numeros', 'galeria', 'faq', 'cta', 'contato', 'equipe', 'destaque', 'localizacao'];
 export const VARIANTES = ['split', 'centro', 'cartoes', 'lista', 'faixa', 'grade', 'linha_do_tempo'];
 export const FONTES = ['sans_geometrica', 'sans_humanista', 'serif_classica', 'serif_moderna', 'mono_tecnica'];
+/* O ÍCONE de cada item: lista FECHADA (o renderer, js/previa.js, desenha cada nome com traço próprio; nenhum nome fora dela chega à tela).
+   O modelo escolhe pelo serviço ("raio" para elétrica, "bolo" para confeitaria); "nenhum" quando nenhum serve. Direção gravada antes do ícone
+   não tem a chave e continua válida. */
+export const ICONES = ['nenhum', 'calendario', 'relogio', 'local', 'mensagem', 'telefone', 'escudo', 'estrela', 'coracao', 'casa', 'raio', 'folha', 'gota', 'floco', 'sol', 'bolo', 'documento', 'caixa', 'equipe', 'check', 'lampada', 'regua'];
+/* O topo de cada estratégia (a regra do dono: os três modelos de um cliente nunca abrem do mesmo jeito): o código fixa, o modelo não escolhe */
+export const TOPO_DA_ESTRATEGIA = { conversao: 'split', autoridade: 'centro', experiencia: 'faixa' };
+/* o que ocupa o lugar de um número que o briefing não trouxe (o renderer o desenha como espaço reservado) */
+export const NUMERO_A_CONFIRMAR = '[Número a confirmar]';
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 const s = (props, req) => ({ type: 'object', additionalProperties: false, properties: props, required: req || Object.keys(props) });
 const texto = { type: 'string' };
-const ITEM = s({ titulo: texto, texto: texto });
+const ITEM = s({ titulo: texto, texto: texto, icone: { type: 'string', enum: ICONES } });
 /* o esquema que o modelo é obrigado a seguir (sem limites numéricos: o JSON Schema da API não os aceita; quem limita é higienizar()) */
 export const ESQUEMA_DIRECAO = s({
   nome_conceito: texto,
@@ -79,8 +87,20 @@ export function resumoCurto(s) {
   return frases.slice(0, 2).join('').trim();
 }
 
-export function higienizar(bruta, estrategia) {
+/* Zero dado inventado: o número da seção "numeros" só fica se TODOS os grupos de dígitos dele aparecem no briefing (grupo inteiro: "1000" não vale
+   por um telefone terminado em 1000). Senão vira espaço reservado. Só a geração passa o briefing; ajuste do cliente e fila manual não passam por aqui. */
+const gruposDeDigitos = v => String(v).match(/\d+/g) || [];
+function numeroDoBriefing(titulo, digitosDoBriefing) {
+  if (!digitosDoBriefing || /^\[.*\]$/.test(titulo)) return titulo;
+  const grupos = gruposDeDigitos(titulo);
+  return grupos.length && !grupos.every(g => digitosDoBriefing.has(g)) ? NUMERO_A_CONFIRMAR : titulo;
+}
+
+export function higienizar(bruta, estrategia, { briefing } = {}) {
   if (!bruta || typeof bruta !== 'object') return { erro: 'direção vazia' };
+  /* só a geração (api/_vendas/gerador.mjs) tem o briefing e o passa; a fila manual (o POST do painel que grava a direção) não o tem: lá o número
+     do arquivo da sessão do dono segue como veio (a conferência da sessão e a revisão dela cobrem esse caminho) */
+  const digitosDoBriefing = briefing && typeof briefing === 'object' ? new Set(gruposDeDigitos(JSON.stringify(briefing))) : null;
   const d = bruta;
   const pal = d.identidade?.paleta || {};
   const cor = (v, padrao) => (HEX.test(v || '') ? v.toUpperCase() : padrao);
@@ -100,12 +120,19 @@ export function higienizar(bruta, estrategia) {
     tipo: x.tipo,
     variante: VARIANTES.includes(x.variante) ? x.variante : 'centro',
     rotulo: t(x.rotulo, 40), titulo: t(x.titulo, 120), subtitulo: t(x.subtitulo, 220), texto: t(x.texto, 700),
-    itens: (Array.isArray(x.itens) ? x.itens : []).slice(0, 8).map(i => ({ titulo: t(i?.titulo, 80), texto: t(i?.texto, 300) })).filter(i => i.titulo || i.texto),
+    itens: (Array.isArray(x.itens) ? x.itens : []).slice(0, 8).map(i => {
+      const item = { titulo: t(i?.titulo, 80), texto: t(i?.texto, 300) };
+      if (x.tipo === 'numeros') item.titulo = numeroDoBriefing(item.titulo, digitosDoBriefing);
+      const icone = typeof i?.icone === 'string' && i.icone !== 'nenhum' && ICONES.includes(i.icone) ? i.icone : '';
+      return icone ? { ...item, icone } : item;
+    }).filter(i => i.titulo || i.texto),
     cta: t(x.cta, 40)
   })).filter(x => x.titulo || x.texto || x.itens.length);
 
   if (secoes.length < 3) return { erro: 'direção com poucas seções' };
   if (secoes[0].tipo !== 'hero') secoes.unshift({ tipo: 'hero', variante: 'centro', rotulo: '', titulo: t(d.navegacao?.marca, 120) || 'Seu negócio', subtitulo: '', texto: '', itens: [], cta: t(d.navegacao?.cta, 40) });
+  const topo = Object.hasOwn(TOPO_DA_ESTRATEGIA, estrategia) ? TOPO_DA_ESTRATEGIA[estrategia] : null;
+  if (topo) secoes[0] = { ...secoes[0], variante: topo };
   const direcao = {
     nome_conceito: t(d.nome_conceito, 60) || 'Direção',
     estrategia,
