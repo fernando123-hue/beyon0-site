@@ -113,8 +113,8 @@ test('ci.yml: as fatias da mutação são 1/N..N/N (sem furo, sem repetição) e
 });
 
 test('ci.yml: a mutação continua só na main e à mão (workflow_dispatch); o agregado sabe quando ela é esperada', () => {
-  assert.match(JOBS.mutacao, /^    if: github\.ref == 'refs\/heads\/main' \|\| github\.event_name == 'workflow_dispatch'\s*$/m);
-  assert.match(JOBS.testes, /MUTACAO_ESPERADA: \$\{\{ github\.ref == 'refs\/heads\/main' \|\| github\.event_name == 'workflow_dispatch' \}\}/);
+  assert.match(JOBS.mutacao, /^    if: github\.ref == 'refs\/heads\/main' \|\| github\.event_name == 'workflow_dispatch' \|\| github\.event_name == 'pull_request'\s*$/m);
+  assert.match(JOBS.testes, /MUTACAO_ESPERADA: \$\{\{ github\.ref == 'refs\/heads\/main' \|\| github\.event_name == 'workflow_dispatch' \|\| github\.event_name == 'pull_request' \}\}/);
   assert.match(JOBS.suite, /run: npm run testar\s*$/m);
 });
 

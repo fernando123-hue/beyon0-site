@@ -48,7 +48,7 @@ jobs:
   # (docs/testes/ci-paralela.test.mjs confere que as duas batem e que a lista é 1/N..N/N).
   mutacao:
     name: Mutação (fatia ${{ matrix.fatia }})
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -83,7 +83,7 @@ jobs:
     env:
       SUITE: ${{ needs.suite.result }}
       MUTACAO: ${{ needs.mutacao.result }}
-      MUTACAO_ESPERADA: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+      MUTACAO_ESPERADA: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}
       MUTACAO_FATIAS: 8
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
