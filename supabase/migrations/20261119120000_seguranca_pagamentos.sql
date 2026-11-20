@@ -527,7 +527,8 @@ begin
       left join app.pedidos pd on pd.conversa_id = c.id
      where e.org_id = v_org and (e.passo not in ('concluida', 'encerrada') or e.religar_pendente
              or (e.passo = 'concluida' and e.site_url is not null and e.concluida_em > now() - interval '30 days'))
-     order by e.created_at limit 100
+     -- (revisão 2, item 3) os pedidos em aberto vêm primeiro: com mais de 100 itens, o corte tira os concluídos que esperam a passagem, nunca um pedido em andamento
+     order by (e.passo in ('concluida', 'encerrada') and not e.religar_pendente), e.created_at, e.id limit 100
   ) q;
   return jsonb_build_object('itens', v_itens, 'total', jsonb_array_length(v_itens));
 end $$;

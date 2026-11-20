@@ -432,3 +432,21 @@ test('revisão 2/5: se a montagem do alerta falhar (aqui: a tabela de pedidos so
   assert.equal((await um("select status from app.pagamentos where proposta_id = $1 and parcela = 'saldo'", [c.proposta])).status, 'pago');
   assert.equal((await rastrosDoRestante(c)).n, 1, 'o rastro foi gravado ANTES do trecho que pode falhar: a rotina diária conta e o dono vê no painel');
 });
+
+test('revisão 2/3: com mais de 100 itens, a lista do dono mostra os pedidos em aberto primeiro (os concluídos que esperam a passagem ficam por último e é deles que o corte tira)', async () => {
+  const db2 = await novoBanco(); const rpc2 = rpcDe(db2); await prepararOrg(db2);
+  const concluidos = [];
+  for (let i = 0; i < 100; i++) {
+    const c = await entregaEm(db2, 'producao');
+    await forcarEntrega(db2, c, { passo: 'concluida', site_url: SITE, no_ar_em: agora(), concluida_em: agora() });
+    concluidos.push(c);
+  }
+  const ativa = await entregaEm(db2, 'producao');   /* a mais NOVA de todas: com a ordem por criação ela era a 101ª e caía fora */
+  const codigoAtiva = await codigoDe(db2, ativa);
+  const lista = await rpc2('vendas_entregas_lista', { org_slug: 'beyon-zero' });
+  assert.equal(lista.itens.length, 100, 'o limite de 100 continua');
+  assert.ok(lista.itens.some(i => i.codigo === codigoAtiva), 'o pedido em aberto, mesmo o mais novo, está na lista');
+  assert.equal(lista.itens.filter(i => i.passo === 'concluida').length, 99, 'o corte tirou um concluído');
+  const ordem = lista.itens.map(i => i.criada_em);
+  assert.deepEqual(ordem, [...ordem].sort(), 'a lista sai ordenada por criação');
+});
