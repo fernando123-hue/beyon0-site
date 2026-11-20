@@ -60,6 +60,7 @@ export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral, fo
   page.off('request', contar);
   await new Promise(r => setTimeout(r, 61e3));
   ok(/a entrada de 40%: /.test(await page.textContent('#o-pag-lead')), 'entrada: o percentual vem da proposta (o servidor local usa o rascunho, a 40)');
+  ok((await page.textContent('#o-pag-titulo')).trim() === 'Destravar o seu site', 'pagamento: o título é "Destravar o seu site"');
   const perguntasAntes = page.locator('#o-antes');
   ok(await perguntasAntes.isVisible(), 'perguntas antes de pagar: na tela da entrada');
   /* D3 (a): nenhum WhatsApp preso na tela (fixed/sticky) nos passos do pedido. O menu do site (nav) é do site todo e fica fora */
@@ -103,6 +104,8 @@ export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral, fo
   const estilo = await page.locator('#o-pix-copiar').evaluate(b => { const s = getComputedStyle(b); return { fonte: s.fontFamily, caixa: s.textTransform, tamanho: parseFloat(s.fontSize) }; });
   ok(/Sora/.test(estilo.fonte) && estilo.caixa === 'none' && estilo.tamanho >= 16, 'Pix: botão em Sora, frase normal, 16 px ou mais (' + estilo.fonte.split(',')[0] + ', ' + estilo.caixa + ', ' + estilo.tamanho + ' px)');
   ok(await page.locator('.pix__passos li').count() === 3, 'Pix: os 3 passos no app do banco');
+  ok(await page.locator('#o-pix-relogio').isVisible() && /^\d\d:\d\d$/.test((await page.textContent('#o-pix-tempo')).trim()), 'Pix: o relógio vivo mostra mm:ss');
+  ok(await page.locator('#o-pix-anel').getAttribute('stroke-dashoffset') !== null && await page.locator('#o-pix-relogio').getAttribute('aria-hidden') === 'true', 'Pix: o anel do relógio está desenhado e escondido do leitor de tela (a validade em texto segue)');
   ok(await espera(page, () => document.getElementById('o-pag-status').textContent === 'Esperando o pagamento. Esta tela muda sozinha quando ele cair.'), 'Pix: o status diz que a tela muda sozinha');
   const statusPx = await page.locator('#o-pag-status').evaluate(p => { const s = getComputedStyle(p); return { tamanho: parseFloat(s.fontSize), fonte: s.fontFamily }; });
   ok(statusPx.tamanho >= 16 && /Sora/.test(statusPx.fonte), 'Pix: o status em Sora, 16 px ou mais (' + statusPx.tamanho + ' px)');
@@ -147,4 +150,8 @@ export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral, fo
   await page.click('#o-pix-simular');
   await page.waitForSelector('#o-pronto:not([hidden])', { timeout: 20000 });
   ok(true, 'Pix confirmado pelo aviso assinado + consulta: projeto liberado');
+  /* (dono, 19/11) o cliente não vê código nenhum: o código do pagamento e o do pedido existem para o sistema (a página guarda, escondidos),
+     mas nada com cara de código BZ- aparece no texto visível do recibo e da trilha do pedido */
+  ok(await espera(page, () => document.getElementById('o-rec-codigo-v').textContent.trim() !== '', 15000)
+    && await page.evaluate(() => !/\bBZ-[0-9A-Z]{4,}/.test(document.body.innerText)), 'depois do pagamento o cliente não vê código nenhum (recibo e trilha)');
 }

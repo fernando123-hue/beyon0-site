@@ -12,13 +12,15 @@
   var CHAVE = 'bz-orcamento';
   var MARGEM_S = 60;   /* renova o token um minuto antes de vencer */
   var MENSAGEM_MS = 90e3;   /* tempo limite de um turno com a IA (a conversa; auditoria 2026-10-09, F2): sem ele, a rede caída deixava a página esperando para sempre */
+  var configDaSessao = null;   /* a resposta de sessao-config, uma por página: o consultor e o microfone leem a mesma (cada GET a mais gasta o freio de 90 por minuto do IP) */
   var ESTADO_MS = 15e3;     /* a leitura do estado: curta, para a releitura depois de uma falha não pendurar a tela */
   var ESQUECIDA = 'bz-orcamento-esquecida';   /* a conversa que a pessoa mandou recomeçar: nenhuma aba a grava de novo */
 
   function ler() { try { return JSON.parse(localStorage.getItem(CHAVE) || 'null'); } catch (e) { return null; } }
   var sessao = ler();
   var perdida = false;   /* a sessão existia e o servidor a recusou de vez: a página avisa em vez de abrir conversa nova em silêncio */
-  var codigoPerdido = null;   /* o código do pedido da sessão perdida: o aviso cita (ele saiu do aparelho junto com a sessão) */
+  var RECADO_MAX = 1000;   /* o mesmo MAX_RECADO de api/_vendas/fluxo-recado.mjs e o MAX de js/recado.js */
+  var codigoPerdido = null;   /* a referência curta do pedido da sessão perdida: o recado a leva sozinho (ela saiu do aparelho junto com a sessão) */
   var falhaDaRenovacao = null;   /* a renovação não concluiu por rede ou servidor instável (503 recuperável): a sessão fica e o erro sobe */
   var esquecida = function () { try { return localStorage.getItem(ESQUECIDA); } catch (e) { return null; } };
   function gravar(s) {
@@ -60,13 +62,15 @@
   /* limiteMs: tempo limite (AbortController); estourado, vira Falha(0) com dados.tempo = true */
   async function http(metodo, acao, corpo, query, token, limiteMs) {
     var cab = {};
-    if (corpo !== undefined) cab['content-type'] = 'application/json';
+    var cru = typeof Blob === 'function' && corpo instanceof Blob;   /* (o microfone manda o ÁUDIO como está, com o tipo dele) */
+    if (cru) cab['content-type'] = corpo.type || 'audio/webm';
+    else if (corpo !== undefined) cab['content-type'] = 'application/json';
     if (token) cab.authorization = 'Bearer ' + token;
     var ctrl = limiteMs && typeof AbortController === 'function' ? new AbortController() : null;
     var relogio = ctrl ? setTimeout(function () { ctrl.abort(); }, limiteMs) : null;
     var r;
     try {
-      r = await fetch('/api/vendas?acao=' + encodeURIComponent(acao) + (query || ''), { method: metodo, headers: cab, body: corpo === undefined ? undefined : JSON.stringify(corpo), cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+      r = await fetch('/api/vendas?acao=' + encodeURIComponent(acao) + (query || ''), { method: metodo, headers: cab, body: corpo === undefined ? undefined : cru ? corpo : JSON.stringify(corpo), cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
     } catch (e) {
       if (ctrl && ctrl.signal.aborted) throw new Falha(0, { erro: 'A resposta demorou mais que o normal.', tempo: true });
       throw new Falha(0, { erro: 'Sem conexão. Confira a internet e tente de novo.' });
@@ -230,7 +234,12 @@
     pagamentoConfig: function () { return http('GET', 'pagamento-config'); },
     /* o orçamento sem IA (spec 2026-10-11): se há consultor; o catálogo da tabela ativa; o preço ao vivo (simular,
        que NÃO grava) e o pacote gravado uma vez (confirmar-pacote, com a versão da tabela que a pessoa viu) */
-    sessaoConfig: function () { return http('GET', 'sessao-config', undefined, undefined, undefined, ESTADO_MS); },
+    /* o microfone: o áudio (Blob) vira texto no servidor e nada fica guardado; 30 s de limite (a gravação tem até 90 s) */
+    transcrever: async function (audio) { await garantirSessao(); return chamar('POST', 'transcrever', audio, undefined, 30000); },
+    sessaoConfig: function () {
+      if (!configDaSessao) configDaSessao = http('GET', 'sessao-config', undefined, undefined, undefined, ESTADO_MS).catch(function (e) { configDaSessao = null; throw e; });   /* (falhou: a próxima leitura tenta de novo) */
+      return configDaSessao;
+    },
     catalogo: async function (formato, ramo) {
       await garantirSessao();
       return chamar('GET', 'catalogo', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id) + '&formato=' + encodeURIComponent(formato || '') + '&ramo=' + encodeURIComponent(ramo || ''), ESTADO_MS);
@@ -238,6 +247,15 @@
     /* o RECADO: leva a conversa só como referência (se houver sessão) e passa pelo anti-robô desta página; o servidor decide o resto */
     recado: async function (corpo) {
       var base = Object.assign({}, corpo, sessao && sessao.conversa_id ? { conversa_id: sessao.conversa_id } : {});
+      /* (dono, 19/11: o cliente não cita código) sessão perdida: o servidor não liga o recado ao pedido sem a sessão (ninguém anexa a
+         conversa de outra pessoa), então a página põe no texto a referência curta do pedido que saiu daqui, a mesma que antes o cliente
+         teria de digitar. É informada pela página, não verificada, e o dono a vê assim */
+      if (!base.conversa_id && codigoPerdido && typeof base.texto === 'string') {
+        /* só se couber no limite do recado (1.000 caracteres, contados pelo servidor depois de juntar): um recado longo nunca deixa de sair
+           por causa da referência (achado da revisão de segurança, 19/11) */
+        var ref = '\n\n(referência do pedido anterior, informada pela página: ' + codigoPerdido + ')';
+        if (Array.from(base.texto.trim()).length + Array.from(ref).length <= RECADO_MAX) base.texto = base.texto.trim() + ref;
+      }
       return chamar('POST', 'recado', await comAntiRobo(base, true), undefined, ESTADO_MS);
     },
     abrirRecado: function (opcoes) { return carregarRecado().then(function (R) { return R.abrir(Object.assign({ origem: 'orcamento' }, opcoes)); }); },

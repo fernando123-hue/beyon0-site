@@ -156,7 +156,7 @@
     recarregar().then(abrirPedido)
       .catch(function (e) { falhou(e, function () { seguir(); }); });
   });
-  /* os detalhes viraram pedido (PR 2a): a tela segue o servidor e leva a pessoa até o código do pedido recebido */
+  /* os detalhes viraram pedido (PR 2a): a tela segue o servidor e leva a pessoa até o pedido recebido do pedido recebido */
   document.addEventListener('bz:detalhes-enviados', function seguir() {
     recarregar().then(function () { if (!$('o-confirmar').hidden) irPara('o-confirmar'); })
       .catch(function (e) { falhou(e, function () { seguir(); }); });
@@ -228,8 +228,8 @@
   function avisarSessao(quieto) {
     vigia.parar();
     if (telaPagamento) telaPagamento.parar();
-    var cod = API.codigoPerdido() || codigoMostrado;
-    avisar('Sua sessão terminou. Recomece o orçamento por aqui' + (cod ? ' ou deixe um recado citando o código do pedido ' + cod + '.' : ' ou deixe um recado para a equipe.'), recomecar, 'Recomeçar', quieto);
+    /* (dono, 19/11) sem código para o cliente citar: o recado desta página leva sozinho a referência do pedido (js/orcamento-api.js, recado) */
+    avisar('Sua sessão terminou. Recomece o orçamento por aqui ou deixe um recado para a equipe: ele chega junto com o seu pedido.', recomecar, 'Recomeçar', quieto);
   }
   /* Recomeçar: esquece a sessão (nenhuma outra aba a grava de volta) e limpa os dados digitados antes de
      recarregar, para o navegador não os restaurar num aparelho compartilhado */
@@ -263,6 +263,9 @@
     reler: function () { recarregar().catch(function (e) { falhou(e, function () { recarregar(); }); }); } });
 
   /* ---------- o código do pedido (F1, F6) ---------- */
+  /* (dono, 19/11: "o cliente não tem que se preocupar com nenhum código; isso é do nosso sistema") o código continua guardado na
+     página, num elemento SEMPRE escondido, para o sistema e os testes; o cliente nunca o vê. Ele volta ao pedido pela própria página
+     (o navegador lembra) e o recado daqui leva a conversa junto */
   var codigoMostrado = null;
   function identificar() {
     /* o código do pedido (BZ-XXXXX) depois dos detalhes; antes, o id curto da conversa */
@@ -270,7 +273,6 @@
     if (!c || c === codigoMostrado) return;
     codigoMostrado = c;
     $('o-codigo-v').textContent = c;
-    mostrar('o-codigo', true);
   }
 
   /* ---------- a conversa ---------- */
@@ -288,7 +290,12 @@
      inteiros: 472 px contra 526 em 390x844, medido em 12/11) a fala nova fica no topo da caixa e o cartão logo abaixo dela */
   function rolarConversa(li) {
     var caixa = $('o-log-caixa');
-    if (!li || !ficaNoFim()) { caixa.scrollTop = caixa.scrollHeight; return; }
+    if (!li || !ficaNoFim()) {
+      /* sem o cartão: até o fim, mas a fala do Zero maior que a caixa começa no topo dela, nunca cortada em cima (achado da revisão de 19/11) */
+      if (li && li.classList.contains('msg--agente')) caixa.scrollTop = Math.max(0, Math.min(caixa.scrollHeight - caixa.clientHeight, caixa.scrollTop + li.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA_FALA));
+      else caixa.scrollTop = caixa.scrollHeight;
+      return;
+    }
     caixa.scrollTop = Math.max(0, caixa.scrollTop + li.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA_FALA);
   }
   /* (aria-disabled, não disabled: o botão desligado com o foco nele jogava o foco no body, A3; o "enviando" já protege) */
@@ -588,9 +595,9 @@
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
   /* (dono, 15/11) a regra dos ajustes, clara antes de escolher: um modelo só, e trazer algo de outro conta como um ajuste */
-  var REGRA_DOS_MODELOS = 'Os três partem do que você contou, cada um com um objetivo. Abra, compare e escolha um: os ajustes são feitos dentro dele, e trazer algo de outro modelo, como as cores ou uma seção, conta como um pedido de ajuste.';
+  var REGRA_DOS_MODELOS = 'Abra a prévia e escolha um: os ajustes são feitos dentro dele. Trazer cores ou uma seção de outro modelo conta como um ajuste.';
   var TEXTOS_MANUAL = {
-    direcoes: 'Os três partem do que você contou, cada um com um objetivo. Ficam prontos em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página por ele.',
+    direcoes: 'Prontos em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página.',
     prontas: REGRA_DOS_MODELOS
   };
   /* (PR 2a) descartado pelo dono: o pedido acabou e o servidor recusa escolher, ajustar e seguir (api/_vendas/fluxo.mjs) */
@@ -624,9 +631,10 @@
       var acoes = el('div', 'dir__acoes');
       var abrir = botao('btn btn--sm', 'Abrir prévia', function () { visor.abrir(d.id); });
       abrir.setAttribute('data-abrir', d.id);
-      acoes.appendChild(abrir);
+      /* (a ação principal vem PRIMEIRO no DOM: é a ordem do Tab e do leitor de tela, e a que se vê, css/orcamento-modelos.css) */
       if (escolhida) acoes.appendChild(el('span', 'dir__selo', 'Escolhida'));
       else if (podeEscolher()) acoes.appendChild(botaoAcao('btn btn--sm btn--primary', 'Escolher este', function () { escolher(d.id); }));
+      acoes.appendChild(abrir);
       corpo.appendChild(acoes);
     } else if (manual()) {
       var f = el('div', 'dir__progresso');
@@ -761,8 +769,8 @@
     var pct = PIX ? PIX.percentuais(pr) : null, sinal = valorDoSinal(pr);
     if (!mudou('pagamento', [pr, sinal])) return;
     $('o-pag-escopo').textContent = pr.escopo || '';
-    $('o-pag-titulo').textContent = 'Para começar';   /* (o restante, js/orcamento-restante.js, troca o título: a entrada o devolve) */
-    var lead = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + dias(pr.prazo_dias) + '.';
+    $('o-pag-titulo').textContent = 'Destravar o seu site';   /* (o restante, js/orcamento-restante.js, troca o título: a entrada o devolve) */
+    var lead = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + dias(pr.prazo_dias) + '.';   /* (o texto de falha fechada; com o percentual, o lead abaixo é mais curto) */
     /* falha fechada (PR 3b-1): sem o percentual da proposta, a tela não cobra nem chuta um número (o banco também recusa) */
     if (!pct || sinal == null) {
       $('o-pag-lead').textContent = lead;
@@ -770,7 +778,7 @@
       mostrar('o-pag-indisponivel', true);
       return;
     }
-    $('o-pag-lead').textContent = lead + ' Para começar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante quando o site estiver no ar.';
+    $('o-pag-lead').textContent = lead + ' Para destravar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante só quando o site estiver no ar.';
     if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada, {});   /* ({}: solta o "só Pix" que o restante tenha pedido) */
   }
 
@@ -791,13 +799,15 @@
     var atual = E ? passoAtual() : 'conversa', passou = true;
     if (atual === 'estimativa') atual = 'conversa';   /* (o preço mora na conversa: a etapa "Preço" saiu da barra) */
     if (!mudou('etapas', atual)) return;
-    [].forEach.call(document.querySelectorAll('#o-etapas li'), function (li) {
+    var ordem = 0, nomeAtual = '';
+    [].forEach.call(document.querySelectorAll('#o-etapas li'), function (li, i) {
       var eh = li.getAttribute('data-passo') === atual;
-      if (eh) passou = false;
+      if (eh) { passou = false; ordem = i + 1; nomeAtual = (li.querySelector('.orc-etapas__nome') || li).textContent; }
       li.classList.toggle('is-feita', passou);
       if (eh) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
     });
     var ol = $('o-etapas'), cur = ol.querySelector('[aria-current]');
+    ol.setAttribute('data-n', String(ordem || 1)); ol.setAttribute('data-nome', nomeAtual);   /* (o "3 de 5 · Ajustes" da barra de progresso, css/orcamento-casca.css) */
     if (cur && ol.scrollWidth > ol.clientWidth) ol.scrollLeft = Math.max(0, cur.offsetLeft - ol.offsetLeft - 16);   /* celular: a etapa atual à vista */
   }
   function conversa() {
@@ -916,6 +926,7 @@
     var temProposta = !!(E.proposta && et === 'escopo');
     mostrar('o-escopo', temProposta);
     if (temProposta && mudou('escopo', E.proposta.escopo)) $('o-esc-texto').textContent = E.proposta.escopo;
+    if (temProposta && window.BZOrcResumo && mudou('resumo', E.proposta)) window.BZOrcResumo.atualizar(E.proposta, PIX, dinheiro);   /* o número do resumo (js/orcamento-resumo.js); sem o módulo a tela segue igual */
     if (et === 'aguardando_pagamento' && $('o-pagamento').hidden) delete assinaturas.pagamento;   /* (reapareceu: a tela de pagamento confere de novo, inclusive a configuração) */
     mostrar('o-pagamento', et === 'aguardando_pagamento');
     mostrar('o-antes', temProposta || et === 'aguardando_pagamento');   /* (PR 3b-1) as perguntas antes de pagar: no resumo e na entrada */

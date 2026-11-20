@@ -1,8 +1,10 @@
 /* ==========================================================================
-   O VIGIA — O QUE O WORKER CONFERE SOZINHO (spec 2026-11-15-auto-reparo), sem rede externa e sem IA:
+   O VIGIA — O QUE O WORKER CONFERE SOZINHO (spec 2026-11-15-auto-reparo), sem IA (a única rede externa é a pergunta gratuita da chave):
    • as páginas-chave pelo binding ASSETS (o mesmo que serve o site): 200 e um documento HTML; uma 2ª tentativa
      depois de 2 s antes de dar como quebrada. Sem ASSETS (servidor local, testes) não há o que conferir;
-   • a configuração, só pela PRESENÇA (nunca lê nem devolve valor): banco, chave da IA, segredo das rotinas, pagamentos.
+   • a configuração, só pela PRESENÇA (nunca lê nem devolve valor): banco, chave da IA, segredo das rotinas, pagamentos;
+   • a chave da IA, na prática: a chamada gratuita de listar modelos (não gasta nada, não manda dado de cliente). Só a resposta 401
+     (credencial recusada) conta; erro de rede, limite ou 5xx não provam nada e não alarmam. Só roda no Worker (com ASSETS).
    ========================================================================== */
 import { configPagamentos } from '../_pagamentos/config.mjs';
 import { segredoDoCron } from '../_cron.mjs';
@@ -10,6 +12,10 @@ import { segredoDoCron } from '../_cron.mjs';
 export const PAGINAS = Object.freeze(['/', '/sites', '/automacao', '/orcamento']);
 const ORIGEM = 'https://beyonzero.com.br';   /* (o ASSETS só olha o caminho; a origem é só para montar o pedido) */
 const ESPERA_MS = 2000;
+const CHAVE_IA_URL = 'https://api.anthropic.com/v1/models?limit=1';
+const CHAVE_IA_VERSAO = '2023-06-01';
+const CHAVE_IA_PRAZO_MS = 5000;
+const NAO_AUTORIZADO = 401;
 const esperarPadrao = ms => new Promise(r => setTimeout(r, ms));
 
 async function paginaAbre(assets, caminho) {
@@ -29,6 +35,18 @@ async function paginasAbrem(assets, esperar) {
   return true;
 }
 
+async function chaveIaRecusada(env, buscar) {
+  if (typeof env.ASSETS?.fetch !== 'function' || !env.ANTHROPIC_API_KEY) return false;
+  try {
+    const r = await buscar(CHAVE_IA_URL, { headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': CHAVE_IA_VERSAO }, redirect: 'manual', signal: AbortSignal.timeout(CHAVE_IA_PRAZO_MS) });
+    return r.status === NAO_AUTORIZADO;
+  } catch (e) {
+    /* sem resposta não há prova: não alarma, mas deixa rastro (só o nome do erro, nunca a mensagem nem a chave) */
+    console.error(JSON.stringify({ origem: 'vigia', nivel: 'erro', evento: 'conferência da chave da IA sem resposta', erro: String(e?.name || 'erro').slice(0, 20) }));
+    return false;
+  }
+}
+
 function faltando(env) {
   const pagamentosLigados = configPagamentos(env).ativo === true;
   const nomes = [];
@@ -39,8 +57,8 @@ function faltando(env) {
   return { nomes, pagamentosLigados };
 }
 
-/* → { paginas: true se todas abriram, configuracao: nomes que faltam, pagamentosLigados } */
-export async function conferir(env = {}, { esperar = esperarPadrao } = {}) {
+/* → { paginas: true se todas abriram, configuracao: nomes que faltam, pagamentosLigados, chaveIaRecusada } */
+export async function conferir(env = {}, { esperar = esperarPadrao, buscar = fetch } = {}) {
   const { nomes, pagamentosLigados } = faltando(env);
-  return { paginas: await paginasAbrem(env.ASSETS, esperar), configuracao: nomes, pagamentosLigados };
+  return { paginas: await paginasAbrem(env.ASSETS, esperar), configuracao: nomes, pagamentosLigados, chaveIaRecusada: await chaveIaRecusada(env, buscar) };
 }

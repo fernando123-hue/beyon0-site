@@ -397,7 +397,7 @@ test('conversa aberta até o pagamento: no escopo e no sinal o consultor só tir
   const esc = proximoPasso({ etapa: 'escopo', briefing: {}, estimativa: null });
   /* os nomes que o modelo cita são os da tela: se a tela renomear, este teste quebra (re-revisão do 990a87e) */
   const tela = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');
-  for (const nome of ['Resumo do que será feito', 'Confirmar o escopo', 'Ver o escopo confirmado', 'Para começar']) assert.ok(tela.includes('>' + nome + '<'), 'a tela tem "' + nome + '"');
+  for (const nome of ['Resumo do que será feito', 'Confirmar o escopo', 'Ver o escopo confirmado', 'Destravar o seu site']) assert.ok(tela.includes('>' + nome + '<'), 'a tela tem "' + nome + '"');
   assert.match(esc, /Resumo do que será feito/);
   assert.match(esc, /Confirmar o escopo/);
   assert.match(esc, /DEIXAR UM RECADO/, 'mudança de escopo: os ajustes fecharam, vale o recado (o site não tem WhatsApp)');

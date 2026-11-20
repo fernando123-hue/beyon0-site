@@ -36,7 +36,19 @@
   /* ---------- a caixa da conversa ---------- */
   function el(tag, classe, texto) { var e = doc.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; }
   function ficaNoFim() { var u = $('o-log').lastElementChild; return u && u.hasAttribute('data-fica') ? u : null; }
-  function rolar() { var c = $('o-log-caixa'); if (c) c.scrollTop = c.scrollHeight; }
+  /* rola a caixa até o fim, mas NUNCA além do começo da última fala do Zero: com os cartões com ícone, fala + opções passam da altura da caixa,
+     e o fim puro cortava o começo da pergunta (achado das fotos de 19/11). A pergunta fica inteira no topo; as opções seguem abaixo dela */
+  var FOLGA_FALA = 8;   /* (a mesma folga de js/orcamento.js e do esboço da planta) */
+  function rolar() {
+    var c = $('o-log-caixa'), falas, f = null, i;
+    if (!c) return;
+    falas = c.querySelectorAll('.msg--agente');
+    for (i = falas.length - 1; i >= 0 && !f; i--) if (falas[i].getClientRects().length) f = falas[i];   /* (a fala escondida, num cartão já feito, não conta) */
+    if (!f) { c.scrollTop = c.scrollHeight; return; }
+    var topoDaFala = c.scrollTop + f.getBoundingClientRect().top - c.getBoundingClientRect().top - FOLGA_FALA;
+    c.scrollTop = Math.max(0, Math.min(c.scrollHeight - c.clientHeight, topoDaFala));
+  }
+
   /* (o que nasce DEPOIS de a conversa ir ao servidor é tardio: a página o recoloca depois das falas do servidor, js/orcamento.js conversa()) */
   function inserir(li) { li.setAttribute('data-toque', ''); if (s.entregue) li.setAttribute('data-toque-tardio', ''); $('o-log').insertBefore(li, ficaNoFim()); rolar(); return li; }
   function anunciar(texto) { var c = window.BZOrcConversa; if (c && typeof c.anunciar === 'function') c.anunciar(texto); }
@@ -70,6 +82,8 @@
     function atualizarPronto() { if (pronto) pronto.setAttribute('aria-disabled', String(!escolhidos.length && !o.prontoVazio)); }
     itens.forEach(function (it) {
       var b = el('button', 'orc-op orc-op--toque', it.rotulo);
+      var ic = window.BZOrcIcones ? window.BZOrcIcones.desenhar(it.valor, o.grupo, doc) : null;
+      if (ic) { b.textContent = ''; b.appendChild(ic); b.appendChild(el('span', 'orc-op__t', it.rotulo)); b.classList.add('orc-op--ic'); }
       b.type = 'button';
       b.setAttribute('data-valor', it.valor);
       if (o.multi) b.setAttribute('aria-pressed', String(escolhidos.indexOf(it.valor) >= 0));
@@ -125,6 +139,12 @@
   /* ---------- a conta silenciosa: o radar se preenche a cada toque ---------- */
   function contar() {
     if (window.BZPerguntas && typeof window.BZPerguntas.definir === 'function') window.BZPerguntas.definir(s.respostas);
+    /* (o site que nasce em cima da conversa, js/orcamento-nasce.js: um evento por resposta, com tudo o que ela respondeu até agora) */
+    avisarRespostas();
+  }
+  /* (uma CÓPIA: quem escuta o evento não recebe o estado vivo da conversa) */
+  function avisarRespostas() {
+    try { doc.dispatchEvent(new CustomEvent('bz:respostas', { detail: copiar(s.respostas) })); } catch (e) { /* a miniatura é enfeite: sem ela, a conversa segue */ }
   }
 
   /* ---------- os passos ---------- */
@@ -137,7 +157,7 @@
       bolha(rotulo);
       contar();
       passoObjetivos();
-    }, { focar: false });
+    }, { focar: false, grupo: 'ramo' });
   }
   /* "Outro": uma escrita curta, que vai só ao briefing (nunca como mensagem) e no tamanho que o servidor guarda */
   function passoOutro() {
@@ -171,7 +191,7 @@
       bolha(lista && lista.length ? rotulos.join(' · ') : NAO_SEI);
       contar();
       passoSite();
-    }, { multi: true, naoSei: true, falaId: ultimaFala });
+    }, { multi: true, naoSei: true, falaId: ultimaFala, grupo: 'objetivos' });
   }
   function passoSite() {
     s.passo = 'site';
@@ -181,7 +201,7 @@
       bolha(rotulo || NAO_SEI);
       contar();
       passoMaterial();
-    }, { naoSei: true, falaId: ultimaFala });
+    }, { naoSei: true, falaId: ultimaFala, grupo: 'site' });
   }
   function passoMaterial() {
     s.passo = 'material';
@@ -191,7 +211,7 @@
       bolha(rotulo || NAO_SEI);
       contar();
       passoDor();
-    }, { naoSei: true, falaId: ultimaFala });
+    }, { naoSei: true, falaId: ultimaFala, grupo: 'material' });
   }
   /* a dor: com o consultor, escrever é o caminho principal e as sugestões ajudam (o "Pronto" manda os rótulos como a fala dela);
      sem ele, só as sugestões, e depois o resumo fixo */
@@ -216,7 +236,7 @@
       }
       bolha(rotulos && rotulos.length ? rotulos.join(' · ') : NAO_SEI);
       resumoSemConsultor();
-    }, { multi: true, naoSei: !consultor, focar: !consultor, semFoco: consultor, falaId: ultimaFala, marcados: marcados });
+    }, { multi: true, naoSei: !consultor, focar: !consultor, semFoco: consultor, falaId: ultimaFala, marcados: marcados, grupo: 'dor' });
     /* com o consultor, escrever é o caminho principal da dor: o foco (do teclado, do grupo que saiu de cena ou do mouse) vai à caixa de texto */
     if (consultor && $('o-texto') && (focoPendente || porTeclado || podeFocar())) { focoPendente = false; focar($('o-texto')); }
   }
@@ -260,10 +280,10 @@
     var f = fala(FALAS.mudar);
     /* (os quatro grupos ficam abertos juntos: um "Pronto" no fim fecha todos) */
     var li = el('li', 'orc-toque orc-toque--mudar');
-    li.appendChild(grupoMarcavel('Tipo de negócio', itensDe(R.RAMOS, Object.keys(R.RAMOS).filter(function (k) { return k !== 'outro' || novas.ramo === 'outro'; })), [novas.ramo], false, function (v) { novas.ramo = v[0]; }));
-    li.appendChild(grupoMarcavel('O que o site precisa trazer', itensDe(R.OBJETIVOS), novas.objetivos || [], true, function (v) { novas.objetivos = v; }));
-    li.appendChild(grupoMarcavel('Já tem site?', itensDe(R.SITE_ATUAL), [novas.site_atual], false, function (v) { novas.site_atual = v[0]; }));
-    li.appendChild(grupoMarcavel('Logo e textos', itensDe(R.MATERIAL), [novas.material], false, function (v) { novas.material = v[0]; }));
+    li.appendChild(grupoMarcavel('Tipo de negócio', itensDe(R.RAMOS, Object.keys(R.RAMOS).filter(function (k) { return k !== 'outro' || novas.ramo === 'outro'; })), [novas.ramo], false, function (v) { novas.ramo = v[0]; }, 'ramo'));
+    li.appendChild(grupoMarcavel('O que o site precisa trazer', itensDe(R.OBJETIVOS), novas.objetivos || [], true, function (v) { novas.objetivos = v; }, 'objetivos'));
+    li.appendChild(grupoMarcavel('Já tem site?', itensDe(R.SITE_ATUAL), [novas.site_atual], false, function (v) { novas.site_atual = v[0]; }, 'site'));
+    li.appendChild(grupoMarcavel('Logo e textos', itensDe(R.MATERIAL), [novas.material], false, function (v) { novas.material = v[0]; }, 'material'));
     var pronto = el('button', 'btn btn--primary btn--sm orc-toque__pronto', PRONTO);
     pronto.type = 'button';
     pronto.addEventListener('click', function (ev) { if (li.hasAttribute('data-feito')) return; porTeclado = !!ev && ev.detail === 0; fechar(li, null); concluirMudanca(novas); });
@@ -273,13 +293,15 @@
     focar(li.querySelector('button'));
   }
   /* um grupo de marcar (um ou vários) sem fechar sozinho: o "Pronto" do bloco fecha */
-  function grupoMarcavel(rotulo, itens, marcados, multi, aoMudar) {
+  function grupoMarcavel(rotulo, itens, marcados, multi, aoMudar, idGrupo) {
     var grupo = el('div', 'orc-toque__ops'), atual = marcados.filter(Boolean), titulo = el('p', 'orc-toque__titulo', rotulo);
     titulo.id = 'o-toque-titulo-' + (++nFala);
     grupo.setAttribute('role', 'group');
     grupo.setAttribute('aria-labelledby', titulo.id);
     var botoes = itens.map(function (it) {
       var b = el('button', 'orc-op orc-op--toque', it.rotulo);
+      var ic = window.BZOrcIcones ? window.BZOrcIcones.desenhar(it.valor, idGrupo, doc) : null;
+      if (ic) { b.textContent = ''; b.appendChild(ic); b.appendChild(el('span', 'orc-op__t', it.rotulo)); b.classList.add('orc-op--ic'); }
       b.type = 'button';
       b.setAttribute('aria-pressed', String(atual.indexOf(it.valor) >= 0));
       b.addEventListener('click', function () {
@@ -368,6 +390,7 @@
       if (s.iniciado || !E || !E.conversa) return;
       var b = E.conversa.briefing || {}, t = b.fluxo_toques;
       if (t && typeof t === 'object') s.respostas = soMudanca(copiar(t));
+      if (s.respostas && s.respostas.ramo) avisarRespostas();   /* (conversa retomada: o site dela já nasce com o que ela tocou) */
       if (b.fluxo_conversa === true && E.mensagens && E.mensagens.length) s.entregue = true;
     },
     comConsultor: function () { return s.consultor; },

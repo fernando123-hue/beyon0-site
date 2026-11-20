@@ -35,6 +35,9 @@
   <link rel="stylesheet" href="css/tokens.css" />
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/orcamento.css" />
+  <link rel="stylesheet" href="css/orcamento-casca.css" />
+  <link rel="stylesheet" href="css/orcamento-modelos.css" />
+  <link rel="stylesheet" href="css/orcamento-voz.css" />
   <link rel="stylesheet" href="css/orcamento-entrega.css" />
   <link rel="stylesheet" href="css/orcamento-painel.css" />
   <link rel="stylesheet" href="css/orcamento-escopo.css" />
@@ -70,15 +73,16 @@
     <section class="orc-topo" aria-labelledby="orc-titulo">
       <p class="orc-kicker"><span class="dot" aria-hidden="true"></span>Monte seu orçamento</p>
       <h1 id="orc-titulo">Veja o seu site <em>antes</em> de fechar.</h1>
-      <p class="orc-lead">Conte do seu negócio para o Zero: ele desenha o site que trabalha por você e mostra quanto custa, sem cadastro. Depois nós fazemos três modelos e você só paga se escolher um.</p>
-      <ol class="orc-etapas" id="o-etapas" aria-label="Etapas">
+      <p class="orc-lead sr-only">Conte do seu negócio para o Zero: ele desenha o site que trabalha por você e mostra quanto custa, sem cadastro. Depois nós fazemos três modelos e você só paga se escolher um.</p>
+      <ol class="orc-etapas" id="o-etapas" aria-label="Etapas" data-n="1" data-nome="Conversa">
         <li data-passo="conversa" aria-current="step"><span class="orc-etapas__n">01</span><span class="orc-etapas__nome">Conversa</span></li>
         <li data-passo="direcoes"><span class="orc-etapas__n">02</span><span class="orc-etapas__nome">Modelos</span></li>
         <li data-passo="ajustes"><span class="orc-etapas__n">03</span><span class="orc-etapas__nome">Ajustes</span></li>
         <li data-passo="escopo"><span class="orc-etapas__n">04</span><span class="orc-etapas__nome">Resumo</span></li>
         <li data-passo="pagamento"><span class="orc-etapas__n">05</span><span class="orc-etapas__nome">Entrada</span></li>
       </ol>
-      <p class="orc-codigo" id="o-codigo" hidden>Código do pedido <b id="o-codigo-v"></b><span class="orc-codigo__nota"> · fica salvo neste navegador; cite-o se falar com a Beyon Zero</span></p>
+      <!-- o código do pedido: só para o sistema (a função identificar do orçamento); o cliente nunca vê código nenhum (dono, 19/11) -->
+      <p class="orc-codigo" id="o-codigo" hidden><b id="o-codigo-v"></b></p>
     </section>
 
     <noscript><p class="orc-aviso orc-aviso--semjs">Esta página precisa de JavaScript. Ative-o no navegador e recarregue a página, ou escreva para <a href="mailto:contato.beyon.zero@gmail.com">contato.beyon.zero@gmail.com</a>.</p></noscript>
@@ -115,6 +119,14 @@
       <!-- A CONVERSA é a página (spec 2026-11-13): as perguntas fixas são falas do Zero com opções para tocar (js/orcamento-toques.js) -->
       <section class="orc-conversa" id="o-conversa" data-origem="orcamento-conversa" aria-labelledby="o-conversa-titulo">
         <h2 id="o-conversa-titulo" class="orc-rotulo">Zero, assistente virtual (IA) da Beyon Zero</h2>
+        <!-- O SITE NASCE (js/orcamento-nasce.js): a miniatura do site dela, que ganha uma peça a cada toque. Decorativa (a conversa é o caminho de quem usa leitor de tela); escondida até o 1º toque -->
+        <div class="nasce" id="o-nasce" aria-hidden="true" hidden>
+          <div class="nasce__barra"><span class="nasce__pontos"><i></i><i></i><i></i></span><span class="nasce__nome" id="o-nasce-nome">Seu site</span></div>
+          <div class="nasce__corpo">
+            <p class="nasce__titulo" id="o-nasce-titulo"></p>
+            <ul class="nasce__pecas" id="o-nasce-pecas"></ul>
+          </div>
+        </div>
         <div class="orc-log" id="o-log-caixa" tabindex="0" role="region" aria-label="Conversa">
           <ol class="orc-log__lista" id="o-log">
             <li class="msg msg--agente"><p>Oi, eu sou o Zero, a IA da Beyon Zero. Vou entender o seu negócio e desenhar o site que trabalha por você. Que tipo de negócio é o seu?</p></li>
@@ -129,11 +141,15 @@
         <form class="orc-envio" id="o-form" novalidate>
           <label class="sr-only" for="o-texto">Sua mensagem</label>
           <textarea id="o-texto" rows="3" maxlength="2000" placeholder="Ex.: tenho uma clínica em Niterói e quero mais agendamentos" autocomplete="off"></textarea>
+          <button class="btn orc-mic" type="button" id="o-mic" hidden aria-pressed="false"><span class="orc-mic__ponto" aria-hidden="true"></span><span id="o-mic-rotulo">Falar</span></button>
+          <button class="orc-mic__cancelar" type="button" id="o-mic-cancelar" hidden>Descartar gravação</button>
           <button class="btn btn--primary" type="submit" id="o-enviar">Enviar</button>
         </form>
+        <p class="orc-nota orc-voz" id="o-mic-aviso" hidden></p>
         <p class="orc-nota" id="o-conversa-fechada" hidden>A conversa com o Zero ficou registrada acima. Daqui em diante, o seu orçamento segue pelas etapas abaixo.</p>
         <p class="orc-nota">Prefere escrever antes? <a class="orc-sem-quebra" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado</a>.</p>
         <p class="orc-nota">Não escreva senhas nem dados de cartão aqui. <a href="/privacidade#orcamento">Como a conversa é tratada</a>.</p>
+        <p class="orc-nota orc-voz-nota" id="o-voz-nota" hidden>O botão Falar grava a sua voz por até 1 minuto e meio e a transforma em texto aqui. O áudio não fica guardado e você confere o texto antes de enviar. <a href="/privacidade#voz">Como a voz é tratada</a>.</p>
       </section>
 
       <!-- O INVESTIMENTO (do motor de preço; o modelo nunca escreve estes números). O painel abre pelo RADAR DO ESCOPO (js/orcamento-escopo.js;
@@ -199,7 +215,7 @@
             <ul class="orc-est__itens" id="o-est-itens"></ul>
             <dl class="orc-est__dados">
               <div><dt>Prazo</dt><dd id="o-est-prazo"></dd></div>
-              <div><dt>Para começar</dt><dd id="o-est-sinal"></dd></div>
+              <div><dt>Para destravar</dt><dd id="o-est-sinal"></dd></div>
               <div><dt>Com o site no ar</dt><dd id="o-est-resto"></dd></div>
             </dl>
             <p class="orc-est__total"><span>Investimento total</span> <b class="orc-est__valor" id="o-est-valor"></b></p>
@@ -283,14 +299,12 @@
       </form>
     </section>
 
-    <!-- O PEDIDO RECEBIDO (30/10: sem WhatsApp e sem confirmação; o pedido já entra na fila ao enviar os detalhes). O código fica
-         à vista até as direções ficarem prontas. Fora da medição (data-sem-medicao) -->
+    <!-- O PEDIDO RECEBIDO (30/10: sem WhatsApp e sem confirmação; o pedido já entra na fila ao enviar os detalhes). Sem código
+         à vista: o código do pedido é do sistema (dono, 19/11). Fora da medição (data-sem-medicao) -->
     <section class="orc-bloco orc-confirmar" id="o-confirmar" aria-labelledby="o-confirmar-titulo" data-sem-medicao hidden>
       <h2 id="o-confirmar-titulo">Pedido recebido</h2>
       <p class="orc-bloco__lead">O seu pedido já está na fila. Não precisa mandar mensagem nem confirmar nada.</p>
-      <p class="orc-rotulo">Código do pedido</p>
-      <p class="orc-codigo-grande" id="o-confirmar-codigo"></p>
-      <p class="orc-nota">Tire um print desta tela: o código identifica o seu pedido.</p>
+      <p class="orc-codigo-grande" id="o-confirmar-codigo" hidden></p>
     </section>
 
     <!-- o pedido saiu da fila (venceu sem confirmação ou foi encerrado): o caminho é um orçamento novo ou o recado -->
@@ -306,16 +320,17 @@
     <!-- AS TRÊS DIREÇÕES -->
     <section class="orc-bloco" id="o-direcoes" aria-labelledby="o-dir-titulo" hidden>
       <h2 id="o-dir-titulo">Três modelos para o seu site</h2>
-      <p class="orc-bloco__lead" id="o-dir-lead">Os três partem do que você contou, cada um com um objetivo. Abra, compare e escolha um: os ajustes são feitos dentro dele, e trazer algo de outro modelo, como as cores ou uma seção, conta como um pedido de ajuste. Isso pode levar alguns minutos; o progresso fica salvo se você sair.</p>
+      <p class="orc-bloco__lead" id="o-dir-lead">Abra a prévia e escolha um: os ajustes são feitos dentro dele. Trazer cores ou uma seção de outro modelo conta como um ajuste. Os modelos podem levar alguns minutos; o pedido fica salvo se você sair.</p>
       <div class="orc-preparo" id="o-preparo" hidden></div>
       <div class="orc-recomenda" id="o-recomenda" role="status" hidden></div>
-      <ol class="orc-dirs" id="o-dirs"></ol>
+      <ol class="orc-dirs" id="o-dirs" role="list"></ol>
+      <div class="orc-pontos" id="o-dirs-pontos" aria-hidden="true"></div>
     </section>
 
     <!-- AJUSTES SEM IA (PR 3a, js/orcamento-ajustes.js): opções prontas, desfazer e o pedido livre (até 3, fila do dono) -->
     <section class="orc-bloco" id="o-ajustes" aria-labelledby="o-aj-titulo" hidden>
       <h2 id="o-aj-titulo" tabindex="-1">Ajuste do seu jeito</h2>
-      <p class="orc-bloco__lead">Toque no que quer mudar no seu modelo. Cada ajuste aparece na sua versão e pode ser desfeito.</p>
+      <p class="orc-bloco__lead">Toque no que quer mudar. Dá para desfazer.</p>
       <div class="orc-versao" id="o-versao"></div>
       <p class="orc-aj-resposta" id="o-aj-resposta" role="status"></p>
       <div class="orc-aj" id="o-aj-opcoes"></div>
@@ -347,7 +362,16 @@
     <!-- O RESUMO DO QUE SERÁ FEITO (o escopo final) -->
     <section class="orc-bloco" id="o-escopo" aria-labelledby="o-esc-titulo" hidden>
       <h2 id="o-esc-titulo">Resumo do que será feito</h2>
-      <p class="orc-bloco__lead">Confira tudo. É isto que será feito, pelo valor e no prazo abaixo.</p>
+      <!-- O NÚMERO (js/orcamento-resumo.js, remodelação parte 3): o total, a entrada e o prazo da proposta, num cartão. O texto do escopo logo abaixo segue inteiro: é ele que a pessoa confirma -->
+      <div class="esc-numero" id="o-esc-numero" hidden>
+        <p class="esc-numero__rot">Investimento total</p>
+        <p class="esc-numero__valor" id="o-esc-total"></p>
+        <dl class="esc-numero__fatos">
+          <div id="o-esc-entrada-caixa" hidden><dt>Para destravar</dt><dd id="o-esc-entrada"></dd></div>
+          <div id="o-esc-prazo-caixa" hidden><dt>Prazo</dt><dd id="o-esc-prazo"></dd></div>
+        </dl>
+      </div>
+      <p class="orc-bloco__lead">Confira tudo. É isto que será feito, pelo valor e no prazo deste resumo.</p>
       <div class="orc-escopo" id="o-esc-texto" tabindex="0" role="region" aria-label="Texto do escopo"></div>
       <p class="orc-nota">Quer mudar algo antes de confirmar? <a href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a>.</p>
       <p class="orc-nota orc-perguntar" hidden>Alguma dúvida? <a href="#o-texto" data-perguntar>Pergunte ao Zero</a>, aqui na conversa. Ele tira dúvidas, mas não muda o escopo nem o valor: vale o que está escrito aqui.</p>
@@ -361,7 +385,7 @@
 
     <!-- PAGAMENTO DO SINAL -->
     <section class="orc-bloco" id="o-pagamento" aria-labelledby="o-pag-titulo" hidden>
-      <h2 id="o-pag-titulo">Para começar</h2>
+      <h2 id="o-pag-titulo">Destravar o seu site</h2>
       <p class="orc-bloco__lead" id="o-pag-lead"></p>
       <p class="orc-nota orc-so-entrada"><a href="#o-antes">Perguntas antes de pagar</a>: posso desistir? quando fica pronto? quantos ajustes?<span id="o-atalho-fotos" hidden> como mando fotos e textos?</span><span id="o-atalho-restante" hidden> quando pago o restante?</span></p>
       <p class="orc-nota orc-perguntar orc-so-entrada" hidden>Alguma dúvida antes de pagar? <a href="#o-texto" data-perguntar>Pergunte ao Zero</a>. Ele tira dúvidas, mas não confirma pagamento nem muda o valor: quem mostra que o pagamento entrou é esta tela.</p>
@@ -420,6 +444,10 @@
            dono de 21/10, Decisões.md, "Nome que aparece no Pix") → copiar → os passos no app do banco. O QR fica em
            "Pagar por outro aparelho", logo depois do status: fechado no celular, aberto a partir de 768 px (js/orcamento-pix.js) -->
       <div class="pix" id="o-pix" hidden>
+        <div class="pix__relogio" id="o-pix-relogio" aria-hidden="true">
+          <svg class="pix__anel" viewBox="0 0 120 120" focusable="false"><circle class="pix__anel-fundo" cx="60" cy="60" r="54"/><circle class="pix__anel-vivo" id="o-pix-anel" cx="60" cy="60" r="54" transform="rotate(-90 60 60)" stroke-dashoffset="0"/></svg>
+          <span class="pix__tempo" id="o-pix-tempo">--:--</span>
+        </div>
         <p class="pix__valor" id="o-pix-valor"></p>
         <p class="pix__nome">No seu banco vai aparecer:<br /><b>Fernando Ferreira Dos Santos</b><br /><span class="pix__abrev">(alguns bancos mostram o nome abreviado)</span></p>
         <button class="btn btn--primary pix__copiar" type="button" id="o-pix-copiar">Copiar o código Pix</button>
@@ -507,7 +535,7 @@
         <p class="recibo__rotulo"><i class="recibo__led" aria-hidden="true"></i>Sinal pago</p>
         <h2 class="recibo__titulo" id="o-pronto-titulo" tabindex="-1">Pagamento confirmado.</h2>
         <p class="recibo__lead">Entrada recebida. O próximo passo é mandar o material do seu site, aqui mesmo, logo abaixo.</p>
-        <p class="recibo__codigo">Código do pagamento <b id="o-rec-codigo-v"></b></p>
+        <p class="recibo__codigo" hidden><b id="o-rec-codigo-v"></b></p>
         <div class="recibo__partes" id="o-rec-partes">
           <div class="recibo__parte recibo__parte--pago">
             <p class="recibo__parte-rot"><span aria-hidden="true">↑</span> Pago agora</p>
@@ -529,7 +557,7 @@
       </div>
       <!-- SEU PEDIDO (PR 3b-2, js/orcamento-entrega.js): os 4 passos com a data do servidor, o link do pedido e a agenda -->
       <div class="orc-pedido" id="o-pedido" hidden>
-        <p class="orc-pedido__rotulo">Seu pedido · <span id="o-ped-codigo"></span></p>
+        <p class="orc-pedido__rotulo">Seu pedido<span id="o-ped-codigo" hidden></span></p>
         <ol class="orc-passos" id="o-ped-passos">
           <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true"></span><span class="orc-passo__nome"></span><span class="orc-passo__estado"></span><span class="orc-passo__nota"></span></li>
           <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true"></span><span class="orc-passo__nome"></span><span class="orc-passo__estado"></span><span class="orc-passo__nota"></span></li>
@@ -691,10 +719,13 @@
   <script src="js/previa.js" defer></script>
   <script src="js/orcamento-turnstile.js" defer></script>
   <script src="js/orcamento-api.js" defer></script>
+  <script src="js/orcamento-voz.js" defer></script>
   <script src="js/orcamento-visor.js" defer></script>
   <script src="js/orcamento-pix.js" defer></script>
   <script src="js/orcamento-pagamento.js" defer></script>
   <script src="js/orcamento-recibo.js" defer></script>
+  <script src="js/orcamento-icones.js" defer></script>
+  <script src="js/orcamento-nasce.js" defer></script>
   <script src="js/orcamento-rotulos.js" defer></script>
   <script src="js/orcamento-toques.js" defer></script>
   <script src="js/orcamento-perguntas.js" defer></script>
@@ -705,6 +736,7 @@
   <script src="js/orcamento-retomada.js" defer></script>
   <script src="js/orcamento-preparo.js" defer></script>
   <script src="js/orcamento-ajustes.js" defer></script>
+  <script src="js/orcamento-carrossel.js" defer></script>
   <script src="js/orcamento-material-esquema.js" defer></script>
   <script src="js/orcamento-envio.js" defer></script>
   <script src="js/orcamento-material.js" defer></script>
@@ -717,6 +749,7 @@
   <script src="js/orcamento-escopo-desenho.js" defer></script>
   <script src="js/orcamento-escopo-barra.js" defer></script>
   <script src="js/orcamento-escopo.js" defer></script>
+  <script src="js/orcamento-resumo.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>

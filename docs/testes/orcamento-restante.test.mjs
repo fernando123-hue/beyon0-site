@@ -335,7 +335,7 @@ test('a ligação no orcamento.js: a barra de etapas não volta atrás no pedido
   assert.match(orc, /telaPagamento && !restanteAberto\(\)\) telaPagamento\.parar\(\)/);
   assert.match(orc, /function restanteAberto\(\) \{ return !!window\.BZRestante && window\.BZRestante\.restanteAberto\(E\); \}/);
   assert.match(orc, /window\.BZRestante\.alvoDaRetomada\(E\)/);
-  assert.match(orc, /\$\('o-pag-titulo'\)\.textContent = 'Para começar'/, 'a entrada devolve o título que o restante trocou');
+  assert.match(orc, /\$\('o-pag-titulo'\)\.textContent = 'Destravar o seu site'/, 'a entrada devolve o título que o restante trocou');
   assert.match(orc, /telaPagamento\.mostrar\(sinal, pct\.entrada, \{\}\)/, 'e solta o só Pix do restante');
 });
 

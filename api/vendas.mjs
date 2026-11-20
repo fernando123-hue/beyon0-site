@@ -29,6 +29,7 @@ import { randomUUID } from 'node:crypto';
 import { criarArmazem } from './_material/armazem.mjs';
 import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
 import { sombraDoAmbiente } from './_classificador/sombra.mjs';
+import { criarTranscritor, transcrever } from './_vendas/voz.mjs';
 
 export const ACOES = {
   GET: { estado: 'estado', pagamento: 'pagamento', 'pagamento-config': 'pagamentoConfig', 'sessao-config': 'sessaoConfig', catalogo: 'catalogo' },
@@ -40,12 +41,16 @@ export const ACOES = {
     'material-remover': 'materialRemover', 'material-enviar': 'materialEnviar',
     'link-pedido': 'linkPedido', 'sair-do-aparelho': 'sairDoAparelho', 'outro-aparelho': 'outroAparelho', 'abrir-pedido': 'abrirPedido',
     'previa-ajustes': 'previaAjustes', 'previa-aprovar': 'previaAprovar',
-    recado: 'recado' }
+    recado: 'recado',
+    transcrever: 'transcrever' }   /* (o microfone do Zero: corpo de ÁUDIO, não JSON; api/_vendas/voz.mjs) */
 };
 const PRECISA_IA = new Set(['mensagem', 'gerarDirecao']);
 export const LIMITE_BYTES = 16384;
 export const freioGeral = criarFreio({ max: 90, janelaMs: 60e3 });
 export const freioSessao = criarFreio({ max: 8, janelaMs: 10 * 60e3 });   /* criar visitante anônimo: poucos por IP */
+/* o microfone: cada gravação custa uma transcrição; por IP e por visitante, além do freio geral */
+export const freioVozIp = criarFreio({ max: 20, janelaMs: 10 * 60e3 });
+export const freioVozVisitante = criarFreio({ max: 12, janelaMs: 10 * 60e3 });
 
 /* toda resposta leva o x-request-id: o mesmo do log e do registro das chamadas de IA (app.ia_chamadas) */
 const json = (dados, status = 200, requestId) => new Response(JSON.stringify(dados), {
@@ -70,7 +75,7 @@ export async function atender(request, env, metodo, deps, ctx) {
   if (freioGeral(ip) || (criaSessao && freioSessao(ip))) return responder({ erro: 'Muitas requisições. Espere um minuto.' }, 429);
 
   let corpo = null;
-  if (metodo === 'POST') {
+  if (metodo === 'POST' && acao !== 'transcrever') {   /* (o áudio tem corpo próprio, lido com teto em voz.mjs) */
     if (!/^application\/json\b/i.test(request.headers.get('content-type') || '')) return responder({ erro: 'Envie JSON.' }, 415);
     const texto = await request.text();
     if (texto.length > LIMITE_BYTES) return responder({ erro: 'Corpo grande demais.' }, 413);
@@ -90,7 +95,8 @@ export async function atender(request, env, metodo, deps, ctx) {
     if (!deps && ctx && typeof ctx.waitUntil === 'function') {
       try { aquecerBanco(criarTransporte(env), p => ctx.waitUntil(p)); } catch (e) { avisarFalha('aquecer o banco falhou', e); }   /* (configuração quebrada não derruba o GET) */
     }
-    return responder({ turnstile: cfgTurnstile.siteKey, consultor: semConsultorLocal ? false : deps ? !!deps.ia : !!(await criarIA(env)) });
+    const transcritorCfg = deps ? deps.transcritor : criarTranscritor(env);
+    return responder({ turnstile: cfgTurnstile.siteKey, consultor: semConsultorLocal ? false : deps ? !!deps.ia : !!(await criarIA(env)), voz: !!transcritorCfg });
   }
 
   /* segredoFreio: o HMAC do IP no freio diário (api/_vendas/ip.mjs); um segredo próprio, ou o do servidor do Supabase */
@@ -105,6 +111,13 @@ export async function atender(request, env, metodo, deps, ctx) {
   const segundoPlano = (deps && deps.segundoPlano) || (ctx && typeof ctx.waitUntil === 'function' ? p => ctx.waitUntil(p) : undefined);
   if (!d.banco || !d.visitantes) { log('erro', { request_id: requestId, evento: 'banco ou autenticação não configurados' }); return responder({ erro: 'Serviço indisponível.' }, 503); }
   if (PRECISA_IA.has(acao) && !d.ia) { log('erro', { request_id: requestId, evento: 'IA não configurada (ANTHROPIC_API_KEY)' }); return responder({ erro: 'O consultor está indisponível agora. Deixe um recado para a equipe.', recado: true }, 503); }
+
+  /* o microfone: sem JSON, sem Turnstile (quem grava já tem sessão, que passou pelo anti-robô) */
+  if (acao === 'transcrever') {
+    if (freioVozIp(ip)) return responder({ erro: 'Muitas gravações seguidas. Espere alguns minutos ou escreva a mensagem.' }, 429);
+    const r = await transcrever({ request, transcritor: deps ? deps.transcritor : criarTranscritor(env), visitantes: d.visitantes, freios: { visitante: freioVozVisitante }, log, requestId });
+    return responder(r.corpo, r.status);
+  }
 
   /* o visitante anônimo (sessão nova ou retomada) só nasce depois do anti-robô */
   if (criaSessao || acao === 'recado') {   /* (o recado, texto livre e sem sessão, passa pelo mesmo anti-robô) */
