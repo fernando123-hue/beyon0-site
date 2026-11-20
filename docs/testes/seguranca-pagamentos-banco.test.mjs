@@ -308,3 +308,77 @@ test('revisão F: a leitura do cliente (vendas_estado) diz se cada parcela está
   const e = await rpc('vendas_estado', base(d));
   assert.deepEqual([e.pagamentos.find(p => p.parcela === 'saldo').quitada, e.entrega.bloqueada], [true, true]);
 });
+
+/* ---------- revisão técnica H: o que faltava testar ---------- */
+/* o retrato do sinal com o estado pedido (a contestação revertida não é um jeito de bloquear sozinha: só faz sentido depois da contestação) */
+const retratoDoSinal = async (c, estado) => { const t = await tentativaDe(c); const v = Number(t.valor).toFixed(2); return { order_id: t.order, external_reference: t.id, user_id: '777', total_amount: v, country_code: 'BRA',
+  pagamento: { id: 'PAY' + t.order.slice(-6), amount: v, paid_amount: v, status: 'processed', status_detail: 'accredited', metodo_id: 'pix', metodo_tipo: 'bank_transfer', parcelas: null }, estado }; };
+test('revisão H: a contestação REVERTIDA a favor da Beyon devolve o pagamento a "pago", mas o projeto segue pausado e a entrega CONTINUA bloqueada (falha fechada, até uma pessoa reativar)', async () => {
+  const c = await entregaEm(db, 'producao');
+  assert.equal((await aplicar(c, 'contestada')).aplicado, 'contestada');
+  const r = await rpc('pagamentos_aplicar', { provedor: 'mercadopago', origem: 'webhook', conta_esperada: '777', retrato: await retratoDoSinal(c, 'contestada_revertida') });
+  assert.equal(r.aplicado, 'contestada_revertida');
+  assert.equal((await um("select status from app.pagamentos where proposta_id = $1 and parcela = 'sinal'", [c.proposta])).status, 'pago', 'o pagamento voltou a pago');
+  assert.equal((await um('select pj.status from app.projetos pj join app.propostas pr on pr.projeto_id = pj.id where pr.id = $1', [c.proposta])).status, 'pausado', 'o projeto segue pausado');
+  assert.equal((await erroDe(publicar(c))).codigo, '55000', 'o dono não publica a prévia');
+  assert.equal(await passo(c), 'producao');
+  const info = await rpc('vendas_entrega_info', { org_slug: 'beyon-zero', codigo: await codigoDe(db, c) });
+  assert.equal(info.bloqueada, true);
+  assert.equal((await rpc('vendas_estado', base(c))).entrega.bloqueada, true, 'a tela do cliente também sabe');
+  const d = await aprovadaComRestantePago();
+  await aplicar(d, 'contestada');
+  await rpc('pagamentos_aplicar', { provedor: 'mercadopago', origem: 'webhook', conta_esperada: '777', retrato: await retratoDoSinal(d, 'contestada_revertida') });
+  assert.equal((await erroDe(noAr(d))).codigo, '55000', 'depois do restante pago, o "no ar" também segue recusado');
+  assert.equal(await passo(d), 'aprovada');
+});
+
+test('revisão H: estorno, estorno parcial ou contestação do RESTANTE (já pago) também alertam o dono (parcela "restante") e bloqueiam a entrega', async () => {
+  const esperado = { estornada: 'estorno', estornada_parcial: 'estorno_parcial', contestada: 'contestacao', desconhecido: 'contestacao' };
+  for (const [estado, evento] of Object.entries(esperado)) {
+    const c = await aprovadaComRestantePago();
+    const r = await aplicar(c, estado, 'saldo');
+    assert.deepEqual(r.alerta, { codigo: await codigoDe(db, c), evento, parcela: 'restante' }, estado);
+    assert.equal((await aplicar(c, estado, 'saldo')).alerta, undefined, estado + ': repetido, não alerta de novo');
+    const info = await rpc('vendas_entrega_info', { org_slug: 'beyon-zero', codigo: await codigoDe(db, c) });
+    assert.deepEqual([info.bloqueada, info.restante_pago], [true, false], estado + ': bloqueada e o restante não conta como pago');
+    assert.equal((await erroDe(noAr(c))).codigo, '55000', estado + ': o dono não põe no ar');
+    assert.equal(await passo(c), 'aprovada', estado);
+  }
+});
+
+test('revisão H: a fila de avisos não oferece o aviso (prévia pronta, site no ar) de uma entrega bloqueada', async () => {
+  const momentosDe = async c => { const cod = await codigoDe(db, c); return (await rpc('vendas_avisos_lista', { org_slug: 'beyon-zero' })).itens.filter(a => a.codigo === cod).map(a => a.momento); };
+  const p = await entregaEm(db, 'producao');
+  assert.deepEqual(await publicar(p), { ok: true });
+  assert.deepEqual(await momentosDe(p), ['previa'], 'controle: sem bloqueio, o aviso da prévia está na fila');
+  await aplicar(p, 'estornada');
+  assert.deepEqual(await momentosDe(p), [], 'bloqueada: sem aviso na fila');
+  const n = await aprovadaComRestantePago();
+  assert.deepEqual(await noAr(n), { ok: true });
+  assert.deepEqual(await momentosDe(n), ['no_ar']);
+  await aplicar(n, 'contestada');
+  assert.deepEqual(await momentosDe(n), [], 'bloqueada depois do "no ar": sem o aviso "seu site está no ar"');
+});
+
+test('revisão H: as funções novas desta migration nascem fechadas: as de dentro (privado e a base) sem execute para ninguém; as do servidor só para service_role', async () => {
+  const pode = async (fn, papel) => (await um('select has_function_privilege($1, $2::regprocedure, $3) as ok', [papel, fn, 'execute'])).ok;
+  for (const fn of ['privado.parcela_quitada(uuid,text)', 'privado.entrega_bloqueada(app.entregas)', 'privado.entrega_do_dono_travar(jsonb,text[])',
+                    'privado.conversa_retomavel(app.conversas)', 'app.pagamentos_aplicar_base(jsonb)']) {
+    for (const papel of ['anon', 'authenticated', 'service_role']) assert.equal(await pode(fn, papel), false, fn + ' não é de ' + papel);
+  }
+  for (const fn of ['app.pagamentos_aplicar(jsonb)', 'app.vendas_estado(jsonb)', 'app.vendas_no_ar(jsonb)', 'app.vendas_entregas_lista(jsonb)']) {
+    assert.deepEqual([await pode(fn, 'anon'), await pode(fn, 'authenticated'), await pode(fn, 'service_role')], [false, false, true], fn);
+  }
+});
+
+test('revisão H: o restante estornado, em parte ou contestado bloqueia a entrega MESMO quando o projeto não está numa etapa que o estorno pausa (a regra do restante vale sozinha)', async () => {
+  for (const estado of ['estornada', 'estornada_parcial', 'contestada']) {
+    const c = await aprovadaComRestantePago();
+    await db.query("update app.projetos set status = 'entregue', entregue_em = current_date where id = (select projeto_id from app.propostas where id = $1)", [c.proposta]);   /* (fora de pronto, em produção e em revisão: o estorno não pausa) */
+    await aplicar(c, estado, 'saldo');
+    assert.equal((await um('select pj.status from app.projetos pj join app.propostas pr on pr.projeto_id = pj.id where pr.id = $1', [c.proposta])).status, 'entregue', estado + ': o projeto não foi pausado');
+    const info = await rpc('vendas_entrega_info', { org_slug: 'beyon-zero', codigo: await codigoDe(db, c) });
+    assert.equal(info.bloqueada, true, estado + ': bloqueada só pela regra do restante');
+    assert.equal((await erroDe(noAr(c))).codigo, '55000', estado);
+  }
+});

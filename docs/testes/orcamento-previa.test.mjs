@@ -164,7 +164,7 @@ const IDS = ['o-previa', 'o-prv-titulo', 'o-prv-texto', 'o-prv-ver-acoes', 'o-pr
 const falha = (status, mensagem, dados = {}) => Object.assign(new Error(mensagem), { status, dados });
 const estado = (passo = 'previa', rodadas = { usadas: 0, max: 2 }, url = PREVIA) => ({ conversa: { etapa: 'em_producao' }, entrega: { passo, rodadas, previa: { url }, entrega_ate: '2026-11-05' } });
 
-function montar({ comEsquema = true } = {}) {
+function montar({ comEsquema = true, comRestante = false } = {}) {
   const doc = { activeElement: null, body: null, getElementById(id) { if (!this.els[id]) throw new Error('id fora do HTML: ' + id); return this.els[id]; }, els: {} };
   for (const id of IDS) {
     doc.els[id] = { id, textContent: '', hidden: false, value: '', checked: false, href: '', open: false, atributos: {}, ouvintes: {}, filhos: [],
@@ -184,6 +184,7 @@ function montar({ comEsquema = true } = {}) {
   };
   const win = {};
   if (comEsquema) win.BZMaterialEsquema = ESQ;
+  if (comRestante) new Function('window', ler('js/orcamento-restante.js'))(win);   /* (no navegador o orcamento-restante.js também está na página; a frase usa a regra dele) */
   win.BZMaterialRecarregar = async () => { ctx.recargas++; if (ctx.falhaDaRecarga) throw ctx.falhaDaRecarga; if (ctx.proximo) P.atualizar(ctx.proximo); };
   new Function('window', 'document', FONTE)(win, doc);
   const P = win.BZPreviaEntrega.criar({ API });
@@ -469,4 +470,17 @@ test('revisão F: a prévia aprovada com o restante em conferência (estorno par
   const ap = B.fase(entrega({ passo: 'aprovada', previa: { url: null } }), 'conferencia');
   assert.equal(ap.fase, 'aprovada'); assert.doesNotMatch(ap.texto, /foi pago|Falta só|vai ao ar|coloca o site no ar/); assert.match(ap.texto, /conferindo/);
   assert.doesNotMatch(ap.texto, /\bBZ-|código|estorn|bloquead|disputa|contest/i);
+});
+
+test('revisão F: pela tela inteira (com o orcamento-restante.js na página) a prévia aprovada diz a frase certa para cada situação do restante: aberto, pago e limpo, e em conferência', () => {
+  const com = pagamentos => ({ ...estado('aprovada'), pagamentos });
+  const entrada = { parcela: 'sinal', status: 'pago', valor: '1200.00' };
+  const texto = E => { const t = montar({ comRestante: true }); t.P.atualizar(E); return t.el['o-prv-texto'].textContent; };
+  assert.match(texto(com([entrada])), /Falta só o restante/);
+  assert.match(texto(com([entrada, { parcela: 'saldo', status: 'pago', valor: '1800.00', quitada: true }])), /o restante foi pago/);
+  const suja = com([entrada, { parcela: 'saldo', status: 'pago', valor: '1800.00', quitada: false }]);
+  assert.match(texto(suja), /conferindo o pagamento do restante/);
+  assert.doesNotMatch(texto(suja), /foi pago|vai ao ar|coloca o site no ar|estorn|bloquead|BZ-/);
+  const bloqueada = com([entrada, { parcela: 'saldo', status: 'pago', valor: '1800.00', quitada: true }]); bloqueada.entrega.bloqueada = true;
+  assert.match(texto(bloqueada), /conferindo o pagamento do restante/, 'a entrega bloqueada também confere');
 });
