@@ -33,7 +33,7 @@
 > **Pendências e decisões em aberto:**
 > - Em aberto com a principal: nenhuma pergunta minha sem resposta.
 > - O escopo (o contrato) ainda diz "DIREÇÃO ESCOLHIDA: nome (Autoridade)": follow-up, se o dono quiser.
-> - `js/painel-entregas.js`: os textos ao cliente começam com "Aqui é o Fernando", contra o anonimato; avisar a principal (outro ramo).
+> - `js/painel-entregas.js`: CORRIGIDO em 20/11 (ramo painel-sem-nome): os textos ao cliente agora começam com "Aqui é a Beyon Zero".
 > - O texto da cláusula do registro (§8.3) espera o dono; o print da consulta fica para depois do PR 4.
 > - Não tocar em `api/_ia/config.mjs` nem no `wrangler.jsonc` (ramo `geracao-automatica`).
 >
@@ -83,7 +83,7 @@
 >
 > **Pendências e decisões em aberto:**
 > - O escopo (o contrato) ainda diz "DIREÇÃO ESCOLHIDA: nome (Autoridade)": follow-up, se o dono quiser.
-> - `js/painel-entregas.js`: os textos ao cliente começam com "Aqui é o Fernando", contra o anonimato. Avisar a principal; o ramo é outro.
+> - `js/painel-entregas.js`: CORRIGIDO em 20/11 (ramo painel-sem-nome): os textos ao cliente agora começam com "Aqui é a Beyon Zero".
 > - O texto da cláusula do registro (§8.3) espera o dono. O print da consulta fica para depois do PR 4.
 > - Não tocar em `api/_ia/config.mjs` nem no `wrangler.jsonc` (ramo `geracao-automatica` de outro agente).
 >
