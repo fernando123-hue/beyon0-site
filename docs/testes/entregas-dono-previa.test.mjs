@@ -125,9 +125,10 @@ test('alertas por passo: 30 dias sem material (dispensar com a autorização exp
   assert.ok(!/encerrar|sem_material|dispensar|vencid|suspender|devolve/i.test(depois[0]), 'não sugere encerrar nem publicar: ' + depois[0]);
   const venc = alertasDe(base({ passo: 'producao', prazo_dias: 5, entrega_ate: '2026-10-08', prazo: { conta_desde: '2026-10-01T12:00:00-04:00', pausas: [] } }), HOJE);
   assert.match(venc[0], /prazo vencido/); assert.match(venc[0], /devolve a entrada/);
-  /* M1: o prazo corre até PUBLICAR (captação, entrega.mjs:192-202): aprovada com o prazo vencido também alarma, e o site não vai ao ar sem a devolução registrada */
+  /* 20/11 (dono): o prazo PARA na aprovação da prévia: aprovada com o prazo "vencido" de antes NÃO alarma nem manda devolver a entrada */
   const vencAprovada = alertasDe(base({ passo: 'aprovada', prazo_dias: 5, entrega_ate: '2026-10-08', prazo: { conta_desde: '2026-10-01T12:00:00-04:00', pausas: [{ desde: '2026-10-02T12:00:00-04:00', ate: '2026-10-03T12:00:00-04:00' }] } }), HOJE);
-  assert.match(vencAprovada[0], /prazo vencido/); assert.match(vencAprovada[0], /NÃO vai ao ar/);
+  assert.ok(!/prazo vencido|devolve a entrada|NÃO vai ao ar/.test(vencAprovada.join(' ')), vencAprovada.join(' | '));
+  assert.deepEqual(vencAprovada, ['esperando o cliente pagar o restante (a cobrança abriu quando ele aprovou a prévia): o site só vai ao ar com ele pago']);
   /* 19/11, a ordem nova: aprovada dentro do prazo espera o RESTANTE (a cobrança abriu na aprovação); com ele pago, pôr no ar; bloqueada, nada anda */
   const aprovadaNoPrazo = extra => alertasDe(base({ passo: 'aprovada', prazo_dias: 10, entrega_ate: '2026-11-05', prazo: { conta_desde: '2026-10-20T12:00:00-04:00', pausas: [] }, ...extra }), HOJE);
   assert.deepEqual(aprovadaNoPrazo(), ['esperando o cliente pagar o restante (a cobrança abriu quando ele aprovou a prévia): o site só vai ao ar com ele pago'], 'aprovada dentro do prazo: só a espera do restante');

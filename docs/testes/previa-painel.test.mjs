@@ -10,6 +10,9 @@ import { ateEntregaCriada, enviarMaterial } from './_entrega.mjs';
 import { CLIENTE, PREVIA, SITE, forcarEntrega } from './_previa.mjs';
 import { ACOES_PAINEL, mudar, ler } from '../../api/painel.mjs';
 import { receber } from '../../api/pagamentos.mjs';
+import { calcularEntregarAte, prazoVencido, diaNoFuso, isoNoFuso } from '../../api/_material/prazo.mjs';
+import { contarAlarmes } from '../../api/_entrega/alarmes.mjs';
+import { alertasDe } from '../../scripts/entregas-lib.mjs';
 
 let local, cen;
 before(async () => { local = await montarLocal({ base: BASE }); cen = criarCenario(local); });
@@ -72,7 +75,7 @@ test('D5: o dono NÃO põe no ar uma prévia sem a aprovação do cliente, e nen
   assert.equal(await passo(c), 'previa', 'continua parada, sem prazo');
 });
 
-test('M1: o prazo corre até PUBLICAR (a regra única da captação): com o prazo vencido nem a prévia nem o site saem, 409 com o caminho da devolução', async () => {
+test('M1 (20/11): o prazo corre até a prévia sair e PARA na aprovação: com o prazo vencido a prévia não sai (409, devolução), mas o site de quem já aprovou e pagou o restante vai ao ar', async () => {
   const { n, c, codigo } = await emProducao();
   const prazoAtual = async () => (await local.db.query('select prazo from app.entregas where conversa_id = $1', [c])).rows[0].prazo;
   const porPrazo = prazo => local.db.query('update app.entregas set prazo = $2::jsonb where conversa_id = $1', [c, JSON.stringify(prazo)]);
@@ -83,15 +86,13 @@ test('M1: o prazo corre até PUBLICAR (a regra única da captação): com o praz
   assert.equal(await passo(c), 'producao', 'nada foi gravado');
   await porPrazo(original);
   assert.equal((await publicar(codigo)).status, 200);
-  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 200);   /* o cliente responde: a pausa fecha e o prazo CONTINUA correndo até o ar */
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 200);   /* o cliente aprova: o relógio do NOSSO prazo para (a pausa fica aberta) */
   await pagarRestante(n, c);   /* (19/11: sem o restante pago o site não vai ao ar, com ou sem prazo) */
   const aprovado = await prazoAtual();
   await porPrazo({ ...aprovado, conta_desde: '2020-01-06T12:00:00-04:00', pausas: [] });
   const v2 = await cen.painelPost({ no_ar: codigo, url: SITE });
-  assert.equal(v2.status, 409); assert.match(v2.corpo.erro, /devolução por atraso/i);
-  assert.equal(await passo(c), 'aprovada', 'o site não vai ao ar com o prazo vencido');
-  await porPrazo(aprovado);
-  assert.equal((await cen.painelPost({ no_ar: codigo, url: SITE })).status, 200);
+  assert.equal(v2.status, 200, 'quem já aprovou não perde o ar por um prazo de antes: ' + JSON.stringify(v2.corpo));
+  assert.equal(await passo(c), 'concluida');
 });
 
 test('o caminho inteiro pelas portas reais (ordem nova, 19/11): prévia → aviso → lista → nova prévia → aprovar → restante → no ar → concluído → aviso', async () => {
@@ -257,8 +258,8 @@ test('(c) prazo guardado com data ilegível: 409 com a frase, nunca 500, e nada 
   const aprovado = (await local.db.query('select prazo from app.entregas where conversa_id = $1', [c])).rows[0].prazo;
   await porPrazo({ ...aprovado, pausas: [{ desde: 'amanhã', ate: 'depois' }] });
   const r = await cen.painelPost({ no_ar: codigo, url: SITE });
-  assert.equal(r.status, 409); assert.match(r.corpo.erro, /prazo/i);
-  assert.equal(await passo(c), 'aprovada');
+  assert.equal(r.status, 200, 'o prazo já não entra na conta de quem aprovou: a data torta não barra o ar');
+  assert.equal(await passo(c), 'concluida');
 });
 
 test('(c) a pausa abre com o instante do fuso da captação, o endereço gravado é a origem e o servidor não consulta o endereço (sem fetch)', async () => {
@@ -432,4 +433,35 @@ test('19/11 (revisão): encerrar com o restante PAGO é recusado pelo painel com
   await pagarRestante(q.n, q.c);
   const r = await cen.painelPost({ encerrar: q.codigo, motivo: 'atraso' });
   assert.equal(r.status, 409); assert.match(r.corpo.erro, /estorne o restante/); assert.equal(await passo(q.c), 'aprovada');
+});
+
+test('20/11 (dono): aprova no ÚLTIMO dia do prazo e paga o restante depois: no ar sem barreira, sem alarme de prazo e sem mandar devolver a entrada (o relógio parou na aprovação)', async () => {
+  const { n, c, codigo } = await emProducao();
+  const linha = (await local.db.query('select prazo, prazo_dias from app.entregas where conversa_id = $1', [c])).rows[0];
+  const hoje = diaNoFuso(new Date());
+  /* o início do relógio que deixa o prazo no ÚLTIMO dia possível (o prazo termina hoje, ou no próximo dia útil se hoje for feriado ou fim de semana): não vencido ao publicar nem ao aprovar */
+  let conta = null, melhor = null;
+  for (let k = 0; k < 60; k++) {
+    const iso = isoNoFuso(new Date(Date.now() - k * 864e5));
+    const ate = calcularEntregarAte({ conta_desde: iso, pausas: [] }, { prazoDias: linha.prazo_dias }, new Date());
+    if (ate >= hoje && (melhor === null || ate < melhor)) { melhor = ate; conta = iso; }
+  }
+  assert.ok(conta, 'achou o início do relógio');
+  await local.db.query('update app.entregas set prazo = $2::jsonb where conversa_id = $1', [c, JSON.stringify({ ...linha.prazo, conta_desde: conta, pausas: [] })]);
+  assert.equal((await publicar(codigo)).status, 200, 'no último dia ainda não venceu');
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 200);
+  const aprovado = (await local.db.query('select prazo, prazo_dias from app.entregas where conversa_id = $1', [c])).rows[0];
+  assert.ok(aprovado.prazo.pausas.some(p => p.ate === null), 'a aprovação deixa a pausa ABERTA: o prazo nosso fica parado (e o banco guarda o "ate": null)');
+  /* 3 dias depois (e 30): o prazo não vence, a rotina não alarma, o terminal não manda devolver a entrada */
+  for (const dias of [3, 30]) {
+    const depois = new Date(Date.now() + dias * 864e5);
+    assert.equal(prazoVencido(aprovado.prazo, { prazoDias: aprovado.prazo_dias }, depois), false, 'em +' + dias + ' dias');
+    const item = { passo: 'aprovada', prazo: aprovado.prazo, prazo_dias: aprovado.prazo_dias, restante_pago: true, bloqueada: false, codigo };
+    assert.equal(contarAlarmes([item], depois).prazo_vencido, 0);
+    assert.ok(!/prazo vencido|devolve a entrada/.test(alertasDe(item, depois).join(' ')));
+  }
+  await pagarRestante(n, c);
+  const r = await cen.painelPost({ no_ar: codigo, url: SITE });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  assert.equal(await passo(c), 'concluida');
 });

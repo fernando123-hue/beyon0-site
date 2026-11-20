@@ -72,14 +72,13 @@ export function alertasDe(it, agora = new Date()) {
     else if (it.apagar_material_devido) a.push('avisar o cliente antes de apagar o material: o projeto está parado há 5 meses ou mais. Mande a mensagem (o material só é apagado depois de 6 meses parado e 30 dias depois deste aviso) e registre (aviso ' + it.codigo + ' material-apagar)');
     else if (it.aviso_apagar_material_em) a.push('aviso prévio do apagamento registrado em ' + diaDe(it.aviso_apagar_material_em) + ': o material só é apagado quando o projeto completar 6 meses parado e 30 dias do aviso, e se o cliente não mexer nele (se mexer, a contagem recomeça)');
   }
-  /* (M1) o prazo corre até PUBLICAR, como na captação: aprovada também conta. Sem prazo_dias inteiro não se inventa vencimento; data torta vira aviso, não exceção */
-  if ((it.passo === 'producao' || it.passo === 'ajustes' || it.passo === 'aprovada') && it.prazo && Number.isInteger(it.prazo_dias)) {
+  /* (M1) o prazo corre até a prévia sair e (20/11, dono) PARA na aprovação: aprovada não tem prazo nosso a vencer. Sem prazo_dias inteiro não se inventa vencimento; data torta vira aviso, não exceção */
+  if ((it.passo === 'producao' || it.passo === 'ajustes') && it.prazo && Number.isInteger(it.prazo_dias)) {
     let vencido = false, legivel = prazoLegivel(it.prazo);
     if (legivel) { try { vencido = prazoVencido(it.prazo, { prazoDias: it.prazo_dias }, agora); } catch (e) { if (!(e instanceof RangeError || e instanceof TypeError)) throw e; legivel = false; } }
     if (!legivel) a.push('o prazo desta entrega tem uma data que não dá para ler: confira no banco antes de publicar a prévia ou o site');
     else if (vencido) {
-      a.push('prazo vencido (era até ' + it.entrega_ate + '): a regra da D4 devolve a entrada se a Beyon atrasar (estorno no Mercado Pago; depois "encerrar ' + it.codigo + ' atraso" e a devolução na captação)'
-        + (it.passo === 'aprovada' ? '. Com o prazo vencido o site NÃO vai ao ar: registre a devolução antes (a captação recusa publicar)' : ''));
+      a.push('prazo vencido (era até ' + it.entrega_ate + '): a regra da D4 devolve a entrada se a Beyon atrasar (estorno no Mercado Pago; depois "encerrar ' + it.codigo + ' atraso" e a devolução na captação)');
     }
   }
   /* (19/11) a ordem nova: o restante é cobrado com a prévia aprovada; o site só vai ao ar com ele pago */

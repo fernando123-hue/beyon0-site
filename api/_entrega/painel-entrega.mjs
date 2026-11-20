@@ -78,7 +78,7 @@ const FRASES_APAGAR = Object.freeze({
   ja: 'O aviso prévio do apagamento já foi registrado.'
 });
 
-/* M1 (a regra única da captação, clientes/entrega.mjs:162 e :232): o prazo corre até PUBLICAR. Com ele vencido, nem a prévia nem o site saem: antes disso, a devolução por atraso */
+/* M1 (clientes/entrega.mjs:162): o prazo corre até a PRÉVIA sair; vencido, ela não sai e a saída é a devolução por atraso. Desde 20/11 (dono) ele PARA na aprovação da prévia: depois dela o site só espera o restante e não há mais prazo nosso a vencer */
 const instanteOk = v => typeof v === 'string' && Number.isFinite(Date.parse(v));
 /* o prazo guardado tem de ter datas que se leem: a conta (Intl) lança com data torta e o dono veria 500 */
 function prazoLegivel(prazo) {
@@ -111,7 +111,7 @@ export function criarAcoesDoDono(env) {
       const problema = problemaDaPrevia(bruto.url, info.cliente_captacao);
       if (problema) return json({ erro: problema }, 422);
       const t = agoraDe();
-      const atrasoPrevia = barrarPeloPrazo(info, t.agora, 'mostrar a prévia'); if (atrasoPrevia) return atrasoPrevia;   /* (M1) o prazo atual, ANTES de abrir a pausa */
+      const atrasoPrevia = barrarPeloPrazo(info, t.agora, 'mostrar a prévia'); if (atrasoPrevia) return atrasoPrevia;   /* (M1) o prazo atual, ANTES de abrir a pausa (até a prévia sair o prazo corre; depois da aprovação, para) */
       try {
         const r = await rpc('vendas_previa_publicar', { ...base(codigo), url: new URL(bruto.url).origin, agora: t.iso, versao: info.versao, prazo: abrirPausa(info.prazo, t.fuso) });
         return r && r.ok ? json({ ok: true }) : recusar(r);
@@ -131,7 +131,7 @@ export function criarAcoesDoDono(env) {
       const problema = problemaDoSite(bruto.url);
       if (problema) return json({ erro: problema }, 422);
       const t = agoraDe();
-      const atrasoSite = barrarPeloPrazo(info, t.agora, 'publicar o site'); if (atrasoSite) return atrasoSite;   /* (M1) a pausa fechou quando o cliente aprovou: o prazo voltou a correr */
+      /* (20/11, dono) sem conta de prazo aqui: o relógio do nosso prazo parou quando o cliente aprovou a prévia; a única condição para ir ao ar é o restante pago e limpo */
       try {
         const r = await rpc('vendas_no_ar', { ...base(codigo), url: origemDoSite(bruto.url), agora: t.iso, versao: info.versao });
         return r && r.ok ? json({ ok: true }) : recusar(r);

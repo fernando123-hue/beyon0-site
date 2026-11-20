@@ -23,7 +23,7 @@ test('conta cada alarme uma vez; a prévia parada (D5), a pausa aberta, o materi
     { passo: 'producao', prazo_dias: 5, prazo: abrirPausa(prazo('2026-10-01T12:00:00-04:00'), '2026-10-05T12:00:00-04:00') },   // pausa aberta: não vence
     { passo: 'producao', prazo_dias: 10, prazo: prazo('2026-10-21T12:00:00-04:00') },                                           // no prazo
     { passo: 'previa', prazo_dias: 5, prazo: prazo('2025-01-01T12:00:00-04:00'), previa_em: '2025-01-02T12:00:00-04:00' },      // parada há um ano: sem alarme (D5)
-    { passo: 'aprovada', prazo_dias: 5, prazo: prazo('2026-10-01T12:00:00-04:00', [{ desde: '2026-10-02T12:00:00-04:00', ate: '2026-10-03T12:00:00-04:00' }]) },   // M1: aprovada com o prazo vencido (a pausa fechou quando o cliente aprovou): conta
+    { passo: 'aprovada', prazo_dias: 5, prazo: prazo('2026-10-01T12:00:00-04:00', [{ desde: '2026-10-02T12:00:00-04:00', ate: '2026-10-03T12:00:00-04:00' }]) },   // 20/11 (dono): o prazo PARA na aprovação da prévia (a bola está com o cliente): aprovada, mesmo com o prazo "vencido" de antes, NÃO conta
     { passo: 'aprovada', prazo_dias: 10, prazo: prazo('2026-10-21T12:00:00-04:00') },                                          // aprovada dentro do prazo
     { passo: 'no_ar', no_ar_em: '2026-10-10T15:00:00-04:00', aviso_no_ar_feito_em: '2026-10-17T15:00:00-04:00' },              // 5 dias desde o aviso "no ar": passou da 00:00 depois do 3º dia: conta
     { passo: 'no_ar', no_ar_em: '2026-10-10T15:00:00-04:00', aviso_no_ar_feito_em: '2026-10-19T15:00:00-04:00' },              // 3 dias: ainda é o 3º dia (o site sai à 00:00 do dia seguinte): não conta
@@ -32,7 +32,7 @@ test('conta cada alarme uma vez; a prévia parada (D5), a pausa aberta, o materi
     { passo: 'producao', apagar_material_devido: true },   // fora do passo material nunca conta
     { passo: 'no_ar', no_ar_em: '2026-09-01T15:00:00-04:00' }                                                                   // no ar há 50 dias, mas o aviso "no ar" não foi registrado: a contagem não começou (o listar cobra o aviso)
   ];
-  assert.deepEqual(contarAlarmes(itens, AGORA), { prazo_vencido: 3, material_30: 1, restante_vencido: 1, material_apagar: 1, ilegiveis: 0 });
+  assert.deepEqual(contarAlarmes(itens, AGORA), { prazo_vencido: 2, material_30: 1, restante_vencido: 1, material_apagar: 1, ilegiveis: 0 });
   assert.deepEqual(contarAlarmes([], AGORA), { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0, ilegiveis: 0 });
 });
 

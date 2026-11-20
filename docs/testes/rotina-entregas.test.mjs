@@ -26,7 +26,7 @@ test('os três alarmes viram alerta (só contagem, sem dado pessoal); a prévia 
   await forcarEntrega(db, paradoSemMaterial, { prazo: JSON.stringify({ entrada_em: diasAtras(400) }), aviso_material_em: diasAtras(370) });
   const vencida = await entregaEm(db, 'producao', { prazo: 5 });
   await forcarEntrega(db, vencida, { prazo: JSON.stringify({ entrada_em: diasAtras(20), numero_em: diasAtras(20), conta_desde: diasAtras(20), pausas: [] }) });
-  /* M1: o prazo corre até PUBLICAR (captação, entrega.mjs:192-202): aprovada com o prazo vencido também alarma (a pausa fechou quando o cliente aprovou) */
+  /* 20/11 (dono): o prazo PARA na aprovação da prévia; aprovada, mesmo com o prazo de antes vencido, NÃO alarma (o restante pago é a única condição para ir ao ar) */
   const aprovada = await entregaEm(db, 'aprovada', { prazo: 5 });
   await forcarEntrega(db, aprovada, { prazo: JSON.stringify({ entrada_em: diasAtras(20), numero_em: diasAtras(20), conta_desde: diasAtras(20), pausas: [{ desde: diasAtras(18), ate: diasAtras(17) }] }) });
   /* 22/10: o restante vale 3 dias do REGISTRO do aviso "no ar": passou do 3º dia, conta; no 3º dia, ou sem o aviso registrado, não */
@@ -44,7 +44,7 @@ test('os três alarmes viram alerta (só contagem, sem dado pessoal); a prévia 
   const r = await rodar();
   assert.equal(r.status, 200);
   const por = Object.fromEntries((await alertas()).map(a => [a.tipo, a]));
-  assert.equal(por.prazo_vencido.nivel, 'urgente'); assert.match(por.prazo_vencido.mensagem, /^2 entrega\(s\) com o prazo vencido/, 'a em produção e a aprovada');
+  assert.equal(por.prazo_vencido.nivel, 'urgente'); assert.match(por.prazo_vencido.mensagem, /^1 entrega\(s\) com o prazo vencido/, 'só a em produção: a aprovada tem o prazo parado');
   assert.equal(por.material_30_dias.nivel, 'aviso'); assert.match(por.material_30_dias.mensagem, /^1 pedido\(s\) com 30 dias ou mais sem o material/, 'só o que ainda não teve o aviso de material parado');
   assert.equal(por.restante_3_dias.nivel, 'urgente'); assert.match(por.restante_3_dias.mensagem, /^1 site\(s\) com o prazo de 3 dias do restante vencido/);
   for (const a of Object.values(por)) assert.ok(!/BZ-|@|\d{8}/.test(a.mensagem), 'só contagem, nada pessoal: ' + a.mensagem);

@@ -619,11 +619,35 @@ begin
   return r;
 end $$;
 
+-- ---------- a aprovação da prévia (20/11, dono): o prazo PARA quando o cliente aprova (a bola está com o cliente). A de 20261024120100_pr3b3_previa.sql, igual, menos o
+-- jsonb_strip_nulls que apagava o "ate": null da pausa aberta: agora a pausa aberta na publicação da prévia continua aberta depois da aprovação (calcularEntregarAte e
+-- prazoVencido já a tratam: aberta, não vence; o scripts/prazo-real tira esse tempo dos dias reais). Mesma assinatura e mesmos privilégios ----------
+create or replace function app.vendas_previa_aprovar(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare e app.entregas; v_agora timestamptz; v_versao_vista timestamptz; v_conversa uuid; v_visitante uuid;
+begin
+  if coalesce(p ->> 'agora', '') = '' or coalesce(p ->> 'versao', '') = '' or jsonb_typeof(p -> 'prazo') is distinct from 'object' then
+    raise exception 'previa: parâmetros inválidos' using errcode = '22023';
+  end if;
+  begin
+    v_agora := (p ->> 'agora')::timestamptz; v_versao_vista := (p ->> 'versao')::timestamptz;
+    v_conversa := (p ->> 'conversa_id')::uuid; v_visitante := (p ->> 'visitante_id')::uuid;
+  exception when invalid_text_representation or invalid_datetime_format or datetime_field_overflow or numeric_value_out_of_range then
+    raise exception 'previa: parâmetros inválidos' using errcode = '22023';
+  end;
+  if abs(extract(epoch from (now() - v_agora))) > 300 then raise exception 'previa: relógio fora da janela' using errcode = '22023'; end if;
+  e := privado.entrega_trava(v_conversa, v_visitante, array['previa']);
+  if e.updated_at is distinct from v_versao_vista then raise exception 'a prévia mudou' using errcode = '40001'; end if;
+  update app.entregas set passo = 'aprovada', aprovada_em = v_agora, prazo = prazo || (select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) from jsonb_each(p -> 'prazo') as t(k, v) where k in ('conta_desde', 'pausas')), updated_at = now() where id = e.id;
+  perform privado.evento(e.org_id, e.conversa_id, 'previa_aprovada');
+  return jsonb_build_object('ok', true);
+end $$;
+
 -- ---------- privilégios: os mesmos das funções originais (só o servidor) ----------
 do $$
 declare f text;
 begin
-  foreach f in array array['pagamentos_aplicar', 'pagamentos_iniciar_tentativa', 'pagamentos_estado', 'vendas_estado', 'vendas_entrega_info', 'vendas_no_ar',
+  foreach f in array array['pagamentos_aplicar', 'pagamentos_iniciar_tentativa', 'pagamentos_estado', 'vendas_estado', 'vendas_previa_aprovar', 'vendas_entrega_info', 'vendas_no_ar',
                            'vendas_suspender', 'vendas_encerrar', 'vendas_avisos_lista', 'vendas_entregas_lista', 'vendas_criar_retomada', 'vendas_usar_retomada'] loop
     execute format('revoke all on function app.%I(jsonb) from public, anon, authenticated', f);
     execute format('grant execute on function app.%I(jsonb) to service_role', f);
