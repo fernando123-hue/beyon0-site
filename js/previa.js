@@ -55,18 +55,45 @@
     });
   }
 
-  function itens(lista, tipo) {
-    var ul = el('ul', 'pv-itens');
+  /* o jeito de desenhar uma lista de itens: pelo TIPO da seção (galeria, números, depoimentos) e, nos demais, pela VARIANTE que o modelo escolheu
+     (linha_do_tempo = passos com linha; lista = linhas editoriais numeradas; o resto = cartões). Tudo entra por textContent. */
+  function modoDosItens(tipo, variante) {
+    if (tipo === 'galeria' || tipo === 'numeros' || tipo === 'depoimentos') return tipo;
+    if (tipo === 'processo' || variante === 'linha_do_tempo') return 'passos';
+    if (variante === 'lista') return 'linhas';
+    return 'cartoes';
+  }
+  function titulado(li, i) {
+    if (i.titulo) li.appendChild(el('h5', 'pv-item__t', i.titulo));
+    if (i.texto) li.appendChild(el('p', 'pv-item__x', i.texto));
+  }
+  function itens(lista, tipo, variante) {
+    var modo = modoDosItens(tipo, variante);
+    var ul = el('ul', 'pv-itens pv-itens--' + modo);
     lista.slice(0, 8).forEach(function (i, n) {
+      if (!i || (!i.titulo && !i.texto)) return;
       var li = el('li', 'pv-item');
-      if (tipo === 'processo') li.appendChild(el('span', 'pv-item__n', String(n + 1).padStart(2, '0')));
-      if (tipo === 'depoimentos') {
-        var q = el('blockquote', 'pv-citacao', str(i.texto));
-        li.appendChild(q);
-        if (i.titulo) li.appendChild(el('p', 'pv-item__autor', i.titulo));
-      } else {
-        if (i.titulo) li.appendChild(el(tipo === 'numeros' ? 'p' : 'h5', tipo === 'numeros' ? 'pv-numero' : 'pv-item__t', i.titulo));
+      if (modo === 'galeria') {   /* a moldura é o espaço da foto do cliente; a legenda é o título (o "[Foto de…]" do modelo não vira texto solto) */
+        li.className = 'pv-item pv-foto';
+        li.appendChild(el('span', 'pv-foto__leg', i.titulo || i.texto));
+      } else if (modo === 'numeros') {
+        li.className = 'pv-item pv-num';
+        if (i.titulo) li.appendChild(el('p', 'pv-numero' + (RESERVADO.test(str(i.titulo)) ? ' pv-numero--texto' : ''), i.titulo));
         if (i.texto) li.appendChild(el('p', 'pv-item__x', i.texto));
+      } else if (modo === 'depoimentos') {
+        li.className = 'pv-item pv-cit';
+        li.appendChild(el('blockquote', 'pv-citacao', str(i.texto)));
+        if (i.titulo) li.appendChild(el('p', 'pv-item__autor', i.titulo));
+      } else if (modo === 'passos') {
+        li.className = 'pv-item pv-passo';
+        li.appendChild(el('span', 'pv-passo__n', String(n + 1)));
+        titulado(li, i);
+      } else if (modo === 'linhas') {
+        li.className = 'pv-item pv-linha';
+        li.appendChild(el('span', 'pv-linha__i', String(n + 1).padStart(2, '0')));
+        titulado(li, i);
+      } else {
+        titulado(li, i);
       }
       ul.appendChild(li);
     });
@@ -150,7 +177,8 @@
   function secao(s, primeira, d) {
     var tipo = umDe(TIPOS, s.tipo, 'destaque');
     var sec = el('section', 'pv-sec pv-sec--' + tipo + ' pv-v--' + umDe(VARIANTES, s.variante, 'centro') +
-      (primeira ? ' pv-hero--' + umDe(VARIANTES_TOPO, s.variante, 'split') : ''));
+      (primeira ? ' pv-hero--' + umDe(VARIANTES_TOPO, s.variante, 'split') : '') +
+      (!primeira && (tipo === 'cta' || tipo === 'contato') ? ' pv-sec--fecho' : ''));   /* a página fecha em bloco de cor */
     var cab = el('div', 'pv-cab');
     if (s.rotulo) cab.appendChild(el('p', 'pv-rotulo', s.rotulo));
     if (s.titulo) cab.appendChild(el(primeira ? 'h3' : 'h4', primeira ? 'pv-h1' : 'pv-h2', s.titulo));
@@ -159,7 +187,7 @@
     if (s.cta) cab.appendChild(el('span', 'pv-btn', s.cta));
     sec.appendChild(cab);
     if (primeira) sec.appendChild(arteDoTopo(d));   /* a arte vem logo depois do título; os itens (se o modelo pôs) ficam abaixo dela */
-    if (Array.isArray(s.itens) && s.itens.length) sec.appendChild(itens(s.itens, tipo));
+    if (Array.isArray(s.itens) && s.itens.length) sec.appendChild(itens(s.itens, tipo, umDe(VARIANTES, s.variante, 'centro')));
     return sec;
   }
 

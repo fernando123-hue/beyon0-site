@@ -145,7 +145,11 @@ test('o CSS do topo: arte sem listras, título do topo maior, texto longo do top
   assert.ok(/\.pv-sec--hero \.pv-texto\s*\{[^}]*display:\s*none/.test(css.slice(0, css.indexOf('@container'))), 'e some fora dele (celular)');
   assert.ok(/\.pv-arte svg \*\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(css), 'o traço da arte não engrossa quando estica');
   assert.ok(/\.pv-arte__leg\s*\{[^}]*color:\s*var\(--pv-texto\)/.test(css), 'a legenda usa a cor de texto (contraste de leitura, não o texto suave)');
-  assert.ok(/\.pv-sec--hero\s*\{[^}]*padding:\s*calc\(var\(--pv-esp\)/.test(css), 'a densidade vale no topo do celular');
+  assert.ok(/\.pv-sec--hero\s*\{[^}]*padding:\s*0 0 calc\(var\(--pv-esp\)/.test(css), 'a densidade vale no topo do celular');
+  /* o dono escolheu a opção A (19/11): no celular a arte é uma tira ANTES do título, para o cartão da escolha (300 px) mostrar arte + título; no largo volta ao lado */
+  const estreito = css.slice(0, css.indexOf('@container'));
+  assert.ok(/\.pv-sec--hero \.pv-arte\s*\{[^}]*order:\s*-1[^}]*height:\s*1[0-4]\dpx/.test(estreito), 'celular: arte em tira (100 a 149 px) antes do título');
+  assert.ok(/\.pv-sec--hero \.pv-arte\s*\{[^}]*order:\s*0/.test(css.slice(css.indexOf('@container'))), 'container largo: a arte volta à ordem normal (grade de duas colunas)');
   assert.ok(/\.pv-hero--faixa \.pv-reservado/.test(css), 'o espaço reservado não some no topo em faixa');
 });
 
@@ -169,4 +173,74 @@ test('encaixar com ajuste de altura mede de novo quando as fontes hospedadas ass
     assert.doesNotThrow(() => D.encaixar({ clientWidth: 390, style: {} }, { style: {}, offsetHeight: 10 }, 390, false));
   } finally { delete doc.fonts; }
   assert.deepEqual(feito, ['fonte chegou']);
+});
+
+/* ======================= PR (b): as seções (lista em linhas, passos com linha, moldura de foto, números, depoimento, fecho) ======================= */
+const secao = (tipo, variante, itens, extra = {}) => ({ tipo, variante, rotulo: 'Rótulo', titulo: 'Título ' + tipo, subtitulo: '', texto: '', itens, cta: '', ...extra });
+const desenharCom = (...secoes) => carregar().desenhar(direcao({ secoes: [direcao().secoes[0], ...secoes] }));
+const lista = raiz => comClasse(raiz, 'pv-itens')[0];
+const I3 = [{ titulo: 'Um', texto: 'Texto um.' }, { titulo: 'Dois', texto: 'Texto dois.' }, { titulo: 'Três', texto: 'Texto três.' }];
+
+test('a galeria vira moldura de foto desenhada (legenda = título), não caixa de texto com colchete', () => {
+  const g = lista(desenharCom(secao('galeria', 'grade', [{ titulo: 'Cozinha planejada', texto: '[Foto de uma cozinha entregue]' }, { titulo: 'Closet', texto: '[Foto de um closet]' }])));
+  assert.ok(g._classe.split(' ').includes('pv-itens--galeria'));
+  const fotos = comClasse(g, 'pv-foto');
+  assert.equal(fotos.length, 2);
+  assert.equal(comClasse(fotos[0], 'pv-foto__leg')[0].textContent, 'Cozinha planejada', 'a legenda é o título do item');
+  assert.equal(comClasse(fotos[0], 'pv-item__x').length, 0, 'o colchete "[Foto de…]" não vira texto solto: a moldura é o espaço da foto');
+});
+
+test('números: o número grande em cima do rótulo, em grade; espaço reservado continua marcado', () => {
+  const n = lista(desenharCom(secao('numeros', 'faixa', [{ titulo: '[Anos de oficina]', texto: 'Fabricando móveis' }, { titulo: '[Projetos entregues]', texto: 'Ambientes' }])));
+  assert.ok(n._classe.split(' ').includes('pv-itens--numeros'));
+  const num = comClasse(n, 'pv-num')[0];
+  assert.equal(comClasse(num, 'pv-numero').length, 1);
+  assert.equal(comClasse(comClasse(num, 'pv-numero')[0], 'pv-reservado').length, 1);
+  assert.ok(comClasse(num, 'pv-numero')[0]._classe.includes('pv-numero--texto'), 'o "[espaço reservado]" é frase: usa o tamanho menor e não estoura a coluna');
+  const real = lista(desenharCom(secao('numeros', 'lista', [{ titulo: '12 anos', texto: 'de oficina' }])));
+  assert.equal(comClasse(real, 'pv-numero')[0]._classe, 'pv-numero', 'número de verdade segue grande');
+});
+
+test('depoimentos: citação com autor, sem itálico sintetizado (as fontes hospedadas não têm a face itálica)', () => {
+  const d = lista(desenharCom(secao('depoimentos', 'cartoes', [{ titulo: 'Ana, cliente', texto: 'Ficou do jeito que eu queria.' }])));
+  assert.ok(d._classe.split(' ').includes('pv-itens--depoimentos'));
+  assert.equal(comClasse(d, 'pv-citacao')[0].textContent, 'Ficou do jeito que eu queria.');
+  assert.equal(comClasse(d, 'pv-item__autor')[0].textContent, 'Ana, cliente');
+  assert.ok(!/\.pv-citacao\s*\{[^}]*font-style:\s*italic/.test(CSS.replace(/\/\*[\s\S]*?\*\//g, '')), 'sem itálico falso na citação');
+});
+
+test('processo e linha do tempo viram passos com número e linha; a variante lista vira linhas editoriais numeradas; cartões seguem cartões', () => {
+  const passos = lista(desenharCom(secao('processo', 'linha_do_tempo', I3)));
+  assert.ok(passos._classe.split(' ').includes('pv-itens--passos'));
+  assert.deepEqual(comClasse(passos, 'pv-passo__n').map(x => x.textContent), ['1', '2', '3']);
+  const tempo = lista(desenharCom(secao('servicos', 'linha_do_tempo', I3)));
+  assert.ok(tempo._classe.split(' ').includes('pv-itens--passos'), 'a variante linha_do_tempo também');
+  const linhas = lista(desenharCom(secao('servicos', 'lista', I3)));
+  assert.ok(linhas._classe.split(' ').includes('pv-itens--linhas'));
+  assert.deepEqual(comClasse(linhas, 'pv-linha__i').map(x => x.textContent), ['01', '02', '03']);
+  const cartoes = lista(desenharCom(secao('servicos', 'cartoes', I3)));
+  assert.ok(cartoes._classe.split(' ').includes('pv-itens--cartoes'));
+});
+
+test('cta e contato fecham a página em bloco de cor (pv-sec--fecho); outras seções não', () => {
+  const raiz = desenharCom(secao('servicos', 'cartoes', I3), secao('cta', 'centro', [], { cta: 'Pedir contato' }));
+  const fechos = comClasse(raiz, 'pv-sec--fecho');
+  assert.equal(fechos.length, 1);
+  assert.equal(comClasse(raiz, 'pv-sec--servicos')[0]._classe.includes('pv-sec--fecho'), false);
+  assert.equal(comClasse(desenharCom(secao('contato', 'centro', [])), 'pv-sec--fecho').length, 1);
+});
+
+test('direção antiga e itens vazios continuam desenhando (sem lista quando não há item)', () => {
+  const raiz = desenharCom(secao('servicos', 'cartoes', []), secao('galeria', 'grade', [{ titulo: '', texto: '' }]));
+  assert.equal(comClasse(raiz, 'pv-sec').length, 3);
+  assert.doesNotThrow(() => desenharCom(secao('numeros', 'lista', [{ titulo: '', texto: 'só texto' }]), secao('depoimentos', 'faixa', [{ titulo: '', texto: '' }])));
+});
+
+test('CSS das seções: linhas editoriais, passos com linha, moldura de foto com cantos, fecho em destaque; sem blur, sombra nem filtro', () => {
+  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const regra of [/\.pv-itens--linhas \.pv-item\s*\{/, /\.pv-passo__n\s*\{[^}]*border-radius:\s*50%/, /\.pv-foto\s*\{[^}]*aspect-ratio/, /\.pv-foto::before/, /\.pv-sec--fecho\s*\{[^}]*background:\s*var\(--pv-dest\)/, /\.pv-itens--numeros/]) assert.ok(regra.test(css), String(regra));
+  assert.ok(!/blur|drop-shadow|box-shadow|text-shadow|backdrop-filter|filter:/.test(css), 'sem blur nem brilho');
+  assert.ok(/\.pv-sec:nth-of-type\(even\) \.pv-itens--cartoes \.pv-item\s*\{/.test(css) && !/\.pv-sec:nth-of-type\(even\) \.pv-item\s*\{/.test(css), 'o fundo branco das faixas pares vale só para os cartões (senão cobre as linhas, os números e a citação)');
+  assert.ok(/\.pv-foto\s*\{[^}]*flex-direction:\s*row/.test(css), 'a legenda da moldura fica embaixo (o item é coluna por padrão)');
+  assert.ok(/\.pv-v--faixa \.pv-numero[^{]*\{[^}]*color:\s*var\(--pv-dest-texto\)/.test(css), 'na faixa de cor cheia o número lê na cor do texto do destaque (senão some: destaque sobre destaque)');
 });

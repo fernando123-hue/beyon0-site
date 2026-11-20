@@ -39,21 +39,26 @@
 .pv-sec { padding: var(--pv-esp) 20px; display: flex; flex-direction: column; gap: 24px; }
 .pv-sec:nth-of-type(even) { background: var(--pv-sup); }
 .pv-cab { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; max-width: 720px; }
-.pv-rotulo { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--pv-suave); }
+.pv-rotulo { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--pv-suave); }
+.pv-rotulo::before { content: ''; flex: none; width: 28px; height: 2px; background: var(--pv-dest); }
+.pv-v--centro .pv-rotulo::before { display: none; }
 .pv-h1 { font-size: 36px; line-height: 1.08; letter-spacing: -.02em; font-weight: 600; }
-.pv-h2 { font-size: 26px; line-height: 1.15; letter-spacing: -.01em; font-weight: 600; }
+.pv-h2 { font-size: 32px; line-height: 1.08; letter-spacing: -.02em; font-weight: 600; }
 .pv-sub { font-size: 18px; color: var(--pv-suave); }
 .pv-texto { color: var(--pv-suave); }
 .pv-v--centro .pv-cab { align-items: center; text-align: center; margin: 0 auto; }
 
 /* ---- O TOPO: título grande, botão cheio, arte desenhada por código. No cartão da escolha (janela de 300 px) aparecem o título
    e o início do subtítulo; a arte aparece no visor e na prévia inteira ---- */
-.pv-sec--hero { padding: calc(var(--pv-esp) / 2) 0 0; gap: 22px; }   /* a densidade (arejada/equilibrada/compacta) vale no celular também */
+.pv-sec--hero { padding: 0 0 calc(var(--pv-esp) / 1.5); gap: 22px; }   /* a densidade (arejada/equilibrada/compacta) vale no celular também */
+/* no celular a arte vem em TIRA antes do título (dono, 19/11: "Opção A"): o cartão da escolha, que mostra só 300 px, passa a mostrar arte + título */
+.pv-sec--hero .pv-arte { order: -1; height: 132px; border-top: 0; border-bottom: 2px solid var(--pv-texto); }
+.pv-sec--hero .pv-cab { padding-top: 4px; }
 .pv-sec--hero .pv-cab { padding: 0 20px; gap: 18px; }
 .pv-sec--hero .pv-rotulo { display: flex; align-items: center; gap: 10px; }
 .pv-sec--hero .pv-rotulo::before { content: ''; flex: none; width: 28px; height: 2px; background: var(--pv-dest); }
 .pv-sec--hero .pv-h1 { font-size: clamp(34px, 11.2cqw, 44px); line-height: 1.02; letter-spacing: -.025em; overflow-wrap: break-word; }   /* a tela real é 390 px escalada por transform (cqw dá 43,7 px); o clamp protege se o container for mais estreito (medido: tela fluida de 320 px, "ar-condicionado" cabe) */
-.pv-sec--hero .pv-itens { padding: 0 20px 32px; }   /* o topo não tem padding lateral (a arte vai até a borda): os itens põem o deles */
+.pv-sec--hero .pv-itens { padding: 0 20px; }   /* o topo não tem padding lateral (a arte vai até a borda): os itens põem o deles */
 .pv-sec--hero .pv-sub { font-size: 18px; max-width: 34ch; }
 .pv-sec--hero .pv-texto { display: none; }   /* o parágrafo longo do topo só entra quando cabe (container largo) */
 .pv-sec--hero .pv-btn { width: 100%; max-width: 420px; min-height: 48px; justify-content: space-between; }
@@ -66,7 +71,7 @@
 .pv-hero--faixa .pv-h1, .pv-hero--faixa .pv-sub, .pv-hero--faixa .pv-rotulo { color: var(--pv-dest-texto); }
 .pv-hero--faixa .pv-rotulo::before { background: var(--pv-dest-texto); }
 .pv-hero--faixa .pv-btn { background: var(--pv-dest-texto); color: var(--pv-dest); }
-.pv-hero--faixa .pv-arte { background: transparent; border-top-color: var(--pv-dest-texto); }
+.pv-hero--faixa .pv-arte { background: transparent; border-color: var(--pv-dest-texto); }
 .pv-hero--faixa .pv-arte__leg { background: var(--pv-dest); color: var(--pv-dest-texto); }
 .pv-hero--faixa .pv-reservado { background: color-mix(in srgb, var(--pv-dest-texto) 18%, transparent); outline-color: var(--pv-dest-texto); }   /* o contorno do espaço reservado some na cor de destaque */
 
@@ -82,17 +87,58 @@
 
 .pv-itens { list-style: none; display: grid; gap: 14px; }
 .pv-item { padding: 18px; border-radius: var(--pv-raio); background: var(--pv-fundo); border: 1px solid color-mix(in srgb, var(--pv-texto) 10%, transparent); display: flex; flex-direction: column; gap: 6px; }
-.pv-sec:nth-of-type(even) .pv-item { background: var(--pv-fundo); }
+.pv-sec:nth-of-type(even) .pv-itens--cartoes .pv-item { background: var(--pv-fundo); }   /* só os cartões ficam brancos sobre a faixa de superfície; os outros modos são transparentes */
 .pv-item__t { font-size: 17px; font-weight: 600; }
 .pv-item__x { font-size: 15px; color: var(--pv-suave); }
-.pv-item__n { font-family: var(--pv-f-tit); font-size: 13px; font-weight: 600; color: var(--pv-dest); }
-.pv-numero { font-size: 32px; font-weight: 600; color: var(--pv-dest); }
-.pv-citacao { font-size: 16px; font-style: italic; color: var(--pv-texto); }
+.pv-numero { font-size: 38px; line-height: 1; font-weight: 600; color: var(--pv-dest); overflow-wrap: anywhere; }
+.pv-numero--texto { font-size: 21px; line-height: 1.15; }   /* o espaço reservado "[Anos de oficina]" é frase, não número: não estoura a coluna */
 .pv-item__autor { font-size: 13px; font-weight: 600; color: var(--pv-suave); }
-.pv-v--lista .pv-item, .pv-v--linha_do_tempo .pv-item { background: transparent; border: 0; border-left: 2px solid var(--pv-dest); border-radius: 0; padding: 4px 0 4px 16px; }
+
+/* ---- AS LISTAS, cada tipo com o seu jeito (js/previa.js, modoDosItens) ---- */
+/* linhas editoriais numeradas (variante lista) */
+.pv-itens--linhas { gap: 0; border-top: 2px solid var(--pv-texto); }
+.pv-itens--linhas .pv-item { display: grid; grid-template-columns: 44px 1fr; gap: 4px 10px; padding: 18px 0; background: transparent; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--pv-texto) 22%, transparent); border-radius: 0; }
+.pv-linha__i { grid-row: 1 / span 2; padding-top: 3px; font-family: var(--pv-f-tit); font-size: 15px; font-weight: 600; color: var(--pv-dest); }
+.pv-itens--linhas .pv-item__t { font-size: 20px; line-height: 1.2; }
+/* passos com número e linha (processo e variante linha_do_tempo) */
+.pv-itens--passos { gap: 0; }
+.pv-itens--passos .pv-item { position: relative; display: grid; grid-template-columns: 60px 1fr; gap: 2px 4px; padding: 0 0 26px; background: transparent; border: 0; border-radius: 0; }
+.pv-itens--passos .pv-item:not(:last-child)::before { content: ''; position: absolute; left: 21px; top: 50px; bottom: 6px; width: 2px; background: color-mix(in srgb, var(--pv-texto) 25%, transparent); }
+.pv-passo__n { grid-row: 1 / span 2; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 2px solid var(--pv-texto); border-radius: 50%; background: var(--pv-fundo); font-family: var(--pv-f-tit); font-size: 16px; font-weight: 600; }
+.pv-itens--passos .pv-item__t { padding-top: 9px; font-size: 20px; line-height: 1.2; }
+/* moldura de foto desenhada: o lugar da foto do cliente (a legenda é o título do item) */
+.pv-itens--galeria { grid-template-columns: 1fr 1fr; gap: 10px; }
+.pv-foto { position: relative; display: flex; flex-direction: row; align-items: flex-end; justify-content: flex-start; aspect-ratio: 4 / 5; padding: 10px; background: var(--pv-sup); border: 1.5px solid var(--pv-texto); border-radius: 0; }
+.pv-foto:first-child:nth-last-child(odd) { grid-column: 1 / 3; aspect-ratio: 16 / 10; }
+.pv-foto::before, .pv-foto::after { content: ''; position: absolute; width: 14px; height: 14px; border: 2px solid var(--pv-dest); }
+.pv-foto::before { top: 8px; left: 8px; border-right: 0; border-bottom: 0; }
+.pv-foto::after { right: 8px; bottom: 8px; border-left: 0; border-top: 0; }
+.pv-foto__leg { padding: 5px 8px; background: var(--pv-fundo); color: var(--pv-texto); font-size: 12px; font-weight: 600; line-height: 1.3; }
+/* números grandes */
+.pv-itens--numeros { grid-template-columns: 1fr 1fr; gap: 0; border-top: 2px solid var(--pv-texto); }
+.pv-num { padding: 18px 12px 18px 0; background: transparent; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--pv-texto) 22%, transparent); border-radius: 0; }
+.pv-num:nth-child(even) { padding: 18px 0 18px 14px; border-left: 1px solid color-mix(in srgb, var(--pv-texto) 22%, transparent); }
+.pv-num .pv-item__x { font-size: 13px; }
+/* depoimentos: a frase grande, sem itálico (as fontes hospedadas não têm a face itálica) */
+.pv-itens--depoimentos { gap: 22px; }
+.pv-cit { padding: 4px 0 4px 18px; background: transparent; border: 0; border-left: 4px solid var(--pv-dest); border-radius: 0; }
+.pv-citacao { font-family: var(--pv-f-tit); font-size: 21px; line-height: 1.3; font-style: normal; color: var(--pv-texto); }
 .pv-v--faixa { background: var(--pv-dest) !important; }
 .pv-v--faixa .pv-h2, .pv-v--faixa .pv-texto, .pv-v--faixa .pv-sub, .pv-v--faixa .pv-rotulo { color: var(--pv-dest-texto); }
 .pv-v--faixa .pv-btn { background: var(--pv-dest-texto); color: var(--pv-dest); }
+.pv-v--faixa .pv-rotulo::before, .pv-sec--fecho .pv-rotulo::before { background: var(--pv-dest-texto); }
+/* a faixa de cor cheia: tudo o que está dentro lê na cor do texto do destaque (o contraste já é garantido pelo servidor) */
+.pv-v--faixa .pv-numero, .pv-v--faixa .pv-item__t, .pv-v--faixa .pv-item__x, .pv-v--faixa .pv-item__autor, .pv-v--faixa .pv-citacao, .pv-v--faixa .pv-linha__i { color: var(--pv-dest-texto); }
+.pv-v--faixa .pv-itens--numeros, .pv-v--faixa .pv-itens--linhas { border-top-color: var(--pv-dest-texto); }
+.pv-v--faixa .pv-num, .pv-v--faixa .pv-linha { border-color: color-mix(in srgb, var(--pv-dest-texto) 40%, transparent); }
+.pv-v--faixa .pv-cit { border-left-color: var(--pv-dest-texto); }
+.pv-v--faixa .pv-passo__n { background: var(--pv-dest); border-color: var(--pv-dest-texto); }
+.pv-v--faixa .pv-reservado { background: color-mix(in srgb, var(--pv-dest-texto) 18%, transparent); outline-color: var(--pv-dest-texto); }
+/* o fecho: a página termina em bloco de cor, com o título grande e o botão invertido (cta e contato) */
+.pv-sec.pv-sec--fecho { background: var(--pv-dest); padding-top: 64px; padding-bottom: 64px; }
+.pv-sec--fecho .pv-h2 { font-size: 38px; line-height: 1.02; letter-spacing: -.025em; color: var(--pv-dest-texto); }
+.pv-sec--fecho .pv-sub, .pv-sec--fecho .pv-texto, .pv-sec--fecho .pv-rotulo { color: var(--pv-dest-texto); }
+.pv-sec--fecho .pv-btn { background: var(--pv-dest-texto); color: var(--pv-dest); }
 .pv-sec--faq .pv-item { background: transparent; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--pv-texto) 12%, transparent); border-radius: 0; padding: 14px 0; }
 .pv-rodape { padding: 28px 20px; font-size: 13px; color: var(--pv-suave); border-top: 1px solid color-mix(in srgb, var(--pv-texto) 12%, transparent); }
 
@@ -107,7 +153,19 @@
   .pv-h2 { font-size: 38px; }
   .pv-itens { grid-template-columns: repeat(3, 1fr); }
   .pv-v--lista .pv-itens, .pv-sec--faq .pv-itens { grid-template-columns: 1fr; max-width: 760px; }
-  .pv-v--linha_do_tempo .pv-itens { grid-template-columns: repeat(4, 1fr); }
+  .pv-itens--linhas { max-width: 860px; }
+  .pv-itens--passos { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 28px; }
+  .pv-itens--passos .pv-item { grid-template-columns: 1fr; padding: 0; }
+  .pv-itens--passos .pv-item::before { display: none; }
+  .pv-passo__n { grid-row: auto; margin-bottom: 10px; }
+  .pv-itens--passos .pv-item__t { padding-top: 0; }
+  .pv-itens--galeria { grid-template-columns: repeat(3, 1fr); }
+  .pv-foto:first-child:nth-last-child(odd) { grid-column: auto; aspect-ratio: 4 / 5; }
+  .pv-itens--numeros { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .pv-num, .pv-num:nth-child(even) { padding: 18px 20px; border-left: 1px solid color-mix(in srgb, var(--pv-texto) 22%, transparent); }
+  .pv-itens--depoimentos { grid-template-columns: 1fr; max-width: 820px; }
+  .pv-citacao { font-size: 26px; }
+  .pv-sec--fecho .pv-h2 { font-size: 60px; }
   .pv-v--split.pv-sec { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 56px; }
   .pv-v--grade .pv-itens { grid-template-columns: repeat(2, 1fr); }
   .pv-rodape { padding: 32px 56px; }
@@ -115,6 +173,7 @@
   /* o topo no container largo: duas colunas (texto + arte) ou, centrado, a arte larga embaixo */
   .pv-sec--hero { padding: calc(var(--pv-esp) * 1.1) 56px; gap: 56px; }
   .pv-sec--hero .pv-cab { padding: 0; gap: 22px; }
+  .pv-sec--hero .pv-arte { order: 0; }   /* no container largo a arte volta para o lado do texto (ou embaixo, no topo centrado) */
   .pv-sec--hero .pv-itens { grid-column: 1 / -1; padding: 0; }
   .pv-sec--hero .pv-h1 { font-size: 68px; }
   .pv-hero--centro .pv-h1 { font-size: 64px; }
