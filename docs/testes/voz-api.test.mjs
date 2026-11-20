@@ -70,7 +70,10 @@ test('o transcritor falhou: 503 com frase para o visitante, e o log traz só o m
   } finally { console.error = erroOriginal; console.log = logOriginal; }
   const tudo = linhas.join('\n');
   assert.match(tudo, /voz falhou/);
-  assert.ok(!/CPF|segredo do visitante|telefone|99999/.test(tudo), 'nenhum conteúdo no log: ' + tudo);
+  /* (19/11) os UUIDs (request_id) saem antes da busca: um deles saiu "…2899999965e9" numa rodada e casou "99999" à toa. Sem eles, o
+     /99999/ continua pegando o número em qualquer formato (21999990000, 99999 0000) */
+  const semIds = tudo.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '');
+  assert.ok(!/CPF|segredo do visitante|telefone|99999/.test(semIds), 'nenhum conteúdo no log: ' + tudo);
 });
 
 test('o tempo esgotado da transcrição vira 503 (o botão não fica preso)', async () => {

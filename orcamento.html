@@ -81,7 +81,8 @@
         <li data-passo="escopo"><span class="orc-etapas__n">04</span><span class="orc-etapas__nome">Resumo</span></li>
         <li data-passo="pagamento"><span class="orc-etapas__n">05</span><span class="orc-etapas__nome">Entrada</span></li>
       </ol>
-      <p class="orc-codigo" id="o-codigo" hidden>Código do pedido <b id="o-codigo-v"></b><span class="orc-codigo__nota"> · fica salvo neste navegador; cite-o se falar com a Beyon Zero</span></p>
+      <!-- o código do pedido: só para o sistema (a função identificar do orçamento); o cliente nunca vê código nenhum (dono, 19/11) -->
+      <p class="orc-codigo" id="o-codigo" hidden><b id="o-codigo-v"></b></p>
     </section>
 
     <noscript><p class="orc-aviso orc-aviso--semjs">Esta página precisa de JavaScript. Ative-o no navegador e recarregue a página, ou escreva para <a href="mailto:contato.beyon.zero@gmail.com">contato.beyon.zero@gmail.com</a>.</p></noscript>
@@ -298,14 +299,12 @@
       </form>
     </section>
 
-    <!-- O PEDIDO RECEBIDO (30/10: sem WhatsApp e sem confirmação; o pedido já entra na fila ao enviar os detalhes). O código fica
-         à vista até as direções ficarem prontas. Fora da medição (data-sem-medicao) -->
+    <!-- O PEDIDO RECEBIDO (30/10: sem WhatsApp e sem confirmação; o pedido já entra na fila ao enviar os detalhes). Sem código
+         à vista: o código do pedido é do sistema (dono, 19/11). Fora da medição (data-sem-medicao) -->
     <section class="orc-bloco orc-confirmar" id="o-confirmar" aria-labelledby="o-confirmar-titulo" data-sem-medicao hidden>
       <h2 id="o-confirmar-titulo">Pedido recebido</h2>
       <p class="orc-bloco__lead">O seu pedido já está na fila. Não precisa mandar mensagem nem confirmar nada.</p>
-      <p class="orc-rotulo">Código do pedido</p>
-      <p class="orc-codigo-grande" id="o-confirmar-codigo"></p>
-      <p class="orc-nota">Tire um print desta tela: o código identifica o seu pedido.</p>
+      <p class="orc-codigo-grande" id="o-confirmar-codigo" hidden></p>
     </section>
 
     <!-- o pedido saiu da fila (venceu sem confirmação ou foi encerrado): o caminho é um orçamento novo ou o recado -->
@@ -536,7 +535,7 @@
         <p class="recibo__rotulo"><i class="recibo__led" aria-hidden="true"></i>Sinal pago</p>
         <h2 class="recibo__titulo" id="o-pronto-titulo" tabindex="-1">Pagamento confirmado.</h2>
         <p class="recibo__lead">Entrada recebida. O próximo passo é mandar o material do seu site, aqui mesmo, logo abaixo.</p>
-        <p class="recibo__codigo">Código do pagamento <b id="o-rec-codigo-v"></b></p>
+        <p class="recibo__codigo" hidden><b id="o-rec-codigo-v"></b></p>
         <div class="recibo__partes" id="o-rec-partes">
           <div class="recibo__parte recibo__parte--pago">
             <p class="recibo__parte-rot"><span aria-hidden="true">↑</span> Pago agora</p>
@@ -558,7 +557,7 @@
       </div>
       <!-- SEU PEDIDO (PR 3b-2, js/orcamento-entrega.js): os 4 passos com a data do servidor, o link do pedido e a agenda -->
       <div class="orc-pedido" id="o-pedido" hidden>
-        <p class="orc-pedido__rotulo">Seu pedido · <span id="o-ped-codigo"></span></p>
+        <p class="orc-pedido__rotulo">Seu pedido<span id="o-ped-codigo" hidden></span></p>
         <ol class="orc-passos" id="o-ped-passos">
           <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true"></span><span class="orc-passo__nome"></span><span class="orc-passo__estado"></span><span class="orc-passo__nota"></span></li>
           <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true"></span><span class="orc-passo__nome"></span><span class="orc-passo__estado"></span><span class="orc-passo__nota"></span></li>
