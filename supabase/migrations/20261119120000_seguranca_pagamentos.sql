@@ -530,11 +530,38 @@ begin
   return jsonb_build_object('ok', true, 'conversa_id', c.id);
 end $$;
 
+-- ---------- a leitura do CLIENTE (revisão técnica F): a de 20261024120200_pr3b3_restante.sql com dois sinais a mais, para a tela não dizer "Restante pago" quando o restante foi
+-- estornado em parte (o registro do pagamento continua "pago") nem prometer o ar com a entrega bloqueada. Só dois booleanos (nenhum código, motivo ou valor novo):
+-- em cada pagamento, "quitada" (privado.parcela_quitada); na entrega, "bloqueada" (privado.entrega_bloqueada). A tela troca a frase; o resto da leitura é o mesmo ----------
+create or replace function app.vendas_estado(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare r jsonb; v_conversa uuid; e app.entregas;
+begin
+  r := app.vendas_estado_pr3b2(p);   -- (o dono da conversa é conferido lá: de outro visitante, P0002)
+  v_conversa := (r #>> '{conversa,id}')::uuid;
+  if r #>> '{conversa,etapa}' = 'em_producao' then
+    -- a leitura conserta o que faltou, mas NUNCA quebra a tela: se a conclusão falhar de novo, o cliente vê o estado como está e o erro fica no aviso do banco
+    begin
+      if privado.concluir_pendente(v_conversa) then r := app.vendas_estado_pr3b2(p); end if;
+    exception when others then
+      raise warning 'conclusão pendente não feita para a conversa %: %', v_conversa, sqlerrm;
+    end;
+  end if;
+  r := jsonb_set(r, '{pagamentos}', coalesce((
+         select jsonb_agg(x.item || jsonb_build_object('quitada', coalesce((select privado.parcela_quitada(pg.proposta_id, pg.parcela) from app.pagamentos pg where pg.id = (x.item ->> 'id')::uuid), false)) order by x.n)
+           from jsonb_array_elements(coalesce(r -> 'pagamentos', '[]'::jsonb)) with ordinality as x(item, n)), '[]'::jsonb));
+  select * into e from app.entregas where conversa_id = v_conversa;
+  if found and jsonb_typeof(r -> 'entrega') = 'object' then
+    r := jsonb_set(r, '{entrega,bloqueada}', to_jsonb(privado.entrega_bloqueada(e)));
+  end if;
+  return r;
+end $$;
+
 -- ---------- privilégios: os mesmos das funções originais (só o servidor) ----------
 do $$
 declare f text;
 begin
-  foreach f in array array['pagamentos_aplicar', 'pagamentos_iniciar_tentativa', 'pagamentos_estado', 'vendas_entrega_info', 'vendas_no_ar',
+  foreach f in array array['pagamentos_aplicar', 'pagamentos_iniciar_tentativa', 'pagamentos_estado', 'vendas_estado', 'vendas_entrega_info', 'vendas_no_ar',
                            'vendas_suspender', 'vendas_encerrar', 'vendas_avisos_lista', 'vendas_entregas_lista', 'vendas_criar_retomada', 'vendas_usar_retomada'] loop
     execute format('revoke all on function app.%I(jsonb) from public, anon, authenticated', f);
     execute format('grant execute on function app.%I(jsonb) to service_role', f);

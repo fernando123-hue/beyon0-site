@@ -292,3 +292,19 @@ test('revisão E: o restante pago com a entrega bloqueada por contestação ou p
   const livre = await entregaEm(db, 'aprovada');
   assert.equal((await aprovarRestante(db, await iniciarRestante(db, livre))).alerta.evento, 'restante_pago');
 });
+
+/* ---------- revisão técnica F: a tela do cliente precisa saber que o restante foi estornado em parte (ou que a entrega está bloqueada), sem ver código nenhum ---------- */
+test('revisão F: a leitura do cliente (vendas_estado) diz se cada parcela está quitada e se a entrega está bloqueada: o estorno parcial do restante e o bloqueio aparecem', async () => {
+  const c = await aprovadaComRestantePago();
+  const saldo = async () => { const e = await rpc('vendas_estado', base(c)); return [e.pagamentos.find(p => p.parcela === 'saldo'), e.entrega]; };
+  let [pg, entrega] = await saldo();
+  assert.deepEqual([pg.status, pg.quitada, entrega.bloqueada], ['pago', true, false], 'restante pago e limpo');
+  await aplicar(c, 'estornada_parcial', 'saldo');
+  [pg, entrega] = await saldo();
+  assert.equal(pg.status, 'pago', 'o registro continua pago (o estorno foi só de parte)');
+  assert.deepEqual([pg.quitada, entrega.bloqueada], [false, true], 'estorno parcial do restante: não quitado e bloqueada');
+  const d = await aprovadaComRestantePago();
+  await aplicar(d, 'estornada');   /* a entrada estornada: o restante pago está limpo, mas a entrega está bloqueada */
+  const e = await rpc('vendas_estado', base(d));
+  assert.deepEqual([e.pagamentos.find(p => p.parcela === 'saldo').quitada, e.entrega.bloqueada], [true, true]);
+});

@@ -464,3 +464,9 @@ test('19/11 (revisão): a prévia aprovada com o restante já pago não diz mais
   assert.equal(ap.fase, 'aprovada'); assert.doesNotMatch(ap.texto, /Falta/); assert.match(ap.texto, /restante foi pago/); assert.match(ap.texto, /coloca o site no ar/);
   assert.match(B.fase(entrega({ passo: 'aprovada', previa: { url: null } })).texto, /Falta só o restante/, 'sem o restante pago, a frase de antes');
 });
+
+test('revisão F: a prévia aprovada com o restante em conferência (estorno parcial) não diz "o restante foi pago" nem promete o ar, e não mostra código', () => {
+  const ap = B.fase(entrega({ passo: 'aprovada', previa: { url: null } }), 'conferencia');
+  assert.equal(ap.fase, 'aprovada'); assert.doesNotMatch(ap.texto, /foi pago|Falta só|vai ao ar|coloca o site no ar/); assert.match(ap.texto, /conferindo/);
+  assert.doesNotMatch(ap.texto, /\bBZ-|código|estorn|bloquead|disputa|contest/i);
+});

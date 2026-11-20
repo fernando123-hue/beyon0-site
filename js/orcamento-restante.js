@@ -70,11 +70,21 @@
     var e = E && E.entrega;
     return !!e && E.entrega_ligada !== false && E.conversa.etapa === 'em_producao' && (e.passo === 'aprovada' || e.passo === 'no_ar' || e.passo === 'suspensa');
   }
-  /* o restante já caiu (o registro do banco): a tela não cobra de novo e diz que o site vai ao ar */
-  function restantePago(E) { return !!daParcela(E && E.pagamentos, 'saldo', 'pago'); }
-  /* o título e a frase do bloco com o site pronto (a prévia aprovada): antes e depois do restante */
-  function textoDoPronto(pago) {
-    return pago ? { titulo: 'Restante pago', aviso: 'Recebemos o restante. Agora a Beyon Zero coloca o site no ar e passa para uma conta no seu nome. Você recebe o aviso quando ele entrar no ar.' }
+  /* o estado do restante para a tela: 'aberto' (nada pago), 'pago' (o registro do banco "pago", a parcela quitada e a entrega livre) ou 'conferencia' (o registro diz "pago", mas o
+     servidor marcou a parcela como não quitada, p. ex. um estorno parcial do restante, ou a entrega bloqueada: a tela não diz "pago", não promete o ar e não cobra de novo). Os dois sinais
+     (pagamento.quitada, entrega.bloqueada) são booleanos do servidor; sem eles (servidor antigo) vale o registro, como antes */
+  function estadoDoRestante(E) {
+    var p = daParcela(E && E.pagamentos, 'saldo', 'pago');
+    if (!p) return 'aberto';
+    return p.quitada === false || !!(E.entrega && E.entrega.bloqueada) ? 'conferencia' : 'pago';
+  }
+  /* o restante já caiu e está limpo: a tela não cobra de novo e diz que o site vai ao ar */
+  function restantePago(E) { return estadoDoRestante(E) === 'pago'; }
+  /* o título e a frase do bloco com o site pronto (a prévia aprovada): antes, em conferência e depois do restante. Em conferência a tela fala como uma pessoa, sem código nem
+     termo do sistema: o que houve fica com a Beyon Zero (o dono já foi avisado) */
+  function textoDoPronto(estado) {
+    if (estado === 'conferencia') return { titulo: 'Estamos conferindo o pagamento', aviso: 'Estamos conferindo o pagamento do restante e falamos com você antes de colocar o site no ar. Não precisa pagar de novo.' };
+    return estado ? { titulo: 'Restante pago', aviso: 'Recebemos o restante. Agora a Beyon Zero coloca o site no ar e passa para uma conta no seu nome. Você recebe o aviso quando ele entrar no ar.' }
       : { titulo: 'Seu site está pronto', aviso: 'Você vê tudo na prévia. Com o restante pago, o site vai ao ar e passa para uma conta no seu nome.' };
   }
   /* a seção da prévia está na tela: os passos previa, ajustes e aprovada, com a conversa em produção e o interruptor do servidor não desligado (a mesma regra de js/orcamento-previa.js + entrega) */
@@ -123,8 +133,8 @@
       pag.classList.toggle('is-restante', ativo);
       if (!ativo) { chavePix = null; return false; }
       if (!movido) { $('o-noar').after(pag); movido = true; }   /* decisão G: o mesmo componente da entrada, logo depois do "no ar" */
-      var s = e.site || {}, pronto = e.passo === 'aprovada', pago = pronto && restantePago(E);
-      var t = pronto ? textoDoPronto(pago) : null;
+      var s = e.site || {}, pronto = e.passo === 'aprovada', situacao = pronto ? estadoDoRestante(E) : 'aberto', pago = situacao !== 'aberto';   /* (pago ou em conferência: nada a cobrar) */
+      var t = pronto ? textoDoPronto(situacao === 'aberto' ? false : situacao) : null;
       $('o-noar-titulo').textContent = t ? t.titulo : e.passo === 'suspensa' ? 'Seu site saiu do ar' : 'Seu site está no ar';
       endereco(pronto ? '' : s.url, 'o-noar-endereco', 'o-noar-abrir', e.passo !== 'suspensa');   /* (pronto: o site ainda não tem endereço no ar; a prévia está logo acima) */
       var aviso = t ? t.aviso : avisoDoRestante(s.dias_do_aviso, Number(s.limite_dias) || LIMITE_PADRAO, e.passo);
@@ -172,5 +182,5 @@
     return { atualizar: atualizar };
   }
 
-  window.BZRestante = { criar: criar, hrefDoSite: hrefDoSite, valorDoRestante: valorDoRestante, avisoDoRestante: avisoDoRestante, dadosDoFim: dadosDoFim, restanteAberto: restanteAberto, restantePago: restantePago, textoDoPronto: textoDoPronto, alvoDaRetomada: alvoDaRetomada, LEMBRETES: LEMBRETES };
+  window.BZRestante = { criar: criar, hrefDoSite: hrefDoSite, valorDoRestante: valorDoRestante, avisoDoRestante: avisoDoRestante, dadosDoFim: dadosDoFim, restanteAberto: restanteAberto, restantePago: restantePago, estadoDoRestante: estadoDoRestante, textoDoPronto: textoDoPronto, alvoDaRetomada: alvoDaRetomada, LEMBRETES: LEMBRETES };
 })();

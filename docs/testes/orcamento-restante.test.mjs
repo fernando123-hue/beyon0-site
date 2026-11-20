@@ -420,3 +420,28 @@ test('19/11 (revisão): a nota da ordem nova ("Com o restante pago, o site vai a
   for (const passo of ['no_ar', 'suspensa']) { const t = montar(); t.rest.atualizar(estado(passo)); assert.equal(t.E('o-noar-nota').hidden, true, passo); }
   const u = montar(); u.rest.atualizar(estado('aprovada', { site: { url: null } })); assert.equal(u.E('o-noar-nota').hidden, false);
 });
+
+/* ---------- revisão técnica F: "Restante pago" só com o restante QUITADO; estorno parcial do restante ou entrega bloqueada: a tela confere, sem código e sem cobrar de novo ---------- */
+test('revisão F: restante com estorno parcial (pagamento "pago", mas quitada=false) NÃO diz "Restante pago": diz que está conferindo, sem prometer o ar, sem cobrar e sem código', () => {
+  const suja = { ...estado('aprovada', { site: { url: null } }), pagamentos: [...pagos, { parcela: 'saldo', status: 'pago', valor: '1800.00', quitada: false }] };
+  suja.entrega.bloqueada = true;
+  assert.equal(R.restantePago(suja), false); assert.equal(R.estadoDoRestante(suja), 'conferencia');
+  const t = montar(); t.rest.atualizar(suja);
+  assert.equal(t.E('o-noar-titulo').textContent, 'Estamos conferindo o pagamento');
+  const aviso = t.E('o-noar-aviso').textContent;
+  assert.match(aviso, /restante/); assert.match(aviso, /falamos com você|entramos em contato/);
+  assert.doesNotMatch(aviso, /Restante pago|Recebemos o restante|coloca o site no ar|vai ao ar/);
+  assert.doesNotMatch(aviso, /\bBZ-|código|estorn|bloquead|disputa|contest/i, 'nenhum código nem palavra de sistema na tela do cliente');
+  assert.equal(t.E('o-pagamento').hidden, true); assert.equal(t.E('o-noar-nota').hidden, true);
+  assert.deepEqual(t.chamadas, [['parar']], 'nunca cobra de novo');
+});
+
+test('revisão F: o restante pago e limpo, mas a entrega bloqueada (entrada estornada), também confere; sem o sinal "quitada" (servidor antigo) vale como quitado; limpo e livre continua "Restante pago"', () => {
+  const base = ap => ({ ...estado('aprovada', { site: { url: null } }), pagamentos: [...pagos, { parcela: 'saldo', status: 'pago', valor: '1800.00', ...ap.pag }], entrega: { passo: 'aprovada', site: {}, ...ap.entrega } });
+  assert.equal(R.estadoDoRestante(base({ pag: { quitada: true }, entrega: { bloqueada: true } })), 'conferencia');
+  assert.equal(R.estadoDoRestante(base({ pag: {}, entrega: {} })), 'pago', 'sem os campos novos: o comportamento de antes');
+  assert.equal(R.estadoDoRestante(base({ pag: { quitada: true }, entrega: { bloqueada: false } })), 'pago');
+  assert.equal(R.estadoDoRestante(estado('aprovada')), 'aberto');
+  const t = montar(); t.rest.atualizar(base({ pag: { quitada: true }, entrega: { bloqueada: false } }));
+  assert.equal(t.E('o-noar-titulo').textContent, 'Restante pago');
+});
