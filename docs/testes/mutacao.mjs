@@ -935,7 +935,7 @@ export const SABOTAGENS = [
   /* ---- a re-revisão de 20/11: o preenchimento da marca, o orçamento do cancelamento, a tentativa criada, o conflito e a tela sem QR ---- */
   { nome: '(S1) a linha sem marca volta a tomar o updated_at DE AGORA (sem a autocura da marca)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/material-bloqueada.test.mjs'],
     de: 'new.status_em := coalesce(old.status_em, old.updated_at);', para: 'new.status_em := old.status_em;' },
-  { nome: '(S1) a migration esquece de preencher a marca das linhas que já existem (pagamentos)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/material-bloqueada.test.mjs'],
+  { nome: '(S1) a migration esquece de preencher a marca das linhas que já existem (pagamentos)', fonte: 'supabase/migrations/20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/material-bloqueada.test.mjs'],
     de: 'update app.pagamentos set status_em = updated_at where status_em is null;', para: '-- (sem preencher)' },
   { nome: '(S2) o cancelarOrdem da reconciliação deixa de ser contado no orçamento de subpedidos', fonte: 'api/_pagamentos/servico.mjs', testes: ['docs/testes/seguranca-pagamentos.test.mjs'],
     de: "cancelarOrdem: typeof mp.cancelarOrdem === 'function' ? gasto.contar(mp.cancelarOrdem) : undefined", para: 'cancelarOrdem: mp.cancelarOrdem' },
