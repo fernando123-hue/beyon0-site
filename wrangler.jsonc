@@ -29,7 +29,10 @@
     // o microfone do Zero (api/_vendas/voz.mjs): a voz vira texto pelo Whisper do Workers AI (binding AI); "1" liga o botão Falar.
     // DESLIGADO na produção até o teste na prévia (docs/PROCESSO.md do PR): ninguém provou ainda que o Whisper decodifica o áudio
     // do Safari (mp4/AAC) e do Chrome (webm/Opus); só depois disso um PR de uma linha troca "" por "1"
-    "BZ_VOZ": "" },
+    "BZ_VOZ": "",
+    // o TESTE DO PIX DE R$ 0,01 do painel do dono (api/_pagamentos/teste-pix.mjs): rotas só com a chave do painel E com "1" aqui.
+    // VAZIA por padrão (fechado): só se liga pelo painel da Cloudflare (variável de ambiente) no momento do teste do dono, e se desliga depois
+    "BZ_TESTE_PIX": "" },
   "ai": { "binding": "AI" },
   "send_email": [{ "name": "AVISO_EMAIL", "destination_address": "contato.beyon.zero@gmail.com" }],
   "observability": { "enabled": true, "logs": { "enabled": true, "head_sampling_rate": 1 }, "traces": { "enabled": true } },
