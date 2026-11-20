@@ -43,7 +43,7 @@
 .pv-rotulo::before { content: ''; flex: none; width: 28px; height: 2px; background: var(--pv-dest); }
 .pv-v--centro .pv-rotulo::before { display: none; }
 .pv-h1 { font-size: 36px; line-height: 1.08; letter-spacing: -.02em; font-weight: 600; }
-.pv-h2 { font-size: 32px; line-height: 1.08; letter-spacing: -.02em; font-weight: 600; }
+.pv-h2 { font-size: 32px; line-height: 1.08; letter-spacing: -.02em; font-weight: 600; overflow-wrap: break-word; }
 .pv-sub { font-size: 18px; color: var(--pv-suave); }
 .pv-texto { color: var(--pv-suave); }
 .pv-v--centro .pv-cab { align-items: center; text-align: center; margin: 0 auto; }
@@ -53,10 +53,7 @@
 .pv-sec--hero { padding: 0 0 calc(var(--pv-esp) / 1.5); gap: 22px; }   /* a densidade (arejada/equilibrada/compacta) vale no celular também */
 /* no celular a arte vem em TIRA antes do título (dono, 19/11: "Opção A"): o cartão da escolha, que mostra só 300 px, passa a mostrar arte + título */
 .pv-sec--hero .pv-arte { order: -1; height: 132px; border-top: 0; border-bottom: 2px solid var(--pv-texto); }
-.pv-sec--hero .pv-cab { padding-top: 4px; }
-.pv-sec--hero .pv-cab { padding: 0 20px; gap: 18px; }
-.pv-sec--hero .pv-rotulo { display: flex; align-items: center; gap: 10px; }
-.pv-sec--hero .pv-rotulo::before { content: ''; flex: none; width: 28px; height: 2px; background: var(--pv-dest); }
+.pv-sec--hero .pv-cab { padding: 4px 20px 0; gap: 18px; }
 .pv-sec--hero .pv-h1 { font-size: clamp(34px, 11.2cqw, 44px); line-height: 1.02; letter-spacing: -.025em; overflow-wrap: break-word; }   /* a tela real é 390 px escalada por transform (cqw dá 43,7 px); o clamp protege se o container for mais estreito (medido: tela fluida de 320 px, "ar-condicionado" cabe) */
 .pv-sec--hero .pv-itens { padding: 0 20px; }   /* o topo não tem padding lateral (a arte vai até a borda): os itens põem o deles */
 .pv-sec--hero .pv-sub { font-size: 18px; max-width: 34ch; }
@@ -64,7 +61,6 @@
 .pv-sec--hero .pv-btn { width: 100%; max-width: 420px; min-height: 48px; justify-content: space-between; }
 .pv-sec--hero .pv-btn::after { content: '\2192'; margin-left: 12px; }
 .pv-hero--centro .pv-cab { align-items: center; text-align: center; margin: 0 auto; }
-.pv-hero--centro .pv-rotulo::before { display: none; }
 .pv-hero--centro .pv-h1 { font-size: clamp(32px, 10.2cqw, 40px); }
 .pv-hero--centro .pv-sub { margin: 0 auto; }
 .pv-hero--faixa, .pv-hero--faixa.pv-sec:nth-of-type(even) { background: var(--pv-dest); }
@@ -73,7 +69,6 @@
 .pv-hero--faixa .pv-btn { background: var(--pv-dest-texto); color: var(--pv-dest); }
 .pv-hero--faixa .pv-arte { background: transparent; border-color: var(--pv-dest-texto); }
 .pv-hero--faixa .pv-arte__leg { background: var(--pv-dest); color: var(--pv-dest-texto); }
-.pv-hero--faixa .pv-reservado { background: color-mix(in srgb, var(--pv-dest-texto) 18%, transparent); outline-color: var(--pv-dest-texto); }   /* o contorno do espaço reservado some na cor de destaque */
 
 .pv-arte { position: relative; overflow: hidden; width: 100%; height: 300px; background: var(--pv-sup); border-top: 2px solid var(--pv-texto); --pv-a-forte: var(--pv-dest); --pv-a-fraco: var(--pv-texto); --pv-a-cheio: var(--pv-dest); --pv-a-vazio: var(--pv-texto); }
 .pv-hero--faixa .pv-arte { --pv-a-forte: var(--pv-dest-texto); --pv-a-fraco: var(--pv-dest-texto); --pv-a-cheio: var(--pv-dest-texto); --pv-a-vazio: var(--pv-dest-texto); }
@@ -96,6 +91,7 @@
 
 /* ---- AS LISTAS, cada tipo com o seu jeito (js/previa.js, modoDosItens) ---- */
 /* linhas editoriais numeradas (variante lista) */
+.pv-rotulo__t { min-width: 0; }
 .pv-itens--linhas { gap: 0; border-top: 2px solid var(--pv-texto); }
 .pv-itens--linhas .pv-item { display: grid; grid-template-columns: 44px 1fr; gap: 4px 10px; padding: 18px 0; background: transparent; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--pv-texto) 22%, transparent); border-radius: 0; }
 .pv-linha__i { grid-row: 1 / span 2; padding-top: 3px; font-family: var(--pv-f-tit); font-size: 15px; font-weight: 600; color: var(--pv-dest); }
@@ -108,17 +104,18 @@
 .pv-itens--passos .pv-item__t { padding-top: 9px; font-size: 20px; line-height: 1.2; }
 /* moldura de foto desenhada: o lugar da foto do cliente (a legenda é o título do item) */
 .pv-itens--galeria { grid-template-columns: 1fr 1fr; gap: 10px; }
-.pv-foto { position: relative; display: flex; flex-direction: row; align-items: flex-end; justify-content: flex-start; aspect-ratio: 4 / 5; padding: 10px; background: var(--pv-sup); border: 1.5px solid var(--pv-texto); border-radius: 0; }
+.pv-foto { position: relative; display: flex; flex-direction: row; align-items: flex-end; justify-content: flex-start; aspect-ratio: 4 / 5; padding: 10px; background: var(--pv-sup); border: 2px solid var(--pv-texto); border-radius: 0; }
 .pv-foto:first-child:nth-last-child(odd) { grid-column: 1 / 3; aspect-ratio: 16 / 10; }
 .pv-foto::before, .pv-foto::after { content: ''; position: absolute; width: 14px; height: 14px; border: 2px solid var(--pv-dest); }
 .pv-foto::before { top: 8px; left: 8px; border-right: 0; border-bottom: 0; }
 .pv-foto::after { right: 8px; bottom: 8px; border-left: 0; border-top: 0; }
 .pv-foto__leg { padding: 5px 8px; background: var(--pv-fundo); color: var(--pv-texto); font-size: 12px; font-weight: 600; line-height: 1.3; }
+.pv-foto__x { display: block; font-weight: 400; color: var(--pv-suave); }
 /* números grandes */
 .pv-itens--numeros { grid-template-columns: 1fr 1fr; gap: 0; border-top: 2px solid var(--pv-texto); }
 .pv-num { padding: 18px 12px 18px 0; background: transparent; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--pv-texto) 22%, transparent); border-radius: 0; }
 .pv-num:nth-child(even) { padding: 18px 0 18px 14px; border-left: 1px solid color-mix(in srgb, var(--pv-texto) 22%, transparent); }
-.pv-num .pv-item__x { font-size: 13px; }
+.pv-num .pv-item__x { font-size: 14px; color: var(--pv-texto); }
 /* depoimentos: a frase grande, sem itálico (as fontes hospedadas não têm a face itálica) */
 .pv-itens--depoimentos { gap: 22px; }
 .pv-cit { padding: 4px 0 4px 18px; background: transparent; border: 0; border-left: 4px solid var(--pv-dest); border-radius: 0; }
@@ -126,16 +123,18 @@
 .pv-v--faixa { background: var(--pv-dest) !important; }
 .pv-v--faixa .pv-h2, .pv-v--faixa .pv-texto, .pv-v--faixa .pv-sub, .pv-v--faixa .pv-rotulo { color: var(--pv-dest-texto); }
 .pv-v--faixa .pv-btn { background: var(--pv-dest-texto); color: var(--pv-dest); }
-.pv-v--faixa .pv-rotulo::before, .pv-sec--fecho .pv-rotulo::before { background: var(--pv-dest-texto); }
-/* a faixa de cor cheia: tudo o que está dentro lê na cor do texto do destaque (o contraste já é garantido pelo servidor) */
-.pv-v--faixa .pv-numero, .pv-v--faixa .pv-item__t, .pv-v--faixa .pv-item__x, .pv-v--faixa .pv-item__autor, .pv-v--faixa .pv-citacao, .pv-v--faixa .pv-linha__i { color: var(--pv-dest-texto); }
-.pv-v--faixa .pv-itens--numeros, .pv-v--faixa .pv-itens--linhas { border-top-color: var(--pv-dest-texto); }
-.pv-v--faixa .pv-num, .pv-v--faixa .pv-linha { border-color: color-mix(in srgb, var(--pv-dest-texto) 40%, transparent); }
-.pv-v--faixa .pv-cit { border-left-color: var(--pv-dest-texto); }
-.pv-v--faixa .pv-passo__n { background: var(--pv-dest); border-color: var(--pv-dest-texto); }
-.pv-v--faixa .pv-reservado { background: color-mix(in srgb, var(--pv-dest-texto) 18%, transparent); outline-color: var(--pv-dest-texto); }
-/* o fecho: a página termina em bloco de cor, com o título grande e o botão invertido (cta e contato) */
-.pv-sec.pv-sec--fecho { background: var(--pv-dest); padding-top: 64px; padding-bottom: 64px; }
+/* faixa de cor cheia e fecho: o que NÃO está em cartão lê na cor do texto do destaque (o servidor garante esse par sobre o destaque);
+   o cartão fica branco e segue com as cores normais (o servidor não garante destaque_texto sobre o fundo) */
+:is(.pv-v--faixa, .pv-sec--fecho) .pv-rotulo::before { background: var(--pv-dest-texto); }
+:is(.pv-v--faixa, .pv-sec--fecho) .pv-itens:not(.pv-itens--cartoes) :is(.pv-numero, .pv-item__t, .pv-item__x, .pv-item__autor, .pv-citacao, .pv-linha__i, .pv-foto__x) { color: var(--pv-dest-texto); }
+:is(.pv-v--faixa, .pv-sec--fecho) :is(.pv-itens--numeros, .pv-itens--linhas) { border-top-color: var(--pv-dest-texto); }
+:is(.pv-v--faixa, .pv-sec--fecho) :is(.pv-num, .pv-linha) { border-color: color-mix(in srgb, var(--pv-dest-texto) 40%, transparent); }
+:is(.pv-v--faixa, .pv-sec--fecho) .pv-cit { border-left-color: var(--pv-dest-texto); }
+:is(.pv-v--faixa, .pv-sec--fecho) .pv-passo__n { background: var(--pv-dest); border-color: var(--pv-dest-texto); color: var(--pv-dest-texto); }
+:is(.pv-v--faixa, .pv-sec--fecho) .pv-itens--passos .pv-item:not(:last-child)::before { background: color-mix(in srgb, var(--pv-dest-texto) 40%, transparent); }
+:is(.pv-v--faixa, .pv-sec--fecho) :is(.pv-cab, .pv-itens:not(.pv-itens--cartoes)) .pv-reservado { background: color-mix(in srgb, var(--pv-dest-texto) 18%, transparent); outline-color: var(--pv-dest-texto); }
+/* o fecho: a página termina em bloco de cor, com o título grande e o botão invertido (cta e contato); a densidade vale aqui também */
+.pv-sec.pv-sec--fecho { background: var(--pv-dest); padding-top: calc(var(--pv-esp) * 1.1); padding-bottom: calc(var(--pv-esp) * 1.1); }
 .pv-sec--fecho .pv-h2 { font-size: 38px; line-height: 1.02; letter-spacing: -.025em; color: var(--pv-dest-texto); }
 .pv-sec--fecho .pv-sub, .pv-sec--fecho .pv-texto, .pv-sec--fecho .pv-rotulo { color: var(--pv-dest-texto); }
 .pv-sec--fecho .pv-btn { background: var(--pv-dest-texto); color: var(--pv-dest); }
@@ -153,17 +152,17 @@
   .pv-h2 { font-size: 38px; }
   .pv-itens { grid-template-columns: repeat(3, 1fr); }
   .pv-v--lista .pv-itens, .pv-sec--faq .pv-itens { grid-template-columns: 1fr; max-width: 760px; }
-  .pv-itens--linhas { max-width: 860px; }
-  .pv-itens--passos { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 28px; }
+  /* os modos de lista ganham de .pv-v--grade/.pv-v--lista .pv-itens (0,2,0) pela especificidade: o modo é o desenho do TIPO, a variante só escolhe entre cartões e os demais */
+  .pv-sec .pv-itens.pv-itens--passos { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 28px; max-width: none; }
   .pv-itens--passos .pv-item { grid-template-columns: 1fr; padding: 0; }
   .pv-itens--passos .pv-item::before { display: none; }
   .pv-passo__n { grid-row: auto; margin-bottom: 10px; }
   .pv-itens--passos .pv-item__t { padding-top: 0; }
-  .pv-itens--galeria { grid-template-columns: repeat(3, 1fr); }
+  .pv-sec .pv-itens.pv-itens--galeria { grid-template-columns: repeat(3, 1fr); max-width: none; }
   .pv-foto:first-child:nth-last-child(odd) { grid-column: auto; aspect-ratio: 4 / 5; }
-  .pv-itens--numeros { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .pv-sec .pv-itens.pv-itens--numeros { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); max-width: none; }
   .pv-num, .pv-num:nth-child(even) { padding: 18px 20px; border-left: 1px solid color-mix(in srgb, var(--pv-texto) 22%, transparent); }
-  .pv-itens--depoimentos { grid-template-columns: 1fr; max-width: 820px; }
+  .pv-sec .pv-itens.pv-itens--depoimentos { grid-template-columns: 1fr; max-width: 820px; }
   .pv-citacao { font-size: 26px; }
   .pv-sec--fecho .pv-h2 { font-size: 60px; }
   .pv-v--split.pv-sec { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 56px; }

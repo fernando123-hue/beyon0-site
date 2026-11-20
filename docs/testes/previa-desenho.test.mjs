@@ -137,6 +137,7 @@ test('direção antiga (sem estrategia, sem nada novo) continua desenhando', () 
 
 test('o CSS do topo: arte sem listras, título do topo maior, texto longo do topo só quando cabe, e o topo em faixa usa a cor de destaque', () => {
   const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const secaoComClasses = v => comClasse(carregar().desenhar(direcao({ secoes: [{ ...direcao().secoes[0], variante: v }, ...direcao().secoes.slice(1)] })), 'pv-sec--hero')[0]._classe.split(' ');
   assert.ok(!/repeating-linear-gradient/.test(css), 'a caixa riscada vazia saiu');
   assert.ok(/\.pv-sec--hero \.pv-h1\s*\{[^}]*font-size:\s*clamp\(3\dpx,[^)]*,\s*4\dpx\)[^}]*overflow-wrap:\s*break-word/.test(css), 'título do topo de 34 a 44 px conforme a largura (cqw), sem estourar em 320 px');
   assert.ok(/\.pv-hero--faixa[^{]*\{[^}]*background:\s*var\(--pv-dest\)/.test(css), 'topo em faixa: fundo de destaque');
@@ -150,7 +151,8 @@ test('o CSS do topo: arte sem listras, título do topo maior, texto longo do top
   const estreito = css.slice(0, css.indexOf('@container'));
   assert.ok(/\.pv-sec--hero \.pv-arte\s*\{[^}]*order:\s*-1[^}]*height:\s*1[0-4]\dpx/.test(estreito), 'celular: arte em tira (100 a 149 px) antes do título');
   assert.ok(/\.pv-sec--hero \.pv-arte\s*\{[^}]*order:\s*0/.test(css.slice(css.indexOf('@container'))), 'container largo: a arte volta à ordem normal (grade de duas colunas)');
-  assert.ok(/\.pv-hero--faixa \.pv-reservado/.test(css), 'o espaço reservado não some no topo em faixa');
+  assert.ok(/:is\(\.pv-v--faixa, \.pv-sec--fecho\) :is\(\.pv-cab,.*?\) \.pv-reservado/.test(css), 'o espaço reservado não some no topo em faixa (o topo em faixa também leva pv-v--faixa)');
+  assert.ok(secaoComClasses('faixa').includes('pv-v--faixa'), 'o topo em faixa leva a classe pv-v--faixa que ativa essas regras');
 });
 
 test('encaixar com ajuste de altura mede de novo quando as fontes hospedadas assentam (document.fonts.ready); sem document.fonts não quebra', async () => {
@@ -230,10 +232,40 @@ test('cta e contato fecham a página em bloco de cor (pv-sec--fecho); outras se�
   assert.equal(comClasse(desenharCom(secao('contato', 'centro', [])), 'pv-sec--fecho').length, 1);
 });
 
-test('direção antiga e itens vazios continuam desenhando (sem lista quando não há item)', () => {
-  const raiz = desenharCom(secao('servicos', 'cartoes', []), secao('galeria', 'grade', [{ titulo: '', texto: '' }]));
-  assert.equal(comClasse(raiz, 'pv-sec').length, 3);
+test('item vazio não desenha lista nenhuma (nem a régua de cima) e não pula a numeração', () => {
+  const raiz = desenharCom(secao('servicos', 'cartoes', []), secao('galeria', 'grade', [{ titulo: '', texto: '' }]), secao('servicos', 'lista', [{ titulo: '', texto: '' }]));
+  assert.equal(comClasse(raiz, 'pv-sec').length, 4);
+  assert.equal(comClasse(raiz, 'pv-itens').length, 0, 'sem item para desenhar, sem <ul>');
   assert.doesNotThrow(() => desenharCom(secao('numeros', 'lista', [{ titulo: '', texto: 'só texto' }]), secao('depoimentos', 'faixa', [{ titulo: '', texto: '' }])));
+  const meio = lista(desenharCom(secao('processo', 'linha_do_tempo', [{ titulo: 'A', texto: '' }, { titulo: '', texto: '' }, { titulo: 'C', texto: '' }])));
+  assert.deepEqual(comClasse(meio, 'pv-passo__n').map(x => x.textContent), ['1', '2'], 'o item vazio no meio não deixa buraco na numeração');
+  const linhas = lista(desenharCom(secao('servicos', 'lista', [{ titulo: '', texto: '' }, { titulo: 'B', texto: '' }])));
+  assert.deepEqual(comClasse(linhas, 'pv-linha__i').map(x => x.textContent), ['01']);
+  assert.equal(comClasse(desenharCom(secao('depoimentos', 'cartoes', [{ titulo: 'Só o autor', texto: '' }])), 'pv-citacao').length, 0, 'depoimento sem frase não vira citação vazia');
+});
+
+test('precedência dos modos: galeria, números e depoimentos mandam pelo TIPO; processo manda sobre a variante lista; linha_do_tempo vira passos em qualquer tipo', () => {
+  const modo = (tipo, variante) => lista(desenharCom(secao(tipo, variante, I3)))._classe.split(' ').find(c => c.startsWith('pv-itens--'));
+  assert.equal(modo('galeria', 'linha_do_tempo'), 'pv-itens--galeria');
+  assert.equal(modo('numeros', 'lista'), 'pv-itens--numeros');
+  assert.equal(modo('depoimentos', 'lista'), 'pv-itens--depoimentos');
+  assert.equal(modo('processo', 'lista'), 'pv-itens--passos');
+  assert.equal(modo('diferenciais', 'linha_do_tempo'), 'pv-itens--passos');
+  assert.equal(modo('diferenciais', 'faixa'), 'pv-itens--cartoes');
+  assert.equal(modo('faq', 'lista'), 'pv-itens--linhas');
+});
+
+test('o rótulo da seção é um span só dentro do <p> (no flex, cada pedaço e cada "[reservado]" viraria um item solto com vão)', () => {
+  const r = comClasse(desenharCom(secao('servicos', 'cartoes', I3, { rotulo: 'Atendemos em [cidade].' })), 'pv-rotulo').find(x => x.textContent.includes('Atendemos'));
+  assert.deepEqual(r.filhos.map(f => f._classe), ['pv-rotulo__t']);
+  assert.equal(comClasse(r, 'pv-reservado').length, 1);
+});
+
+test('galeria: a descrição de verdade do cliente aparece embaixo do título; o "[Foto de…]" não', () => {
+  const g = lista(desenharCom(secao('galeria', 'grade', [{ titulo: 'Cozinha', texto: 'MDF com bancada de quartzo' }, { titulo: 'Closet', texto: '[Foto de um closet]' }])));
+  const fotos = comClasse(g, 'pv-foto');
+  assert.equal(comClasse(fotos[0], 'pv-foto__x')[0].textContent, 'MDF com bancada de quartzo');
+  assert.equal(comClasse(fotos[1], 'pv-foto__x').length, 0);
 });
 
 test('CSS das seções: linhas editoriais, passos com linha, moldura de foto com cantos, fecho em destaque; sem blur, sombra nem filtro', () => {
@@ -242,5 +274,16 @@ test('CSS das seções: linhas editoriais, passos com linha, moldura de foto com
   assert.ok(!/blur|drop-shadow|box-shadow|text-shadow|backdrop-filter|filter:/.test(css), 'sem blur nem brilho');
   assert.ok(/\.pv-sec:nth-of-type\(even\) \.pv-itens--cartoes \.pv-item\s*\{/.test(css) && !/\.pv-sec:nth-of-type\(even\) \.pv-item\s*\{/.test(css), 'o fundo branco das faixas pares vale só para os cartões (senão cobre as linhas, os números e a citação)');
   assert.ok(/\.pv-foto\s*\{[^}]*flex-direction:\s*row/.test(css), 'a legenda da moldura fica embaixo (o item é coluna por padrão)');
-  assert.ok(/\.pv-v--faixa \.pv-numero[^{]*\{[^}]*color:\s*var\(--pv-dest-texto\)/.test(css), 'na faixa de cor cheia o número lê na cor do texto do destaque (senão some: destaque sobre destaque)');
+  /* a faixa de cor cheia e o fecho (revisão do PR): a cor do texto do destaque só nos modos SEM cartão; o cartão é branco e segue com as cores normais */
+  assert.ok(/:is\(\.pv-v--faixa, \.pv-sec--fecho\) \.pv-itens:not\(\.pv-itens--cartoes\) :is\([^)]*\.pv-numero[^)]*\.pv-item__t[^)]*\.pv-linha__i[^)]*\)\s*\{[^}]*color:\s*var\(--pv-dest-texto\)/.test(css), 'número, título, índice e citação leem na cor do texto do destaque, mas só fora dos cartões');
+  assert.ok(!/\.pv-v--faixa \.pv-item__t/.test(css), 'nenhuma regra recolore o título do cartão na faixa (branco sobre branco)');
+  assert.ok(/:is\(\.pv-v--faixa, \.pv-sec--fecho\) \.pv-passo__n\s*\{[^}]*color:\s*var\(--pv-dest-texto\)/.test(css), 'o número do passo lê na cor do texto do destaque sobre o círculo de destaque');
+  assert.ok(/:is\(\.pv-v--faixa, \.pv-sec--fecho\) :is\(\.pv-cab, \.pv-itens:not\(\.pv-itens--cartoes\)\) \.pv-reservado/.test(css), 'o espaço reservado mantém o contorno no fecho e na faixa (e não mexe nos cartões brancos)');
+  assert.ok(/\.pv-sec\.pv-sec--fecho\s*\{[^}]*padding-top:\s*calc\(var\(--pv-esp\)/.test(css), 'a densidade vale no fecho');
+  assert.ok(/\.pv-h2\s*\{[^}]*overflow-wrap:\s*break-word/.test(css), 'palavra longa no título da seção não estoura a coluna');
+  const largo = css.slice(css.indexOf('@container'));
+  for (const modo of ['galeria', 'numeros', 'passos', 'depoimentos']) {
+    assert.ok(new RegExp('\\.pv-sec \\.pv-itens\\.pv-itens--' + modo + '\\s*\\{').test(largo), 'no container largo o modo ' + modo + ' ganha da variante (.pv-v--grade/.pv-v--lista .pv-itens, 0,2,0) pela especificidade (0,3,0)');
+  }
+  assert.ok(/\.pv-sec \.pv-itens\.pv-itens--galeria\s*\{[^}]*repeat\(3, 1fr\)/.test(largo), 'galeria com variante grade tem 3 colunas no desktop');
 });

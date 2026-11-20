@@ -67,15 +67,20 @@
     if (i.titulo) li.appendChild(el('h5', 'pv-item__t', i.titulo));
     if (i.texto) li.appendChild(el('p', 'pv-item__x', i.texto));
   }
+  /* devolve null quando não sobra item para desenhar (a lista vazia desenharia só a régua de cima) */
   function itens(lista, tipo, variante) {
     var modo = modoDosItens(tipo, variante);
     var ul = el('ul', 'pv-itens pv-itens--' + modo);
-    lista.slice(0, 8).forEach(function (i, n) {
-      if (!i || (!i.titulo && !i.texto)) return;
+    /* a numeração (passos 1, 2, 3; linhas 01, 02, 03) conta só os itens que vão para a tela */
+    var validos = lista.slice(0, 8).filter(function (i) { return i && (i.titulo || i.texto) && (modo !== 'depoimentos' || i.texto); });
+    validos.forEach(function (i, n) {
       var li = el('li', 'pv-item');
       if (modo === 'galeria') {   /* a moldura é o espaço da foto do cliente; a legenda é o título (o "[Foto de…]" do modelo não vira texto solto) */
         li.className = 'pv-item pv-foto';
-        li.appendChild(el('span', 'pv-foto__leg', i.titulo || i.texto));
+        var leg = el('span', 'pv-foto__leg', i.titulo || i.texto);
+        /* uma descrição de verdade do cliente aparece embaixo do título; o espaço reservado ("[Foto de…]") não */
+        if (i.titulo && i.texto && !RESERVADO.test(str(i.texto))) leg.appendChild(el('span', 'pv-foto__x', i.texto));
+        li.appendChild(leg);
       } else if (modo === 'numeros') {
         li.className = 'pv-item pv-num';
         if (i.titulo) li.appendChild(el('p', 'pv-numero' + (RESERVADO.test(str(i.titulo)) ? ' pv-numero--texto' : ''), i.titulo));
@@ -97,7 +102,7 @@
       }
       ul.appendChild(li);
     });
-    return ul;
+    return validos.length ? ul : null;
   }
 
   /* ---------- a arte do topo: desenhada por código na paleta do modelo (traço nítido; sem filtro, sem blur, sem brilho) ----------
@@ -180,14 +185,19 @@
       (primeira ? ' pv-hero--' + umDe(VARIANTES_TOPO, s.variante, 'split') : '') +
       (!primeira && (tipo === 'cta' || tipo === 'contato') ? ' pv-sec--fecho' : ''));   /* a página fecha em bloco de cor */
     var cab = el('div', 'pv-cab');
-    if (s.rotulo) cab.appendChild(el('p', 'pv-rotulo', s.rotulo));
+    if (s.rotulo) {   /* o texto vai num span só: no flex do rótulo cada pedaço (e cada "[espaço reservado]") viraria um item solto com vão */
+      var rot = el('p', 'pv-rotulo');
+      rot.appendChild(el('span', 'pv-rotulo__t', s.rotulo));
+      cab.appendChild(rot);
+    }
     if (s.titulo) cab.appendChild(el(primeira ? 'h3' : 'h4', primeira ? 'pv-h1' : 'pv-h2', s.titulo));
     if (s.subtitulo) cab.appendChild(el('p', 'pv-sub', s.subtitulo));
     if (s.texto) cab.appendChild(el('p', 'pv-texto', s.texto));
     if (s.cta) cab.appendChild(el('span', 'pv-btn', s.cta));
     sec.appendChild(cab);
     if (primeira) sec.appendChild(arteDoTopo(d));   /* a arte vem logo depois do título; os itens (se o modelo pôs) ficam abaixo dela */
-    if (Array.isArray(s.itens) && s.itens.length) sec.appendChild(itens(s.itens, tipo, umDe(VARIANTES, s.variante, 'centro')));
+    var lista = Array.isArray(s.itens) && s.itens.length ? itens(s.itens, tipo, umDe(VARIANTES, s.variante, 'centro')) : null;
+    if (lista) sec.appendChild(lista);
     return sec;
   }
 
