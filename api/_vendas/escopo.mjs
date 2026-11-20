@@ -76,7 +76,7 @@ export function montarEscopo({ estimativa, direcao, alteracoesAplicadas, briefin
     for (const i of estimativa.fase_seguinte.itens) linhas.push('- ' + i.nome + (i.qtd > 1 ? ' (' + i.qtd + ')' : '') + '.');
   }
   linhas.push('', 'INVESTIMENTO: ' + brl(estimativa.valor_total) + ' — ' + estimativa.sinal_percentual + '% para começar (' + brl(estimativa.sinal) + ') e o restante quando o site estiver pronto, antes de ir ao ar.');
-  linhas.push('PRAZO: até ' + estimativa.prazo_dias + ' dias úteis, contados do sinal pago e do material recebido. Sábado, domingo e feriado nacional não contam. Enquanto esperamos a sua lista de ajustes, o prazo fica parado.');   /* (úteis: decisão do dono de 21/10, que revê a de 09/10; o prazo parado é a D4 de 21/10) */
+  linhas.push('PRAZO: até ' + estimativa.prazo_dias + ' dias úteis, contados do sinal pago e do material recebido. Sábado, domingo e feriado nacional não contam. Enquanto esperamos a sua lista de ajustes, o prazo fica parado. Ele para de vez quando você aprova a prévia: depois disso, o site vai ao ar assim que o restante for pago.');   /* (úteis: decisão do dono de 21/10, que revê a de 09/10; o prazo parado é a D4 de 21/10) */
   /* (PR 3b-3a, MÉDIO-3 do 3b-1) as outras regras da D4 que a Beyon vai aplicar: o cliente as confirma aqui, em "Li e confirmo". O texto é o de /condicoes, literal da captação (decisão do dono de 22/10; o teste de coerência confere) */
   linhas.push('MATERIAL: Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, nós avisamos que estamos aguardando e o projeto fica parado.');
   linhas.push('AJUSTES: 2 listas de ajuste na prévia (uma lista é o conjunto de pedidos que você manda de uma vez). O que passar das duas listas é orçado à parte.');

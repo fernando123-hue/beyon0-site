@@ -36,6 +36,7 @@ const REGRAS_D4 = [
   ['material: nada vai ao ar sem material e autorização; a Beyon avisa que aguarda e o projeto fica parado (22/10)', t => /Nada vai ao ar sem (o seu material e a sua autorização|o material e a autorização do cliente): enquanto ele não chegar, (nós avisamos que estamos|a Beyon Zero avisa que está) aguardando e o projeto fica parado\./.test(t)],
   ['restante (19/11): com o site pronto, antes de ir ao ar; o site só vai ao ar com o restante pago, e sem os 3 dias do site no ar', t => /antes de ir ao ar|quando o site fica pronto/.test(t)
     && /O site só vai ao ar com o restante pago|com o restante pago, (ele|o site) vai ao ar/i.test(t) && !RESTANTE_ANTIGO.test(t)],
+  ['prazo PARA quando o cliente aprova a prévia; depois disso o site vai ao ar assim que o restante for pago (20/11, dono)', t => /para de vez quando (você|o cliente) aprova a prévia: depois disso, o site vai ao ar assim que o restante for pago\./.test(t)],
   ['2 listas de ajuste', t => /(2|[Dd]uas) listas de ajuste/.test(t)],
   ['atraso da Beyon devolve a entrada inteira, mesmo depois dos 7 dias', t => /entrada (é devolvida )?inteira( de volta)?,? mesmo depois dos 7 dias|devolvemos a entrada inteira, mesmo depois dos 7 dias/.test(t)]
 ];
@@ -58,7 +59,7 @@ test('22/10: /condicoes traz os trechos da captação LITERAIS, o do material em
   assert.ok(pagamento.indexOf('No institucional:') < pagamento.indexOf(RESTANTE_1A), 'o trecho do restante vem depois do institucional');
   /* 19/11: a ordem nova do restante (o site pronto, o ar só com ele pago; Decisões 19/11); a captação grava esta data como condicoes_versao
      (config/entrega.json de lá), que sobe junto no PR da captação */
-  assert.ok(CONDICOES.includes('Última atualização: 19 de novembro de 2026'), 'a data da versão');
+  assert.ok(CONDICOES.includes('Última atualização: 20 de novembro de 2026'), 'a data da versão (20/11: o prazo para na aprovação da prévia; a captação sobe a condicoes_versao junto)');
   assert.ok(CONDICOES.includes('O site fica pronto e você vê tudo na prévia. Com o restante pago, ele vai ao ar e passa para uma conta no seu nome'), 'a hospedagem na ordem nova');
   assert.ok(!/primeiro na conta da Beyon/.test(CONDICOES), 'o site não vai mais ao ar na conta da Beyon antes do restante');
 });
