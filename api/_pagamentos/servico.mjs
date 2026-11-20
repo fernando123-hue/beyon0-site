@@ -74,6 +74,8 @@ function traduzirLimite(e) {
   if (e && e.codigo === '23514' && /cartão pausado/.test(m)) throw new ErroPagamento(503, 'O pagamento com cartão está pausado por segurança. Use o Pix ou deixe um recado para a equipe.', { recado: true });
   if (e && e.codigo === '23514' && /tentativas esgotadas/.test(m)) throw new ErroPagamento(429, 'Foram muitas tentativas de pagamento. Deixe um recado para a equipe para concluir.', { recado: true });
   if (e && e.codigo === '55P03') throw new ErroPagamento(429, 'Espere alguns segundos antes de tentar de novo.');
+  /* a entrega bloqueada (entrada estornada, contestada ou projeto pausado): o banco recusa cobrar o restante; a pessoa lê uma frase humana, sem a palavra do sistema; o dono já foi avisado */
+  if (e && e.codigo === '55000' && /bloqueada/.test(m)) throw new ErroPagamento(409, 'Estamos conferindo o seu pagamento. A Beyon Zero fala com você antes de seguir.', { recado: true });
   if (e && e.codigo === '55000' && /verificação/.test(m)) throw new ErroPagamento(409, 'Seu pagamento está em verificação. A Beyon Zero fala com você em breve.', { recado: true });
   /* (PR 3b-1) proposta sem o percentual da entrada: o banco não cobra (falha fechada); a pessoa fala com a Beyon Zero */
   if (e && e.codigo === '23514' && /sem percentual de entrada/.test(m)) throw new ErroPagamento(409, 'Este pedido está sem o valor da entrada. Deixe um recado para a equipe.', { recado: true });

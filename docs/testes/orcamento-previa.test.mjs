@@ -484,3 +484,9 @@ test('revisão F: pela tela inteira (com o orcamento-restante.js na página) a p
   const bloqueada = com([entrada, { parcela: 'saldo', status: 'pago', valor: '1800.00', quitada: true }]); bloqueada.entrega.bloqueada = true;
   assert.match(texto(bloqueada), /conferindo o pagamento do restante/, 'a entrega bloqueada também confere');
 });
+
+test('revisão 2/1: a prévia aprovada com o restante aberto e a entrega bloqueada não diz "Falta só o restante"', () => {
+  const E = { ...estado('aprovada'), pagamentos: [{ parcela: 'sinal', status: 'estornado', valor: '1200.00' }] }; E.entrega.bloqueada = true;
+  const t = montar({ comRestante: true }); t.P.atualizar(E);
+  assert.match(t.el['o-prv-texto'].textContent, /conferindo/); assert.doesNotMatch(t.el['o-prv-texto'].textContent, /Falta só/);
+});

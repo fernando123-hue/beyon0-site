@@ -153,3 +153,15 @@ test('revisão E: o texto do restante pago com a entrega bloqueada diz que o sit
   assert.equal(await avisarDonoPagamento({ AVISO_EMAIL: canal, AVISO_PARA: 'dono@exemplo.com' }, { codigo: 'BZ-ACDEF', evento: 'restante_pago_bloqueada', parcela: 'restante' }, { EmailMessage: EmailFalso }), true);
   assert.equal(assuntoCompleto(canal.enviados[0].bruto), t.split('.')[0]);
 });
+
+/* ---------- revisão 2, item 1: o banco recusa cobrar o restante com a entrega bloqueada; o cliente lê uma frase humana, nunca o erro cru ---------- */
+test('revisão 2/1: o 55000 "a entrega está bloqueada" vira frase humana (409, com saída pelo recado), sem as palavras bloqueada, estorno ou código', async () => {
+  const bloqueio = Object.assign(new Error('a entrega está bloqueada (entrada estornada, contestada ou projeto pausado): a equipe resolve'), { codigo: '55000' });
+  const servico = criarServicoPagamentos({ banco: async () => { throw bloqueio; }, cfg: { ativo: true, contaEsperada: '777', metodos: ['pix'] }, provedor: mp });
+  const PAGADOR = { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '52998224725' };
+  await assert.rejects(servico.iniciar({ conversa_id: 'c', visitante_id: 'v', metodo: 'pix', pagador: PAGADOR }), e => {
+    assert.equal(e.status, 409);
+    assert.match(e.message, /conferindo/); assert.doesNotMatch(e.message, /bloquead|estorn|contest|BZ-|55000/i);
+    return true;
+  });
+});

@@ -445,3 +445,17 @@ test('revisão F: o restante pago e limpo, mas a entrega bloqueada (entrada esto
   const t = montar(); t.rest.atualizar(base({ pag: { quitada: true }, entrega: { bloqueada: false } }));
   assert.equal(t.E('o-noar-titulo').textContent, 'Restante pago');
 });
+
+test('revisão 2/1: o restante ainda ABERTO com a entrega bloqueada (a entrada foi estornada antes de pagar o restante) NÃO cobra: mostra a conferência, sem Pix e sem "Falta só o restante"', () => {
+  const aberta = estado('aprovada', { site: { url: null } }); aberta.entrega.bloqueada = true;
+  assert.equal(R.estadoDoRestante(aberta), 'conferencia');
+  const t = montar(); t.rest.atualizar(aberta);
+  assert.equal(t.E('o-noar-titulo').textContent, 'Estamos conferindo o pagamento');
+  assert.equal(t.E('o-pagamento').hidden, true); assert.equal(t.E('o-noar-nota').hidden, true);
+  assert.doesNotMatch(t.E('o-noar-aviso').textContent, /Falta só|bloquead|estorn/i);
+  assert.deepEqual(t.chamadas, [['parar']], 'não pede o Pix');
+  const livre = estado('aprovada', { site: { url: null } }); livre.entrega.bloqueada = false;
+  assert.equal(R.estadoDoRestante(livre), 'aberto', 'sem bloqueio, o restante segue aberto');
+  const antiga = estado('no_ar'); antiga.entrega.bloqueada = true;
+  assert.equal(R.estadoDoRestante(antiga), 'aberto', 'a entrega antiga no ar não muda de tela (o servidor traduz a recusa)');
+});

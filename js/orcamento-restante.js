@@ -75,7 +75,8 @@
      (pagamento.quitada, entrega.bloqueada) são booleanos do servidor; sem eles (servidor antigo) vale o registro, como antes */
   function estadoDoRestante(E) {
     var p = daParcela(E && E.pagamentos, 'saldo', 'pago');
-    if (!p) return 'aberto';
+    /* o restante ainda ABERTO com a prévia aprovada e a entrega bloqueada (a entrada foi estornada antes de ele ser pago): o banco recusa a cobrança, então a tela não chama o Pix: confere, como no estorno do restante */
+    if (!p) return E && E.entrega && E.entrega.bloqueada && E.entrega.passo === 'aprovada' ? 'conferencia' : 'aberto';
     return p.quitada === false || !!(E.entrega && E.entrega.bloqueada) ? 'conferencia' : 'pago';
   }
   /* o restante já caiu e está limpo: a tela não cobra de novo e diz que o site vai ao ar */
