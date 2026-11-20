@@ -416,6 +416,8 @@ begin
 end $$;
 
 -- ---------- a lista do painel e do `listar`: a de 20261024120400_pr3b3_lista.sql com `bloqueada` e `restante_pago` (o próximo passo certo: esperar o restante ou pôr no ar) ----------
+-- (revisão técnica B) o pedido CONCLUÍDO (site no ar) continua na lista por 30 dias, o mesmo prazo do link de retomada: a passagem do site para a conta do cliente é MANUAL e
+-- ainda não tem marca própria no banco; sem isso, uma contestação entre o "no ar" e a passagem só apareceria no e-mail. Passados os 30 dias o item sai sozinho.
 create or replace function app.vendas_entregas_lista(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare v_org uuid; r record; v_itens jsonb;
@@ -439,7 +441,7 @@ begin
       'ajustes_com_contato', (select count(*) from app.entrega_ajustes ea where ea.entrega_id = e.id and ea.status = 'na_fila' and (ea.contato_whatsapp is not null or ea.contato_email is not null)),
       'previa_url', e.previa_url, 'previa_em', e.previa_em,
       'dias_na_previa', case when e.passo = 'previa' then (now() at time zone 'America/Campo_Grande')::date - (e.previa_em at time zone 'America/Campo_Grande')::date end,
-      'no_ar_em', e.no_ar_em,
+      'no_ar_em', e.no_ar_em, 'concluida_em', e.concluida_em,
       'dias_no_ar', case when e.no_ar_em is not null then (now() at time zone 'America/Campo_Grande')::date - (e.no_ar_em at time zone 'America/Campo_Grande')::date end,
       'aviso_material_em', e.aviso_material_em, 'aviso_no_ar_feito_em', e.aviso_no_ar_feito_em,
       'aviso_apagar_material_em', e.aviso_apagar_material_em, 'material_apagado_em', e.material_apagado_em, 'apagar_material_devido', privado.material_apagar_devido(e),
@@ -452,7 +454,8 @@ begin
       join app.materiais m on m.entrega_id = e.id
       join app.conversas c on c.id = e.conversa_id
       left join app.pedidos pd on pd.conversa_id = c.id
-     where e.org_id = v_org and (e.passo not in ('concluida', 'encerrada') or e.religar_pendente)
+     where e.org_id = v_org and (e.passo not in ('concluida', 'encerrada') or e.religar_pendente
+             or (e.passo = 'concluida' and e.site_url is not null and e.concluida_em > now() - interval '30 days'))
      order by e.created_at limit 100
   ) q;
   return jsonb_build_object('itens', v_itens, 'total', jsonb_array_length(v_itens));

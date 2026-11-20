@@ -8,7 +8,7 @@ import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { novoBanco, erroDe } from './_banco.mjs';
 import { rpcDe, prepararOrg } from './_entrega.mjs';
-import { entregaEm, iniciarRestante, aprovarRestante, codigoDe, versaoDe, PREVIA, SITE } from './_previa.mjs';
+import { entregaEm, forcarEntrega, iniciarRestante, aprovarRestante, codigoDe, versaoDe, PREVIA, SITE } from './_previa.mjs';
 
 let db, rpc;
 const um = async (sql, p) => (await db.query(sql, p)).rows[0];
@@ -227,4 +227,39 @@ test('revisão: o pedido concluído pela ordem nova aceita o link de retomada do
   const d = await entregaEm(db, 'producao');
   assert.deepEqual(await rpc('vendas_encerrar', { org_slug: 'beyon-zero', codigo: await codigoDe(db, d), motivo: 'desistencia' }), { ok: true });
   assert.equal((await erroDe(rpc('vendas_criar_retomada', { org_slug: 'beyon-zero', conversa_id: d.conversa_id, codigo_hash: hash('b'), dias: 7 }))).codigo, '55000');
+});
+
+/* ---------- revisão técnica B: o pedido concluído continua na lista do dono até a passagem do site para a conta do cliente ---------- */
+const itemDaLista = async c => { const cod = await codigoDe(db, c); return (await rpc('vendas_entregas_lista', { org_slug: 'beyon-zero' })).itens.find(i => i.codigo === cod); };
+
+test('revisão B: depois do "no ar" o pedido concluído CONTINUA na lista do dono (falta a passagem para a conta do cliente, que é manual)', async () => {
+  const c = await aprovadaComRestantePago();
+  assert.deepEqual(await noAr(c), { ok: true });
+  const it = await itemDaLista(c);
+  assert.ok(it, 'o item não pode sumir do painel antes da passagem');
+  assert.deepEqual([it.passo, it.bloqueada, it.restante_pago], ['concluida', false, true]);
+  assert.ok(it.concluida_em && it.no_ar_em);
+});
+
+test('revisão B: uma contestação entre o "no ar" e a passagem aparece na lista (bloqueada), não só no e-mail', async () => {
+  const c = await aprovadaComRestantePago();
+  await noAr(c);
+  await aplicar(c, 'contestada');
+  const it = await itemDaLista(c);
+  assert.ok(it, 'o item bloqueado continua na lista');
+  assert.deepEqual([it.passo, it.bloqueada], ['concluida', true]);
+});
+
+test('revisão B: a lista não cresce para sempre: concluída há mais de 30 dias e a encerrada saem', async () => {
+  const velha = await aprovadaComRestantePago();
+  await noAr(velha);
+  await forcarEntrega(db, velha, { concluida_em: new Date(Date.now() - 31 * 864e5).toISOString() });
+  assert.equal(await itemDaLista(velha), undefined, 'concluída há 31 dias: fora');
+  const nova = await aprovadaComRestantePago();
+  await noAr(nova);
+  await forcarEntrega(db, nova, { concluida_em: new Date(Date.now() - 29 * 864e5).toISOString() });
+  assert.ok(await itemDaLista(nova), 'concluída há 29 dias: ainda à vista');
+  const enc = await entregaEm(db, 'producao');
+  await rpc('vendas_encerrar', { org_slug: 'beyon-zero', codigo: await codigoDe(db, enc), motivo: 'desistencia' });
+  assert.equal(await itemDaLista(enc), undefined, 'encerrada: fora');
 });

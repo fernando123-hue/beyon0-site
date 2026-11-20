@@ -265,8 +265,8 @@ async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, convers
   await foto(B.p, '8b-fim-320');
   await B.p.setViewportSize({ width: 390, height: 844 });
 
-  /* 8. o dono não vê mais o pedido na lista; ao recarregar o fim continua; nenhuma tela deu erro de console */
-  ok(!((await painel('GET', '?fila=entregas')).corpo.entregas || []).some(e => e.codigo === codigo), 'o pedido concluído sai da lista do dono');
+  /* 8. o dono continua vendo o pedido concluído na lista (falta a passagem do site para a conta do cliente, manual); ao recarregar o fim continua; nenhuma tela deu erro de console */
+  ok(((await painel('GET', '?fila=entregas')).corpo.entregas || []).some(e => e.codigo === codigo && e.passo === 'concluida' && e.bloqueada === false), 'o pedido concluído continua na lista do dono até a passagem do site');
   await B.p.reload({ waitUntil: 'load' });
   await B.p.waitForSelector('#o-fim:not([hidden])', { timeout: ESPERA });
   ok(/Pedido concluído/.test(await B.p.textContent('#o-fim-titulo')) && await escondido(B.p, '#o-pagamento'), 'fim: recarregar a página continua no pedido concluído, sem Pix');

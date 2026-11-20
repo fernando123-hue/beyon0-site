@@ -376,3 +376,15 @@ test('alertasDe: dias_na_previa (campo do servidor) também passa por paraTermin
   assert.match(texto, /esperando o cliente há /);
   assert.ok(!/[\u001b\u202e]/.test(texto), JSON.stringify(texto));
 });
+
+/* revisão técnica B: o pedido concluído continua na lista até a passagem do site para a conta do cliente (manual): o terminal diz o que falta, e bloqueado não manda passar */
+test('revisão B: o pedido CONCLUÍDO lembra a passagem do site para a conta do cliente; bloqueado, manda conferir o Mercado Pago ANTES da passagem', () => {
+  const fim = extra => base({ passo: 'concluida', restante_pago: true, bloqueada: false, concluida_em: '2026-10-20T12:00:00-04:00', ...extra });
+  const normal = alertasDe(fim(), HOJE);
+  assert.equal(normal.length, 1); assert.match(normal[0], /passe o site para a conta no nome do cliente/);
+  const bloq = alertasDe(fim({ bloqueada: true }), HOJE);
+  assert.equal(bloq.length, 1); assert.match(bloq[0], /BLOQUEADA/); assert.match(bloq[0], /já está no ar/); assert.match(bloq[0], /antes de passar o site/);
+  assert.ok(!/Nada avança nem vai ao ar/.test(bloq[0]), 'o site JÁ está no ar: a frase de "nada vai ao ar" seria falsa');
+  assert.deepEqual(alertasDe(fim({ religar_pendente: true }), HOJE).filter(t => /religar/.test(t)).length, 1, 'a religação pendente continua avisando');
+  assert.equal(proximoComando(fim(), '/x'), null, 'sem comando: a passagem é manual');
+});

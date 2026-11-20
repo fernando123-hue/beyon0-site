@@ -56,6 +56,7 @@ const acao = (buscar, origem, chave, corpo) => painel(buscar, origem, chave, '/a
 
 export function alertasDe(it, agora = new Date()) {
   /* (19/11) reembolso bloqueia a entrega: nada avança nem vai ao ar (o banco recusa). Uma linha só: as outras sugeririam ações que o banco recusa */
+  if (it.bloqueada && it.passo === 'concluida') return ['BLOQUEADA: o site já está no ar e o pagamento foi estornado, contestado ou está em disputa no Mercado Pago. Confira no Mercado Pago antes de passar o site para a conta do cliente; se houver devolução, tire o site do ar pela captação'];
   if (it.bloqueada) return ['BLOQUEADA: o pagamento foi estornado, contestado ou está em disputa no Mercado Pago (projeto pausado). Nada avança nem vai ao ar; confira no Mercado Pago e, se houver devolução, encerre (encerrar ' + it.codigo + ' desistencia; com o restante pago, estorne o restante antes)'];
   const a = [];
   const diasDeEntrada = it.dias_desde_entrada;
@@ -99,6 +100,8 @@ export function alertasDe(it, agora = new Date()) {
   }
   if (it.passo === 'suspensa') a.push('site suspenso: quando o restante cair, religar pela captação e marcar (religado ' + it.codigo + ')');
   if (it.passo === 'concluida' && it.religar_pendente) a.push('o restante caiu com o site suspenso: religar o site pela captação e marcar (religado ' + it.codigo + ')');
+  /* (revisão B) o site já está no ar e o restante foi pago, mas a passagem para a conta do cliente é manual e não tem marca no banco: o item fica na lista por 30 dias depois de concluído */
+  if (it.passo === 'concluida' && !it.religar_pendente) a.push('o site está no ar: passe o site para a conta no nome do cliente e mande o passo a passo (o item sai desta lista 30 dias depois de concluído)');
   return a;
 }
 
