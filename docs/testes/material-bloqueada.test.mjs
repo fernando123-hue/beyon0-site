@@ -5,6 +5,7 @@ import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { novoBanco } from './_banco.mjs';
 import { rpcDe, prepararOrg, conversaComEntradaPaga } from './_entrega.mjs';
+import { forcarEntrega } from './_previa.mjs';
 import { contarAlarmes } from '../../api/_entrega/alarmes.mjs';
 
 let db, rpc;
@@ -121,5 +122,16 @@ for (const estado of ['estornada_parcial', 'contestada', 'estornada']) {
     for (let i = 0; i < 3; i++) await aplicarRetrato(c, estado);
     assert.equal(await vencida(c), true, 'depois de reaplicar o mesmo estado, segue vencida (a consulta não reinicia a contagem)');
     assert.equal(new Date(await desde(c)).getTime(), new Date(antes).getTime(), 'a data do bloqueio não anda');
+  });
+}
+
+/* ---------- TÉCNICA-1: o aviso dos dias 53 a 59 vale para QUALQUER passo em que a guarda de 60 dias vale (prévia, suspensa, concluída...) ---------- */
+for (const passo of ['material', 'producao', 'previa', 'ajustes', 'aprovada', 'no_ar', 'suspensa', 'concluida']) {
+  test('T1: a entrega no passo "' + passo + '" bloqueada há 55 dias entra no aviso da rotina (e há 40 dias, não)', async () => {
+    const c = await entrega();
+    await forcarEntrega(db, c, { passo });
+    const marcado = async () => (await rpc('rotinas_entregas', {})).itens.some(i => i.passo === passo && i.material_bloqueado_apagar === true);
+    await BLOQUEIOS['o projeto pausado'](c, 40); assert.equal(await marcado(), false, '40 dias: ainda longe');
+    await BLOQUEIOS['o projeto pausado'](c, 55); assert.equal(await marcado(), true, '55 dias: na última semana');
   });
 }

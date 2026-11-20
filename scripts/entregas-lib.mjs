@@ -13,7 +13,8 @@ import path from 'node:path';
 import { tipoPorBytes } from '../api/_material/bytes.mjs';
 import { estruturaCompleta } from './imagem-estrutura.mjs';
 import { validarBase, pedirConfirmacao, codigoAleatorio, paraTerminal } from './direcoes.mjs';
-import { diaNoFuso, prazoVencido } from '../api/_material/prazo.mjs';
+import { diaNoFuso, prazoVencido, diasCorridosDesde } from '../api/_material/prazo.mjs';
+import { LIMITES } from '../api/_entrega/alarmes.mjs';
 import { briefingDelimitado, REGRA_BRIEFING } from '../api/_vendas/gerador.mjs';
 import { pareceInjecao } from '../api/_vendas/seguranca.mjs';
 import ESQ from '../js/orcamento-material-esquema.js';   /* a mesma regra do telefone e do e-mail do site (M3) */
@@ -88,7 +89,10 @@ export function alertasDe(it, agora = new Date()) {
     }
   }
   /* (19/11) a ordem nova: o restante é cobrado com a prévia aprovada; o site só vai ao ar com ele pago */
-  if (it.passo === 'aprovada') a.push(it.restante_pago ? 'o restante foi pago: ponha o site no ar (no-ar ' + it.codigo + ' <endereço>)' : 'esperando o cliente pagar o restante (a cobrança abriu quando ele aprovou a prévia): o site só vai ao ar com ele pago');
+  if (it.passo === 'aprovada' && it.restante_pago && !it.bloqueada && it.restante_pago_em && Number.isFinite(Date.parse(it.restante_pago_em)) && diasCorridosDesde(it.restante_pago_em, agora) > LIMITES.site_parado_dias) {
+    a.push('o site está parado há ' + diasCorridosDesde(it.restante_pago_em, agora) + ' dia(s) com o restante pago (o aviso único do pagamento pode ter falhado): ponha no ar (no-ar ' + it.codigo + ' <endereço>)');
+  }
+  else if (it.passo === 'aprovada') a.push(it.restante_pago ? 'o restante foi pago: ponha o site no ar (no-ar ' + it.codigo + ' <endereço>)' : 'esperando o cliente pagar o restante (a cobrança abriu quando ele aprovou a prévia): o site só vai ao ar com ele pago');
   if (it.passo === 'previa') a.push('esperando o cliente há ' + (it.dias_na_previa == null ? '?' : paraTerminal(it.dias_na_previa, 10)) + ' dia(s): o projeto para até ele responder (D5). Nada a fazer; não aprova nem encerra por silêncio');
   if (it.aviso_previa_pendente) a.push('avisar o cliente: prévia pronta (painel, Avisos, com o link de uso único)');
   if (it.aviso_no_ar_pendente && it.passo === 'no_ar') a.push('avisar o cliente: site no ar (painel, Avisos, com o link de uso único). Os 3 dias do restante só começam a contar quando você registrar este aviso');

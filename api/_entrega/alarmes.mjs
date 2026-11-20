@@ -11,10 +11,11 @@
    ========================================================================== */
 import { prazoVencido, diasCorridosDesde } from '../_material/prazo.mjs';
 
-export const LIMITES = Object.freeze({ material_dias: 30, restante_dias: 3, lembretes_restante: Object.freeze([2, 3]), max_rodadas: 2 });
+/* site_parado_dias (20/11): o restante pago e o site ainda fora do ar depois deste número de dias corridos (o dia do pagamento é o dia 0) vira alarme */
+export const LIMITES = Object.freeze({ material_dias: 30, restante_dias: 3, site_parado_dias: 2, lembretes_restante: Object.freeze([2, 3]), max_rodadas: 2 });
 
 export function contarAlarmes(itens, agora = new Date()) {
-  const r = { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0, material_bloqueado: 0, ilegiveis: 0 };
+  const r = { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0, material_bloqueado: 0, site_parado: 0, ilegiveis: 0 };
   for (const it of itens || []) {
     /* B1: um item torto (data ilegível, prazo_dias fora de 1..60, lixo na lista) vira contagem de "ilegiveis"; não derruba os alarmes do dia */
     try { contarUm(it, agora, r); } catch (e) { if (!(e instanceof RangeError)) throw e; r.ilegiveis++; }   /* (só o dado torto: RangeError; um TypeError é bug de programação e sobe) */
@@ -32,5 +33,7 @@ function contarUm(it, agora, r) {
   }
   /* (20/11, dono) o prazo PARA quando o cliente aprova a prévia: aprovada não conta prazo vencido, mesmo a de antes da regra com a pausa fechada */
   else if (it.passo === 'producao' || it.passo === 'ajustes') { if (prazoVencido(it.prazo, { prazoDias: it.prazo_dias }, agora)) r.prazo_vencido++; }
+  /* (20/11) o prazo da Beyon parou na aprovação, então o que alarma aqui é o site que ficou fora do ar com o restante já pago */
+  else if (it.passo === 'aprovada') { if (it.restante_pago_em && diasCorridosDesde(it.restante_pago_em, agora) > LIMITES.site_parado_dias) r.site_parado++; }
   else if (it.passo === 'no_ar') { if (it.aviso_no_ar_feito_em && diasCorridosDesde(it.aviso_no_ar_feito_em, agora) > LIMITES.restante_dias) r.restante_vencido++; }
 }

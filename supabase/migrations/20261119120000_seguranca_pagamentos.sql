@@ -528,7 +528,7 @@ begin
       'lembrete_restante_1_em', e.lembrete_restante_1_em, 'lembrete_restante_2_em', e.lembrete_restante_2_em,
       'aviso_previa_pendente', e.aviso_previa_desde is not null, 'aviso_no_ar_pendente', e.aviso_no_ar_desde is not null,
       'religar_pendente', e.religar_pendente, 'criada_em', e.created_at,
-      'bloqueada', privado.entrega_bloqueada(e), 'bloqueada_desde', privado.entrega_bloqueada_desde(e), 'restante_pago', privado.parcela_quitada(e.proposta_id, 'saldo')) as x
+      'bloqueada', privado.entrega_bloqueada(e), 'bloqueada_desde', privado.entrega_bloqueada_desde(e), 'restante_pago', privado.parcela_quitada(e.proposta_id, 'saldo'), 'restante_pago_em', privado.restante_pago_em(e)) as x
       from app.entregas e
       join app.materiais m on m.entrega_id = e.id
       join app.conversas c on c.id = e.conversa_id
@@ -657,6 +657,14 @@ end $$;
 -- tirava o material no dia seguinte e os outros bloqueios nunca o tiravam. Na última semana (dia 53 a 59) a rotina diária avisa o dono (alerta "material_bloqueado", só contagem).
 -- Desbloqueada, volta à regra de sempre. "Desde quando": o último movimento que bloqueia (a tentativa estornada, estornada em parte, contestada ou divergente; o pagamento estornado ou
 -- contestado; o projeto pausado ou cancelado); sem nenhum registro, a criação da entrega.
+-- (T2, revisão técnica) quando o restante foi QUITADO (nulo se não está): o alarme "restante pago e o site ainda fora do ar" conta a partir daqui
+create function privado.restante_pago_em(e app.entregas) returns timestamptz
+language sql stable security definer set search_path = '' as $$
+  select case when privado.parcela_quitada(e.proposta_id, 'saldo')
+    then (select pg.pago_em from app.pagamentos pg where pg.proposta_id = e.proposta_id and pg.parcela = 'saldo' and pg.status = 'pago' order by pg.pago_em desc limit 1) end;
+$$;
+revoke all on function privado.restante_pago_em(app.entregas) from public, anon, authenticated, service_role;
+
 -- (S1, revisão de segurança) O "desde quando" NÃO pode ser o updated_at: o carimbo mexe nele a cada UPDATE, e a reconciliação reaplica o mesmo retrato de hora em hora
 -- (consultada_em = now()), o que reiniciaria os 60 dias para sempre. A marca nova, status_em, só anda quando o STATUS muda (e na criação). Linhas antigas, sem a marca, caem no updated_at.
 alter table app.tentativas_pagamento add column status_em timestamptz;
@@ -725,7 +733,7 @@ revoke all on function privado.material_vencido_pelo_fim(app.entregas) from publ
 
 alter table app.alertas drop constraint alertas_tipo_check;
 alter table app.alertas add constraint alertas_tipo_check check (tipo in (
-  'pagamento_atencao', 'teto_ia', 'ia_falhando', 'freio_ip', 'rotina_falhou', 'prazo_vencido', 'material_30_dias', 'restante_3_dias', 'material_apagar', 'material_bloqueado'));
+  'pagamento_atencao', 'teto_ia', 'ia_falhando', 'freio_ip', 'rotina_falhou', 'prazo_vencido', 'material_30_dias', 'restante_3_dias', 'material_apagar', 'material_bloqueado', 'site_parado'));
 
 -- a lista da rotina e a conferência do dia: as de 20261024120300_pr3b3_rotina.sql com o aviso do material da entrega bloqueada
 create or replace function app.rotinas_entregas(p jsonb) returns jsonb
@@ -747,8 +755,10 @@ begin
   select coalesce(jsonb_agg(jsonb_build_object('passo', e.passo, 'prazo', e.prazo, 'prazo_dias', e.prazo_dias,
            'entrada_em', e.prazo ->> 'entrada_em', 'no_ar_em', e.no_ar_em, 'aviso_material_em', e.aviso_material_em, 'aviso_no_ar_feito_em', e.aviso_no_ar_feito_em,
            'apagar_material_devido', privado.material_apagar_devido(e),
-           'material_bloqueado_apagar', privado.material_bloqueado_aviso(e))), '[]'::jsonb) into v_itens
-    from (select * from app.entregas where passo in ('material', 'producao', 'ajustes', 'aprovada', 'no_ar') order by created_at limit 500) e;
+           'material_bloqueado_apagar', privado.material_bloqueado_aviso(e), 'restante_pago_em', privado.restante_pago_em(e))), '[]'::jsonb) into v_itens
+    -- (T1) a guarda de 60 dias do material vale em QUALQUER passo (o estorno pode vir depois de ver a prévia, com o site suspenso ou já concluído): esses passos entram só quando o aviso é devido
+    from (select * from app.entregas x where x.passo in ('material', 'producao', 'ajustes', 'aprovada', 'no_ar')
+             or (x.passo in ('previa', 'suspensa', 'concluida') and privado.material_bloqueado_aviso(x)) order by x.created_at limit 500) e;
   return jsonb_build_object('itens', v_itens, 'ajustes_apagados', v_apagados);
 end $$;
 revoke all on function app.rotinas_entregas(jsonb) from public, anon, authenticated;
@@ -767,6 +777,7 @@ declare
   v_resto integer := coalesce((v_ent ->> 'restante_vencido')::integer, 0);
   v_apagar integer := coalesce((v_ent ->> 'material_apagar')::integer, 0);
   v_bloq integer := coalesce((v_ent ->> 'material_bloqueado')::integer, 0);
+  v_site integer := coalesce((v_ent ->> 'site_parado')::integer, 0);
 begin
   select id into v_org from app.organizacoes where slug = p ->> 'org_slug';
   if v_org is null then raise exception 'organização não encontrada' using errcode = 'P0002'; end if;
@@ -831,9 +842,16 @@ begin
     on conflict (org_id, dia, tipo) do nothing;
   end if;
 
+  -- (20/11, revisão técnica) o prazo da Beyon parou na aprovação: o restante pago com o site fora do ar há dias não pode ficar sem ninguém ver (o e-mail único do restante pago só vai ao log se falhar)
+  if v_site > 0 then
+    insert into app.alertas (org_id, dia, tipo, nivel, mensagem) values (v_org, v_dia, 'site_parado', 'urgente',
+      v_site || ' pedido(s) com o restante pago e o site ainda fora do ar há mais de 2 dias: veja "entregas.mjs listar" e ponha no ar (no-ar <código> <endereço>).')
+    on conflict (org_id, dia, tipo) do nothing;
+  end if;
+
   insert into app.rotinas_execucoes (dia, rotina, ok, resultado)
   values (v_dia, 'diaria', v_falhou is null, jsonb_build_object('atencao', v_atencao, 'custo_dia', v_custo, 'falhas_ia', v_falhas, 'freios', v_freios,
-                                                                'entregas', case when jsonb_typeof(p -> 'entregas') = 'object' then jsonb_build_object('prazo_vencido', v_prazo, 'material_30', v_mat, 'restante_vencido', v_resto, 'material_apagar', v_apagar, 'material_bloqueado', v_bloq) end))
+                                                                'entregas', case when jsonb_typeof(p -> 'entregas') = 'object' then jsonb_build_object('prazo_vencido', v_prazo, 'material_30', v_mat, 'restante_vencido', v_resto, 'material_apagar', v_apagar, 'material_bloqueado', v_bloq, 'site_parado', v_site) end))
   on conflict (dia, rotina) do update set ok = excluded.ok, resultado = excluded.resultado, updated_at = now()
   returning avisado into v_avisado;
 
