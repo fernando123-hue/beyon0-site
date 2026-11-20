@@ -292,7 +292,7 @@
       ultimoEstado = chave;
       var ativo = t && ['criada', 'processando', 'aguardando', 'requer_acao'].indexOf(t.status) >= 0;
       /* (S2) Pix aguardando SEM o código: o servidor não o devolve quando a entrega foi bloqueada (estorno, contestação, pausa); sem painel, sem relógio e sem código vazio */
-      var pixSemCodigo = !!(t && t.status === 'aguardando' && t.metodo === 'pix' && !t.pix_qr);
+      var pixSemCodigo = !!(t && t.status === 'aguardando' && t.metodo === 'pix' && !t.pix_qr && !t.pix_qr_base64);
       var pixAberto = !!(t && t.status === 'aguardando' && t.metodo === 'pix' && !pixSemCodigo);
       mostrar('o-pix', pixAberto);
       mostrar('o-desafio', !!(t && t.status === 'requer_acao' && t.desafio_url));

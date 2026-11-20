@@ -678,6 +678,7 @@ begin
   update app.tentativas_pagamento set status_em = updated_at where status_em is null;
   update app.pagamentos set status_em = updated_at where status_em is null;
   update app.projetos set status_em = updated_at where status_em is null;
+  perform set_config('bz.restaurando', 'off', true);   -- o modo restauração não sobra para o resto da migration
 end $$;
 
 create function privado.carimbar_status() returns trigger
