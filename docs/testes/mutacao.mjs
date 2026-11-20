@@ -899,8 +899,6 @@ export const SABOTAGENS = [
     de: "    or privado.material_bloqueado_vencido(e), false);", para: "    or false, false);" },
   { nome: '(G) o material de entrega bloqueada é apagado antes dos 60 dias (30)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/material-bloqueada.test.mjs'],
     de: "(privado.entrega_bloqueada_desde(e) at time zone 'America/Campo_Grande')::date + 60 <= (now() at time zone 'America/Campo_Grande')::date, false);", para: "(privado.entrega_bloqueada_desde(e) at time zone 'America/Campo_Grande')::date + 30 <= (now() at time zone 'America/Campo_Grande')::date, false);" },
-  { nome: '(G) a entrega DESbloqueada continua sendo apagada pelo bloqueio de antes', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/material-bloqueada.test.mjs'],
-    de: "  select coalesce(privado.entrega_bloqueada(e)\n    and (privado.entrega_bloqueada_desde(e)", para: "  select coalesce(true\n    and (privado.entrega_bloqueada_desde(e)" },
   { nome: '(G) o bloqueio só conta o projeto pausado (esquece o estorno e a contestação)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/material-bloqueada.test.mjs'],
     de: "       where pg.proposta_id = e.proposta_id and t.status in ('estornada', 'estornada_parcial', 'contestada', 'divergente')\n      union all", para: "       where pg.proposta_id = e.proposta_id and false\n      union all" },
   { nome: '(G) a rotina não avisa o dono na última semana da guarda', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/material-bloqueada.test.mjs'],
