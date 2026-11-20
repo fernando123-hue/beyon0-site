@@ -14,7 +14,7 @@ import { prazoVencido, diasCorridosDesde } from '../_material/prazo.mjs';
 export const LIMITES = Object.freeze({ material_dias: 30, restante_dias: 3, lembretes_restante: Object.freeze([2, 3]), max_rodadas: 2 });
 
 export function contarAlarmes(itens, agora = new Date()) {
-  const r = { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0, ilegiveis: 0 };
+  const r = { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0, material_bloqueado: 0, ilegiveis: 0 };
   for (const it of itens || []) {
     /* B1: um item torto (data ilegível, prazo_dias fora de 1..60, lixo na lista) vira contagem de "ilegiveis"; não derruba os alarmes do dia */
     try { contarUm(it, agora, r); } catch (e) { if (!(e instanceof RangeError)) throw e; r.ilegiveis++; }   /* (só o dado torto: RangeError; um TypeError é bug de programação e sobe) */
@@ -24,6 +24,8 @@ export function contarAlarmes(itens, agora = new Date()) {
 
 function contarUm(it, agora, r) {
   if (!it || typeof it !== 'object') throw new RangeError('item ilegível');
+  /* (20/11, dono) a entrega bloqueada guarda o material por 60 dias; na última semana o banco marca o item e aqui só se conta (o aviso ao dono, antes de apagar) */
+  if (it.material_bloqueado_apagar === true) r.material_bloqueado++;
   if (it.passo === 'material') {
     if (it.entrada_em && !it.aviso_material_em && diasCorridosDesde(it.entrada_em, agora) >= LIMITES.material_dias) r.material_30++;
     if (it.apagar_material_devido === true) r.material_apagar++;   /* o banco decide (as datas de Campo Grande, o que há para apagar, a autorização): aqui só se conta */

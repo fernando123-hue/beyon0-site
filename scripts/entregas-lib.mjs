@@ -54,10 +54,16 @@ const EXPLICACAO_DO_AVISO = { 'material-apagar': 'Aviso registrado. O material s
 const validarCodigo = codigo => { if (!CODIGO.test(String(codigo))) throw new Error('Código inválido: BZ- e mais 5 letras ou números.'); };
 const acao = (buscar, origem, chave, corpo) => painel(buscar, origem, chave, '/api/painel', { method: 'POST', body: JSON.stringify(corpo) });
 
+/* (20/11, dono) o material de uma entrega bloqueada é guardado por 60 dias contados do bloqueio e depois apagado pela limpeza: a data, quando a lista a traz */
+const materialBloqueado = it => {
+  if (!it.bloqueada_desde || !Number.isFinite(Date.parse(it.bloqueada_desde))) return '';
+  const ate = new Date(diaNoFuso(it.bloqueada_desde) + 'T12:00:00Z'); ate.setUTCDate(ate.getUTCDate() + 60);
+  return '. O material do cliente é guardado por 60 dias contados do bloqueio e depois apagado: apagado a partir de ' + ate.toISOString().slice(0, 10) + ' (reativar o projeto antes cancela)';
+};
 export function alertasDe(it, agora = new Date()) {
   /* (19/11) reembolso bloqueia a entrega: nada avança nem vai ao ar (o banco recusa). Uma linha só: as outras sugeririam ações que o banco recusa */
   if (it.bloqueada && it.passo === 'concluida') return ['BLOQUEADA: o site já está no ar e o pagamento foi estornado, contestado ou está em disputa no Mercado Pago. Confira no Mercado Pago antes de passar o site para a conta do cliente; se houver devolução, tire o site do ar pela captação'];
-  if (it.bloqueada) return ['BLOQUEADA: o pagamento foi estornado, contestado ou está em disputa no Mercado Pago (projeto pausado). Nada avança nem vai ao ar; confira no Mercado Pago e, se houver devolução, encerre (encerrar ' + it.codigo + ' desistencia; com o restante pago, estorne o restante antes)'];
+  if (it.bloqueada) return ['BLOQUEADA: o pagamento foi estornado, contestado ou está em disputa no Mercado Pago (projeto pausado). Nada avança nem vai ao ar; confira no Mercado Pago e, se houver devolução, encerre (encerrar ' + it.codigo + ' desistencia; com o restante pago, estorne o restante antes)' + materialBloqueado(it)];
   const a = [];
   const diasDeEntrada = it.dias_desde_entrada;
   if (it.passo === 'material' && diasDeEntrada >= 30) {

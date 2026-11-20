@@ -388,4 +388,8 @@ test('revisão B: o pedido CONCLUÍDO lembra a passagem do site para a conta do 
   assert.ok(!/Nada avança nem vai ao ar/.test(bloq[0]), 'o site JÁ está no ar: a frase de "nada vai ao ar" seria falsa');
   assert.deepEqual(alertasDe(fim({ religar_pendente: true }), HOJE).filter(t => /religar/.test(t)).length, 1, 'a religação pendente continua avisando');
   assert.equal(proximoComando(fim(), '/x'), null, 'sem comando: a passagem é manual');
+  /* 20/11 (dono): o material de entrega bloqueada é guardado por 60 dias a partir do bloqueio e depois apagado: o terminal diz a data */
+  const comData = alertasDe(base({ passo: 'producao', bloqueada: true, bloqueada_desde: '2026-10-01T12:00:00-04:00' }), HOJE);
+  assert.equal(comData.length, 1); assert.match(comData[0], /material do cliente é guardado por 60 dias/); assert.match(comData[0], /apagado a partir de 2026-11-30/);
+  assert.doesNotMatch(alertasDe(base({ passo: 'producao', bloqueada: true }), HOJE)[0], /60 dias/, 'sem a data, não inventa');
 });

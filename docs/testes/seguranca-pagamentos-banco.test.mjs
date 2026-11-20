@@ -450,3 +450,43 @@ test('revisão 2/3: com mais de 100 itens, a lista do dono mostra os pedidos em 
   const ordem = lista.itens.map(i => i.criada_em);
   assert.deepEqual(ordem, [...ordem].sort(), 'a lista sai ordenada por criação');
 });
+
+/* ---------- C (20/11, dono): sem botão no painel. O que destrava sozinho e como destravar à mão ---------- */
+const infoDe = c => codigoDe(db, c).then(codigo => rpc('vendas_entrega_info', { org_slug: 'beyon-zero', codigo }));
+const reverter = async c => rpc('pagamentos_aplicar', { provedor: 'mercadopago', origem: 'webhook', conta_esperada: '777', retrato: await retratoDoSinal(c, 'contestada_revertida') });
+
+test('C: a contestação REVERTIDA destrava sozinha quando não há projeto a reativar (projeto_id nulo); com projeto, segue bloqueada até a reativação manual (falha fechada)', async () => {
+  const semProjeto = await entregaEm(db, 'producao');
+  /* (a proposta enviada não solta o projeto; o caso "sem projeto" é o do pedido que nunca teve um: aqui se desliga o gatilho só para montá-lo) */
+  await db.exec('alter table app.propostas disable trigger proposta_imutavel');
+  try { await db.query('update app.propostas set projeto_id = null where id = $1', [semProjeto.proposta]); } finally { await db.exec('alter table app.propostas enable trigger proposta_imutavel'); }
+  await aplicar(semProjeto, 'contestada');
+  assert.equal((await infoDe(semProjeto)).bloqueada, true, 'contestada: bloqueada (a tentativa não está quitada)');
+  await reverter(semProjeto);
+  assert.equal((await infoDe(semProjeto)).bloqueada, false, 'revertida e sem projeto: destravou sozinha');
+  assert.deepEqual(await publicar(semProjeto), { ok: true }, 'e o dono publica a prévia');
+  const comProjeto = await entregaEm(db, 'producao');
+  await aplicar(comProjeto, 'contestada');
+  await reverter(comProjeto);
+  assert.equal((await infoDe(comProjeto)).bloqueada, true, 'com projeto: o pausado só volta pela mão');
+});
+
+test('C: como destravar À MÃO (o dono avisa; o agente roda um programa pequeno): contestação = reaplicar a reversão e reativar o projeto; estorno parcial = a tentativa que pagou vai a "contestada_revertida" (a única saída permitida) e o projeto volta a "em_producao"', async () => {
+  const reativar = c => db.query("update app.projetos set status = 'em_producao' where id = (select projeto_id from app.propostas where id = $1)", [c.proposta]);
+  const parcial = await entregaEm(db, 'producao');
+  await aplicar(parcial, 'estornada_parcial');
+  assert.equal((await infoDe(parcial)).bloqueada, true);
+  await db.query("update app.tentativas_pagamento set status = 'contestada_revertida' where id = $1", [(await tentativaDe(parcial)).id]);
+  assert.equal((await infoDe(parcial)).bloqueada, true, 'só a tentativa não basta: o projeto ainda está pausado');
+  await reativar(parcial);
+  assert.equal((await infoDe(parcial)).bloqueada, false, 'estorno parcial: destravada à mão');
+  assert.deepEqual(await publicar(parcial), { ok: true });
+  const contestada = await entregaEm(db, 'producao');
+  await aplicar(contestada, 'contestada');
+  await reverter(contestada); await reativar(contestada);
+  assert.equal((await infoDe(contestada)).bloqueada, false, 'contestação revertida + projeto reativado: destravada');
+  assert.deepEqual(await publicar(contestada), { ok: true });
+  const estornada = await entregaEm(db, 'producao');
+  await aplicar(estornada, 'estornada');
+  assert.equal((await infoDe(estornada)).bloqueada, true, 'estorno INTEIRO não destrava: o dinheiro voltou e o pagamento fica "estornado"');
+});

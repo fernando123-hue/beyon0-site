@@ -520,7 +520,7 @@ begin
       'lembrete_restante_1_em', e.lembrete_restante_1_em, 'lembrete_restante_2_em', e.lembrete_restante_2_em,
       'aviso_previa_pendente', e.aviso_previa_desde is not null, 'aviso_no_ar_pendente', e.aviso_no_ar_desde is not null,
       'religar_pendente', e.religar_pendente, 'criada_em', e.created_at,
-      'bloqueada', privado.entrega_bloqueada(e), 'restante_pago', privado.parcela_quitada(e.proposta_id, 'saldo')) as x
+      'bloqueada', privado.entrega_bloqueada(e), 'bloqueada_desde', privado.entrega_bloqueada_desde(e), 'restante_pago', privado.parcela_quitada(e.proposta_id, 'saldo')) as x
       from app.entregas e
       join app.materiais m on m.entrega_id = e.id
       join app.conversas c on c.id = e.conversa_id
@@ -642,6 +642,176 @@ begin
   perform privado.evento(e.org_id, e.conversa_id, 'previa_aprovada');
   return jsonb_build_object('ok', true);
 end $$;
+
+-- ---------- o material de uma entrega BLOQUEADA (20/11, dono: "60 dias") ----------
+-- Estorno, estorno parcial, contestação ou projeto pausado bloqueiam a entrega; o material que o cliente enviou fica GUARDADO por 60 dias contados do bloqueio e depois entra na
+-- limpeza normal (arquivos pela reconciliação, campos pela rotina; app.rotinas_material_pendencias e _baixar já usam privado.material_vencido_pelo_fim). Antes, o sinal estornado
+-- tirava o material no dia seguinte e os outros bloqueios nunca o tiravam. Na última semana (dia 53 a 59) a rotina diária avisa o dono (alerta "material_bloqueado", só contagem).
+-- Desbloqueada, volta à regra de sempre. "Desde quando": o último movimento que bloqueia (a tentativa estornada, estornada em parte, contestada ou divergente; o pagamento estornado ou
+-- contestado; o projeto pausado ou cancelado); sem nenhum registro, a criação da entrega.
+create function privado.entrega_bloqueada_desde(e app.entregas) returns timestamptz
+language sql stable security definer set search_path = '' as $$
+  select case when privado.entrega_bloqueada(e) then coalesce((
+    select max(q.quando) from (
+      select t.updated_at as quando from app.tentativas_pagamento t join app.pagamentos pg on pg.id = t.pagamento_id
+       where pg.proposta_id = e.proposta_id and t.status in ('estornada', 'estornada_parcial', 'contestada', 'divergente')
+      union all
+      select pg.updated_at from app.pagamentos pg where pg.proposta_id = e.proposta_id and pg.status in ('estornado', 'contestado')
+      union all
+      select pj.updated_at from app.propostas pr join app.projetos pj on pj.id = pr.projeto_id where pr.id = e.proposta_id and pj.status in ('pausado', 'cancelado')
+    ) q), e.created_at) end;
+$$;
+revoke all on function privado.entrega_bloqueada_desde(app.entregas) from public, anon, authenticated, service_role;
+
+-- a guarda de 60 dias passou (por data de Campo Grande)
+create function privado.material_bloqueado_vencido(e app.entregas) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select coalesce(privado.entrega_bloqueada(e)
+    and (privado.entrega_bloqueada_desde(e) at time zone 'America/Campo_Grande')::date + 60 <= (now() at time zone 'America/Campo_Grande')::date, false);
+$$;
+revoke all on function privado.material_bloqueado_vencido(app.entregas) from public, anon, authenticated, service_role;
+
+-- a última semana da guarda, com o que apagar: o aviso ao dono
+create function privado.material_bloqueado_aviso(e app.entregas) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select coalesce(privado.entrega_bloqueada(e) and privado.material_tem_o_que_apagar(e)
+    and (privado.entrega_bloqueada_desde(e) at time zone 'America/Campo_Grande')::date + 53 <= (now() at time zone 'America/Campo_Grande')::date
+    and not privado.material_bloqueado_vencido(e), false);
+$$;
+revoke all on function privado.material_bloqueado_aviso(app.entregas) from public, anon, authenticated, service_role;
+
+-- a de 20261023120300_pr3b2_dono.sql com a cláusula do sinal estornado trocada pela da entrega bloqueada (60 dias)
+create or replace function privado.material_vencido_pelo_fim(e app.entregas) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select coalesce(
+    (e.passo = 'concluida' and e.updated_at < now() - interval '30 days')
+    or (e.passo = 'encerrada' and e.updated_at < now() - interval '1 day')
+    or privado.material_bloqueado_vencido(e), false);
+$$;
+revoke all on function privado.material_vencido_pelo_fim(app.entregas) from public, anon, authenticated, service_role;
+
+alter table app.alertas drop constraint alertas_tipo_check;
+alter table app.alertas add constraint alertas_tipo_check check (tipo in (
+  'pagamento_atencao', 'teto_ia', 'ia_falhando', 'freio_ip', 'rotina_falhou', 'prazo_vencido', 'material_30_dias', 'restante_3_dias', 'material_apagar', 'material_bloqueado'));
+
+-- a lista da rotina e a conferência do dia: as de 20261024120300_pr3b3_rotina.sql com o aviso do material da entrega bloqueada
+create or replace function app.rotinas_entregas(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare v_apagados integer; v_itens jsonb;
+begin
+  -- a prova da autorização do contato do site é copiada na MESMA instrução do apagamento (atômica): o que o DELETE leva, e tem contato, vai para a prova (o que já foi copiado não duplica)
+  with apagadas as (
+    delete from app.entrega_ajustes a using app.entregas e
+     where e.id = a.entrega_id and e.updated_at < now() - interval '30 days' and (a.status = 'feito' or e.passo in ('concluida', 'encerrada'))
+    returning a.org_id, a.entrega_id, a.rodada, a.contato_whatsapp, a.contato_email, a.contato_autorizado_em, a.contato_autorizacao_versao),
+  prova as (
+    insert into app.entrega_contato_autorizacoes (org_id, entrega_id, rodada, contato_whatsapp, contato_email, contato_autorizado_em, contato_autorizacao_versao)
+      select org_id, entrega_id, rodada, contato_whatsapp, contato_email, contato_autorizado_em, contato_autorizacao_versao
+        from apagadas where contato_whatsapp is not null or contato_email is not null
+      on conflict (entrega_id, rodada) do nothing
+      returning 1)
+  select count(*)::integer into v_apagados from apagadas;
+  select coalesce(jsonb_agg(jsonb_build_object('passo', e.passo, 'prazo', e.prazo, 'prazo_dias', e.prazo_dias,
+           'entrada_em', e.prazo ->> 'entrada_em', 'no_ar_em', e.no_ar_em, 'aviso_material_em', e.aviso_material_em, 'aviso_no_ar_feito_em', e.aviso_no_ar_feito_em,
+           'apagar_material_devido', privado.material_apagar_devido(e),
+           'material_bloqueado_apagar', privado.material_bloqueado_aviso(e))), '[]'::jsonb) into v_itens
+    from (select * from app.entregas where passo in ('material', 'producao', 'ajustes', 'aprovada', 'no_ar') order by created_at limit 500) e;
+  return jsonb_build_object('itens', v_itens, 'ajustes_apagados', v_apagados);
+end $$;
+revoke all on function app.rotinas_entregas(jsonb) from public, anon, authenticated;
+grant execute on function app.rotinas_entregas(jsonb) to service_role;
+
+create or replace function app.rotinas_conferir(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_org uuid; v_dia date := (now() at time zone 'America/Sao_Paulo')::date;
+  v_atencao integer; v_custo numeric; v_teto numeric := coalesce((p ->> 'teto_dia_usd')::numeric, 25);
+  v_falhas integer; v_freios integer; v_falhou text := nullif(p ->> 'falha', '');
+  v_avisado boolean;
+  v_ent jsonb := case when jsonb_typeof(p -> 'entregas') = 'object' then p -> 'entregas' else '{}'::jsonb end;
+  v_prazo integer := coalesce((v_ent ->> 'prazo_vencido')::integer, 0);
+  v_mat integer := coalesce((v_ent ->> 'material_30')::integer, 0);
+  v_resto integer := coalesce((v_ent ->> 'restante_vencido')::integer, 0);
+  v_apagar integer := coalesce((v_ent ->> 'material_apagar')::integer, 0);
+  v_bloq integer := coalesce((v_ent ->> 'material_bloqueado')::integer, 0);
+begin
+  select id into v_org from app.organizacoes where slug = p ->> 'org_slug';
+  if v_org is null then raise exception 'organização não encontrada' using errcode = 'P0002'; end if;
+
+  select coalesce((app.pagamentos_atencao('{"horas": 24}'::jsonb) ->> 'total')::integer, 0) into v_atencao;
+  select coalesce(sum(custo_usd), 0) into v_custo from app.ia_chamadas where org_id = v_org and created_at > now() - interval '24 hours';
+  select count(*) into v_falhas from app.ia_chamadas where org_id = v_org and erro in ('tempo', 'limite', 'indisponivel', 'falha')
+    and created_at > now() - interval '24 hours';
+  select count(*) into v_freios from app.eventos_funil where org_id = v_org and tipo = 'freio_ip' and created_at > now() - interval '24 hours';
+
+  if v_atencao > 0 then
+    insert into app.alertas (org_id, dia, tipo, nivel, mensagem) values (v_org, v_dia, 'pagamento_atencao', 'urgente',
+      v_atencao || ' evento(s) de pagamento pedem uma pessoa nas últimas 24 h (divergência, estorno, contestação ou projeto pausado).')
+    on conflict (org_id, dia, tipo) do nothing;
+  end if;
+  if v_custo >= 0.8 * v_teto then
+    insert into app.alertas (org_id, dia, tipo, nivel, mensagem) values (v_org, v_dia, 'teto_ia', case when v_custo >= v_teto then 'urgente' else 'aviso' end,
+      'Gasto de IA nas últimas 24 h: US$ ' || replace(round(v_custo, 2)::text, '.', ',') || ' (teto do dia: US$ ' || replace(v_teto::text, '.', ',') || '; no teto, o agente para e oferece o WhatsApp).')
+    on conflict (org_id, dia, tipo) do nothing;
+  end if;
+  if v_falhas >= coalesce((p ->> 'max_falhas_ia')::integer, 5) then
+    insert into app.alertas (org_id, dia, tipo, nivel, mensagem) values (v_org, v_dia, 'ia_falhando', 'aviso',
+      v_falhas || ' chamada(s) de IA falharam nas últimas 24 h (veja app.ia_chamadas).')
+    on conflict (org_id, dia, tipo) do nothing;
+  end if;
+  if v_freios > 0 then
+    insert into app.alertas (org_id, dia, tipo, nivel, mensagem) values (v_org, v_dia, 'freio_ip', 'aviso',
+      v_freios || ' conversa(s) barradas pelo limite diário por endereço (abuso ou muita gente na mesma rede).')
+    on conflict (org_id, dia, tipo) do nothing;
+  end if;
+  if v_falhou is not null then
+    insert into app.alertas (org_id, dia, tipo, nivel, mensagem) values (v_org, v_dia, 'rotina_falhou', 'urgente',
+      'A rotina diária falhou em: ' || left(v_falhou, 200))
+    on conflict (org_id, dia, tipo) do nothing;
+  end if;
+  -- (PR 3b-3, D4) os prazos da entrega: só contagem; o dono vê os pedidos com `node scripts/entregas.mjs listar`
+  if v_prazo > 0 then
+    insert into app.alertas (org_id, dia, tipo, nivel, mensagem) values (v_org, v_dia, 'prazo_vencido', 'urgente',
+      v_prazo || ' entrega(s) com o prazo vencido: a regra da D4 devolve a entrada se a Beyon atrasar. Veja "entregas.mjs listar".')
+    on conflict (org_id, dia, tipo) do nothing;
+  end if;
+  if v_mat > 0 then
+    insert into app.alertas (org_id, dia, tipo, nivel, mensagem) values (v_org, v_dia, 'material_30_dias', 'aviso',
+      v_mat || ' pedido(s) com 30 dias ou mais sem o material e sem o aviso de material parado: veja "entregas.mjs listar" (dispensar, se o cliente autorizou expressamente; senão, o aviso de que se aguarda o material: o projeto fica parado, nada é publicado nem encerrado).')
+    on conflict (org_id, dia, tipo) do nothing;
+  end if;
+  if v_resto > 0 then
+    insert into app.alertas (org_id, dia, tipo, nivel, mensagem) values (v_org, v_dia, 'restante_3_dias', 'urgente',
+      v_resto || ' site(s) com o prazo de 3 dias do restante vencido (passou da 00:00 depois do 3º dia do aviso "no ar"): veja "entregas.mjs listar" (suspender).')
+    on conflict (org_id, dia, tipo) do nothing;
+  end if;
+  if v_apagar > 0 then
+    insert into app.alertas (org_id, dia, tipo, nivel, mensagem) values (v_org, v_dia, 'material_apagar', 'aviso',
+      v_apagar || ' pedido(s) parado(s) há 5 meses ou mais esperando o material ou a autorização: o material será apagado aos 6 meses, e o cliente precisa ser avisado 30 dias antes. Veja "entregas.mjs listar" (o aviso prévio é registrado pelo dono; sem ele, nada é apagado).')
+    on conflict (org_id, dia, tipo) do nothing;
+  end if;
+
+  -- (20/11, dono) o aviso ANTES de apagar: o material de uma entrega bloqueada é guardado por 60 dias e apagado no 61º; na última semana a rotina avisa (só contagem)
+  if v_bloq > 0 then
+    insert into app.alertas (org_id, dia, tipo, nivel, mensagem) values (v_org, v_dia, 'material_bloqueado', 'aviso',
+      v_bloq || ' pedido(s) com a entrega bloqueada (estorno, contestação ou projeto pausado) cujo material será apagado em até 7 dias (a guarda é de 60 dias a partir do bloqueio). Veja o Mercado Pago e "entregas.mjs listar"; se o caso foi resolvido e o projeto reativado, o material deixa de ser apagado.')
+    on conflict (org_id, dia, tipo) do nothing;
+  end if;
+
+  insert into app.rotinas_execucoes (dia, rotina, ok, resultado)
+  values (v_dia, 'diaria', v_falhou is null, jsonb_build_object('atencao', v_atencao, 'custo_dia', v_custo, 'falhas_ia', v_falhas, 'freios', v_freios,
+                                                                'entregas', case when jsonb_typeof(p -> 'entregas') = 'object' then jsonb_build_object('prazo_vencido', v_prazo, 'material_30', v_mat, 'restante_vencido', v_resto, 'material_apagar', v_apagar, 'material_bloqueado', v_bloq) end))
+  on conflict (dia, rotina) do update set ok = excluded.ok, resultado = excluded.resultado, updated_at = now()
+  returning avisado into v_avisado;
+
+  return jsonb_build_object(
+    'alertas', coalesce((select jsonb_agg(jsonb_build_object('tipo', tipo, 'nivel', nivel, 'dia', dia, 'mensagem', mensagem) order by nivel desc, dia desc, tipo)
+                         from app.alertas where org_id = v_org and dia > v_dia - 7 and resolvido_em is null
+                           and (dia = v_dia or nivel = 'urgente')), '[]'),
+    'avisar', not v_avisado);
+end $$;
+revoke all on function app.rotinas_conferir(jsonb) from public, anon, authenticated;
+grant execute on function app.rotinas_conferir(jsonb) to service_role;
 
 -- ---------- privilégios: os mesmos das funções originais (só o servidor) ----------
 do $$
