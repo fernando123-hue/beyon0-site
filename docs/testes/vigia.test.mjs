@@ -196,7 +196,8 @@ test('conferir: sem chave configurada ou sem ASSETS (servidor local, testes) nã
 /* ---- o e-mail de várias linhas (mesmo canal e mesmo modelo dos outros avisos) ---- */
 class EmailFalso { constructor(de, para, bruto) { Object.assign(this, { de, para, bruto }); } }
 const corpoDe = bruto => Buffer.from(bruto.split('\r\n\r\n')[1].replace(/\r\n/g, ''), 'base64').toString('utf8');
-const assuntoDe = bruto => Buffer.from(/Subject: =\?UTF-8\?B\?([^?]+)\?=/.exec(bruto)[1], 'base64').toString('utf8');
+/* (19/11) o assunto inteiro: as palavras codificadas da dobra de linha, juntas */
+const assuntoDe = bruto => [...bruto.split('\r\n\r\n')[0].matchAll(/=\?UTF-8\?B\?([^?]+)\?=/g)].map(m => Buffer.from(m[1], 'base64').toString('utf8')).join('');
 
 test('aviso em linhas: um e-mail com as linhas na ordem e o link do painel; assunto curto da 1ª linha', async () => {
   const enviados = [];
@@ -205,7 +206,8 @@ test('aviso em linhas: um e-mail com as linhas na ordem e o link do painel; assu
   assert.equal(enviados.length, 1);
   const corpo = corpoDe(enviados[0].bruto);
   assert.ok(corpo.startsWith(ITENS.ia_conta.quebrou + '\n' + ITENS.paginas.voltou + '\n\nAbra o painel: https://beyonzero.com.br/painel'), corpo);
-  assert.ok(assuntoDe(enviados[0].bruto).length <= 36);
+  assert.equal(assuntoDe(enviados[0].bruto), ITENS.ia_conta.quebrou.split('.')[0], 'a 1ª frase, inteira');
+  assert.ok(assuntoDe(enviados[0].bruto).length <= 100);
 });
 
 test('aviso em linhas: sem linhas, sem canal, endereço estranho ou envio que falha → false, sem lançar e sem fetch', async () => {

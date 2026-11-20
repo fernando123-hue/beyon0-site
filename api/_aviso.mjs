@@ -27,9 +27,22 @@ const ENDERECO = /^[A-Za-z0-9._+-]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
 
 const base64 = s => Buffer.from(s, 'utf8').toString('base64');
 const linhas76 = s => s.match(/.{1,76}/g).join('\r\n');
-/* assunto curto: cabe numa palavra codificada da RFC 2047 (até 75 caracteres; revisão técnica) */
-const ASSUNTO_MAX = 36;
-const assuntoDe = texto => { const s = texto.split(/[.\n]/)[0]; return s.length <= ASSUNTO_MAX ? s : s.slice(0, ASSUNTO_MAX - 1).replace(/\s+\S*$/, '') + '…'; };
+/* o assunto é a 1ª frase do texto (nunca uma quebra de linha: a frase para no primeiro ponto ou fim de linha, e CR e LF saem de qualquer jeito, senão viraria cabeçalho
+   injetado). Cabe INTEIRO até ASSUNTO_MAX caracteres (o alerta de pagamento leva o código e o que houve, e vinha cortado em 36); passou disso, corta numa palavra e põe
+   reticências. A RFC 2047 limita cada palavra codificada a 75 caracteres: o assunto vai em palavras de até 42 bytes (56 em base64 + 12 de moldura = 68), sem partir um
+   caractere UTF-8 ao meio, separadas pela dobra de linha do cabeçalho (CRLF e um espaço), que o leitor de e-mail junta de volta */
+const ASSUNTO_MAX = 100;
+const BYTES_POR_PALAVRA = 42;
+const assuntoDe = texto => { const s = texto.split(/[.\r\n]/)[0].trim(); return s.length <= ASSUNTO_MAX ? s : s.slice(0, ASSUNTO_MAX - 1).replace(/\s+\S*$/, '') + '…'; };
+function assuntoCodificado(assunto) {
+  const palavras = []; let atual = '';
+  for (const c of assunto) {   /* (por caractere inteiro, não por unidade UTF-16: um acento ou emoji nunca é partido) */
+    if (atual && Buffer.byteLength(atual + c, 'utf8') > BYTES_POR_PALAVRA) { palavras.push(atual); atual = ''; }
+    atual += c;
+  }
+  if (atual) palavras.push(atual);
+  return palavras.map(p => '=?UTF-8?B?' + base64(p) + '?=').join('\r\n ');
+}
 
 /* os avisos de alerta (fila cheia, tetos) mandam no máximo 1 e-mail por hora por tipo: com a fila cheia, cada tentativa de pedido
    chamaria o aviso (revisões técnica e de segurança). A memória é do isolado do Worker: freio de melhor esforço, que basta
@@ -44,7 +57,7 @@ export function montarEmail({ de, para, texto, agora = Date.now(), id = crypto.r
   return [
     `From: Beyon Zero <${de}>`,
     `To: ${para}`,
-    `Subject: =?UTF-8?B?${base64(assuntoDe(texto))}?=`,
+    `Subject: ${assuntoCodificado(assuntoDe(texto))}`,
     `Message-ID: <${String(id).toLowerCase().replace(/[^a-z0-9.-]/g, '')}@${DOMINIO}>`,
     `Date: ${new Date(agora).toUTCString()}`,
     'MIME-Version: 1.0',

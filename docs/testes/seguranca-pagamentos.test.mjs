@@ -107,3 +107,40 @@ test('(e) as duas portas que criam o serviço de pagamentos (o webhook/reconcili
     assert.match(fonte, /import \{ avisarDonoPagamento \} from '\.\/_aviso\.mjs';/, f);
   }
 });
+
+/* ---------- revisão técnica D: o assunto do alerta não é cortado ---------- */
+/* o assunto inteiro: as palavras codificadas (RFC 2047) do cabeçalho, com a dobra de linha, juntas e lidas */
+function assuntoCompleto(bruto) {
+  const cabecalho = bruto.split('\r\n\r\n')[0].split('\r\n');
+  const i = cabecalho.findIndex(l => l.startsWith('Subject: '));
+  const linhas = [cabecalho[i].slice(9)];
+  for (let j = i + 1; j < cabecalho.length && /^[ \t]/.test(cabecalho[j]); j++) linhas.push(cabecalho[j].trim());
+  const palavras = linhas.join(' ').split(' ');
+  assert.ok(palavras.every(p => /^=\?UTF-8\?B\?[A-Za-z0-9+/=]+\?=$/.test(p) && p.length <= 75), 'cada palavra codificada cabe em 75 caracteres: ' + palavras.map(p => p.length));
+  assert.ok(linhas.every(l => l.length + 9 <= 78), 'cada linha física do cabeçalho cabe nas 78 colunas');
+  return palavras.map(p => Buffer.from(p.slice(10, -2), 'base64').toString('utf8')).join('');
+}
+
+test('revisão D: o assunto do alerta de pagamento sai INTEIRO (código, parcela e o que houve), sem reticências e sem quebra de linha dentro dele', async () => {
+  for (const evento of ['estorno', 'estorno_parcial', 'contestacao']) {
+    for (const parcela of ['entrada', 'restante']) {
+      const canal = canalFalso();
+      assert.equal(await avisarDonoPagamento({ AVISO_EMAIL: canal, AVISO_PARA: 'dono@exemplo.com' }, { codigo: 'BZ-ACDEF', evento, parcela }, { EmailMessage: EmailFalso }), true);
+      const assunto = assuntoCompleto(canal.enviados[0].bruto);
+      const frase = textoDoAvisoDePagamento({ codigo: 'BZ-ACDEF', evento, parcela }).split('.')[0];
+      assert.equal(assunto, frase, evento + '/' + parcela);
+      assert.ok(assunto.includes('BZ-ACDEF') && !assunto.includes('…') && !/[\r\n]/.test(assunto));
+    }
+  }
+});
+
+test('revisão D: assunto com acento e longo fica em palavras codificadas inteiras (nenhum caractere partido ao meio) e sem cabeçalho injetado', async () => {
+  const canal = canalFalso();
+  const longo = 'ç'.repeat(70);
+  const { montarEmail } = await import('../../api/_aviso.mjs');
+  const bruto = montarEmail({ de: 'avisos@beyonzero.com.br', para: 'dono@exemplo.com', texto: longo + '\r\nBcc: x@y.com. Resto.' });
+  const lido = assuntoCompleto(bruto);
+  assert.ok(!lido.includes('�') && /^ç{70}$/.test(lido), 'nenhum caractere partido: os 70 ç inteiros, sem o que veio depois da quebra de linha');
+  assert.ok(!/^Bcc:/m.test(bruto.split('\r\n\r\n')[0]), 'nada de cabeçalho vindo do texto');
+  assert.equal(canal.enviados.length, 0);
+});
