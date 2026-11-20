@@ -186,3 +186,37 @@ test('revisão 2/7: o emoji nunca é partido na fronteira entre duas palavras co
     assert.equal(lido, frase, 'n=' + n);
   }
 });
+
+/* ---------- S2: o estorno da entrada manda cancelar o Pix do restante no provedor (melhor esforço; nunca derruba o pagamento) ---------- */
+const PIX_DO_RESTANTE = Object.freeze({ tentativa_id: '00000000-0000-4000-8000-0000000000aa', order: 'ORDRESTANTE00000000000000001' });
+const orderCancelada = { ...order, id: PIX_DO_RESTANTE.order, transactions: { payments: [{ id: 'PAY2', amount: '1800.00', paid_amount: null, status: 'cancelled', status_detail: 'canceled', payment_method: { id: 'pix', type: 'bank_transfer' } }] } };
+
+test('S2: o banco manda cancelar o Pix do restante: o serviço cancela a order no provedor (com a chave de idempotência da tentativa) e aplica o retrato', async () => {
+  const canceladas = [], aplicadas = [];
+  const banco = async (nome, p) => { if (nome === 'pagamentos_aplicar') { aplicadas.push(p.retrato.order_id); return aplicadas.length === 1 ? { aplicado: 'estornada', alerta: ALERTA, cancelar_restante: [PIX_DO_RESTANTE] } : { aplicado: 'cancelada' }; } return {}; };
+  const provedor = { ...mp, cancelarOrdem: async (id, chave) => { canceladas.push([id, chave]); return orderCancelada; } };
+  const servico = criarServicoPagamentos({ banco, cfg, provedor, avisar: async () => true });
+  await servico.processarAviso({ orderId: ORDER, requestId: 'r1' });
+  assert.deepEqual(canceladas, [[PIX_DO_RESTANTE.order, 'cx-' + PIX_DO_RESTANTE.tentativa_id]]);
+  assert.deepEqual(aplicadas, [ORDER, PIX_DO_RESTANTE.order], 'o retrato da order cancelada também é aplicado');
+});
+
+test('S2: o cancelamento no provedor FALHANDO (ou o provedor sem cancelarOrdem) nunca derruba o pagamento já gravado: o resultado do banco volta igual', async () => {
+  const erros = console.error; console.error = () => {};
+  try {
+    for (const cancelarOrdem of [async () => { throw new Error('provedor caiu'); }, undefined]) {
+      const banco = async nome => nome === 'pagamentos_aplicar' ? { aplicado: 'contestada', alerta: { ...ALERTA, evento: 'contestacao' }, cancelar_restante: [PIX_DO_RESTANTE] } : {};
+      const servico = criarServicoPagamentos({ banco, cfg, provedor: { ...mp, cancelarOrdem }, avisar: async () => true });
+      const r = await servico.processarAviso({ orderId: ORDER });
+      assert.equal(r.aplicado, 'contestada');
+    }
+  } finally { console.error = erros; }
+});
+
+test('S2: sem cancelar_restante no resultado do banco, nada é cancelado', async () => {
+  let n = 0;
+  const banco = async nome => nome === 'pagamentos_aplicar' ? { aplicado: 'estornada', alerta: ALERTA } : {};
+  const servico = criarServicoPagamentos({ banco, cfg, provedor: { ...mp, cancelarOrdem: async () => { n++; return orderCancelada; } }, avisar: async () => true });
+  await servico.processarAviso({ orderId: ORDER });
+  assert.equal(n, 0);
+});

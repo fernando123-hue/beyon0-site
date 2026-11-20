@@ -29,10 +29,10 @@ const pendencias = async () => (await rpc('rotinas_material_pendencias', {})).ca
 /* o carimbo de updated_at do banco volta o relógio para agora; a licença de restauração (só numa conexão SQL do dono) deixa datar o bloqueio */
 const datar = (sql, p) => db.transaction(async tx => { await tx.exec("set local bz.restaurando = 'on'"); await tx.query(sql, p); });
 const BLOQUEIOS = {
-  'o sinal estornado': (c, dias) => datar("update app.pagamentos set status = 'estornado', updated_at = now() - make_interval(days => $2) where proposta_id = $1 and parcela = 'sinal'", [c.proposta, dias]),
-  'o sinal contestado': (c, dias) => datar("update app.pagamentos set status = 'contestado', updated_at = now() - make_interval(days => $2) where proposta_id = $1 and parcela = 'sinal'", [c.proposta, dias]),
-  'o projeto pausado': (c, dias) => datar("update app.projetos set status = 'pausado', updated_at = now() - make_interval(days => $2) where id = (select projeto_id from app.propostas where id = $1)", [c.proposta, dias]),
-  'o estorno PARCIAL (o pagamento segue "pago")': (c, dias) => datar("update app.tentativas_pagamento set status = 'estornada_parcial', updated_at = now() - make_interval(days => $2) where id = (select t.id from app.tentativas_pagamento t join app.pagamentos pg on pg.id = t.pagamento_id where pg.proposta_id = $1 and pg.parcela = 'sinal' and t.provedor_order_id = pg.gateway_ref)", [c.proposta, dias])
+  'o sinal estornado': (c, dias) => datar("update app.pagamentos set status = 'estornado', status_em = now() - make_interval(days => $2) where proposta_id = $1 and parcela = 'sinal'", [c.proposta, dias]),
+  'o sinal contestado': (c, dias) => datar("update app.pagamentos set status = 'contestado', status_em = now() - make_interval(days => $2) where proposta_id = $1 and parcela = 'sinal'", [c.proposta, dias]),
+  'o projeto pausado': (c, dias) => datar("update app.projetos set status = 'pausado', status_em = now() - make_interval(days => $2) where id = (select projeto_id from app.propostas where id = $1)", [c.proposta, dias]),
+  'o estorno PARCIAL (o pagamento segue "pago")': (c, dias) => datar("update app.tentativas_pagamento set status = 'estornada_parcial', status_em = now() - make_interval(days => $2) where id = (select t.id from app.tentativas_pagamento t join app.pagamentos pg on pg.id = t.pagamento_id where pg.proposta_id = $1 and pg.parcela = 'sinal' and t.provedor_order_id = pg.gateway_ref)", [c.proposta, dias])
 };
 
 for (const [nome, bloquear] of Object.entries(BLOQUEIOS)) {
@@ -91,3 +91,35 @@ test('a lista do dono diz desde quando a entrega está bloqueada (e o terminal e
   const dias = Math.round((Date.now() - new Date(i.bloqueada_desde).getTime()) / 864e5);
   assert.ok(dias >= 9 && dias <= 11, 'bloqueada há cerca de 10 dias: ' + dias);
 });
+
+/* ---------- SEGURANÇA-1: a data do bloqueio só anda quando o ESTADO muda, nunca por uma consulta da reconciliação ---------- */
+/* a datação do estado do pagamento (a licença de restauração deixa datar; só numa conexão SQL do dono) */
+const DATAR_ESTADO = (c, dias) => db.transaction(async tx => {
+  await tx.exec("set local bz.restaurando = 'on'");
+  await tx.query('update app.tentativas_pagamento set status_em = now() - make_interval(days => $2) where pagamento_id in (select id from app.pagamentos where proposta_id = $1)', [c.proposta, dias]);
+  await tx.query('update app.pagamentos set status_em = now() - make_interval(days => $2) where proposta_id = $1', [c.proposta, dias]);
+  await tx.query('update app.projetos set status_em = now() - make_interval(days => $2) where id = (select projeto_id from app.propostas where id = $1)', [c.proposta, dias]);
+});
+/* o retrato que a reconciliação (ou o webhook) aplica, pelo caminho real, não datando direto no banco */
+async function aplicarRetrato(c, estado) {
+  const t = await um("select t.id, t.provedor_order_id as ordem, t.valor from app.tentativas_pagamento t join app.pagamentos pg on pg.id = t.pagamento_id where pg.proposta_id = $1 and pg.parcela = 'sinal' and t.provedor_order_id = pg.gateway_ref", [c.proposta]);
+  const v = Number(t.valor).toFixed(2), [status, detalhe] = { estornada: ['refunded', 'refunded'], estornada_parcial: ['processed', 'partially_refunded'], contestada: ['charged_back', 'in_process'] }[estado];
+  return rpc('pagamentos_aplicar', { provedor: 'mercadopago', origem: 'reconciliacao', conta_esperada: '777', retrato: {
+    order_id: t.ordem, external_reference: t.id, user_id: '777', total_amount: v, country_code: 'BRA',
+    pagamento: { id: 'PAY' + t.ordem.slice(-6), amount: v, paid_amount: v, status, status_detail: detalhe, metodo_id: 'pix', metodo_tipo: 'bank_transfer', parcelas: null }, estado } });
+}
+const vencida = async c => (await um('select privado.material_bloqueado_vencido(e) as v from app.entregas e where e.id = $1', [c.entrega])).v;
+const desde = async c => (await um('select privado.entrega_bloqueada_desde(e) as d from app.entregas e where e.id = $1', [c.entrega])).d;
+
+for (const estado of ['estornada_parcial', 'contestada', 'estornada']) {
+  test('S1: o ' + estado + ' reaplicado pela reconciliação (mesmo estado) NÃO reinicia a guarda de 60 dias', async () => {
+    const c = await entrega();
+    await aplicarRetrato(c, estado);
+    await DATAR_ESTADO(c, 70);
+    assert.equal(await vencida(c), true, '70 dias depois do bloqueio: guarda vencida');
+    const antes = await desde(c);
+    for (let i = 0; i < 3; i++) await aplicarRetrato(c, estado);
+    assert.equal(await vencida(c), true, 'depois de reaplicar o mesmo estado, segue vencida (a consulta não reinicia a contagem)');
+    assert.equal(new Date(await desde(c)).getTime(), new Date(antes).getTime(), 'a data do bloqueio não anda');
+  });
+}

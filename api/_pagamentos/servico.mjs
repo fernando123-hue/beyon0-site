@@ -108,7 +108,25 @@ function criarNucleo({ banco, mp, cfg, agora, confirmacao = null, avisar = null 
     /* o pagamento já está gravado (outra transação): o e-mail nunca o desfaz; erro do e-mail só vai para o log */
     if (confirmacao && r && r.aplicado === 'aprovada') await confirmarEntradas({ banco, confirmacao, provedor: PROV, filtro: { provedor_order_id: retrato.order_id } });
     if (r && r.alerta) await avisarDono(r.alerta);
+    if (r && Array.isArray(r.cancelar_restante)) await cancelarPixDoRestante(r.cancelar_restante);
     return r;
+  }
+
+  /* (S2, revisão de segurança) a entrada foi estornada, estornada em parte ou contestada: o Pix do restante que ainda estava aberto não pode ser pago (nada vai ao ar). O banco
+     lista as orders; aqui se cancela no provedor, com a chave de idempotência da tentativa. Melhor esforço: o pagamento já está gravado, então uma falha só vai para o log e
+     para a trilha, nunca o desfaz (a tela já esconde o QR e o Pix expira sozinho). Só o orçamento de subpedidos esgotado sobe, como em todo o serviço. */
+  async function cancelarPixDoRestante(lista) {
+    for (const o of lista.slice(0, 3)) {
+      if (!o || !/^[A-Za-z0-9_-]{4,64}$/.test(o.order || '') || !/^[0-9a-f-]{36}$/.test(o.tentativa_id || '')) continue;
+      try {
+        if (typeof mp.cancelarOrdem !== 'function') throw new Error('provedor sem cancelamento');
+        await aplicar(await mp.cancelarOrdem(o.order, 'cx-' + o.tentativa_id), 'consulta');
+      } catch (e) {
+        if (e instanceof SemOrcamento) throw e;
+        if (e instanceof ErroProvedor) await erroDoProvedor(e, o.tentativa_id, o.order, 'consulta');
+        console.error('[pagamentos] o Pix do restante não foi cancelado no provedor:', (e && (e.codigo || e.tipo)) || 'erro');
+      }
+    }
   }
 
   /* o aviso ao dono (estorno, contestação, restante pago): sem dado pessoal no log, só o evento */

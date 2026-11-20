@@ -300,7 +300,7 @@ end $$;
 -- ---------- o estado do pagamento: a de 20261024120200 com a parcela do restante desde a APROVAÇÃO ----------
 create or replace function app.pagamentos_estado(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare c app.conversas; pg app.pagamentos; t app.tentativas_pagamento; v_parcela text;
+declare c app.conversas; pg app.pagamentos; t app.tentativas_pagamento; v_parcela text; v_bloq boolean;
 begin
   select * into c from app.conversas where id = (p ->> 'conversa_id')::uuid and visitante_id = (p ->> 'visitante_id')::uuid;
   if not found then raise exception 'conversa não encontrada' using errcode = 'P0002'; end if;
@@ -309,15 +309,17 @@ begin
   where pr.conversa_id = c.id and pa.parcela = v_parcela order by pa.created_at desc limit 1;
   if not found then return jsonb_build_object('pagamento', null, 'parcela', v_parcela); end if;
   select * into t from app.tentativas_pagamento where pagamento_id = pg.id order by created_at desc limit 1;
+  -- (S2, revisão de segurança) entrega bloqueada: o Pix já emitido (e o desafio do cartão) NÃO é mais mostrado; o cliente não paga o que a Beyon não vai entregar
+  v_bloq := exists (select 1 from app.entregas e where e.conversa_id = c.id and privado.entrega_bloqueada(e));
   return jsonb_build_object(
     'parcela', v_parcela,
     'pagamento', jsonb_build_object('status', pg.status, 'valor', pg.valor, 'moeda', pg.moeda, 'pago_em', pg.pago_em, 'parcela', pg.parcela),
     'tentativa', case when t.id is null then null else jsonb_build_object(
       'id', t.id, 'metodo', t.metodo, 'status', t.status, 'detalhe', t.detalhe_provedor, 'parcelas', t.parcelas, 'meio', t.meio,
-      'pix_qr', case when t.status = 'aguardando' then t.pix_qr end,
-      'pix_qr_base64', case when t.status = 'aguardando' then t.pix_qr_base64 end,
+      'pix_qr', case when t.status = 'aguardando' and not v_bloq then t.pix_qr end,
+      'pix_qr_base64', case when t.status = 'aguardando' and not v_bloq then t.pix_qr_base64 end,
       'expira_em', t.expira_em,
-      'desafio_url', case when t.status = 'requer_acao' then t.desafio_url end,
+      'desafio_url', case when t.status = 'requer_acao' and not v_bloq then t.desafio_url end,
       'consultada_em', t.consultada_em, 'criada_em', t.created_at) end);
 end $$;
 
@@ -417,7 +419,7 @@ language plpgsql security definer set search_path = '' as $$
 declare
   v_prov text := p ->> 'provedor'; v_order text := p -> 'retrato' ->> 'order_id'; v_estado text := coalesce(p -> 'retrato' ->> 'estado', '');
   v_origem text := case when p ->> 'origem' in ('criacao', 'webhook', 'consulta', 'reconciliacao', 'operacao') then p ->> 'origem' else 'consulta' end;   -- (a mesma regra da base: a trilha só aceita estas)
-  v_tid uuid; v_cid uuid; t app.tentativas_pagamento; pg app.pagamentos; r jsonb; v_virou boolean := false; v_evento text; v_codigo text;
+  v_tid uuid; v_cid uuid; t app.tentativas_pagamento; pg app.pagamentos; r jsonb; v_virou boolean := false; v_evento text; v_codigo text; v_cancelar jsonb;
 begin
   -- as travas na ordem de sempre (conversa → pagamento → tentativa) ANTES de olhar o estado da tentativa; a base trava de novo (a mesma transação: não espera)
   select id into v_tid from app.tentativas_pagamento where provedor = v_prov and provedor_order_id = v_order;
@@ -478,7 +480,13 @@ begin
   if v_evento is null then return r; end if;
   -- (o alerta só vive na RESPOSTA desta chamada: se ela se perder depois do commit, o aviso repetido do provedor não alerta de novo; o rastro acima já está gravado no MESMO commit)
   select codigo into v_codigo from app.pedidos where conversa_id = v_cid;
-  return r || jsonb_build_object('alerta', jsonb_strip_nulls(jsonb_build_object('codigo', v_codigo, 'evento', v_evento,
+  -- (S2) a entrada caiu: o Pix do restante que estiver aberto não pode ser pago (nada vai ao ar). O banco lista as orders; o servidor cancela no provedor (melhor esforço)
+  if v_evento in ('estorno', 'estorno_parcial', 'contestacao') and pg.parcela = 'sinal' then
+    select coalesce(jsonb_agg(jsonb_build_object('tentativa_id', t3.id, 'order', t3.provedor_order_id) order by t3.created_at), '[]'::jsonb) into v_cancelar
+      from app.tentativas_pagamento t3 join app.pagamentos p3 on p3.id = t3.pagamento_id
+     where p3.proposta_id = pg.proposta_id and p3.parcela = 'saldo' and t3.status in ('aguardando', 'requer_acao', 'processando') and t3.provedor_order_id is not null;
+  end if;
+  return r || case when coalesce(jsonb_array_length(v_cancelar), 0) > 0 then jsonb_build_object('cancelar_restante', v_cancelar) else '{}'::jsonb end || jsonb_build_object('alerta', jsonb_strip_nulls(jsonb_build_object('codigo', v_codigo, 'evento', v_evento,
     'parcela', case when pg.parcela = 'sinal' then 'entrada' else 'restante' end)));
   exception when others then
     raise warning 'alerta do pagamento não montado (order %): %', v_order, sqlerrm;
@@ -649,16 +657,41 @@ end $$;
 -- tirava o material no dia seguinte e os outros bloqueios nunca o tiravam. Na última semana (dia 53 a 59) a rotina diária avisa o dono (alerta "material_bloqueado", só contagem).
 -- Desbloqueada, volta à regra de sempre. "Desde quando": o último movimento que bloqueia (a tentativa estornada, estornada em parte, contestada ou divergente; o pagamento estornado ou
 -- contestado; o projeto pausado ou cancelado); sem nenhum registro, a criação da entrega.
+-- (S1, revisão de segurança) O "desde quando" NÃO pode ser o updated_at: o carimbo mexe nele a cada UPDATE, e a reconciliação reaplica o mesmo retrato de hora em hora
+-- (consultada_em = now()), o que reiniciaria os 60 dias para sempre. A marca nova, status_em, só anda quando o STATUS muda (e na criação). Linhas antigas, sem a marca, caem no updated_at.
+alter table app.tentativas_pagamento add column status_em timestamptz;
+alter table app.pagamentos add column status_em timestamptz;
+alter table app.projetos add column status_em timestamptz;
+
+create function privado.carimbar_status() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.status_em is null or not privado.restaurando() then new.status_em := now(); end if;
+  elsif privado.restaurando() and new.status_em is distinct from old.status_em then
+    null;   -- (a restauração de uma cópia, ou o teste que data o estado, escolhe a marca)
+  elsif new.status is distinct from old.status then
+    new.status_em := now();
+  else
+    new.status_em := old.status_em;   -- sem mudança de estado a marca não anda, nem se alguém tentar mudá-la
+  end if;
+  return new;
+end $$;
+revoke all on function privado.carimbar_status() from public, anon, authenticated, service_role;
+create trigger status_em before insert or update on app.tentativas_pagamento for each row execute function privado.carimbar_status();
+create trigger status_em before insert or update on app.pagamentos for each row execute function privado.carimbar_status();
+create trigger status_em before insert or update on app.projetos for each row execute function privado.carimbar_status();
+
 create function privado.entrega_bloqueada_desde(e app.entregas) returns timestamptz
 language sql stable security definer set search_path = '' as $$
   select case when privado.entrega_bloqueada(e) then coalesce((
     select max(q.quando) from (
-      select t.updated_at as quando from app.tentativas_pagamento t join app.pagamentos pg on pg.id = t.pagamento_id
+      select coalesce(t.status_em, t.updated_at) as quando from app.tentativas_pagamento t join app.pagamentos pg on pg.id = t.pagamento_id
        where pg.proposta_id = e.proposta_id and t.status in ('estornada', 'estornada_parcial', 'contestada', 'divergente')
       union all
-      select pg.updated_at from app.pagamentos pg where pg.proposta_id = e.proposta_id and pg.status in ('estornado', 'contestado')
+      select coalesce(pg.status_em, pg.updated_at) from app.pagamentos pg where pg.proposta_id = e.proposta_id and pg.status in ('estornado', 'contestado')
       union all
-      select pj.updated_at from app.propostas pr join app.projetos pj on pj.id = pr.projeto_id where pr.id = e.proposta_id and pj.status in ('pausado', 'cancelado')
+      select coalesce(pj.status_em, pj.updated_at) from app.propostas pr join app.projetos pj on pj.id = pr.projeto_id where pr.id = e.proposta_id and pj.status in ('pausado', 'cancelado')
     ) q), e.created_at) end;
 $$;
 revoke all on function privado.entrega_bloqueada_desde(app.entregas) from public, anon, authenticated, service_role;

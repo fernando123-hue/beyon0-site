@@ -490,3 +490,48 @@ test('C: como destravar À MÃO (o dono avisa; o agente roda um programa pequeno
   await aplicar(estornada, 'estornada');
   assert.equal((await infoDe(estornada)).bloqueada, true, 'estorno INTEIRO não destrava: o dinheiro voltou e o pagamento fica "estornado"');
 });
+
+/* ---------- SEGURANÇA-2: o Pix do restante já emitido NÃO fica pagável depois do bloqueio ---------- */
+async function restanteComQr(c) {
+  const { t, order } = await iniciarRestante(db, c);
+  const v = Number(t.valor).toFixed(2);
+  await rpc('pagamentos_aplicar', { provedor: 'mercadopago', origem: 'consulta', conta_esperada: '777', retrato: {
+    order_id: order, external_reference: t.tentativa_id, user_id: '777', total_amount: v, country_code: 'BRA',
+    pix: { qr: '00020126PIXDOTESTE', qr_base64: 'QUJDREVGRw==', expira_em: new Date(Date.now() + 3600e3).toISOString() },
+    pagamento: { id: 'PAY' + order.slice(-6), amount: v, paid_amount: null, status: 'action_required', status_detail: 'waiting_transfer', metodo_id: 'pix', metodo_tipo: 'bank_transfer', parcelas: null },
+    estado: 'aguardando' } });
+  return { t, order };
+}
+const estadoDoPagamento = c => rpc('pagamentos_estado', base(c));
+
+test('S2: com o Pix do restante emitido, a tela mostra o QR; estornada a entrada, a tela NÃO mostra mais o QR (nem o desafio) e o banco manda cancelar a order', async () => {
+  const c = await entregaEm(db, 'aprovada');
+  const { t, order } = await restanteComQr(c);
+  const antes = await estadoDoPagamento(c);
+  assert.equal(antes.tentativa.pix_qr, '00020126PIXDOTESTE', 'sem bloqueio o QR aparece');
+  assert.equal(antes.tentativa.status, 'aguardando');
+  const r = await aplicar(c, 'estornada');
+  assert.deepEqual(r.cancelar_restante, [{ tentativa_id: t.tentativa_id, order }], 'o banco diz quais orders do restante cancelar no provedor');
+  const depois = await estadoDoPagamento(c);
+  assert.ok(!depois.tentativa.pix_qr, 'bloqueada: sem QR');
+  assert.ok(!depois.tentativa.pix_qr_base64, 'bloqueada: sem QR em imagem');
+  assert.ok(!depois.tentativa.desafio_url);
+});
+
+test('S2: o projeto pausado também esconde o QR (a entrega bloqueada, qualquer que seja a causa)', async () => {
+  const c = await entregaEm(db, 'aprovada');
+  await restanteComQr(c);
+  assert.equal((await estadoDoPagamento(c)).tentativa.pix_qr, '00020126PIXDOTESTE');
+  await pausar(c);
+  assert.ok(!(await estadoDoPagamento(c)).tentativa.pix_qr);
+});
+
+test('S2: o estorno em parte e a contestação também mandam cancelar o Pix do restante; um estorno sem Pix aberto não manda nada', async () => {
+  for (const estado of ['estornada_parcial', 'contestada']) {
+    const c = await entregaEm(db, 'aprovada');
+    const { t, order } = await restanteComQr(c);
+    assert.deepEqual((await aplicar(c, estado)).cancelar_restante, [{ tentativa_id: t.tentativa_id, order }], estado);
+  }
+  const sem = await entregaEm(db, 'aprovada');
+  assert.equal((await aplicar(sem, 'estornada')).cancelar_restante, undefined, 'sem tentativa ativa do restante: nada a cancelar');
+});

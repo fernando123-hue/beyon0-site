@@ -76,7 +76,7 @@ test('M3 (20/11, dono): sinal estornado = entrega bloqueada: o material nunca im
   /* (o carimbo de updated_at do banco volta o relógio para agora; a licença de restauração, só numa conexão SQL do dono, deixa datar o estorno) */
   const estornar = dias => db.transaction(async tx => {
     await tx.exec("set local bz.restaurando = 'on'");
-    await tx.query("update app.pagamentos set status = 'estornado', updated_at = now() - make_interval(days => $2) where proposta_id = (select proposta_id from app.entregas where id = $1) and parcela = 'sinal'", [e.entrega, dias]);
+    await tx.query("update app.pagamentos set status = 'estornado', status_em = now() - make_interval(days => $2) where proposta_id = (select proposta_id from app.entregas where id = $1) and parcela = 'sinal'", [e.entrega, dias]);
   });
   await estornar(0); assert.deepEqual(await pendencias(), [], 'recém-estornado: ainda não');
   await estornar(2); assert.deepEqual(await pendencias(), [], 'estornado há 2 dias: guardado (a janela é de 60 dias)');
