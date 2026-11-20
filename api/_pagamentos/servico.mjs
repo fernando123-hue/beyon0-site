@@ -15,6 +15,7 @@ import { criarMercadoPago, retratoDe, ErroProvedor } from './mercadopago.mjs';
 import { ATIVOS } from './estados.mjs';
 import { orcamentoDe, SemOrcamento, ORCAMENTO_SUBPEDIDOS } from '../_orcamento.mjs';
 import { confirmarEntradas, emailPermitido } from './confirmacao.mjs';
+import { criarDesistencia } from './desistencia.mjs';
 
 /* fins SEM dinheiro: só depois deles uma nova tentativa pode começar (aprovada, duplicada, estornada etc. mostram o estado) */
 const LIVRES = new Set(['recusada', 'cancelada', 'expirada']);
@@ -167,13 +168,15 @@ function criarNucleo({ banco, mp, cfg, agora, confirmacao = null, avisar = null 
     }
   }
 
-  return { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar };
+  return { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar, avisarDono };
 }
 
 export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Date.now(), confirmacao = null, avisar = null }) {
   if (!cfg || !cfg.ativo) throw new Error('pagamentos desligados');
   const mp = provedor || criarMercadoPago({ token: cfg.token, base: cfg.base, fetch: cfg.fetch || globalThis.fetch });
-  const { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar } = criarNucleo({ banco, mp, cfg, agora, confirmacao, avisar });
+  const nucleo = criarNucleo({ banco, mp, cfg, agora, confirmacao, avisar });
+  const { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar } = nucleo;
+  const desistir = criarDesistencia({ banco, mp, cfg, nucleo });
 
   /* decide o que fazer com a tentativa ativa antes de começar outra */
   async function resolverAtiva(ctx, t, metodoNovo) {
@@ -356,6 +359,9 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
       await criarNucleo({ banco: bancoFinal, mp, cfg, agora }).ocorrencia('payment.reconciled', null, null, resumo, 'reconciliacao');
       return resumo;
     },
+
+    /* a desistência do cliente dentro dos 7 dias (api/_pagamentos/desistencia.mjs): só pela sessão dele, com a decisão no banco */
+    desistir,
 
     /* reembolso (operação da equipe; não há rota pública). A chave de idempotência é fixa por order:
        dois pedidos de reembolso da mesma order nunca devolvem duas vezes */
