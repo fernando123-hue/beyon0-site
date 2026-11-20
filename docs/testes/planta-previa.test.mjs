@@ -25,3 +25,7 @@ test('o staging e as prévias continuam sendo prévia (ambiente e pagamento de t
     assert.equal(vars.MP_AMBIENTE, 'teste');
   }
 });
+
+test('as duas listas de vars da prévia (staging e prévias de branch) são iguais: não herdam uma da outra', () => {
+  assert.deepEqual(cfg.env.previa.previews.vars, cfg.env.previa.vars);
+});
