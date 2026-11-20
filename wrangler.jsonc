@@ -31,7 +31,8 @@
     // do Safari (mp4/AAC) e do Chrome (webm/Opus); só depois disso um PR de uma linha troca "" por "1"
     "BZ_VOZ": "",
     // o TESTE DO PIX DE R$ 0,01 do painel do dono (api/_pagamentos/teste-pix.mjs): rotas só com a chave do painel E com "1" aqui.
-    // VAZIA por padrão (fechado): só se liga pelo painel da Cloudflare (variável de ambiente) no momento do teste do dono, e se desliga depois
+    // VAZIA por padrão (fechado). Para o teste do dono: trocar "" por "1" aqui (PR de uma linha, promovido) e desfazer depois; a Cloudflare pode
+    // sobrescrever no próximo deploy qualquer valor posto no painel, e isso só fecha o teste (lado seguro)
     "BZ_TESTE_PIX": "" },
   "ai": { "binding": "AI" },
   "send_email": [{ "name": "AVISO_EMAIL", "destination_address": "contato.beyon.zero@gmail.com" }],

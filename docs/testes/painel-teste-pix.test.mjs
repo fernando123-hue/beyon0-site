@@ -24,7 +24,8 @@ function montar(respostas) {
   ids['tp-doc-tipo'].value = 'CPF';
   const chamadas = [], timers = [], docs = {}, copiados = [];
   let agora = 1_000_000;
-  const P = { recusada: e => e.status === 401,
+  const sairam = [];
+  const P = { recusada: e => { const r = e.status === 401 || e.status === 429; if (r) sairam.push(e.status); return r; },   /* (igual ao js/painel.js: 401 e 429 deslogam) */
     pedir(caminho, opc) {
       chamadas.push({ caminho, metodo: (opc && opc.method) || 'GET', corpo: opc && opc.body ? JSON.parse(opc.body) : null });
       const r = respostas.shift();
@@ -39,7 +40,7 @@ function montar(respostas) {
   });
   vm.runInContext(FONTE, ctx);
   const passar = async (ms = 4000) => { agora += ms; const t = timers.filter(Boolean); timers.length = 0; for (const f of t) f(); await esperar(); };
-  return { ids, chamadas, copiados, sair: () => docs['bz-painel:saiu'](), passar, pendentes: () => timers.filter(Boolean).length };
+  return { ids, chamadas, copiados, sairam, sair: () => docs['bz-painel:saiu'](), passar, pendentes: () => timers.filter(Boolean).length };
 }
 const esperar = () => new Promise(r => setTimeout(r, 0));
 const preencher = m => { m.ids['tp-nome'].value = ' Ana '; m.ids['tp-sobrenome'].value = 'Souza'; m.ids['tp-email'].value = 'ana@exemplo.com'; m.ids['tp-doc'].value = '529.982.247-25'; };
@@ -71,6 +72,7 @@ test('gera: manda só os dados do pagador (nenhum valor), mostra QR e código, e
   assert.equal(m.ids['tp-estado'].textContent, 'Pagamento recebido pelo Mercado Pago: a cadeia funciona.');
   assert.equal(m.ids['tp-devolver'].hidden, false, 'pago: aparece "Devolver o centavo"');
   assert.equal(m.pendentes(), 0, 'pago: para de perguntar');
+  assert.equal(m.ids['tp-gerar'].disabled, false, 'pago: dá para gerar outro sem recarregar a página');
 });
 
 test('devolver o centavo: manda só a order, mostra o texto e esconde o botão', async () => {
@@ -129,6 +131,15 @@ test('desligado (403) mostra o aviso; erro do servidor aparece em português; na
   preencher(m2);
   m2.ids['tp-gerar'].clicar(); await esperar();
   assert.equal(m2.ids['tp-estado'].textContent, 'Informe um e-mail válido.');
+});
+
+test('o limite de 5 por hora (429) mostra a mensagem e NÃO desloga o dono do painel', async () => {
+  const m = montar([Object.assign(new Error('Já foram 5 testes na última hora. Espere um pouco para gerar outro.'), { status: 429 })]);
+  preencher(m);
+  m.ids['tp-gerar'].clicar(); await esperar();
+  assert.equal(m.ids['tp-estado'].textContent, 'Já foram 5 testes na última hora. Espere um pouco para gerar outro.');
+  assert.deepEqual(m.sairam, [], 'o painel não foi chamado para sair');
+  assert.equal(m.ids['tp-gerar'].disabled, false);
 });
 
 test('sair do painel apaga os dados de quem paga, o QR e o código, e para o relógio', async () => {

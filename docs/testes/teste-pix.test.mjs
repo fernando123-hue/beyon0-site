@@ -136,11 +136,25 @@ test('a cobrança devolvida tem de ser a pedida: valor, referência ou conta dif
     const cfg = { ativo: true, ambiente: 'simulado', token: 'tok-' + 'a'.repeat(30), base: 'https://api.mercadopago.com', contaEsperada: CONTA,
       fetch: async (url, init) => { const r = await original(url, init); if ((init.method || 'GET') !== 'POST' || !String(url).endsWith('/v1/orders')) return r; const d = await r.json(); adulterar(d); return new Response(JSON.stringify(d), { status: r.status, headers: { 'content-type': 'application/json' } }); } };
     const t = criarTestePix({ config: () => cfg });
+    const cancelesAntes = sim.chamadas.filter(c => c.caminho.endsWith('/cancel')).length;
     const r = await post({ teste_pix: PAGADOR }, { deps: { testePix: t } });
     assert.equal(r.status, 502);
     assert.equal(r.corpo.qr, undefined);
+    assert.equal(sim.chamadas.filter(c => c.caminho.endsWith('/cancel')).length, cancelesAntes + 1, 'a order criada sem conferir é cancelada (uma vez, em cada caso)');
   }
-  assert.ok(sim.chamadas.some(c => c.caminho.endsWith('/cancel')), 'a order criada sem conferir é cancelada');
+});
+
+test('reembolso em conflito (o MP já tem devolução em curso) não mostra o texto de "pago": diz que a devolução está em andamento', async () => {
+  const { corpo: c } = await criar();
+  sim.pagarPix(c.order_id);
+  sim.editar(c.order_id, o => { o.status = 'processed'; });
+  const original = sim.fetch;
+  const cfg = { ativo: true, ambiente: 'simulado', token: 'tok-' + 'a'.repeat(30), base: 'https://api.mercadopago.com', contaEsperada: CONTA,
+    fetch: async (url, init) => ((init.method || 'GET') === 'POST' && String(url).endsWith('/refund') ? new Response(JSON.stringify({ errors: [{ code: 'refund_in_progress' }] }), { status: 409 }) : original(url, init)) };
+  const r = await post({ teste_pix_reembolsar: c.order_id }, { deps: { testePix: criarTestePix({ config: () => cfg }) } });
+  assert.equal(r.corpo.estado, 'pago');
+  assert.match(r.corpo.texto, /em andamento/);
+  assert.ok(!/cadeia funciona/.test(r.corpo.texto));
 });
 
 /* ======================= consultar ======================= */

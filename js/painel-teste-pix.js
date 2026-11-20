@@ -39,6 +39,8 @@
 
   /* o servidor recusa com o motivo em português (erro.message); o "desligado" ganha o aviso próprio */
   function falhou(e) {
+    /* o limite de 5 testes por hora também é 429, mas NÃO é a chave recusada: o dono continua dentro do painel */
+    if (e.status === 429) { estado(e.message); return; }
     if (P.recusada(e)) return;
     if (e.status === 403) { $('tp-desligado').hidden = false; estado(''); return; }
     estado(e.message);
@@ -48,7 +50,7 @@
     if (minha !== vez) return;
     estado(r.texto);
     $('tp-devolver').hidden = r.estado !== 'pago';
-    if (FINAIS[r.estado]) { parar(); if (r.estado !== 'pago') $('tp-gerar').disabled = false; return; }
+    if (FINAIS[r.estado]) { parar(); $('tp-gerar').disabled = false; return; }
     agendar(minha);
   }
 

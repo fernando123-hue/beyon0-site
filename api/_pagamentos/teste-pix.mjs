@@ -44,6 +44,7 @@ const TEXTOS = {
   falhou: 'O Mercado Pago não aceitou este Pix. Gere outro para testar de novo.',
   desconhecido: 'O Mercado Pago devolveu um estado que o teste não conhece. Confira no app do Mercado Pago.'
 };
+const TEXTO_DEVOLUCAO_EM_CURSO = 'A devolução já foi pedida ao Mercado Pago e está em andamento. Confira de novo em instantes.';
 const ESTADO_DO_TESTE = {
   processando: 'aguardando', aguardando: 'aguardando', requer_acao: 'aguardando', aprovada: 'pago', expirada: 'expirou', cancelada: 'cancelado',
   estornada: 'devolvido', recusada: 'falhou'
@@ -142,7 +143,8 @@ export function criarTestePix({ freio = criarFreio({ max: MAX_POR_HORA, janelaMs
       const depois = conferirOrdemDeTeste(await mp.consultarOrdem(id), cfg);
       if (!depois) return json(NAO_E_DO_TESTE, 404);
       const estado = estadoDoTeste(depois);
-      return json({ ok: estado === 'devolvido' || !conflito, order_id: id, estado, pago: estado === 'pago', texto: TEXTOS[estado], valor: VALOR_CENTAVO });
+      const emAndamento = conflito && estado === 'pago';   /* (o MP já tem uma devolução em curso; o texto de "pago" enganaria) */
+      return json({ ok: estado === 'devolvido' || !conflito, order_id: id, estado, pago: estado === 'pago', texto: emAndamento ? TEXTO_DEVOLUCAO_EM_CURSO : TEXTOS[estado], valor: VALOR_CENTAVO });
     } catch (e) { return erroDoProvedor(e, 'reembolsar'); }
   }
 

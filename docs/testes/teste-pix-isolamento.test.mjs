@@ -106,6 +106,15 @@ test('contraste: uma order desconhecida que NÃO é do teste continua gerando o 
   assert.ok((await atencao()) >= 1);
 });
 
+test('defesa em profundidade: order TESTE- de OUTRO valor (não é a do teste de R$ 0,01) NÃO é engolida: cai na divergência e alarma', async () => {
+  const mp = criarMercadoPago({ token: local.mp.token, fetch: local.mp.fetch });
+  const { order } = await mp.criarOrdem({ chave: 'bz-teste-valor-iso01', referencia: 'TESTE-' + 'f'.repeat(24), valor: 50, pagador: { email: 'test@testuser.com', nome: 'APRO', sobrenome: 'X', documentoTipo: 'CPF', documento: '52998224725' }, metodo: 'pix' });
+  sim.pagarPix(order.id);
+  assert.equal((await aviso(order.id)).status, 200);
+  const divergencias = (await local.db.query(`select count(*)::int n from app.pagamentos_auditoria where provedor_ref = $1 and evento = 'payment.divergence'`, [order.id])).rows[0].n;
+  assert.equal(divergencias, 1, 'dinheiro de valor normal com cara de teste nunca passa em silêncio');
+});
+
 test('o pedido REAL: a order sai com o valor da tabela e a referência da tentativa (UUID, nunca TESTE-) e é aplicada como paga', async () => {
   const { chamar, c } = await pedidoAteCobranca();
   const r = await chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR });

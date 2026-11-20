@@ -37,7 +37,8 @@ const CONFIRMACOES_POR_VEZ = 5;        /* confirmações da entrada recuperadas 
 export const ORG = 'beyon-zero';
 /* a referência de um pedido real é o UUID da tentativa (banco: external_reference = t.id::text): nunca começa com "TESTE-".
    Só o Pix de teste do dono cria order com esse prefixo; o aviso e a varredura a ignoram (sem tentativa, sem alarme) */
-const ordemDeTeste = o => !!o && typeof o.external_reference === 'string' && o.external_reference.startsWith('TESTE-');
+const ordemDeTeste = o => !!o && typeof o.external_reference === 'string' && o.external_reference.startsWith('TESTE-') && String(o.total_amount) === '0.01';
+/* (o valor também tem de ser o do teste: uma order TESTE- de outro valor NÃO é engolida em silêncio, cai na divergência e alarma) */
 
 /* ---------- validação do que vem do navegador (nada aqui decide valor) ---------- */
 const soDigitos = v => String(v || '').replace(/\D/g, '');
