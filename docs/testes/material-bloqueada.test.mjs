@@ -135,3 +135,23 @@ for (const passo of ['material', 'producao', 'previa', 'ajustes', 'aprovada', 'n
     await BLOQUEIOS['o projeto pausado'](c, 55); assert.equal(await marcado(), true, '55 dias: na última semana');
   });
 }
+
+/* ---------- TÉCNICA-4: as fronteiras de 1 dia (a conta é por DATA de Campo Grande: o dia do bloqueio é o dia 0) ---------- */
+test('T4: fronteira do apagamento: 59 dias guarda, 60 dias já entra na limpeza, 61 também', async () => {
+  const c = await entrega();
+  for (const [dias, esperado] of [[59, false], [60, true], [61, true]]) {
+    await DATAR_ESTADO_DO_PROJETO(c, dias);
+    assert.equal(await vencida(c), esperado, dias + ' dias');
+    assert.deepEqual(await pendencias(), esperado ? [c.caminho] : [], dias + ' dias (a limpeza do armazém)');
+  }
+});
+
+test('T4: fronteira do aviso ao dono: 52 dias não avisa, 53 avisa, 59 ainda avisa, 60 já não (aí o material entra na limpeza)', async () => {
+  const c = await entrega();
+  const aviso = async () => (await um('select privado.material_bloqueado_aviso(e) as v from app.entregas e where e.id = $1', [c.entrega])).v;
+  for (const [dias, esperado] of [[52, false], [53, true], [59, true], [60, false]]) {
+    await DATAR_ESTADO_DO_PROJETO(c, dias);
+    assert.equal(await aviso(), esperado, dias + ' dias');
+  }
+});
+const DATAR_ESTADO_DO_PROJETO = (c, dias) => BLOQUEIOS['o projeto pausado'](c, dias);
