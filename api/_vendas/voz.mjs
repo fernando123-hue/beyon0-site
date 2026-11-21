@@ -66,10 +66,10 @@ const palavrasLongas = t => semAcento(t).match(/[a-z]{4,}/g) || [];
 /* marcação e link que a pessoa não ditou (o texto vai para uma caixa de mensagem e depois ao consultor) */
 const SINAIS_DE_MARCACAO = ['://', 'http', 'www.', '@', '[', ']', '*', '#', '`'];
 const vezes = (t, sinal) => t.split(sinal).length - 1;
-/* negações: limpar pode juntar a GAGUEIRA ("não não quero", a mesma negação repetida em até 3 palavras), nunca sumir com
+/* negações: limpar pode juntar a GAGUEIRA ("não não quero", a mesma negação colada nela mesma), nunca sumir com
    uma negação de verdade ("não quero" virando "quero"; "não gosto de bolo nem de torta" perdendo o "não") */
 const NEGACAO = /^(nao|nunca|nem|jamais|ninguem|nada|nenhum|nenhuma)$/;
-const PERTO = 3;
+const PERTO = 1;
 function negacoes(t, descontarGagueira) {
   const palavras = semAcento(t).match(/[a-z]+/g) || [];
   const ultima = {}, conta = {};
@@ -88,7 +88,7 @@ const extenso = t => (semAcento(t).match(NUMERO_POR_EXTENSO) || []).join(' ');
 /* a trava: o texto lapidado só vale se for, de fato, o mesmo texto mais limpo. Na dúvida, recusa (e volta o cru).
    • sem sinais de HTML, link ou marcação que a pessoa não falou, sem comentário de robô em volta (a menos que a pessoa tenha falado assim);
    • os algarismos e os números por extenso saem iguais e na mesma ordem (telefone, valor, data);
-   • as negações não somem (só a gagueira, a mesma negação repetida em até 3 palavras, pode virar uma);
+   • as negações não somem (só a gagueira, a mesma negação colada nela mesma, "não não", pode virar uma);
    • o tamanho fica entre 60 % e 125 % do cru (+10): limpar encurta um pouco, nunca reescreve, nem enche, nem corta o fim;
    • pelo menos 70 % das palavras de 4+ letras do resultado já estavam na fala (aproximação: mesmas 4 primeiras letras):
      pega o modelo que "obedeceu" ao que a pessoa disse em vez de só limpar, e a invenção. */

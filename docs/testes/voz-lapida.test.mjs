@@ -112,6 +112,9 @@ test('a trava recusa o limpo que perdeu uma negação ("não quero" virando "que
   /* duas negações que não são gagueira: sumir com uma troca o sentido (2ª revisão técnica) */
   assert.equal(aceitarLapidado('eu não gosto de bolo de chocolate nem de torta de limão', 'Eu gosto de bolo de chocolate, nem de torta de limão.'), false);
   assert.equal(aceitarLapidado('eu não gosto de bolo de chocolate e não gosto de torta de limão', 'Eu não gosto de bolo de chocolate e gosto de torta de limão.'), false);
+  /* negações paralelas curtas não são gagueira (3ª passada da revisão técnica) */
+  assert.equal(aceitarLapidado('eu não sei, não vou, não posso fazer isso agora', 'Eu não sei, vou, posso fazer isso agora.'), false);
+  assert.equal(aceitarLapidado('eu não quero nem bolo nem torta para a festa', 'Eu não quero nem bolo, torta para a festa.'), false);
   /* o "não não" gaguejado pode virar um só */
   assert.equal(aceitarLapidado('eu não não quero parcelar o pagamento do site', 'Eu não quero parcelar o pagamento do site.'), true);
 });
