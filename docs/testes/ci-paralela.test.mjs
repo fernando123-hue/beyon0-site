@@ -135,6 +135,13 @@ test('ci.yml: o E2E roda as duas rodadas (sem e com consultor) em paralelo, e o 
   assert.match(agregado, /^      actions: read\b/m);
 });
 
+test('ci.yml: nenhum passo dos jobs que fazem o trabalho (suíte, fatias, rodadas do E2E) tem "if:" (um passo pulado deixaria o job verde sem ter testado)', () => {
+  for (const id of ['suite', 'mutacao', 'e2e-rodada']) {
+    const passos = JOBS[id].slice(JOBS[id].indexOf('    steps:\n'));
+    assert.doesNotMatch(passos, /^ +(- )?if:/m, id);
+  }
+});
+
 test('ci.yml: nenhum segredo novo, nada de pull_request_target, nada do evento interpolado em run: (injeção)', () => {
   assert.doesNotMatch(YML, /pull_request_target/);
   const segredos = [...YML.matchAll(/secrets\.([A-Za-z0-9_]+)/g)].map(m => m[1]);
