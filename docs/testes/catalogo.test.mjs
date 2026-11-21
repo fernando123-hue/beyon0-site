@@ -120,7 +120,7 @@ test('v4: o visual exclusivo aparece só no institucional, como principal; na la
   const inst = catalogoPublico(REGRAS, { formato: 'institucional', ramo: 'outro' });
   const visual = inst.extras.principais.find(e => e.chave === 'visual_exclusivo');
   assert.ok(visual, 'principal no institucional, em qualquer ramo');
-  assert.deepEqual([visual.valor, visual.max, visual.requer, visual.frase], [3200, 1, ['institucional'], FRASES.visual_exclusivo]);
+  assert.deepEqual([visual.valor, visual.max, visual.requer, visual.frase], [3900, 1, ['institucional'], FRASES.visual_exclusivo]);
   for (const formato of ['landing_page', 'loja_plataforma', undefined]) {
     assert.ok(!todas(catalogoPublico(REGRAS, { formato, ramo: 'servicos' })).includes('visual_exclusivo'), String(formato));
   }
