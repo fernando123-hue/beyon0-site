@@ -231,7 +231,7 @@
     return arte;
   }
 
-  function secao(s, primeira, d) {
+  function secao(s, primeira, d, varianteDosItens) {
     var tipo = umDe(TIPOS, s.tipo, 'destaque');
     var sec = el('section', 'pv-sec pv-sec--' + tipo + ' pv-v--' + umDe(VARIANTES, s.variante, 'centro') +
       (primeira ? ' pv-hero--' + umDe(VARIANTES_TOPO, s.variante, 'split') : '') +
@@ -248,7 +248,7 @@
     if (s.cta) cab.appendChild(el('span', 'pv-btn', s.cta));
     sec.appendChild(cab);
     if (primeira) sec.appendChild(arteDoTopo(d));   /* a arte vem logo depois do título; os itens (se o modelo pôs) ficam abaixo dela */
-    var lista = Array.isArray(s.itens) && s.itens.length ? itens(s.itens, tipo, umDe(VARIANTES, s.variante, 'centro')) : null;
+    var lista = Array.isArray(s.itens) && s.itens.length ? itens(s.itens, tipo, varianteDosItens || umDe(VARIANTES, s.variante, 'centro')) : null;
     if (lista) sec.appendChild(lista);
     return sec;
   }
@@ -279,7 +279,6 @@
   /* ---------- o ritmo da página (dono, 19/11): nunca dois blocos de itens iguais em sequência e no máximo 3 botões de seção ----------
      Vale também para o modelo já gravado (é só o desenho; o JSON do cliente não muda). */
   var MAX_BOTOES = 3;
-  var VARIANTES_QUE_ALTERNAM = ['cartoes', 'grade', 'centro', 'split'];   /* a faixa de cor cheia é um bloco próprio: não troca */
   function botoesQueFicam(secoes) {
     var comBotao = [];
     secoes.forEach(function (s, n) { if (str(s.cta)) comBotao.push(n); });
@@ -289,24 +288,25 @@
     if (comBotao.indexOf(0) >= 0) manter(0);   /* o do topo */
     var fecho = -1;
     comBotao.forEach(function (n) { if (n > 0 && (secoes[n].tipo === 'cta' || secoes[n].tipo === 'contato')) fecho = n; });
+    if (fecho < 0 && comBotao[comBotao.length - 1] > 0) fecho = comBotao[comBotao.length - 1];   /* sem cta/contato com botão: o último da página */
     if (fecho >= 0) manter(fecho);   /* o do fecho */
     comBotao.forEach(manter);   /* e os primeiros dos demais */
     return fica;
   }
-  /* a composição de itens da seção, com a troca quando é igual à da anterior: devolve { secao, assinatura } (assinatura '' = sem lista) */
+  /* o jeito dos itens da seção, com a troca quando é igual ao da anterior: devolve { itens, assinatura }. `itens` é a variante só dos ITENS ('' = a da seção):
+     a seção segue com a sua variante (cabeçalho centralizado, 2 colunas do split) e só a lista troca de desenho. assinatura '' = sem lista */
   function comRitmo(s, anterior) {
     var tipo = umDe(TIPOS, s.tipo, 'destaque');
     var variante = umDe(VARIANTES, s.variante, 'centro');
     var modo = modoDosItens(tipo, variante);
-    if (!itensValidos(s.itens, modo).length) return { secao: s, assinatura: '' };
-    var assinatura = modo + '|' + variante;
+    if (!itensValidos(s.itens, modo).length) return { itens: '', assinatura: '' };
+    var assinatura = variante === 'faixa' ? modo + '|faixa' : modo;   /* a faixa de cor cheia é um bloco próprio: não se confunde com cartões comuns */
     var troca = '';
-    if (assinatura === anterior) {
-      if (modo === 'cartoes' && VARIANTES_QUE_ALTERNAM.indexOf(variante) >= 0) troca = 'lista';
+    if (assinatura === anterior && variante !== 'faixa') {
+      if (modo === 'cartoes') troca = 'lista';
       else if (modo === 'linhas') troca = 'cartoes';
     }
-    if (!troca) return { secao: s, assinatura: assinatura };
-    return { secao: Object.assign({}, s, { variante: troca }), assinatura: modoDosItens(tipo, troca) + '|' + troca };
+    return { itens: troca, assinatura: troca ? modoDosItens(tipo, troca) : assinatura };
   }
 
   function desenhar(d) {
@@ -334,9 +334,10 @@
     var secoes = (Array.isArray(d.secoes) ? d.secoes : []).slice(0, 12).map(function (s) { return s && typeof s === 'object' ? s : {}; });
     var fica = botoesQueFicam(secoes), anterior = '';
     secoes.forEach(function (s, n) {
-      var r = comRitmo(fica && !fica[n] && s.cta ? Object.assign({}, s, { cta: '' }) : s, anterior);
+      var sec = fica && !fica[n] && s.cta ? Object.assign({}, s, { cta: '' }) : s;
+      var r = comRitmo(sec, anterior);
       anterior = r.assinatura;
-      raiz.appendChild(secao(r.secao, n === 0, d));
+      raiz.appendChild(secao(sec, n === 0, d, r.itens));
     });
     if (d.rodape && d.rodape.texto) raiz.appendChild(el('footer', 'pv-rodape', d.rodape.texto));
     return raiz;

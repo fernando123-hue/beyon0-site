@@ -404,7 +404,24 @@ test('ritmo: dois blocos de itens iguais em sequência não saem; o segundo muda
   assert.deepEqual(modos(desenharCom(lista3('servicos'), lista3('diferenciais'), lista3('equipe'))), ['pv-itens--cartoes', 'pv-itens--linhas', 'pv-itens--cartoes']);
   assert.deepEqual(modos(desenharCom(secao('servicos', 'lista', I3), secao('diferenciais', 'lista', I3))), ['pv-itens--linhas', 'pv-itens--cartoes']);
   const trocada = desenharCom(lista3('servicos'), lista3('diferenciais'));
-  assert.ok(comClasse(trocada, 'pv-v--lista').length === 1, 'a classe da seção acompanha (o layout largo da lista)');
+  assert.equal(comClasse(trocada, 'pv-v--lista').length, 0, 'a seção segue com a SUA variante (cabeçalho e layout largo); só os itens trocam de desenho');
+  assert.equal(comClasse(trocada, 'pv-v--cartoes').length, 2);
+  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const largo = css.slice(css.indexOf('@container'));
+  assert.ok(/\.pv-sec \.pv-itens\.pv-itens--linhas\s*\{[^}]*grid-template-columns:\s*1fr[^}]*max-width:\s*760px/.test(largo), 'linhas numa seção que não é de lista: 1 coluna de 760 px');
+  assert.ok(/\.pv-v--centro \.pv-itens--linhas\s*\{[^}]*margin-inline:\s*auto/.test(largo), 'sob cabeçalho centralizado a lista centraliza');
+  assert.ok(/\.pv-v--lista \.pv-itens\.pv-itens--cartoes\s*\{[^}]*repeat\(3, 1fr\)/.test(largo), 'cartões numa seção de lista: 3 colunas, não a coluna de 760 px');
+  assert.ok(/\.pv-itens--numeros \.pv-num:last-child:nth-child\(odd\)\s*\{[^}]*grid-column:\s*1 \/ -1/.test(css), 'no celular o último número ímpar ocupa a linha');
+  assert.ok(/\.pv-sec \.pv-itens--numeros \.pv-num:last-child:nth-child\(odd\)\s*\{[^}]*grid-column:\s*auto/.test(largo), 'e no desktop volta ao normal');
+});
+
+test('ritmo: cartões com cabeçalhos diferentes (centro, grade, split) são o mesmo bloco no celular: a troca conta só o MODO; a faixa de cor não se confunde nem troca', () => {
+  assert.deepEqual(modos(desenharCom(secao('servicos', 'centro', I3), secao('diferenciais', 'grade', I3))), ['pv-itens--cartoes', 'pv-itens--linhas']);
+  assert.deepEqual(modos(desenharCom(secao('servicos', 'split', I3), secao('diferenciais', 'centro', I3), secao('equipe', 'grade', I3))), ['pv-itens--cartoes', 'pv-itens--linhas', 'pv-itens--cartoes']);
+  assert.deepEqual(modos(desenharCom(secao('servicos', 'cartoes', I3), secao('diferenciais', 'faixa', I3))), ['pv-itens--cartoes', 'pv-itens--cartoes'], 'a faixa é um bloco próprio');
+  assert.deepEqual(modos(desenharCom(secao('servicos', 'faixa', I3), secao('diferenciais', 'faixa', I3))), ['pv-itens--cartoes', 'pv-itens--cartoes'], 'duas faixas seguidas não trocam');
+  const split = desenharCom(secao('servicos', 'split', I3), secao('diferenciais', 'split', I3));
+  assert.equal(comClasse(split, 'pv-v--split').length, 3, 'o topo (também split) e as duas seções: o split da segunda fica (2 colunas no layout largo)');
 });
 
 test('ritmo: seção sem lista no meio, composições diferentes e tipos de desenho próprio (galeria, números) não são trocados', () => {
@@ -425,6 +442,14 @@ test('ritmo: no máximo 3 botões de seção na página: ficam o do topo, o do f
   const semTopo = carregar().desenhar(direcao({ secoes: [{ ...direcao().secoes[0], cta: '' }, secao('servicos', 'cartoes', I3, { cta: 'A' }), secao('sobre', 'split', [], { cta: 'B' }), secao('diferenciais', 'lista', I3, { cta: 'C' }), secao('contato', 'centro', [], { cta: 'F' })] }));
   assert.deepEqual(botoes(semTopo).map(b => b.textContent), ['A', 'B', 'F'], 'sem botão no topo, o fecho e os dois primeiros');
   assert.equal(comClasse(d, 'pv-btn--nav').length, 1, 'o botão da barra não conta nem some');
+  const semFecho = carregar().desenhar(direcao({ secoes: [{ ...direcao().secoes[0], cta: 'Topo' }, secao('servicos', 'cartoes', I3, { cta: 'A' }), secao('sobre', 'split', [], { cta: 'B' }), secao('diferenciais', 'lista', I3, { cta: 'C' }), secao('contato', 'centro', [], { cta: '' })] }));
+  assert.deepEqual(botoes(semFecho).map(b => b.textContent), ['Topo', 'A', 'C'], 'sem botão no cta/contato, fica o ÚLTIMO botão da página: a página não termina sem chamada');
+});
+
+test('ícone em FAQ e equipe (cartões) desenha sem quebrar; em linhas dentro de faixa o ícone vem no lugar do índice', () => {
+  for (const tipo of ['faq', 'equipe']) assert.equal(ico(desenharCom(secao(tipo, 'cartoes', itensCom('check')))).length, 1, tipo);
+  const faixa = desenharCom(secao('diferenciais', 'faixa', itensCom('check')));
+  assert.equal(ico(faixa).length, 1);
 });
 
 test('números: a lista leva a contagem (pv-n3 a pv-n8) para o CSS escolher as colunas sem deixar item solto', () => {

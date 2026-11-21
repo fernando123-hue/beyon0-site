@@ -55,7 +55,7 @@
 .pv-sec--hero .pv-arte { order: -1; height: 132px; border-top: 0; border-bottom: 2px solid var(--pv-texto); }
 .pv-sec--hero .pv-cab { padding: 4px 20px 0; gap: 18px; }
 .pv-sec--hero .pv-h1 { font-size: clamp(34px, 11.2cqw, 44px); line-height: 1.02; letter-spacing: -.025em; overflow-wrap: break-word; }   /* a tela real é 390 px escalada por transform (cqw dá 43,7 px); o clamp protege se o container for mais estreito (medido: tela fluida de 320 px, "ar-condicionado" cabe) */
-.pv-sec--hero .pv-itens { margin: 0 20px; padding: 0; }   /* o topo não tem padding lateral (a arte vai até a borda): os itens põem o deles */
+.pv-sec--hero .pv-itens { margin: 0 20px; }   /* o topo não tem padding lateral (a arte vai até a borda): os itens põem o deles */
 .pv-sec--hero .pv-sub { font-size: 18px; max-width: 34ch; }
 .pv-sec--hero .pv-texto { display: none; }   /* o parágrafo longo do topo só entra quando cabe (container largo) */
 .pv-sec--hero .pv-btn { width: 100%; max-width: 420px; min-height: 48px; justify-content: space-between; }
@@ -118,6 +118,7 @@
 /* números grandes */
 .pv-itens--numeros { grid-template-columns: 1fr 1fr; gap: 0; border-top: 2px solid var(--pv-texto); }
 .pv-num { padding: 18px 12px 18px 0; background: transparent; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--pv-texto) 22%, transparent); border-radius: 0; }
+.pv-itens--numeros .pv-num:last-child:nth-child(odd) { grid-column: 1 / -1; }   /* no celular (2 colunas) o último número ímpar ocupa a linha inteira, não fica na metade */
 .pv-num:nth-child(even) { padding: 18px 0 18px 14px; border-left: 1px solid color-mix(in srgb, var(--pv-texto) 22%, transparent); }
 .pv-num .pv-item__x { font-size: 14px; color: var(--pv-texto); }
 /* depoimentos: a frase grande, sem itálico (as fontes hospedadas não têm a face itálica) */
@@ -177,10 +178,13 @@
   .pv-sec .pv-itens.pv-itens--depoimentos { grid-template-columns: 1fr; max-width: 820px; }
   .pv-v--centro .pv-itens--depoimentos { margin-inline: auto; }
   :is(.pv-v--faixa, .pv-sec--fecho) .pv-num, :is(.pv-v--faixa, .pv-sec--fecho) .pv-num:nth-child(even) { border-left-color: color-mix(in srgb, var(--pv-dest-texto) 40%, transparent); }
-  .pv-sec .pv-itens.pv-itens--numeros.pv-n5 { grid-template-columns: repeat(3, 1fr); }
-  .pv-sec .pv-itens.pv-itens--numeros.pv-n6 { grid-template-columns: repeat(3, 1fr); }
-  .pv-sec .pv-itens.pv-itens--numeros.pv-n7 { grid-template-columns: repeat(4, 1fr); }
-  .pv-sec .pv-itens.pv-itens--numeros.pv-n8 { grid-template-columns: repeat(4, 1fr); }
+  .pv-sec .pv-itens.pv-itens--numeros.pv-n5, .pv-sec .pv-itens.pv-itens--numeros.pv-n6 { grid-template-columns: repeat(3, 1fr); }
+  .pv-sec .pv-itens.pv-itens--numeros.pv-n7, .pv-sec .pv-itens.pv-itens--numeros.pv-n8 { grid-template-columns: repeat(4, 1fr); }
+  .pv-sec .pv-itens--numeros .pv-num:last-child:nth-child(odd) { grid-column: auto; }
+  /* a troca de ritmo põe linhas numa seção que não é de lista (e cartões numa que é): o desenho dos itens acompanha o do tipo, não o da variante */
+  .pv-sec .pv-itens.pv-itens--linhas { grid-template-columns: 1fr; max-width: 760px; }
+  .pv-v--centro .pv-itens--linhas { margin-inline: auto; }
+  .pv-v--lista .pv-itens.pv-itens--cartoes { grid-template-columns: repeat(3, 1fr); max-width: none; }
   .pv-sec--hero .pv-itens { margin: 0; }
   .pv-citacao { font-size: 26px; }
   .pv-sec--fecho .pv-h2 { font-size: 60px; }

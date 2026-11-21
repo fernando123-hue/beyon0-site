@@ -89,18 +89,36 @@ export function resumoCurto(s) {
 
 /* Zero dado inventado: o número da seção "numeros" só fica se TODOS os grupos de dígitos dele aparecem no briefing (grupo inteiro: "1000" não vale
    por um telefone terminado em 1000). Senão vira espaço reservado. Só a geração passa o briefing; ajuste do cliente e fila manual não passam por aqui. */
-const gruposDeDigitos = v => String(v).match(/\d+/g) || [];
-function numeroDoBriefing(titulo, digitosDoBriefing) {
-  if (!digitosDoBriefing || /^\[.*\]$/.test(titulo)) return titulo;
-  const grupos = gruposDeDigitos(titulo);
-  return grupos.length && !grupos.every(g => digitosDoBriefing.has(g)) ? NUMERO_A_CONFIRMAR : titulo;
+const gruposDeDigitos = v => String(v).normalize('NFKC').match(/\p{Nd}+/gu) || [];   /* NFKC + \p{Nd}: "１００" (largura total) conta como 100 */
+/* os VALORES de texto e número do briefing (as chaves e os ids técnicos não contam: a chave "q1" não autoriza "1 ano"); iterativo e com teto, porque o briefing é
+   dado do visitante. A trava é uma heurística (grupo curto como "5" quase sempre aparece em algum endereço ou data); a primeira linha de defesa é o prompt. */
+const MAX_NOS_DO_BRIEFING = 5000;
+function textosDoBriefing(briefing) {
+  const fila = [briefing], achados = [];
+  for (let n = 0; fila.length && n < MAX_NOS_DO_BRIEFING; n++) {
+    const v = fila.pop();
+    if (typeof v === 'string' || typeof v === 'number') achados.push(String(v));
+    else if (Array.isArray(v)) for (const x of v) fila.push(x);
+    else if (v && typeof v === 'object') for (const x of Object.values(v)) fila.push(x);
+  }
+  return achados.join(' ');
+}
+/* true quando o texto tem número que o briefing não trouxe (o espaço reservado "[…]" nunca é número inventado) */
+function numeroInventado(texto, digitosDoBriefing) {
+  if (!digitosDoBriefing || /^\[[^\]]*\]$/.test(texto)) return false;
+  const grupos = gruposDeDigitos(texto);
+  return grupos.length > 0 && !grupos.every(g => digitosDoBriefing.has(g));
 }
 
-export function higienizar(bruta, estrategia, { briefing } = {}) {
+/* opcoes (só a GERAÇÃO passa; ajuste do cliente, fila manual e painel chamam sem elas e nada muda para eles):
+   briefing  = o briefing da geração, para a conferência do número;
+   fixarTopo = o topo (hero) é o da estratégia (TOPO_DA_ESTRATEGIA), não o que o modelo escolheu. */
+export function higienizar(bruta, estrategia, opcoes) {
+  const { briefing, fixarTopo } = opcoes || {};
   if (!bruta || typeof bruta !== 'object') return { erro: 'direção vazia' };
   /* só a geração (api/_vendas/gerador.mjs) tem o briefing e o passa; a fila manual (o POST do painel que grava a direção) não o tem: lá o número
      do arquivo da sessão do dono segue como veio (a conferência da sessão e a revisão dela cobrem esse caminho) */
-  const digitosDoBriefing = briefing && typeof briefing === 'object' ? new Set(gruposDeDigitos(JSON.stringify(briefing))) : null;
+  const digitosDoBriefing = briefing && typeof briefing === 'object' ? new Set(gruposDeDigitos(textosDoBriefing(briefing))) : null;
   const d = bruta;
   const pal = d.identidade?.paleta || {};
   const cor = (v, padrao) => (HEX.test(v || '') ? v.toUpperCase() : padrao);
@@ -122,7 +140,10 @@ export function higienizar(bruta, estrategia, { briefing } = {}) {
     rotulo: t(x.rotulo, 40), titulo: t(x.titulo, 120), subtitulo: t(x.subtitulo, 220), texto: t(x.texto, 700),
     itens: (Array.isArray(x.itens) ? x.itens : []).slice(0, 8).map(i => {
       const item = { titulo: t(i?.titulo, 80), texto: t(i?.texto, 300) };
-      if (x.tipo === 'numeros') item.titulo = numeroDoBriefing(item.titulo, digitosDoBriefing);
+      if (x.tipo === 'numeros') {   /* o número e o rótulo dele: um "300 clientes" no rótulo também é número inventado */
+        if (numeroInventado(item.titulo, digitosDoBriefing)) item.titulo = NUMERO_A_CONFIRMAR;
+        if (numeroInventado(item.texto, digitosDoBriefing)) item.texto = '';
+      }
       const icone = typeof i?.icone === 'string' && i.icone !== 'nenhum' && ICONES.includes(i.icone) ? i.icone : '';
       return icone ? { ...item, icone } : item;
     }).filter(i => i.titulo || i.texto),
@@ -131,7 +152,7 @@ export function higienizar(bruta, estrategia, { briefing } = {}) {
 
   if (secoes.length < 3) return { erro: 'direção com poucas seções' };
   if (secoes[0].tipo !== 'hero') secoes.unshift({ tipo: 'hero', variante: 'centro', rotulo: '', titulo: t(d.navegacao?.marca, 120) || 'Seu negócio', subtitulo: '', texto: '', itens: [], cta: t(d.navegacao?.cta, 40) });
-  const topo = Object.hasOwn(TOPO_DA_ESTRATEGIA, estrategia) ? TOPO_DA_ESTRATEGIA[estrategia] : null;
+  const topo = fixarTopo && Object.hasOwn(TOPO_DA_ESTRATEGIA, estrategia) ? TOPO_DA_ESTRATEGIA[estrategia] : null;
   if (topo) secoes[0] = { ...secoes[0], variante: topo };
   const direcao = {
     nome_conceito: t(d.nome_conceito, 60) || 'Direção',
