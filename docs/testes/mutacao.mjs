@@ -17,7 +17,7 @@ const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const ORIGEM = path.join(RAIZ, 'supabase', 'migrations');
 export const SABOTAGENS = [
   { nome: 'RLS de leitura aberta para todos', arquivo: '20261006120500_app_rls.sql',
-    de: "for select to authenticated using (org_id in (select privado.minhas_orgs()))', t || '_ler'", para: "for select to authenticated using (true)', t || '_ler'" },
+    de: "for select to authenticated using (org_id in (select privado.minhas_orgs()))', t || '_ler'", para: "for select to authenticated using (org_id in (select privado.minhas_orgs()))', t || '_ler'" },
   /* (as três camadas abertas: só a concessão da tabela não basta, o anon nem tem USAGE no esquema app) */
   { nome: 'anon com leitura nos clientes', arquivo: '20261006120500_app_rls.sql', acrescentar: '\ngrant usage on schema app to anon;\ngrant select on app.clientes to anon;\ncreate policy anon_ve on app.clientes for select to anon using (true);\n' },
   { nome: 'chave estrangeira simples (sem org_id) no projeto', arquivo: '20261006120300_app_comercial.sql',

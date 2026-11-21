@@ -183,7 +183,7 @@ jobs:
           cat servidor.log; exit 1
       - run: npm run e2e:orcamento
         env:
-          BASE: http://127.0.0.1:8899
+          BASE: http://127.0.0.1:${{ matrix.consultor == '1' && '8898' || '8899' }}
           CONSULTOR: ${{ matrix.consultor }}
 
   e2e:
