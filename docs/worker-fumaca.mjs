@@ -153,7 +153,7 @@ async function noWorker(dev) {
     confere(c + ' → 404', (await get(c)).status === 404);
   /* HSTS de um ano, UM valor (sem soma de regras), nas páginas, na raiz, no 404 e na API (que não passa pelo _headers) */
   const cf = { 'cf-connecting-ip': IP_DE_TESTE };
-  for (const [c, op] of [['/', {}], ['/orcamento', {}], ['/painel', {}], ['/qualquer-coisa', {}], ['/api/vendas?acao=sessao-config', { headers: cf }]]) {
+  for (const [c, op] of [['/', {}], ['/orcamento', {}], ['/orcamento.html', {}], ['/painel', {}], ['/qualquer-coisa', {}], ['/api/vendas?acao=sessao-config', { headers: cf }]]) {
     const hsts = (await get(c, op)).headers.get('strict-transport-security');
     confere(c + ' com HSTS max-age=31536000 (um valor só)', hsts === 'max-age=31536000', String(hsts));
   }

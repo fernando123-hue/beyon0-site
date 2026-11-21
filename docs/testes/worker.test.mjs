@@ -59,6 +59,19 @@ test('toda resposta da API: noindex, nosniff, HSTS de um ano, no-store se faltar
   assert.equal(r.headers.get('strict-transport-security'), 'max-age=31536000');
   assert.equal(r.headers.get('cache-control'), 'no-store');
 });
+test('HSTS também nas respostas de erro da API (404, 405, 403, 413, 500): um valor só', async () => {
+  const r403 = criarRoteador({ eco: { limite: 10, GET: async () => new Response('x') } });
+  const casos = [
+    [404, await rotear(pedido('/api/nada'), {})],
+    [405, await rotear(pedido('/api/eco', { method: 'PUT', body: 'x' }), {})],
+    [403, await r403(pedido('/api/eco'), CF)],
+    [413, await rotear(pedido('/api/eco', { method: 'POST', body: 'x'.repeat(1025) }), {})],
+    [500, await rotear(pedido('/api/quebra'), {})]];
+  for (const [status, r] of casos) {
+    assert.equal(r.status, status);
+    assert.equal(r.headers.get('strict-transport-security'), 'max-age=31536000', String(status));
+  }
+});
 test('limite do Worker ≥ 3 × o do handler, em toda rota (revisão M1)', () => {
   const minimo = { vendas: vendas.LIMITE_BYTES, pagamentos: pagamentos.LIMITE_BYTES, evento: LIMITE_EVENTO, leads: leads.LIMITE_BYTES, painel: painel.CORPO_MAX, rotinas: 0, atendente: atendente.LIMITE_BYTES };
   for (const [nome, rota] of Object.entries(ROTAS)) assert.ok(rota.limite >= 3 * minimo[nome], nome);
