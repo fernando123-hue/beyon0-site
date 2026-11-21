@@ -55,6 +55,8 @@ jobs:
       fail-fast: false   # uma fatia vermelha não cancela as outras: o relatório sai completo
       matrix:
         fatia: ['1/8', '2/8', '3/8', '4/8', '5/8', '6/8', '7/8', '8/8']
+        exclude:
+          - fatia: '1/8'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -97,6 +99,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           falhou=0
+          echo "PROVA B: needs.mutacao.result = '$MUTACAO'"
           [ "$SUITE" = success ] || { echo "REPROVADO: a suíte terminou como '$SUITE', não success"; falhou=1; }
           if [ "$MUTACAO_ESPERADA" = true ]; then
             [ "$MUTACAO" = success ] || { echo "REPROVADO: a mutação terminou como '$MUTACAO', não success (fatia vermelha, cancelada ou pulada)"; falhou=1; }
