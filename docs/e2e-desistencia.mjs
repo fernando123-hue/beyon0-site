@@ -124,7 +124,8 @@ try {
   await foto('3-cancelado-cel');
   const depois = (await api('GET', 'estado', undefined, T, 'vendas', '&conversa=' + c)).corpo;
   ok(depois.conversa.etapa === 'encerrada' && depois.entrega.passo === 'encerrada' && depois.entrega.desistiu === true, 'o servidor: pedido encerrado, desistência registrada');
-  await page.reload({ waitUntil: 'load' });
+  page.on('dialog', d => { console.log('[e2e-desistencia] diálogo: ' + d.type() + ' ' + d.message().slice(0, 80)); d.dismiss().catch(() => {}); });
+  await page.goto(BASE + '/orcamento', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#o-fim-encerrado:not([hidden])', { timeout: 30000 });
   ok((await page.textContent('#o-fim-encerrado-titulo')) === 'Pedido cancelado', 'recarregar continua em "Pedido cancelado"');
   ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
