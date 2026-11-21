@@ -59,7 +59,7 @@ test('22/10: /condicoes traz os trechos da captação LITERAIS, o do material em
   assert.ok(pagamento.indexOf('No institucional:') < pagamento.indexOf(RESTANTE_1A), 'o trecho do restante vem depois do institucional');
   /* 19/11: a ordem nova do restante (o site pronto, o ar só com ele pago; Decisões 19/11); a captação grava esta data como condicoes_versao
      (config/entrega.json de lá), que sobe junto no PR da captação */
-  assert.ok(CONDICOES.includes('Última atualização: 20 de novembro de 2026'), 'a data da versão (20/11: o prazo para na aprovação da prévia; a captação sobe a condicoes_versao junto)');
+  assert.ok(CONDICOES.includes('Última atualização: 21 de novembro de 2026'), 'a data da versão (21/11: as 24 horas do restante, a devolução dele antes do ar e o domínio depois dele; a captação sobe a condicoes_versao junto)');
   assert.ok(CONDICOES.includes('O site fica pronto e você vê tudo na prévia. Com o restante pago, ele vai ao ar e passa para uma conta no seu nome'), 'a hospedagem na ordem nova');
   assert.ok(!/primeiro na conta da Beyon/.test(CONDICOES), 'o site não vai mais ao ar na conta da Beyon antes do restante');
 });

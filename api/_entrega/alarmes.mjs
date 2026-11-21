@@ -11,7 +11,10 @@
    ========================================================================== */
 import { prazoVencido, diasCorridosDesde } from '../_material/prazo.mjs';
 
-/* site_parado_dias (20/11): o restante pago e o site ainda fora do ar depois deste número de dias corridos (o dia do pagamento é o dia 0) vira alarme */
+/* site_parado_dias (20/11): o restante pago e o site ainda fora do ar depois deste número de dias corridos (o dia do pagamento é o dia 0) vira alarme; é o pago_sem_ar_dias
+   da captação (teste de igualdade em captacao-igual.test.mjs).
+   restante_dias e lembretes_restante (22/10) são SÓ do site, da entrega antiga que foi ao ar antes da ordem nova de 19/11 (passo no_ar): a captação saiu dessa ordem em
+   21/11 (7bdb9e9) e conta o restante em horas da cobrança com o site pronto (24 h, lembretes às 8 h e 20 h), o que o passo aprovada do site ainda não conta */
 export const LIMITES = Object.freeze({ material_dias: 30, restante_dias: 3, site_parado_dias: 2, lembretes_restante: Object.freeze([2, 3]), max_rodadas: 2 });
 
 export function contarAlarmes(itens, agora = new Date()) {
