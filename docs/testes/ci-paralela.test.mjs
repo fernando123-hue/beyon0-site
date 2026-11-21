@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { veredito, nomesDasFatias } from '../../scripts/ci/conferir-jobs.mjs';
+import { veredito, nomesDasFatias, principal } from '../../scripts/ci/conferir-jobs.mjs';
 
 const YML = fs.readFileSync(fileURLToPath(new URL('../../.github/workflows/ci.yml', import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
 
@@ -73,7 +73,7 @@ function jobsDoArquivo(yml) {
 const JOBS = jobsDoArquivo(YML);
 const nomeDe = bloco => (/^    name: (.+)$/m.exec(bloco) || [])[1];
 
-test('ci.yml: os cinco checks que o processo lê por nome continuam existindo, com o nome de sempre, cada um UMA vez', () => {
+test('ci.yml: os cinco checks (o guarda lê quatro por nome) continuam existindo, com o nome de sempre, cada um UMA vez', () => {
   const nomes = Object.values(JOBS).map(nomeDe).filter(Boolean);
   for (const n of [
     'Testes (banco real, IA e pagamento simulados) e mutação',
@@ -93,7 +93,10 @@ test('ci.yml: o agregado dos testes espera a suíte e as fatias, roda sempre (if
   assert.match(agregado, /needs\.suite\.result/);
   assert.match(agregado, /needs\.mutacao\.result/);
   assert.match(agregado, /\[ "\$SUITE" = success \]/, 'a suíte tem de ser success, não "não falhou"');
-  assert.match(agregado, /conferir-jobs\.mjs/, 'a contagem das fatias pela API roda quando a mutação é esperada');
+  assert.match(agregado, /^ +node scripts\/ci\/conferir-jobs\.mjs --fatias "\$MUTACAO_FATIAS" \|\| falhou=1$/m, 'a contagem das fatias pela API roda (a linha de execução, não só o comentário)');
+  assert.match(agregado, /\[ "\$MUTACAO" = skipped \] \|\| \[ "\$MUTACAO" = success \] \|\| \{ echo/, 'sem mutação esperada: só skipped ou success');
+  assert.match(agregado, /\[ "\$MUTACAO" = success \] \|\| \{ echo/, 'com mutação esperada: success');
+  assert.match(agregado, /exit \$falhou/);
   assert.match(agregado, /^      actions: read\b/m, 'a contagem lê os jobs da execução: só leitura');
 });
 
@@ -131,7 +134,17 @@ test('ci.yml: o E2E roda as duas rodadas (sem e com consultor) em paralelo, e o 
   assert.match(agregado, /^    if: always\(\) && \(github\.event_name == 'pull_request' \|\| github\.event_name == 'workflow_dispatch'\)\s*$/m, 'skipped no push comum, como hoje');
   assert.match(agregado, /^    needs: \[e2e-rodada\]\s*$/m);
   assert.match(agregado, /\[ "\$RODADAS" = success \]/);
-  assert.match(agregado, /conferir-jobs\.mjs/);
+  assert.match(agregado, /^ +node scripts\/ci\/conferir-jobs\.mjs "E2E do orçamento – sem consultor" "E2E do orçamento – com consultor" \|\| falhou=1$/m);
+  assert.match(agregado, /exit \$falhou/);
+  /* o nome de cada rodada (modo) é o que o agregado procura na API */
+  assert.equal(nomeDe(rodada), 'E2E do orçamento – ${{ matrix.modo }}');
+  assert.match(rodada, /- modo: sem consultor\n +consultor: '0'/);
+  assert.match(rodada, /- modo: com consultor\n +consultor: '1'/);
+  /* o que distingue as rodadas: o servidor sem consultor só na rodada '0', e o CONSULTOR do script vem da matriz */
+  assert.match(rodada, /if \[ "\$RODADA_COM_CONSULTOR" = 0 \]; then export BZ_SEM_CONSULTOR=1; fi/);
+  assert.match(rodada, /^ +RODADA_COM_CONSULTOR: \$\{\{ matrix\.consultor \}\}$/m);
+  assert.match(rodada, /^ +CONSULTOR: \$\{\{ matrix\.consultor \}\}$/m);
+  assert.match(rodada, /^ +BASE: http:\/\/127\.0\.0\.1:8899$/m);
   assert.match(agregado, /^      actions: read\b/m);
 });
 
@@ -158,5 +171,76 @@ test('ci.yml: nenhuma checagem sumiu: a suíte, o npm audit, o gitleaks, o worke
   assert.match(YML, /gitleaks\/gitleaks-action@/);
   assert.match(YML, /npm run cf:fumaca/);
   assert.equal((YML.match(/npm run e2e:orcamento/g) || []).length, 1, 'um passo só, rodado nas duas entradas da matriz');
-  assert.match(YML, /CONSULTOR: '1'|CONSULTOR=1|CONSULTOR: \$\{\{ matrix\.consultor \}\}/);
+  assert.match(JOBS['e2e-rodada'], /npm ci --ignore-scripts/);
+  assert.match(JOBS.mutacao, /npm ci --ignore-scripts/);
+  assert.match(JOBS.suite, /npm ci --ignore-scripts/);
+});
+
+test('ci.yml: nada que deixe uma fatia/rodada falhar sem reprovar: sem continue-on-error em lugar nenhum, sem exclude/include na matriz da mutação', () => {
+  assert.doesNotMatch(YML, /continue-on-error/);
+  assert.doesNotMatch(JOBS.mutacao, /^ +(exclude|include):/m);
+});
+
+/* ---- o conferidor de ponta a ponta, contra uma API de mentira (servidor local) ---- */
+import http from 'node:http';
+
+function apiDeMentira(respostas) {
+  const pedidos = [];
+  const servidor = http.createServer((req, res) => {
+    pedidos.push({ url: req.url, auth: req.headers.authorization });
+    const r = respostas.shift() || { status: 500, corpo: {} };
+    res.writeHead(r.status, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(r.corpo));
+  });
+  return new Promise(resolve => servidor.listen(0, '127.0.0.1', () => resolve({ servidor, pedidos, url: 'http://127.0.0.1:' + servidor.address().port })));
+}
+const envDe = url => ({ GITHUB_TOKEN: 't0ken', GITHUB_REPOSITORY: 'dono/repo', GITHUB_RUN_ID: '123', GITHUB_API_URL: url });
+async function rodarConferidor(respostas, args) {
+  const api = await apiDeMentira(respostas);
+  const linhas = [];
+  try {
+    const codigo = await principal(args, envDe(api.url), { esperaMs: 1, log: l => linhas.push(l) });
+    return { codigo, linhas, pedidos: api.pedidos };
+  } finally { api.servidor.close(); }
+}
+
+test('conferidor ponta a ponta: lê as duas páginas da API, manda o token, e aprova quando todas as fatias têm success', async () => {
+  const jobs = todosVerdes();
+  const r = await rodarConferidor([
+    { status: 200, corpo: { total_count: 10, jobs: jobs.slice(0, 5) } },
+    { status: 200, corpo: { total_count: 10, jobs: [...jobs.slice(5), { name: 'outro', conclusion: 'success' }, { name: 'outro 2', conclusion: 'success' }] } },
+  ], ['--fatias', '8']);
+  assert.equal(r.codigo, 0, r.linhas.join('\n'));
+  assert.equal(r.pedidos.length, 2);
+  assert.match(r.pedidos[0].url, /^\/repos\/dono\/repo\/actions\/runs\/123\/jobs\?filter=latest&per_page=100&page=1$/);
+  assert.match(r.pedidos[1].url, /page=2$/);
+  assert.equal(r.pedidos[0].auth, 'Bearer t0ken');
+});
+
+test('conferidor ponta a ponta: fatia pulada na API reprova (código 1) e diz qual; --fatias 9 com 8 jobs reprova por faltar uma', async () => {
+  const jobs = todosVerdes();
+  jobs[4] = { name: NOMES[4], conclusion: 'skipped' };
+  const pulada = await rodarConferidor([{ status: 200, corpo: { total_count: 8, jobs } }], ['--fatias', '8']);
+  assert.equal(pulada.codigo, 1);
+  assert.ok(pulada.linhas.some(l => l.includes(NOMES[4]) && l.includes('skipped')));
+  const falta = await rodarConferidor([{ status: 200, corpo: { total_count: 8, jobs: todosVerdes() } }], ['--fatias', '9']);
+  assert.equal(falta.codigo, 1);
+  assert.ok(falta.linhas.some(l => l.includes('Mutação (fatia 9/9)') || l.includes('faltando')));
+});
+
+test('conferidor ponta a ponta: erro da API (500 nas 3 tentativas), resposta fora do formato, variável faltando e --fatias inválido REPROVAM (falha fechada)', async () => {
+  const erro500 = await rodarConferidor([{ status: 500, corpo: {} }, { status: 500, corpo: {} }, { status: 500, corpo: {} }], ['--fatias', '8']);
+  assert.equal(erro500.codigo, 1);
+  assert.equal(erro500.pedidos.length, 3, 'tenta 3 vezes');
+  const formato = await rodarConferidor([{ status: 200, corpo: { mensagem: 'sem jobs' } }], ['--fatias', '8']);
+  assert.equal(formato.codigo, 1);
+  const recupera = await rodarConferidor([{ status: 502, corpo: {} }, { status: 200, corpo: { total_count: 8, jobs: todosVerdes() } }], ['--fatias', '8']);
+  assert.equal(recupera.codigo, 0, 'um 502 passageiro é repetido e a conferência segue');
+  for (const args of [['--fatias', '0'], ['--fatias', 'x'], ['--fatias', '101'], []]) {
+    const r = await rodarConferidor([{ status: 200, corpo: { total_count: 8, jobs: todosVerdes() } }], args);
+    assert.equal(r.codigo, 1, args.join(' ') || '(sem nomes)');
+  }
+  const linhas = [];
+  assert.equal(await principal(['--fatias', '8'], { GITHUB_REPOSITORY: 'a/b', GITHUB_RUN_ID: '1' }, { log: l => linhas.push(l) }), 1);
+  assert.match(linhas[0], /falta GITHUB_TOKEN/);
 });

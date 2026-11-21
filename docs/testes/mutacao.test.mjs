@@ -133,6 +133,9 @@ test('mutação em fatias: fatia vazia sai com 0 ("0 de 0"); MUTACAO_FATIA invá
   const ruim = rodar({ env: { MUTACAO_FATIA: '9/3' }, sabotagens: lista, executarTestes: registra, log: () => {} });
   assert.equal(ruim.codigo, 1);
   assert.equal(rodou.length, 0);
+  const definidaVazia = rodar({ env: { MUTACAO_FATIA: '' }, sabotagens: lista, executarTestes: registra, log: () => {} });
+  assert.equal(definidaVazia.codigo, 1, 'variável definida e vazia = erro (a matriz do CI não preencheu a fatia)');
+  assert.equal(rodou.length, 0);
   const so2 = rodar({ env: { MUTACAO_FATIA: '2/3' }, sabotagens: lista, executarTestes: registra, log: () => {} });
   assert.equal(so2.codigo, 0);
   assert.equal(rodou.length, 1, 'fatia 2/3 de 3 sabotagens: só a do índice 1');

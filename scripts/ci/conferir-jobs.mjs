@@ -27,7 +27,9 @@ const TENTATIVAS = 3;
 const POR_PAGINA = 100;
 const MAX_PAGINAS = 5;
 
-async function buscarJobs(env) {
+const TIMEOUT_REQUISICAO_MS = 15000;
+
+async function buscarJobs(env, esperaMs) {
   const base = env.GITHUB_API_URL || 'https://api.github.com';
   const jobs = [];
   for (let pagina = 1; pagina <= MAX_PAGINAS; pagina++) {
@@ -35,32 +37,33 @@ async function buscarJobs(env) {
     let resposta;
     for (let t = 1; t <= TENTATIVAS; t++) {
       try {
-        resposta = await fetch(url, { headers: { Authorization: 'Bearer ' + env.GITHUB_TOKEN, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' } });
+        resposta = await fetch(url, { headers: { Authorization: 'Bearer ' + env.GITHUB_TOKEN, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }, signal: AbortSignal.timeout(TIMEOUT_REQUISICAO_MS) });
         if (resposta.ok) break;
       } catch (e) { resposta = null; }
-      await new Promise(r => setTimeout(r, 2000 * t));
+      await new Promise(r => setTimeout(r, esperaMs * t));
     }
     if (!resposta || !resposta.ok) throw new Error('a API do GitHub não respondeu (' + (resposta ? resposta.status : 'sem rede') + ')');
     const corpo = await resposta.json();
+    if (!corpo || !Array.isArray(corpo.jobs) || !Number.isInteger(corpo.total_count)) throw new Error('resposta da API fora do formato esperado');
     jobs.push(...corpo.jobs);
     if (jobs.length >= corpo.total_count) return jobs;
   }
   throw new Error('jobs demais para conferir (mais de ' + MAX_PAGINAS * POR_PAGINA + ')');
 }
 
-async function principal(args, env) {
-  for (const v of ['GITHUB_TOKEN', 'GITHUB_REPOSITORY', 'GITHUB_RUN_ID']) if (!env[v]) { console.log('ERRO: falta ' + v); return 1; }
+export async function principal(args, env, { esperaMs = 2000, log = console.log } = {}) {
+  for (const v of ['GITHUB_TOKEN', 'GITHUB_REPOSITORY', 'GITHUB_RUN_ID']) if (!env[v]) { log('ERRO: falta ' + v); return 1; }
   let esperados = args;
   if (args[0] === '--fatias') {
     const n = Number(args[1]);
-    if (!Number.isInteger(n) || n < 1 || n > 100) { console.log('ERRO: --fatias precisa de um número inteiro de 1 a 100'); return 1; }
+    if (!Number.isInteger(n) || n < 1 || n > 100) { log('ERRO: --fatias precisa de um número inteiro de 1 a 100'); return 1; }
     esperados = nomesDasFatias(n);
   }
   let jobs;
-  try { jobs = await buscarJobs(env); } catch (e) { console.log('ERRO: ' + e.message); return 1; }
+  try { jobs = await buscarJobs(env, esperaMs); } catch (e) { log('ERRO: ' + e.message); return 1; }
   const r = veredito(jobs, esperados);
-  for (const p of r.problemas) console.log('REPROVADO: ' + p);
-  if (r.ok) console.log('OK: ' + esperados.length + ' job(s) esperado(s), todos com success');
+  for (const p of r.problemas) log('REPROVADO: ' + p);
+  if (r.ok) log('OK: ' + esperados.length + ' job(s) esperado(s), todos com success');
   return r.ok ? 0 : 1;
 }
 

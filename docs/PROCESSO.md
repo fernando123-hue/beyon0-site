@@ -62,6 +62,11 @@ O guarda e o gate de promoção leem dois checks **pelo nome**: "Testes (banco r
   resultado agregado de uma matriz) **e** confere cada fatia pelo nome na API do GitHub (`scripts/ci/conferir-jobs.mjs`,
   `actions: read`): fatia faltando, repetida, pulada, cancelada ou sem conclusão reprova. Onde a mutação não é esperada
   (PR, ramo de promoção) ela tem de estar `skipped`/`success`. No push comum o agregado do E2E fica `skipped`, como antes.
+- **Ler os checks do PR:** o agregado só **aparece** na lista (`gh pr checks`) depois que todas as partes terminam. Enquanto
+  as partes rodam, a lista mostra só elas. **Agregado ausente = pendente**, nunca "tudo verde": só vale o PR com o
+  "Testes (…) e mutação" (e, no PR, o "E2E do orçamento (Chromium…)") presentes e `pass`. O guarda de promoção já trata
+  o agregado ausente como falta (exige o check por nome) e barra também qualquer fatia pendente ou vermelha. Reexecutar:
+  reexecute **todos** os jobs, não só os que falharam (o conferidor conta cada fatia da última tentativa).
 - **Nenhum passo dos jobs de trabalho tem `if:`** (o teste confere): um passo pulado deixaria o job verde sem ter testado nada.
 - **Mais fatias:** troque a lista `fatia: ['1/8', …]` do job `mutacao` **e** `MUTACAO_FATIAS` do job `testes` para o mesmo N
   (nada mais). `docs/testes/ci-paralela.test.mjs` falha se as duas não baterem ou se a lista não for `1/N..N/N`. Escolha N

@@ -870,7 +870,10 @@ export function rodar({ env = process.env, sabotagens = SABOTAGENS, executarTest
 function rodarSabotagens({ env, sabotagens, executarTestes, log, restauracoes, restaurar }) {
   let codigo = 0;
   /* MUTACAO_FATIA=i/N: só as sabotagens da fatia i de N (uma máquina do CI por fatia) */
-  const { fatia, erro: erroFatia } = lerFatia(env.MUTACAO_FATIA);
+  /* (variável definida mas VAZIA = matriz do CI que não preencheu a fatia: erro, em vez de rodar tudo numa máquina só) */
+  const { fatia, erro: erroFatia } = ('MUTACAO_FATIA' in env && String(env.MUTACAO_FATIA).trim() === '')
+    ? { fatia: null, erro: 'MUTACAO_FATIA está definida mas vazia (esperado i/N, ou não definir a variável)' }
+    : lerFatia(env.MUTACAO_FATIA);
   if (erroFatia) { log('ERRO: ' + erroFatia); return { codigo: 1 }; }
   if (fatia) log('FATIA ' + fatia.i + '/' + fatia.n + ': ' + daFatia(sabotagens, fatia).length + ' de ' + sabotagens.length + ' sabotagens');
   /* BZ_MUTACAO_FILTRO: roda só as sabotagens cujo nome contém o texto (para conferir uma sabotagem nova sem rodar todas).
