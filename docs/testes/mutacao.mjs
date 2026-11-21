@@ -1005,11 +1005,31 @@ export const SABOTAGENS = [
     de: "perform privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);\n  if exists (select 1 from app.desistencias d", para: 'if exists (select 1 from app.desistencias d' },
 ];
 
-/* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
-   casa nenhuma devolve o erro: "0 de 0 sabotagens pegas" não prova nada */
-export function escolherSabotagens(sabotagens, filtro = '') {
+/* MUTACAO_FATIA=i/N (CI em paralelo): a rodada de N máquinas, cada uma com a sua fatia. A fatia i fica com as sabotagens de
+   índice i-1, i-1+N, i-1+2N… da lista (revezamento: as do mesmo assunto, que custam parecido, se espalham entre as fatias).
+   Cada sabotagem cai em exatamente UMA fatia (provado em mutacao.test.mjs). Texto que não é "i/N" com 1 <= i <= N é ERRO:
+   uma variável mal escrita não pode virar "rodou nada" nem "rodou tudo" em silêncio */
+const MAX_FATIAS = 100;
+export function lerFatia(texto) {
+  const t = String(texto ?? '').trim();
+  if (!t) return { fatia: null, erro: null };
+  const m = /^(\d+)\/(\d+)$/.exec(t);
+  const i = m ? Number(m[1]) : 0;
+  const n = m ? Number(m[2]) : 0;
+  if (!m || i < 1 || n < 1 || i > n || n > MAX_FATIAS) return { fatia: null, erro: 'MUTACAO_FATIA "' + texto + '" inválida (esperado i/N, com 1 <= i <= N <= ' + MAX_FATIAS + ')' };
+  return { fatia: { i, n }, erro: null };
+}
+export function daFatia(sabotagens, fatia) {
+  if (!fatia) return sabotagens;
+  return sabotagens.filter((_, indice) => indice % fatia.n === fatia.i - 1);
+}
+
+/* as sabotagens que a rodada vai fazer: as da fatia (todas, sem fatia), e dentro delas só as do filtro (parte do nome, sem
+   diferenciar maiúsculas). Filtro que não casa nenhuma devolve o erro: "0 de 0 sabotagens pegas" não prova nada. Fatia vazia
+   (N maior que a lista) NÃO é erro: é só uma máquina sem o que fazer */
+export function escolherSabotagens(sabotagens, filtro = '', fatia = null) {
   const f = String(filtro).toLowerCase();
-  const escolhidas = sabotagens.filter(s => s.nome.toLowerCase().includes(f));
+  const escolhidas = daFatia(sabotagens, fatia).filter(s => s.nome.toLowerCase().includes(f));
   return { sabotagens: escolhidas, erro: f && !escolhidas.length ? 'o filtro "' + filtro + '" não casa com nenhuma sabotagem (nada foi testado)' : null };
 }
 
@@ -1036,25 +1056,48 @@ export function problemasNaPartida(sabotagens, raiz = RAIZ, limpo = gitLimpo) {
   return problemas;
 }
 
-function rodar() {
-  const problemas = problemasNaPartida(SABOTAGENS);
+/* roda os testes de uma sabotagem (padrão); o teste do harness troca por um falso para provar o veredito sem rodar suíte */
+function executarSuite(testes, dir) {
+  return spawnSync(process.execPath, ['--test', '--test-reporter=spec', ...testes], { env: { ...process.env, BZ_MIGRATIONS: dir }, encoding: 'utf8' });
+}
+
+/* devolve { codigo }: 0 só se TODAS as sabotagens da fatia foram pegas (o job do CI falha com qualquer outro código) */
+export function rodar({ env = process.env, sabotagens = SABOTAGENS, executarTestes = executarSuite, log = console.log } = {}) {
+  const problemas = problemasNaPartida(sabotagens);
   if (problemas.length) {
-    for (const p of problemas) console.log('RECUSADO: ' + p);
-    process.exitCode = 2;
-    return;
+    for (const p of problemas) log('RECUSADO: ' + p);
+    return { codigo: 2 };
   }
   /* o arquivo de código sabotado no lugar volta ao que era, aconteça o que acontecer */
   const restauracoes = new Map();
   const restaurar = () => { for (const [caminho, original] of restauracoes) fs.writeFileSync(caminho, original); restauracoes.clear(); };
+  const aoSinal = () => { restaurar(); process.exit(130); };
+  const sinais = SINAIS_DE_SAIDA.filter(s => os.constants.signals[s] !== undefined);
   process.on('exit', restaurar);
-  for (const sinal of SINAIS_DE_SAIDA) if (os.constants.signals[sinal] !== undefined) process.on(sinal, () => { restaurar(); process.exit(130); });
+  for (const sinal of sinais) process.on(sinal, aoSinal);
+  try { return rodarSabotagens({ env, sabotagens, executarTestes, log, restauracoes, restaurar }); }
+  finally {
+    restaurar();
+    process.off('exit', restaurar);
+    for (const sinal of sinais) process.off(sinal, aoSinal);
+  }
+}
 
+function rodarSabotagens({ env, sabotagens, executarTestes, log, restauracoes, restaurar }) {
+  let codigo = 0;
+  /* MUTACAO_FATIA=i/N: só as sabotagens da fatia i de N (uma máquina do CI por fatia) */
+  /* (variável definida mas VAZIA = matriz do CI que não preencheu a fatia: erro, em vez de rodar tudo numa máquina só) */
+  const { fatia, erro: erroFatia } = ('MUTACAO_FATIA' in env && String(env.MUTACAO_FATIA).trim() === '')
+    ? { fatia: null, erro: 'MUTACAO_FATIA está definida mas vazia (esperado i/N, ou não definir a variável)' }
+    : lerFatia(env.MUTACAO_FATIA);
+  if (erroFatia) { log('ERRO: ' + erroFatia); return { codigo: 1 }; }
+  if (fatia) log('FATIA ' + fatia.i + '/' + fatia.n + ': ' + daFatia(sabotagens, fatia).length + ' de ' + sabotagens.length + ' sabotagens');
   /* BZ_MUTACAO_FILTRO: roda só as sabotagens cujo nome contém o texto (para conferir uma sabotagem nova sem rodar todas).
      Filtro que não casa nenhuma é ERRO, não "0 de 0" com sucesso (uma variável esquecida no ambiente parece rodada completa) */
-  const filtro = process.env.BZ_MUTACAO_FILTRO || '';
-  const { sabotagens: rodadas, erro } = escolherSabotagens(SABOTAGENS, filtro);
-  if (filtro) console.log('FILTRO ATIVO: "' + filtro + '" escolheu ' + rodadas.length + ' de ' + SABOTAGENS.length + ' sabotagens');
-  if (erro) { console.log('ERRO: ' + erro); process.exitCode = 1; return; }
+  const filtro = env.BZ_MUTACAO_FILTRO || '';
+  const { sabotagens: rodadas, erro } = escolherSabotagens(sabotagens, filtro, fatia);
+  if (filtro) log('FILTRO ATIVO: "' + filtro + '" escolheu ' + rodadas.length + ' de ' + sabotagens.length + ' sabotagens');
+  if (erro) { log('ERRO: ' + erro); return { codigo: 1 }; }
   let pegas = 0;
   for (const s of rodadas) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-mutacao-'));
@@ -1063,29 +1106,30 @@ function rodar() {
     const bruto = fs.readFileSync(alvo, 'utf8');
     let sql = bruto.replace(/\r\n/g, '\n');   /* (checkout no Windows com autocrlf: o texto da sabotagem é LF) */
     if (s.acrescentar) sql += s.acrescentar;
-    else { if (!sql.includes(s.de)) { console.log('SABOTAGEM NÃO APLICADA (texto mudou):', s.nome); process.exitCode = 1; fs.rmSync(dir, { recursive: true, force: true }); continue; } sql = sql.replace(s.de, () => s.para); }
+    else { if (!sql.includes(s.de)) { log('SABOTAGEM NÃO APLICADA (texto mudou): ' + s.nome); codigo = 1; fs.rmSync(dir, { recursive: true, force: true }); continue; } sql = sql.replace(s.de, () => s.para); }
     if (s.fonte) { restauracoes.set(alvo, bruto); if (bruto.includes('\r\n')) sql = sql.replace(/\n/g, '\r\n'); }
     fs.writeFileSync(alvo, sql);
     const testes = (s.testes || ['docs/testes/banco.test.mjs']).map(t => path.join(RAIZ, t));
     /* o relatório "spec" pedido sempre: no Node 22 a saída em pipe vem em TAP, sem a linha "ℹ tests N" lida abaixo, e toda
        sabotagem saía INVÁLIDA (0 testes); no Node 23+ o spec já é o padrão (2026-11-11) */
-    const r = spawnSync(process.execPath, ['--test', '--test-reporter=spec', ...testes], { env: { ...process.env, BZ_MIGRATIONS: dir }, encoding: 'utf8' });
+    const r = executarTestes(testes, dir);
     const falhas = (r.stdout.match(/^✖ .+$/gm) || []).filter(l => !/failing tests/.test(l));
     /* "pegou" = um teste caiu numa ASSERÇÃO. Migration que nem carrega ou suíte que nem roda também saem com erro, mas
        não provam nada: contam como sabotagem mal feita (revisão técnica do PR 14) */
     const quebrou = /migration .* falhou|SyntaxError|Cannot find module|ERR_MODULE_NOT_FOUND/.test(r.stdout + r.stderr);
     const testesRodados = Number((r.stdout.match(/^ℹ tests (\d+)/m) || [])[1] || 0);
     restaurar();   /* (já rodou: o arquivo de código volta ao que era antes de qualquer saída abaixo) */
-    if (quebrou || testesRodados === 0) { console.log('INVÁLIDA ' + s.nome + ' (a sabotagem quebrou a carga ou nenhum teste rodou)'); process.exitCode = 1; fs.rmSync(dir, { recursive: true, force: true }); continue; }
+    if (quebrou || testesRodados === 0) { log('INVÁLIDA ' + s.nome + ' (a sabotagem quebrou a carga ou nenhum teste rodou)'); codigo = 1; fs.rmSync(dir, { recursive: true, force: true }); continue; }
     const pegou = r.status !== 0 && falhas.length > 0;
     if (pegou) pegas++;
-    console.log((pegou ? 'PEGOU ' : 'ESCAPOU') + '  ' + s.nome + (pegou ? '  ← ' + [...new Set(falhas)].slice(0, 2).join(' | ').replace(/\s*\(\d+(\.\d+)?ms\)/g, '') : ''));
+    log((pegou ? 'PEGOU ' : 'ESCAPOU') + '  ' + s.nome + (pegou ? '  ← ' + [...new Set(falhas)].slice(0, 2).join(' | ').replace(/\s*\(\d+(\.\d+)?ms\)/g, '') : ''));
     fs.rmSync(dir, { recursive: true, force: true });
   }
-  console.log(pegas + ' de ' + rodadas.length + ' sabotagens pegas pelos testes');
-  if (pegas < rodadas.length) process.exitCode = 1;
+  log(pegas + ' de ' + rodadas.length + ' sabotagens pegas pelos testes');
+  if (pegas < rodadas.length) codigo = 1;
+  return { codigo };
 }
 
 /* só roda chamado direto (node docs/testes/mutacao.mjs); importado pelo teste, nada é sabotado */
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) rodar();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = rodar().codigo;
 

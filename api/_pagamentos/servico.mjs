@@ -36,6 +36,10 @@ const SEM_DINHEIRO = new Set(['canceled', 'expired', 'failed']);   /* (estados d
 const RESERVA_FINAL = 2;               /* subpedidos guardados para o fim da reconciliação (pagamentos_atencao e a ocorrência) */
 const CONFIRMACOES_POR_VEZ = 5;        /* confirmações da entrada recuperadas por reconciliação (1 reserva + 1 envio cada) */
 export const ORG = 'beyon-zero';
+/* a referência de um pedido real é o UUID da tentativa (banco: external_reference = t.id::text): nunca começa com "TESTE-".
+   Só o Pix de teste do dono cria order com esse prefixo; o aviso e a varredura a ignoram (sem tentativa, sem alarme) */
+const ordemDeTeste = o => !!o && typeof o.external_reference === 'string' && o.external_reference.startsWith('TESTE-') && String(o.total_amount) === '0.01';
+/* (o valor também tem de ser o do teste: uma order TESTE- de outro valor NÃO é engolida em silêncio, cai na divergência e alarma) */
 
 /* ---------- validação do que vem do navegador (nada aqui decide valor) ---------- */
 const soDigitos = v => String(v || '').replace(/\D/g, '');
@@ -100,6 +104,7 @@ function criarNucleo({ banco, mp, cfg, agora, confirmacao = null, avisar = null 
 
   /* aplica o retrato de uma order (a única porta para mudar o estado financeiro) */
   async function aplicar(order, origem, request_id, extra) {
+    if (ordemDeTeste(order)) return { ignorado: 'order de teste' };   /* o Pix de R$ 0,01 do painel do dono: não é pedido, não tem dono nem alarme */
     const retrato = retratoDe(order, extra);
     if (!/^[A-Za-z0-9_-]{4,64}$/.test(retrato.order_id || '')) {
       await ocorrencia('payment.divergence', null, null, { motivo: 'order sem id válido' }, origem);
@@ -349,7 +354,7 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
           }
           /* a listagem pode vir resumida: cada order é consultada inteira antes de aplicar */
           /* (order cancelada, expirada ou que falhou não tem dinheiro: não gasta subpedido) */
-          await umPorVez(orders.filter(o => o && /^[A-Za-z0-9_-]{4,64}$/.test(String(o.id || '')) && !SEM_DINHEIRO.has(o.status)), async o => nucleo.aplicar(await mpContado.consultarOrdem(String(o.id)), 'reconciliacao'));
+          await umPorVez(orders.filter(o => o && /^[A-Za-z0-9_-]{4,64}$/.test(String(o.id || '')) && !SEM_DINHEIRO.has(o.status) && !ordemDeTeste(o)), async o => nucleo.aplicar(await mpContado.consultarOrdem(String(o.id)), 'reconciliacao'));
           if (orders.length < 50) break;
           if (pagina === varrerPaginas) paginaCheia = true;   /* (a última página permitida veio cheia: há mais orders do que a janela olhou) */
         }
