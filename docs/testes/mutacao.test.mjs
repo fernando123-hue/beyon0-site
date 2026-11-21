@@ -151,8 +151,11 @@ test('mutação: a conferência do alvo acusa a função recriada, o grant antes
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-alvos-'));
   try {
     fs.writeFileSync(path.join(dir, '001_velha.sql'), 'create function app.f(p jsonb) returns int language sql as $$\r\n  select 1 -- regra velha\r\n$$;\r\n'
-      + 'create function app.g(p jsonb) returns int language sql as $$ select 2 -- regra de g $$;\r\n');
-    fs.writeFileSync(path.join(dir, '002_nova.sql'), 'create or replace function app.f(p jsonb) returns int language sql as $$ select 1 -- regra nova $$;\n'
+      + 'create function app.g(p jsonb) returns int language sql as $$ select 2 -- regra de g $$;\r\n'
+      + 'create function app.h(p jsonb) returns int language sql as $$ select 3 -- regra de h $$;\r\n');
+    /* (revisão do #213: um COMENTÁRIO que cita "create or replace function app.h" ou "revoke … on function app.h" não recria nada) */
+    fs.writeFileSync(path.join(dir, '002_nova.sql'), '-- antes era: create or replace function app.h(p jsonb) $$ … $$\n-- e revoke all on function app.h(jsonb) from anon;\n'
+      + 'create or replace function app.f(p jsonb) returns int language sql as $$ select 1 -- regra nova $$;\n'
       + 'revoke all on function app.f(jsonb) from public, anon, authenticated;\n'
       + 'alter function app.g(jsonb) rename to g_base;\ncreate function app.g(p jsonb) returns int language sql as $$ select app.g_base(p) $$;\n');
     const s = (nome, extra) => ({ nome, arquivo: '001_velha.sql', ...extra });
@@ -162,7 +165,9 @@ test('mutação: a conferência do alvo acusa a função recriada, o grant antes
       s('nova', { arquivo: '002_nova.sql', de: 'regra nova', para: 'x' }),
       s('sumiu', { de: 'texto que não existe', para: 'x' }),
       s('grant velho', { acrescentar: '\ngrant execute on function app.f(jsonb) to anon;\n' }),
-      s('grant novo', { arquivo: '002_nova.sql', acrescentar: '\ngrant execute on function app.f(jsonb) to anon;\n' })
+      s('grant novo', { arquivo: '002_nova.sql', acrescentar: '\ngrant execute on function app.f(jsonb) to anon;\n' }),
+      s('só comentada', { de: 'regra de h', para: 'x' }),
+      s('grant de h', { acrescentar: '\ngrant execute on function app.h(jsonb) to anon;\n' })
     ], dir, dir);
     assert.equal(r.length, 3, r.join('\n'));
     assert.match(r[0], /^VERSÃO VELHA: velha /);

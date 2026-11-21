@@ -1035,14 +1035,18 @@ export function problemasNaPartida(sabotagens, raiz = RAIZ, limpo = gitLimpo) {
    "alter function x rename to y" deixa a versão antiga viva como y); (3) o "acrescentar" que mexe no privilégio de uma função fica
    na ÚLTIMA migration que recria a função ou refaz os privilégios dela (senão a mais nova apaga o grant). Por nome de função, sem
    olhar a assinatura: hoje não há sobrecarga com o mesmo nome; se aparecer uma, a conferência acusa a mais (nunca a menos) */
+/* o comentário de linha (-- até o fim) vira espaço do MESMO tamanho: as posições não mudam, mas um comentário que cita
+   "create or replace function x" ou "revoke … on function x" deixa de contar como se recriasse x (revisão técnica do #213) */
+const semComentarios = sql => sql.replace(/--[^\n]*/g, c => ' '.repeat(c.length));
 const RE_FUNCAO = /\bcreate\s+(?:or\s+replace\s+)?function\s+([\w.]+)\s*\(|\balter\s+function\s+([\w.]+)\s*\([^)]*\)\s+rename\s+to\s+(\w+)/gi;
 function funcoesDasMigrations(dir) {
   const arquivos = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
   const textos = new Map(arquivos.map(f => [f, fs.readFileSync(path.join(dir, f), 'utf8').replace(/\r\n/g, '\n')]));
+  const codigos = new Map(arquivos.map(f => [f, semComentarios(textos.get(f))]));
   const corpos = new Map();   /* arquivo -> [{ id, ini, fim }]: onde fica o corpo ($$ … $$) de cada função criada ali */
   const vale = new Map();     /* nome -> id do corpo que vale para esse nome depois de todas as migrations */
   for (const f of arquivos) {
-    const t = textos.get(f);
+    const t = codigos.get(f);
     const lista = [];
     for (const m of t.matchAll(RE_FUNCAO)) {
       if (m[1]) {
@@ -1058,10 +1062,10 @@ function funcoesDasMigrations(dir) {
     }
     corpos.set(f, lista);
   }
-  return { arquivos, textos, corpos, vivos: new Set(vale.values()) };
+  return { arquivos, textos, codigos, corpos, vivos: new Set(vale.values()) };
 }
 export function alvosVencidos(sabotagens = SABOTAGENS, dir = ORIGEM, raiz = RAIZ) {
-  const { arquivos, textos, corpos, vivos } = funcoesDasMigrations(dir);
+  const { arquivos, textos, codigos, corpos, vivos } = funcoesDasMigrations(dir);
   const problemas = [];
   for (const s of sabotagens) {
     if (s.fonte) {
@@ -1075,7 +1079,7 @@ export function alvosVencidos(sabotagens = SABOTAGENS, dir = ORIGEM, raiz = RAIZ
       for (const m of s.acrescentar.matchAll(/\bon\s+function\s+([\w.]+)\s*\(/gi)) {
         const nome = m[1].replace(/\./g, '\\.');
         const mexe = new RegExp('(create\\s+(or\\s+replace\\s+)?function|revoke[^;]*\\bon\\s+function)\\s+' + nome + '\\s*\\(|\'' + nome.split('\\.').pop() + '\'', 'i');
-        const outra = depois.find(f => mexe.test(textos.get(f)));
+        const outra = depois.find(f => mexe.test(codigos.get(f)));
         if (outra) problemas.push('VERSÃO VELHA: ' + s.nome + ' (' + m[1] + ' é recriada ou tem os privilégios refeitos em ' + outra + ': acrescente lá)');
       }
       continue;
