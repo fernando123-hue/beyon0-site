@@ -134,6 +134,7 @@ test('o 2º toque (confirmar) chama o servidor UMA vez, mesmo com toques repetid
   botoes(m.raiz)[0].clicar();
   const confirmar = m.doc.getElementById('o-desiste-confirmar');
   confirmar.clicar(); confirmar.clicar(); confirmar.clicar();
+  confirmar.dispatchEvent({ type: 'click' }); confirmar.dispatchEvent({ type: 'click' });   /* (um toque que passa pelo botão já travado: o guarda do módulo segura) */
   assert.deepEqual(m.chamadas, ['desistir'], 'um só pedido ao servidor');
   assert.equal(confirmar.disabled, true, 'travado enquanto espera');
   assert.equal(m.raiz.querySelector('.orc-desiste__painel').getAttribute('aria-busy'), 'true');
