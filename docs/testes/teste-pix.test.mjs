@@ -294,12 +294,8 @@ test('isolamento: o código do servidor só conhece o prefixo TESTE- em servico.
   assert.deepEqual(quem.map(f => f.replaceAll('\\', '/').split('/api/')[1]).sort(), ['_pagamentos/servico.mjs', '_pagamentos/teste-pix.mjs']);
 });
 
-/* a janela do teste do dono (20/11/2026): a chave pode estar "1" na produção SÓ até este dia; depois dele, "1" derruba a CI (esquecer ligado não passa) */
-const FIM_DA_JANELA_DO_TESTE = '2026-11-22';
-test('trava de ligar: BZ_TESTE_PIX é VAZIA na produção (só "1" dentro da janela do teste do dono) e nunca "1" em outro bloco do wrangler.jsonc', () => {
+test('trava de ligar: BZ_TESTE_PIX vem VAZIA na produção e não é "1" em nenhum outro bloco do wrangler.jsonc', () => {
   const cfg = parse(readFileSync(new URL('wrangler.jsonc', RAIZ), 'utf8'));
-  const valor = cfg.vars.BZ_TESTE_PIX;
-  assert.ok(valor === '' || valor === '1', 'produção: só "" (desligada) ou "1" (janela do teste)');
-  if (valor === '1') assert.ok(new Date().toISOString().slice(0, 10) <= FIM_DA_JANELA_DO_TESTE, 'o teste do Pix ficou ligado além da janela: volte BZ_TESTE_PIX para ""');
+  assert.equal(cfg.vars.BZ_TESTE_PIX, '', 'produção: vazia (desligada) por padrão');
   for (const vars of [cfg.env.previa.vars, cfg.env.previa.previews.vars]) assert.notEqual(vars.BZ_TESTE_PIX, '1');
 });
