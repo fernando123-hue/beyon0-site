@@ -97,10 +97,14 @@ test('captação: URL_PREVIA e os limites de dias que não mudaram são os dela 
   assert.deepEqual([LIMITES.material_dias, LIMITES.max_rodadas], [cfg.material_dias, cfg.max_rodadas]);
 });
 
-/* 22/10: o dono mudou o restante (3 dias do aviso "no ar", lembretes no 2º e no 3º dia). A captação já aplicou (config/entrega.json: restante_fora_do_ar_dias 3, lembretes_restante [2, 3]): o `todo` do plano foi tirado */
-test('captação: o restante em 3 dias e os lembretes do 2º e do 3º dia são os dela (config/entrega.json)', opcoes, async () => {
+/* 21/11 (D2 do dono; captação 7bdb9e9): a captação conta o restante em HORAS da cobrança com o site pronto (24 h, lembretes às 8 h e 20 h) e saiu da ordem antiga
+   (restante_fora_do_ar_dias e lembretes_restante não existem mais lá). O que os dois lados contam igual é o site pago e fora do ar: pago_sem_ar_dias = site_parado_dias.
+   Os 3 dias e os lembretes do 2º e 3º dia de LIMITES ficam só no site, para a entrega antiga que foi ao ar antes de 19/11 (passos no_ar/suspensa) */
+test('captação: o site pago e fora do ar alarma no mesmo dia (pago_sem_ar_dias = site_parado_dias) e a ordem antiga do restante saiu de lá', opcoes, async () => {
   const { LIMITES } = await import('../../api/_entrega/alarmes.mjs');
   const cfg = JSON.parse(fs.readFileSync(path.join(PASTA, 'config', 'entrega.json'), 'utf8'));
-  assert.equal(LIMITES.restante_dias, cfg.restante_fora_do_ar_dias);
-  assert.deepEqual(LIMITES.lembretes_restante, cfg.lembretes_restante);
+  assert.equal(LIMITES.site_parado_dias, cfg.pago_sem_ar_dias);
+  for (const velha of ['restante_fora_do_ar_dias', 'lembretes_restante']) assert.equal(Object.hasOwn(cfg, velha), false, velha + ' voltou à captação: o espelho do site precisa ser revisto');
+  assert.equal(cfg.restante_encerrar_horas, 24, 'as 24 horas de /condicoes');
+  assert.deepEqual(cfg.lembretes_restante_horas, [8, 20]);
 });

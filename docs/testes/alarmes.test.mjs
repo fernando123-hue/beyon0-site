@@ -8,7 +8,7 @@ import { abrirPausa } from '../../api/_material/prazo.mjs';
 const AGORA = new Date('2026-10-22T10:00:00-04:00');
 const prazo = (conta_desde, pausas = []) => ({ conta_desde, pausas });
 
-test('os limites: 30 dias sem material e 2 listas (os da captação); 3 dias do restante com lembretes no 2º e no 3º dia (decisão do dono de 22/10)', () => {
+test('os limites: 30 dias sem material, 2 listas e 2 dias do site pago fora do ar (os da captação); 3 dias do restante com lembretes no 2º e no 3º dia (22/10, só a entrega antiga, no ar antes de 19/11)', () => {
   assert.deepEqual(LIMITES, { material_dias: 30, restante_dias: 3, site_parado_dias: 2, lembretes_restante: [2, 3], max_rodadas: 2 });
 });
 
