@@ -124,8 +124,11 @@ try {
   await foto('3-cancelado-cel');
   const depois = (await api('GET', 'estado', undefined, T, 'vendas', '&conversa=' + c)).corpo;
   ok(depois.conversa.etapa === 'encerrada' && depois.entrega.passo === 'encerrada' && depois.entrega.desistiu === true, 'o servidor: pedido encerrado, desistência registrada');
+  { const t0 = Date.now(); const r = await fetch(BASE + '/orcamento').catch(e => ({ status: String(e) })); console.log('[e2e-desistencia] diagnóstico: GET /orcamento = ' + r.status + ' em ' + (Date.now() - t0) + ' ms'); }
   page.on('dialog', d => { console.log('[e2e-desistencia] diálogo: ' + d.type() + ' ' + d.message().slice(0, 80)); d.dismiss().catch(() => {}); });
-  await page.goto(BASE + '/orcamento', { waitUntil: 'domcontentloaded' });
+  for (let tentativa = 1; tentativa <= 2; tentativa++) {   /* (o headless às vezes não termina a 1ª navegação logo depois de uma ação; a 2ª passa) */
+    try { await page.goto(BASE + '/orcamento', { waitUntil: 'domcontentloaded', timeout: 20000 }); break; } catch (e) { if (tentativa === 2) throw e; console.log('[e2e-desistencia] a navegação demorou; tentando de novo'); }
+  }
   await page.waitForSelector('#o-fim-encerrado:not([hidden])', { timeout: 30000 });
   ok((await page.textContent('#o-fim-encerrado-titulo')) === 'Pedido cancelado', 'recarregar continua em "Pedido cancelado"');
   ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
