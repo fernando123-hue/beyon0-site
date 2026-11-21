@@ -756,9 +756,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     async desistir({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
+      if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { recado: true });   /* (o interruptor da entrega vale antes de qualquer outra frase, como nas outras ações do pedido) */
       exigir(corpo?.confirmo === true, 400, 'Confirme o cancelamento para continuar.');
       exigir(pagamentos && typeof pagamentos.desistir === 'function', 503, 'O cancelamento por aqui não está disponível agora. Deixe um recado para a equipe.');
-      if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { recado: true });
       return pagamentos.desistir({ conversa_id: corpo.conversa_id, visitante_id: vid });
     },
 
