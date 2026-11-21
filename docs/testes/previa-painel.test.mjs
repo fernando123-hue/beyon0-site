@@ -300,7 +300,8 @@ test('(e) nada do dono é alcançável pelo cliente nem pela rotina: as ações 
   const raiz = fileURLToPath(new URL('../../api', import.meta.url));
   const arquivos = lista(raiz).filter(f => f.endsWith('.mjs')).map(f => ({ nome: f.replace(/\\/g, '/').split('/api/')[1], texto: readFileSync(f, 'utf8') }));
   const DONO = /vendas_(previa_publicar|no_ar|suspender|encerrar|material_dispensar|aviso_feito|religado|avisos_lista|ajustes_da_entrega)/;
-  assert.deepEqual(arquivos.filter(a => DONO.test(a.texto)).map(a => a.nome), ['_entrega/painel-entrega.mjs'], 'só o módulo do dono chama as funções do dono');
+  /* (20/11) a desistência do cliente encerra o pedido (vendas_encerrar, motivo desistência) DEPOIS de conferir e devolver a entrada: api/_pagamentos/desistencia.mjs, só pela sessão do cliente, com o banco decidindo; é a única exceção */
+  assert.deepEqual(arquivos.filter(a => DONO.test(a.texto)).map(a => a.nome).sort(), ['_entrega/painel-entrega.mjs', '_pagamentos/desistencia.mjs'], 'só o módulo do dono e a desistência do cliente chamam as funções do dono');
   assert.deepEqual(arquivos.filter(a => /painel-entrega/.test(a.texto)).map(a => a.nome), ['painel.mjs'], 'e só o painel (com a chave) usa o módulo');
 });
 

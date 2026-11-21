@@ -984,6 +984,19 @@ export const SABOTAGENS = [
     de: '      if (ocupado) return;\n      ocupado = true;', para: '      ocupado = true;' },
   { nome: '(D6) o botão que devolve já está na tela principal (o painel nasce aberto)', fonte: 'js/orcamento-desistencia.js', testes: ['docs/testes/orcamento-desistencia.test.mjs'],
     de: '        raiz.insertBefore(link, raiz.children[0] || null);', para: '        raiz.insertBefore(link, raiz.children[0] || null); abrir();' },
+  /* ---- as correções das revisões da desistência (20/11): o prazo na retomada, o restante antes de estornar, o estorno incerto, o que fica pela metade ---- */
+  { nome: '(D7) a retomada de uma desistência que falhou ignora o prazo (40 dias depois ainda estorna)', arquivo: '20261120120000_desistencia_cliente.sql', testes: ['docs/testes/desistencia-banco.test.mjs'],
+    de: 'if d.falhas >= 3 or now() > d.pedida_em + privado.desistencia_retomada() then', para: 'if false then' },
+  { nome: '(D7) o restante pago no mesmo instante não impede o estorno da entrada (a conferência de antes some)', fonte: 'api/_pagamentos/desistencia.mjs', testes: ['docs/testes/desistencia.test.mjs'],
+    de: 'if (preso) return falhar(prep, preso);', para: '' },
+  { nome: '(D7) o erro de tempo no POST do estorno vira falha sem reconsultar a order (a devolução que saiu é dada como não feita)', fonte: 'api/_pagamentos/desistencia.mjs', testes: ['docs/testes/desistencia.test.mjs'],
+    de: 'if (!INCERTOS.has(e.tipo)) return falhar(prep, e.tipo);', para: 'return falhar(prep, e.tipo);' },
+  { nome: '(D7) a reconciliação estorna ou encerra desistência cuja order ainda está aprovada (deixa de conferir)', fonte: 'api/_pagamentos/desistencia.mjs', testes: ['docs/testes/desistencia.test.mjs'],
+    de: "if (order.falhou || conferir(order, prep) !== 'estornada') { await marcar(prep, 'liberada'); continue; }", para: '' },
+  { nome: '(D7) com a desistência pedida o banco ainda abre cobrança nova do restante', arquivo: '20261120120000_desistencia_cliente.sql', testes: ['docs/testes/desistencia-banco.test.mjs', 'docs/testes/desistencia.test.mjs'],
+    de: "raise exception 'a entrega está bloqueada: a desistência do cliente está em andamento' using errcode = '55000';", para: 'null;' },
+  { nome: '(D7) order "estornada" sem o estorno do mesmo valor na lista conta como devolvida', fonte: 'api/_pagamentos/desistencia.mjs', testes: ['docs/testes/desistencia.test.mjs'],
+    de: "if (r.estado === 'estornada') return r.reembolsado && centavos(r.reembolsado) === valor ? 'estornada' : 'estado';", para: "if (r.estado === 'estornada') return 'estornada';" },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não

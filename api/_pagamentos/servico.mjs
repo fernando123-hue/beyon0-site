@@ -168,7 +168,7 @@ function criarNucleo({ banco, mp, cfg, agora, confirmacao = null, avisar = null 
     }
   }
 
-  return { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar, avisarDono };
+  return { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar, avisarDono, cancelarPixDoRestante };
 }
 
 export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Date.now(), confirmacao = null, avisar = null }) {
@@ -328,6 +328,11 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
       if (!parou && confirmacao && confirmacao.ligada && folga >= 1) {
         try { resumo.confirmacoes = (await confirmarEntradas({ banco: bancoContado, confirmacao: confirmacao.contada(gasto.contar), provedor: PROV, filtro: { limite: folga } })).enviadas; }
         catch (e) { if (e instanceof SemOrcamento) parou = true; else throw e; }
+      }
+      /* (20/11) as desistências de cliente que ficaram pela metade (queda entre o estorno e o encerramento, resposta que não voltou): só se ACABA o que já aconteceu, nunca se estorna sozinho */
+      if (!parou && gasto.restantes() >= 12) {
+        try { const n = await criarDesistencia({ banco: bancoContado, mp: mpContado, cfg, nucleo }).concluirPendentes(); if (n > 0) resumo.desistencias = n; }
+        catch (e) { if (e instanceof SemOrcamento) parou = true; else { resumo.erros++; console.error('[pagamentos] desistências pendentes:', (e && (e.codigo || e.tipo)) || 'erro'); } }
       }
       if (varrerDias > 0 && !parou) {
         const desde = agora() - varrerDias * 86400e3;

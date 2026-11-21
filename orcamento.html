@@ -588,8 +588,6 @@
           <input class="orc-link__campo" id="o-link-outro-campo" type="text" readonly spellcheck="false" autocomplete="off" hidden />
         </details>
         <p class="orc-pag-status" id="o-link-aviso" role="status" aria-live="polite"></p>
-        <!-- DESISTIR (20/11, js/orcamento-desistencia.js): só um lugar vazio; o link "Preciso desistir da compra" e o painel nascem por JS, e só quando o servidor diz que a opção existe -->
-        <div id="o-desiste" class="orc-desiste" hidden></div>
       </div>
     </section>
     <!-- O MATERIAL (PR 3b-2, js/orcamento-material.js): os 6 blocos, ou o que foi enviado -->
@@ -668,6 +666,8 @@
         <p class="orc-bloco__lead">Outra dúvida? <a href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a></p>
       </div>
     </section>
+    <!-- DESISTIR (20/11, js/orcamento-desistencia.js): só um lugar vazio, embaixo de tudo (depois do fim do pedido); o link "Preciso desistir da compra" e o painel nascem por JS, e só quando o servidor diz que a opção existe -->
+    <div id="o-desiste" class="orc-bloco orc-desiste" hidden></div>
     <!-- A PLANTA DO SITE (planta viva, PR 2c; js/orcamento-planta.js). DEPOIS do formulário e de todo o fluxo (decisão do dono, 05/11: a faixa não fica entre a conversa e o
          botão "Quero os três modelos"): a última seção do <main>. Só existe com a flag BZ_PLANTA ligada no servidor e uma planta no estado; escondida até lá. Sai de hidden
          onde termina o último bloco visível antes dela, abaixo da dobra, ou num gesto da pessoa (spec §4.4); o botão "Ver a planta do seu site", na fala do Zero, rola até aqui.

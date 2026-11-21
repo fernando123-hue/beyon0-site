@@ -9,7 +9,7 @@
 --   2. privado.desistencia_motivo: a regra única (passo, restante, bloqueio, a entrada paga, a janela) que a leitura da tela e a ação usam. Janela: 7 dias
 --      contados da marca MAIS ANTIGA entre a aceitação da proposta e o pagamento da entrada, mais 3 horas a favor do cliente (relógio do banco; intervalo fixo,
 --      então o fuso de Campo Grande não muda a conta).
---   3. app.desistencia_preparar (decide e reserva) e app.desistencia_marcar (as marcas só andam para a frente: pedida, estornada, concluida).
+--   3. app.desistencia_preparar (decide e reserva) e app.desistencia_marcar (as marcas só andam para a frente: pedida, estornada, concluida); app.desistencia_restante (o Pix do restante, antes de estornar) e app.desistencia_pendentes (o que ficou pela metade; a reconciliação só acaba o que já aconteceu); nenhuma cobrança nova do restante com a desistência pedida.
 --   4. app.pagamentos_aplicar: o alerta do estorno da entrada vira "desistencia" quando há desistência pedida (o dono não a confunde com contestação).
 --   5. app.vendas_estado: a leitura do cliente ganha dois booleanos em `entrega`: pode_desistir e desistiu (nada de data, order ou valor).
 -- Só `create or replace`/renomear com as MESMAS assinaturas e os mesmos privilégios (só service_role).
@@ -43,7 +43,10 @@ create function privado.desistencia_prazo() returns interval
 language sql immutable set search_path = '' as $$ select interval '7 days 3 hours' $$;
 create function privado.desistencia_trava() returns interval
 language sql immutable set search_path = '' as $$ select interval '2 minutes' $$;
+create function privado.desistencia_retomada() returns interval
+language sql immutable set search_path = '' as $$ select interval '24 hours' $$;
 revoke all on function privado.desistencia_prazo() from public, anon, authenticated, service_role;
+revoke all on function privado.desistencia_retomada() from public, anon, authenticated, service_role;
 revoke all on function privado.desistencia_trava() from public, anon, authenticated, service_role;
 
 -- ---------- a regra: null = pode desistir; senão, o motivo ----------
@@ -66,24 +69,34 @@ end $$;
 revoke all on function privado.desistencia_motivo(app.entregas, boolean) from public, anon, authenticated, service_role;
 
 -- ---------- decidir e reservar ----------
+-- ---------- decidir e reservar ----------
+-- Uma desistência JÁ pedida (linha `pedida` depois de falha ou de queda) só é retomada pela pessoa dentro de 24 horas do pedido (privado.desistencia_retomada): o direito de
+-- 7 dias não fica aberto para sempre por causa de uma falha; passado isso, a equipe resolve à mão (o dono já recebeu `desistencia_falhou`). Depois de 3 falhas, também.
 create function app.desistencia_preparar(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare c app.conversas; e app.entregas; d app.desistencias; pg app.pagamentos; t app.tentativas_pagamento; v_motivo text; v_codigo text;
+declare c app.conversas; e app.entregas; d app.desistencias; pg app.pagamentos; t app.tentativas_pagamento; v_motivo text; v_codigo text; v_achou boolean;
 begin
   c := privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);   -- trava 1: a conversa DESTE visitante (de outro: P0002)
   select * into d from app.desistencias where conversa_id = c.id for update;
-  if found and d.status = 'concluida' then return jsonb_build_object('ok', false, 'motivo', 'ja_desistiu'); end if;
+  v_achou := found;
+  if v_achou and d.status = 'concluida' then return jsonb_build_object('ok', false, 'motivo', 'ja_desistiu'); end if;
+  -- a entrada já foi devolvida e o dono encerrou o pedido à mão: a desistência está feita
+  if v_achou and d.status = 'estornada' and c.etapa = 'encerrada' then
+    update app.desistencias set status = 'concluida', concluida_em = now() where id = d.id;
+    return jsonb_build_object('ok', false, 'motivo', 'ja_desistiu');
+  end if;
   perform privado.exigir_etapa(c, array['em_producao']);
   select * into e from app.entregas where conversa_id = c.id for update;   -- trava 2: a entrega
   if not found then return jsonb_build_object('ok', false, 'motivo', 'passo'); end if;
   select codigo into v_codigo from app.pedidos where conversa_id = c.id;
   if v_codigo is null then return jsonb_build_object('ok', false, 'motivo', 'passo'); end if;
 
-  if found and d.id is not null then
+  if v_achou then
     v_motivo := privado.desistencia_motivo(e, true);
     if v_motivo is not null then return jsonb_build_object('ok', false, 'motivo', v_motivo); end if;
     if d.status = 'pedida' then
       if d.iniciada_em is not null and now() - d.iniciada_em < privado.desistencia_trava() then return jsonb_build_object('ok', false, 'motivo', 'em_andamento'); end if;
+      if d.falhas >= 3 or now() > d.pedida_em + privado.desistencia_retomada() then return jsonb_build_object('ok', false, 'motivo', 'prazo'); end if;
       update app.desistencias set iniciada_em = now(), tentativas = tentativas + 1 where id = d.id returning * into d;
     end if;
     return jsonb_build_object('ok', true, 'retomar', d.status = 'estornada', 'desistencia_id', d.id, 'tentativa_id', d.tentativa_id,
@@ -103,12 +116,12 @@ end $$;
 revoke all on function app.desistencia_preparar(jsonb) from public, anon, authenticated;
 grant execute on function app.desistencia_preparar(jsonb) to service_role;
 
--- ---------- as marcas: só para a frente ----------
+-- ---------- as marcas: só para a frente (liberada = a rotina olhou, nada a fazer: só solta a trava) ----------
 create function app.desistencia_marcar(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare d app.desistencias; v_status text := p ->> 'status';
 begin
-  if v_status is null or v_status not in ('estornada', 'concluida', 'falhou') then raise exception 'desistência: marca fora da lista' using errcode = '22023'; end if;
+  if v_status is null or v_status not in ('estornada', 'concluida', 'falhou', 'liberada') then raise exception 'desistência: marca fora da lista' using errcode = '22023'; end if;
   select * into d from app.desistencias where id = (p ->> 'desistencia_id')::uuid for update;
   if not found then raise exception 'desistência não encontrada' using errcode = 'P0002'; end if;
   if v_status = 'estornada' and d.status = 'pedida' then
@@ -117,6 +130,8 @@ begin
     update app.desistencias set status = 'concluida', concluida_em = now() where id = d.id;
   elsif v_status = 'falhou' and d.status = 'pedida' then
     update app.desistencias set iniciada_em = null, falhas = falhas + 1, falha = left(coalesce(p ->> 'detalhe', 'erro'), 60) where id = d.id;
+  elsif v_status = 'liberada' and d.status = 'pedida' then
+    update app.desistencias set iniciada_em = null where id = d.id;
   else
     raise exception 'desistência: a marca % não vale com a desistência %', v_status, d.status using errcode = '55000';
   end if;
@@ -124,6 +139,47 @@ begin
 end $$;
 revoke all on function app.desistencia_marcar(jsonb) from public, anon, authenticated;
 grant execute on function app.desistencia_marcar(jsonb) to service_role;
+
+-- ---------- o restante, ANTES de estornar: o servidor cancela o Pix aberto e confere de novo que ele não foi pago (a corrida "o cliente paga o restante enquanto a entrada volta") ----------
+create function app.desistencia_restante(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare d app.desistencias; e app.entregas; v_abertas jsonb;
+begin
+  select * into d from app.desistencias where id = (p ->> 'desistencia_id')::uuid;
+  if not found then raise exception 'desistência não encontrada' using errcode = 'P0002'; end if;
+  select * into e from app.entregas where conversa_id = d.conversa_id;
+  if not found then raise exception 'entrega não encontrada' using errcode = 'P0002'; end if;
+  select coalesce(jsonb_agg(jsonb_build_object('tentativa_id', t.id, 'order', t.provedor_order_id) order by t.created_at), '[]'::jsonb) into v_abertas
+    from app.tentativas_pagamento t join app.pagamentos pg on pg.id = t.pagamento_id
+   where pg.proposta_id = e.proposta_id and pg.parcela = 'saldo' and t.status in ('criada', 'aguardando', 'requer_acao', 'processando') and t.provedor_order_id is not null;
+  return jsonb_build_object('restante_pago', exists (select 1 from app.pagamentos where proposta_id = e.proposta_id and parcela = 'saldo' and status in ('pago', 'contestado', 'estornado')),
+                            'abertas', v_abertas);
+end $$;
+revoke all on function app.desistencia_restante(jsonb) from public, anon, authenticated;
+grant execute on function app.desistencia_restante(jsonb) to service_role;
+
+-- ---------- o que ficou pela metade (a rotina da reconciliação só ACABA o que já aconteceu; nunca estorna sozinha) ----------
+-- desistências `estornada` (falta encerrar) ou `pedida` sem resposta há mais de 10 minutos e menos de 3 dias, ainda no passo e sem restante pago; a trava é reservada para o cliente
+-- não colidir; no máximo 3 por vez
+create function app.desistencia_pendentes(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare d app.desistencias; e app.entregas; v_codigo text; v_itens jsonb := '[]'::jsonb;
+begin
+  for d in select * from app.desistencias
+            where status in ('pedida', 'estornada') and (iniciada_em is null or now() - iniciada_em >= privado.desistencia_trava())
+              and now() - pedida_em >= interval '10 minutes' and now() - pedida_em < interval '3 days'
+            order by pedida_em limit 3 for update skip locked loop
+    select * into e from app.entregas where conversa_id = d.conversa_id;
+    if not found or privado.desistencia_motivo(e, true) is not null then continue; end if;
+    select codigo into v_codigo from app.pedidos where conversa_id = d.conversa_id;
+    if v_codigo is null then continue; end if;
+    update app.desistencias set iniciada_em = now() where id = d.id;
+    v_itens := v_itens || jsonb_build_object('desistencia_id', d.id, 'status', d.status, 'tentativa_id', d.tentativa_id, 'order_id', d.order_id, 'valor', d.valor::text, 'codigo', v_codigo);
+  end loop;
+  return jsonb_build_object('itens', v_itens);
+end $$;
+revoke all on function app.desistencia_pendentes(jsonb) from public, anon, authenticated;
+grant execute on function app.desistencia_pendentes(jsonb) to service_role;
 
 -- ---------- o alerta do estorno da entrada: "desistencia" quando o cliente a pediu ----------
 alter function app.pagamentos_aplicar(jsonb) rename to pagamentos_aplicar_196;
@@ -166,3 +222,20 @@ begin
 end $$;
 revoke all on function app.vendas_estado(jsonb) from public, anon, authenticated;
 grant execute on function app.vendas_estado(jsonb) to service_role;
+
+-- ---------- com a desistência pedida (ou a entrada já devolvida), nenhuma cobrança nova do restante ----------
+-- (o cliente que abre outra aba e gera um Pix do restante enquanto a entrada volta ficaria com o restante pago e a entrada devolvida). A frase com "bloqueada" vira, no servidor,
+-- "Estamos conferindo o seu pagamento": a mesma de sempre para a entrega bloqueada
+alter function app.pagamentos_iniciar_tentativa(jsonb) rename to pagamentos_iniciar_tentativa_196;
+revoke all on function app.pagamentos_iniciar_tentativa_196(jsonb) from public, anon, authenticated, service_role;
+
+create function app.pagamentos_iniciar_tentativa(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+begin
+  if exists (select 1 from app.desistencias d where d.conversa_id = (p ->> 'conversa_id')::uuid and d.status in ('pedida', 'estornada')) then
+    raise exception 'a entrega está bloqueada: a desistência do cliente está em andamento' using errcode = '55000';
+  end if;
+  return app.pagamentos_iniciar_tentativa_196(p);
+end $$;
+revoke all on function app.pagamentos_iniciar_tentativa(jsonb) from public, anon, authenticated;
+grant execute on function app.pagamentos_iniciar_tentativa(jsonb) to service_role;

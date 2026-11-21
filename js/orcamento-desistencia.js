@@ -38,11 +38,11 @@
 
   function criar(o) {
     var API = o.API, aoCancelar = o.aoCancelar || function () { return Promise.resolve(); };
-    var link = null, painel = null, ocupado = false, titulo = null, erro = null, confirmar = null, voltar = null;
+    var link = null, painel = null, ocupado = false, titulo = null, erro = null, confirmar = null, voltar = null, recebido = false;   /* recebido: o servidor já tem o pedido ("estamos confirmando"); a frase fica na tela */
 
     function fechar(devolverFoco) {
       if (painel) { painel.remove(); painel = null; titulo = erro = confirmar = voltar = null; }
-      if (link) link.setAttribute('aria-expanded', 'false');
+      if (link) { link.setAttribute('aria-expanded', 'false'); link.removeAttribute('aria-controls'); }
       if (devolverFoco && link) link.focus();
     }
     function limpar() {
@@ -71,10 +71,11 @@
       ocupado = false;
       if (!painel) return;
       painel.removeAttribute('aria-busy');
-      if (falhou) { confirmar.disabled = false; voltar.disabled = false; dizerErro(falhou); return; }
+      if (falhou) { confirmar.disabled = false; voltar.disabled = false; dizerErro(falhou); confirmar.focus(); return; }
       var frase = r && r.aguardando && typeof r.mensagem === 'string' ? r.mensagem : CANCELADO;
       painel.textContent = '';
       painel.appendChild(no('p', 'orc-desiste__texto', frase));
+      if (r && r.aguardando) { recebido = true; return; }   /* (o pedido ainda não fechou: a frase fica; a próxima abertura da página mostra o fim) */
       try { await aoCancelar(); } catch (e) { /* a próxima leitura do pedido mostra o fim */ }
     }
     function abrir() {
@@ -91,7 +92,7 @@
       confirmar.addEventListener('click', confirmarDesistencia);
       voltar.addEventListener('click', function () { if (!ocupado) fechar(true); });
       $('o-desiste').appendChild(painel);
-      link.setAttribute('aria-expanded', 'true');
+      link.setAttribute('aria-expanded', 'true'); link.setAttribute('aria-controls', 'o-desiste-titulo');
       titulo.focus();
     }
     function mostrarLink() {
@@ -99,8 +100,8 @@
       if (!raiz) return;
       if (!link) {
         link = no('button', 'orc-desiste__abrir', TEXTO_LINK);
-        link.setAttribute('type', 'button'); link.setAttribute('aria-expanded', 'false'); link.setAttribute('aria-controls', 'o-desiste-titulo');
-        link.addEventListener('click', function () { if (painel) fechar(true); else abrir(); });
+        link.setAttribute('type', 'button'); link.setAttribute('aria-expanded', 'false');
+        link.addEventListener('click', function () { if (ocupado) return; if (painel) fechar(true); else abrir(); });
         raiz.insertBefore(link, raiz.children[0] || null);
       }
       raiz.hidden = false;
@@ -114,7 +115,7 @@
     }
     function atualizar(E) {
       fimDoPedido(E);
-      if (ocupado) return;   /* (o servidor está trabalhando: a leitura não mexe no painel) */
+      if (ocupado || recebido) return;   /* (o servidor está trabalhando, ou já recebeu o pedido: a leitura não mexe no painel) */
       if (visivel(E)) { mostrarLink(); return; }
       limpar();
     }

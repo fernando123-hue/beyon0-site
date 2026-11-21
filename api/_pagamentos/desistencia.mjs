@@ -13,6 +13,7 @@
    ========================================================================== */
 import { retratoDe, ErroProvedor } from './mercadopago.mjs';
 import { ErroPagamento, ORG } from './servico.mjs';
+import { SemOrcamento } from '../_orcamento.mjs';
 
 const FALAR_COM_A_EQUIPE = 'Não foi possível cancelar por aqui. Deixe um recado para a equipe: ela resolve com você.';
 const FRASES = Object.freeze({
@@ -24,8 +25,11 @@ const FRASES = Object.freeze({
 });
 const centavos = v => { const n = Number(v); return Number.isFinite(n) ? n.toFixed(2) : null; };
 
+/* erros do POST do estorno em que NÃO se sabe se o estorno saiu (tempo, rede, provedor fora, 409, resposta ilegível): a order é consultada de novo antes de dizer qualquer coisa */
+const INCERTOS = new Set(['tempo', 'rede', 'indisponivel', 'conflito', 'resposta']);
+
 export function criarDesistencia({ banco, mp, cfg, nucleo }) {
-  const { aplicar, avisarDono, erroDoProvedor } = nucleo;
+  const { aplicar, avisarDono, erroDoProvedor, cancelarPixDoRestante } = nucleo;
   const marcar = (prep, status, detalhe) => banco('desistencia_marcar', { desistencia_id: prep.desistencia_id, status, ...(detalhe ? { detalhe } : {}) });
   const recusa = motivo => {
     if (motivo === 'prazo') return new ErroPagamento(409, FRASES.prazo, { recado: true });
@@ -33,8 +37,10 @@ export function criarDesistencia({ banco, mp, cfg, nucleo }) {
     if (motivo === 'ja_desistiu') return new ErroPagamento(409, FRASES.ja_desistiu);
     return new ErroPagamento(409, FALAR_COM_A_EQUIPE, { recado: true });
   };
+  const aguardando = () => ({ ok: true, encerrado: false, aguardando: true, mensagem: FRASES.aguardando });
 
-  /* a order consultada é a MESMA que o banco guardou como a que pagou a entrada? 'ok' (aprovada, nunca estornada), 'estornada' (inteira, já) ou o motivo da recusa */
+  /* a order consultada é a MESMA que o banco guardou como a que pagou a entrada? 'ok' (aprovada, nunca estornada), 'estornada' (inteira, com o estorno do mesmo valor na lista) ou o
+     motivo da recusa. Estorno sem o valor na lista, parcial ou estado não reconhecido: 'estado' (nada é estornado por aqui) */
   function conferir(order, prep) {
     const r = retratoDe(order), valor = centavos(prep.valor);
     if (r.order_id !== prep.order_id) return 'order';
@@ -42,7 +48,7 @@ export function criarDesistencia({ banco, mp, cfg, nucleo }) {
     if (r.external_reference !== prep.tentativa_id) return 'referencia';
     if (centavos(r.total_amount) !== valor || centavos(r.pagamento.amount) !== valor) return 'valor';
     if (r.currency && r.currency !== 'BRL') return 'moeda';
-    if (r.estado === 'estornada') return !r.reembolsado || centavos(r.reembolsado) === valor ? 'estornada' : 'estado';
+    if (r.estado === 'estornada') return r.reembolsado && centavos(r.reembolsado) === valor ? 'estornada' : 'estado';
     if (r.estado === 'aprovada' && !r.reembolsado && centavos(r.pagamento.paid_amount) === valor) return 'ok';
     return 'estado';
   }
@@ -62,25 +68,40 @@ export function criarDesistencia({ banco, mp, cfg, nucleo }) {
     }
   };
 
+  /* o restante, ANTES de estornar a entrada: o Pix aberto é cancelado no provedor (ninguém o paga depois) e o banco confere de novo que o restante não foi pago.
+     Restante pago, ou Pix que não saiu do ar: nada é estornado (o dono é avisado e a pessoa tenta de novo ou fala com a equipe) */
+  async function restanteLivre(prep) {
+    const antes = await banco('desistencia_restante', { desistencia_id: prep.desistencia_id });
+    if (antes.restante_pago) return 'restante_pago';
+    if (!Array.isArray(antes.abertas) || !antes.abertas.length) return null;
+    await cancelarPixDoRestante(antes.abertas);
+    const depois = await banco('desistencia_restante', { desistencia_id: prep.desistencia_id });
+    if (depois.restante_pago) return 'restante_pago';
+    return Array.isArray(depois.abertas) && depois.abertas.length ? 'restante_aberto' : null;
+  }
+
   /* devolve a entrada. null = a entrada está estornada e gravada (siga para encerrar); senão a resposta final desta chamada */
   async function devolver(prep) {
     let order = await consultar(prep);
     if (order.falhou) return falhar(prep, order.falhou.tipo);
     const antes = conferir(order, prep);
-    if (antes === 'estado') await aplicar(order, 'operacao').catch(e => console.error('[desistencia] o estado da order não foi aplicado:', (e && e.codigo) || 'erro'));   /* (o banco passa a saber o que o provedor já sabe) */
+    /* (o banco passa a saber o que o provedor já sabe, mas só estados que ele reconhece: um estado desconhecido fica para a reconciliação) */
+    if (antes === 'estado' && retratoDe(order).estado !== 'desconhecido') await aplicar(order, 'operacao').catch(e => console.error('[desistencia] o estado da order não foi aplicado:', (e && e.codigo) || 'erro'));
     if (antes !== 'ok' && antes !== 'estornada') return falhar(prep, 'order_' + antes);
-    let conflito = false;
+    let incerto = false;
     if (antes === 'ok') {
+      const preso = await restanteLivre(prep);
+      if (preso) return falhar(prep, preso);
       try { await mp.reembolsarOrdem(prep.order_id, 'dsc-' + prep.tentativa_id); }
       catch (e) {
         if (!(e instanceof ErroProvedor)) throw e;
         await erroDoProvedor(e, prep.tentativa_id, prep.order_id, 'operacao');
-        if (e.tipo !== 'conflito') return falhar(prep, e.tipo);
-        conflito = true;   /* (409: já devolvida ou em devolução; a consulta abaixo diz qual) */
+        if (!INCERTOS.has(e.tipo)) return falhar(prep, e.tipo);
+        incerto = true;   /* (o estorno pode ter saído mesmo assim: a consulta abaixo diz) */
       }
       order = await consultar(prep);
-      if (order.falhou) return { ok: true, encerrado: false, aguardando: true, mensagem: FRASES.aguardando };   /* (o estorno pode ter saído: NÃO se marca nada, a nova tentativa consulta e conclui) */
-      if (conferir(order, prep) !== 'estornada') return conflito ? falhar(prep, 'conflito') : { ok: true, encerrado: false, aguardando: true, mensagem: FRASES.aguardando };
+      if (order.falhou) return incerto ? falhar(prep, 'sem_resposta') : aguardando();   /* (sem resposta e sem consulta: a rotina da reconciliação acaba se o estorno tiver saído) */
+      if (conferir(order, prep) !== 'estornada') return incerto ? falhar(prep, 'nao_estornada') : aguardando();
     }
     await aplicar(order, 'operacao');   /* o estorno entra pelo caminho de sempre: bloqueia a entrega, cancela o Pix do restante e avisa o dono (alerta "desistencia") */
     await marcar(prep, 'estornada');
@@ -89,13 +110,15 @@ export function criarDesistencia({ banco, mp, cfg, nucleo }) {
 
   /* fecha o pedido pelo caminho do dono. A entrada já foi devolvida: se o banco não deixar encerrar (p. ex. um Pix do restante que não saiu do ar), o dono é avisado */
   async function encerrar(prep) {
-    const r = await banco('vendas_encerrar', { org_slug: ORG, codigo: prep.codigo, motivo: 'desistencia' });
+    let r = null;
+    try { r = await banco('vendas_encerrar', { org_slug: ORG, codigo: prep.codigo, motivo: 'desistencia' }); }
+    catch (e) { if (e instanceof SemOrcamento) throw e; console.error('[desistencia] o pedido não encerrou:', (e && e.codigo) || 'erro'); }
     if (r && r.ok === true) { await marcar(prep, 'concluida'); return { ok: true, encerrado: true }; }
     await avisarDono({ codigo: prep.codigo, evento: 'desistencia_nao_encerrada', parcela: 'entrada' });
     return { ok: true, encerrado: false };
   }
 
-  return async function desistir({ conversa_id, visitante_id }) {
+  async function desistir({ conversa_id, visitante_id }) {
     const prep = await banco('desistencia_preparar', { conversa_id, visitante_id });
     if (!prep || prep.ok !== true) throw recusa(prep && prep.motivo);
     if (!prep.retomar) {
@@ -103,5 +126,30 @@ export function criarDesistencia({ banco, mp, cfg, nucleo }) {
       if (fim) return fim;
     }
     return encerrar(prep);
-  };
+  }
+
+  /* a reconciliação ACABA o que ficou pela metade (a queda do servidor, a resposta que não voltou, o pedido que não encerrou). Nunca estorna sozinha: uma desistência pedida cuja
+     order ainda está aprovada só tem a trava solta (o dono já foi avisado da falha). Devolve quantos pedidos foram encerrados */
+  async function concluirPendentes() {
+    const r = await banco('desistencia_pendentes', {});
+    let encerrados = 0;
+    for (const prep of (r && Array.isArray(r.itens) ? r.itens : []).slice(0, 3)) {
+      try {
+        if (prep.status === 'pedida') {
+          const order = await consultar(prep);
+          if (order.falhou || conferir(order, prep) !== 'estornada') { await marcar(prep, 'liberada'); continue; }
+          await aplicar(order, 'reconciliacao');
+          await marcar(prep, 'estornada');
+        }
+        if ((await encerrar(prep)).encerrado) encerrados++;
+      } catch (e) {
+        if (e instanceof SemOrcamento) throw e;
+        console.error('[desistencia] pendência não concluída:', (e && (e.codigo || e.tipo)) || 'erro');
+      }
+    }
+    return encerrados;
+  }
+
+  desistir.concluirPendentes = concluirPendentes;
+  return desistir;
 }

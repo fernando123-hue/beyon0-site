@@ -20,9 +20,9 @@ test('a página (HTML): nenhum botão que devolve, nenhuma palavra de devoluçã
   assert.ok(!/Confirmar desist/i.test(HTML), 'o botão de confirmar não está na página');
   assert.ok(!/o-desiste-confirmar|o-desiste-painel/.test(HTML), 'o painel nasce só quando o link é tocado');
   assert.match(HTML, /<div id="o-desiste"[^>]*\bhidden\b[^>]*><\/div>/, 'um lugar vazio e escondido, dentro de "Seu pedido"');
-  const iPedido = HTML.indexOf('id="o-pedido"'), iDesiste = HTML.indexOf('id="o-desiste"');
-  assert.ok(iPedido > 0 && iPedido < iDesiste && iDesiste < HTML.indexOf('id="o-material"'), 'o link mora dentro de "Seu pedido", antes do material');
-  assert.ok(HTML.indexOf('id="o-link-aviso"') < iDesiste, 'embaixo de tudo');
+  const iFim = HTML.indexOf('id="o-fim"'), iDesiste = HTML.indexOf('id="o-desiste"');
+  assert.ok(iFim > 0 && iFim < iDesiste && iDesiste < HTML.indexOf('id="o-planta"'), 'o link mora embaixo de tudo: depois do fim do pedido, antes só da planta do site');
+  assert.ok(HTML.indexOf('id="o-material"') < iDesiste && HTML.indexOf('id="o-previa"') < iDesiste, 'embaixo do material e da prévia');
   assert.ok(!/ style=/.test(HTML), 'CSP sem inline');
   assert.match(HTML, /<script src="js\/orcamento-desistencia\.js" defer><\/script>/);
   assert.ok(HTML.indexOf('src="js/orcamento-desistencia.js"') < HTML.indexOf('src="js/orcamento-entrega.js"'), 'carrega antes do módulo que o usa');
@@ -176,7 +176,7 @@ test('erro sem frase (rede caída): uma frase humana de reserva, nunca "undefine
   assert.ok(t.length > 20 && !/undefined|Failed|TypeError/.test(t), t);
 });
 
-test('a resposta "estamos confirmando" (o servidor ainda não fechou o pedido) mostra a frase dele e recarrega', async () => {
+test('a resposta "estamos confirmando" (o servidor ainda não fechou o pedido) mostra a frase dele e ela FICA na tela (as leituras seguintes do pedido não a apagam)', async () => {
   let recarregou = 0;
   const m = montar({ desistir: async () => ({ ok: true, encerrado: false, aguardando: true, mensagem: 'Recebemos o seu cancelamento e estamos confirmando com o Mercado Pago. Você não precisa fazer mais nada.' }), recarregar: async () => { recarregou++; } });
   m.tela.atualizar(E());
@@ -184,7 +184,9 @@ test('a resposta "estamos confirmando" (o servidor ainda não fechou o pedido) m
   m.doc.getElementById('o-desiste-confirmar').clicar();
   await tique(); await tique(); await tique();
   assert.match(m.raiz.textContent, /estamos confirmando com o Mercado Pago/);
-  assert.equal(recarregou, 1);
+  assert.equal(recarregou, 0, 'o pedido ainda não fechou: nada a recarregar');
+  m.tela.atualizar(E({ pode_desistir: false, desistiu: true }));
+  assert.match(m.raiz.textContent, /estamos confirmando com o Mercado Pago/, 'a leitura que vem depois (o servidor já tem a linha) não apaga a frase');
 });
 
 test('uma leitura do pedido que chega com o painel ABERTO não o fecha na cara da pessoa (o relógio dos 7 dias vence com ela olhando)', () => {
@@ -223,4 +225,22 @@ test('/condicoes diz que dentro dos 7 dias dá também para desistir pelo própr
   assert.match(cond, /Para desistir, escreva para contato\.beyon\.zero@gmail\.com ?\. Dentro dos 7 dias, a devolução é imediata, pelo mesmo meio do pagamento \(o Pix\), com o valor corrigido, e você também pode desistir pelo próprio pedido, em “Seu pedido”, na página do orçamento\./);
   assert.match(cond, /Última atualização: 21 de novembro de 2026/);
   assert.ok(HTML.includes('<p class="orcamento-pedido-rotulo') || /Seu pedido<span id="o-ped-codigo"/.test(HTML), 'o rótulo "Seu pedido" que a página das condições cita existe na tela');
+});
+
+test('tela: depois de um erro o foco volta ao botão de confirmar; com o servidor trabalhando, o toque no link NÃO fecha o painel; o aria-controls só existe com o painel aberto', async () => {
+  let solta; const espera = new Promise(r => { solta = r; });
+  let vez = 0;
+  const m = montar({ desistir: async () => { if (!vez++) { await espera; throw new Error('Não consegui concluir agora. Tente de novo em alguns minutos.'); } return { ok: true, encerrado: true }; } });
+  m.tela.atualizar(E());
+  const link = botoes(m.raiz)[0];
+  assert.equal(link.getAttribute('aria-controls'), null);
+  link.clicar();
+  assert.equal(link.getAttribute('aria-controls'), 'o-desiste-titulo');
+  m.doc.getElementById('o-desiste-confirmar').clicar();
+  link.clicar();   /* (o servidor está trabalhando: não fecha) */
+  assert.ok(m.raiz.querySelector('.orc-desiste__painel'), 'o painel continua aberto enquanto espera');
+  solta(); await tique(); await tique(); await tique();
+  assert.equal(m.doc.activeElement.id, 'o-desiste-confirmar', 'o foco volta ao botão de confirmar');
+  botoes(m.raiz.querySelector('.orc-desiste__painel')).find(b => b.textContent === 'Voltar').clicar();
+  assert.equal(link.getAttribute('aria-controls'), null);
 });

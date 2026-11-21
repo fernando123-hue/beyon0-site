@@ -307,16 +307,142 @@ test('o estorno saiu mas a reconsulta falhou: o pedido NÃO é encerrado nem dad
   assert.equal(avisos.filter(a => a.evento === 'desistencia').length, 1);
 });
 
-test('o dono já tinha estornado a entrada à mão e o cliente clica: NENHUM novo estorno, o pedido encerra (a devolução já existe)', async () => {
+test('o dono já tinha estornado a entrada à mão (com o estorno do mesmo valor na order) e o cliente clica: NENHUM novo estorno, o pedido encerra (a devolução já existe)', async () => {
   const { servico } = servicoCom();
   const { n, c } = await pedido({ pagamentos: servico });
   const e = await entradaDe(c);
   sim.estornar(e.ord);
+  sim.editar(e.ord, o => { o.transactions.refunds = [{ id: 'REFMANUAL1', amount: o.total_amount, status: 'processed' }]; });
   const r = await desistir(n, c);
   assert.equal(r.status, 200, JSON.stringify(r.corpo));
   assert.equal(refundsDe(e.ord).length, 0);
   assert.equal(await doBanco(c, 'passo'), 'encerrada');
 });
+
+test('order "estornada" SEM o estorno do mesmo valor na lista (ou parcial): nada é encerrado como desistência; o estado entra no banco e o dono é avisado', async () => {
+  const { servico, avisos } = servicoCom();
+  const { n, c } = await pedido({ pagamentos: servico });
+  const e = await entradaDe(c);
+  sim.estornar(e.ord);   /* (o simulador não põe a lista de estornos aqui) */
+  const r = await desistir(n, c);
+  assert.equal(r.status, 503, JSON.stringify(r.corpo));
+  assert.equal(refundsDe(e.ord).length, 0);
+  assert.notEqual(await doBanco(c, 'passo'), 'encerrada');
+  assert.ok(avisos.some(a => a.evento === 'desistencia_falhou'));
+});
+
+test('o POST do estorno dá tempo esgotado mas o estorno SAIU: a consulta vê a order estornada e conclui, sem mensagem de falha e sem segundo estorno', async () => {
+  const real = criarMercadoPago({ token: local.mp.token, fetch: local.mp.fetch });
+  const mp = provedorCom({ async reembolsarOrdem(id, chave) { await real.reembolsarOrdem(id, chave); throw new ErroProvedor('tempo'); } });
+  const { servico, avisos } = servicoCom({ provedor: mp });
+  const { n, c } = await pedido({ pagamentos: servico });
+  const e = await entradaDe(c);
+  const r = await desistir(n, c);
+  assert.equal(r.status, 200, JSON.stringify(r.corpo)); assert.equal(r.corpo.encerrado, true);
+  assert.equal(refundsDe(e.ord).length, 1);
+  assert.deepEqual(avisos.map(a => a.evento), ['desistencia']);
+});
+
+test('o POST do estorno dá tempo esgotado e o estorno NÃO saiu: a falha vale (trava solta, dono avisado) e a nova tentativa estorna uma vez só', async () => {
+  const real = criarMercadoPago({ token: local.mp.token, fetch: local.mp.fetch });
+  let cair = true;
+  const mp = provedorCom({ async reembolsarOrdem(id, chave) { if (cair) throw new ErroProvedor('tempo'); return real.reembolsarOrdem(id, chave); } });
+  const { servico, avisos } = servicoCom({ provedor: mp });
+  const { n, c } = await pedido({ pagamentos: servico });
+  const e = await entradaDe(c);
+  const r = await desistir(n, c);
+  assert.equal(r.status, 503); assert.equal((await linha(c)).falhas, 1);
+  assert.deepEqual(avisos.map(a => a.evento), ['desistencia_falhou']);
+  cair = false;
+  assert.equal((await desistir(n, c)).status, 200);
+  assert.equal(refundsDe(e.ord).length, 1);
+});
+
+/* ---------- o restante: ANTES de estornar ---------- */
+const PAGADOR_REST = { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '52998224725' };
+test('o Pix do restante aberto é CANCELADO antes de a entrada ser devolvida (cx-<tentativa> antes do dsc-<tentativa>)', async () => {
+  const { servico } = servicoCom();
+  const { n, c } = await pedido({ pagamentos: servico, passo: 'aprovada' });
+  const rest = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR_REST });
+  assert.equal(rest.status, 200, JSON.stringify(rest.corpo));
+  const e = await entradaDe(c);
+  const tRest = await um("select t.id from app.tentativas_pagamento t join app.pagamentos pg on pg.id = t.pagamento_id where pg.parcela = 'saldo' and pg.proposta_id = $1", [e.proposta]);
+  const inicio = sim.chamadas.length;
+  assert.equal((await desistir(n, c)).status, 200);
+  const ordem = sim.chamadas.slice(inicio).filter(x => x.metodo === 'POST').map(x => x.chave);
+  assert.deepEqual(ordem, ['cx-' + tRest.id, 'dsc-' + e.tentativa], 'cancela o Pix do restante, depois devolve a entrada');
+});
+
+test('o cliente PAGA o Pix do restante no mesmo instante: o cancelamento esbarra, o banco vê o restante pago e a entrada NÃO é devolvida', async () => {
+  const { servico, avisos } = servicoCom();
+  const { n, c } = await pedido({ pagamentos: servico, passo: 'aprovada' });
+  const rest = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR_REST });
+  assert.equal(rest.status, 200);
+  const e = await entradaDe(c);
+  sim.pagarPix(sim.porReferencia(rest.corpo.tentativa.id).id);   /* (pago no banco do cliente; o aviso ainda não chegou ao servidor) */
+  const r = await desistir(n, c);
+  assert.equal(r.status, 503, JSON.stringify(r.corpo));
+  assert.equal(refundsDe(e.ord).length, 0, 'a entrada não volta com o restante pago');
+  assert.equal((await um("select status from app.pagamentos where proposta_id = $1 and parcela = 'saldo'", [e.proposta])).status, 'pago');
+  assert.notEqual(await doBanco(c, 'passo'), 'encerrada');
+  assert.ok(avisos.some(a => a.evento === 'desistencia_falhou'));
+});
+
+test('com a desistência pedida, o cliente não consegue abrir outro Pix do restante (a frase é a da entrega em conferência)', async () => {
+  const mp = provedorCom({ async reembolsarOrdem() { throw new ErroProvedor('invalido', 400); } });
+  const { servico } = servicoCom({ provedor: mp });
+  const { n, c } = await pedido({ pagamentos: servico, passo: 'aprovada' });
+  assert.equal((await desistir(n, c)).status, 503);
+  const r = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR_REST });
+  assert.equal(r.status, 409, JSON.stringify(r.corpo)); assert.match(r.corpo.erro, /Estamos conferindo o seu pagamento/);
+});
+
+/* ---------- o que ficou pela metade: a reconciliação ACABA, nunca estorna ---------- */
+async function envelhecer(c, minutos = 11) {
+  await local.db.query("update app.desistencias set pedida_em = now() - ($2 || ' minutes')::interval, iniciada_em = null where conversa_id = $1", [c, String(minutos)]);
+}
+test('queda depois do estorno (a reconsulta falhou): a reconciliação vê a order estornada, aplica e ENCERRA o pedido; nenhum segundo estorno', async () => {
+  const real = criarMercadoPago({ token: local.mp.token, fetch: local.mp.fetch });
+  let estornou = false, derrubar = true;
+  const mp = provedorCom({ async reembolsarOrdem(id, chave) { estornou = true; return real.reembolsarOrdem(id, chave); },
+    async consultarOrdem(id) { if (estornou && derrubar) { derrubar = false; throw new ErroProvedor('rede'); } return real.consultarOrdem(id); } });
+  const { servico, avisos } = servicoCom({ provedor: mp });
+  const { n, c } = await pedido({ pagamentos: servico });
+  const e = await entradaDe(c);
+  assert.equal((await desistir(n, c)).corpo.aguardando, true);
+  assert.equal(await doBanco(c, 'passo'), 'material');
+  await envelhecer(c);
+  const resumo = await servico.reconciliar({ varrerDias: 0 });
+  assert.equal(resumo.desistencias, 1, JSON.stringify(resumo));
+  assert.equal(await doBanco(c, 'passo'), 'encerrada'); assert.equal((await linha(c)).status, 'concluida');
+  assert.equal(refundsDe(e.ord).length, 1);
+  assert.equal(avisos.filter(a => a.evento === 'desistencia').length, 1);
+});
+
+test('o pedido não encerrou na hora (o banco recusou): a reconciliação o encerra depois, sem estornar de novo', async () => {
+  let recusar = true;
+  const banco = async (nome, p) => (nome === 'vendas_encerrar' && recusar ? { ok: false, motivo: 'pagamento_em_andamento' } : local.rpc(nome, p));
+  const { servico } = servicoCom({ banco });
+  const { n, c } = await pedido({ pagamentos: servico });
+  const e = await entradaDe(c);
+  assert.equal((await desistir(n, c)).corpo.encerrado, false);
+  recusar = false; await envelhecer(c, 12);
+  assert.equal((await servico.reconciliar({ varrerDias: 0 })).desistencias, 1);
+  assert.equal(await doBanco(c, 'passo'), 'encerrada'); assert.equal(refundsDe(e.ord).length, 1);
+});
+
+test('a reconciliação NUNCA estorna sozinha: desistência pedida cuja order ainda está aprovada só tem a trava solta', async () => {
+  const mp = provedorCom({ async reembolsarOrdem() { throw new ErroProvedor('invalido', 400); } });
+  const { servico } = servicoCom({ provedor: mp });
+  const { n, c } = await pedido({ pagamentos: servico });
+  const e = await entradaDe(c);
+  assert.equal((await desistir(n, c)).status, 503);
+  await envelhecer(c);
+  const resumo = await servico.reconciliar({ varrerDias: 0 });
+  assert.equal(resumo.desistencias, undefined);
+  assert.equal(refundsDe(e.ord).length, 0); assert.equal(await doBanco(c, 'passo'), 'material'); assert.equal((await linha(c)).status, 'pedida');
+});
+
 
 test('o estorno saiu e o pedido não pôde encerrar (o Pix do restante ainda ativo): a entrada está devolvida e o dono recebe o aviso de encerrar à mão; a nova chamada só encerra', async () => {
   let recusar = true;
