@@ -23,7 +23,7 @@
      POST {importado: <BZ-código>, cliente: <c-xxxxxx>}  a importação da captação passou: marca importado (começa a guarda de 7 dias)
    A ENTREGA PELO DONO (PR 3b-3; api/_entrega/painel-entrega.mjs). Só aqui, só com a chave: nada disso é alcançável pelo cliente nem pela rotina:
      POST {previa: <BZ-código>, url}          publica a prévia (https://vN.bz-<cliente>.pages.dev, do projeto desta entrega); abre a pausa do prazo
-     POST {no_ar: <BZ-código>, url}           põe o site no ar, SÓ depois de o cliente aprovar (D5); com o prazo vencido, 409 com o caminho da devolução
+     POST {no_ar: <BZ-código>, url}           põe o site no ar, SÓ depois de o cliente aprovar (D5) e com o restante pago e a entrega sem bloqueio (19/11); com o prazo vencido, 409 com o caminho da devolução
      POST {suspender: <BZ-código>}            suspende o site (3 dias depois do aviso "no ar"; 22/10)
      POST {encerrar: <BZ-código>, motivo}     motivo de lista fechada: desistencia, atraso, producao_manual, outro (nunca silêncio nem falta de material)
      POST {material_dispensar: <BZ-código>}   dia 30, só com o número AUTORIZADO: segue sem o resto do material

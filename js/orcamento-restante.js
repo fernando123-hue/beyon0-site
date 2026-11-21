@@ -1,5 +1,7 @@
 /* ==========================================================================
-   O PASSO 4 (PR 3b-3; spec §3, §4, §5; D4): o site no ar, o Pix do restante, o pedido concluído e o encerrado.
+   O PASSO 4 (PR 3b-3; spec §3, §4, §5; D4): o site pronto, o Pix do restante, o pedido concluído e o encerrado.
+   • A ORDEM NOVA (dono, 19/11): o restante é cobrado quando o site está 100% pronto (a prévia final APROVADA) e o site só vai ao ar com ele pago; pago, a tela diz
+     que a Beyon Zero põe no ar, e o pedido conclui quando o site entra no ar. As entregas antigas, que já estão no ar (no_ar/suspensa), seguem como antes.
    • O endereço do site só vira link se passar na MESMA regra do servidor (problemaDoSite em api/_entrega/enderecos.mjs: a regra de link do esquema + https puro, sem caminho);
      o que se abre é a origem. Sem o esquema carregado, nada abre. Só a.href e textContent.
    • O restante é o registro que o banco criou, quando ele já existe; senão total − entrada PAGA, em centavos exatos (o banco faz a mesma conta e é quem cobra). Sem a proposta,
@@ -62,20 +64,40 @@
     return pr && e && r ? { total: Number(pr.valor_total), entrada: Number(e.valor), restante: Number(r.valor) } : null;
   }
 
-  /* o restante está aberto: a entrega no ar ou suspensa, a conversa em produção e o interruptor do servidor não desligado (desligado, a página não espera o Pix) */
+  /* o restante está aberto: a prévia aprovada (a ordem nova) ou a entrega antiga no ar ou suspensa, a conversa em produção e o interruptor do servidor não desligado
+     (desligado, a página não espera o Pix) */
   function restanteAberto(E) {
     var e = E && E.entrega;
-    return !!e && E.entrega_ligada !== false && E.conversa.etapa === 'em_producao' && (e.passo === 'no_ar' || e.passo === 'suspensa');
+    return !!e && E.entrega_ligada !== false && E.conversa.etapa === 'em_producao' && (e.passo === 'aprovada' || e.passo === 'no_ar' || e.passo === 'suspensa');
+  }
+  /* o estado do restante para a tela: 'aberto' (nada pago), 'pago' (o registro do banco "pago", a parcela quitada e a entrega livre) ou 'conferencia' (o registro diz "pago", mas o
+     servidor marcou a parcela como não quitada, p. ex. um estorno parcial do restante, ou a entrega bloqueada: a tela não diz "pago", não promete o ar e não cobra de novo). Os dois sinais
+     (pagamento.quitada, entrega.bloqueada) são booleanos do servidor; sem eles (servidor antigo) vale o registro, como antes */
+  function estadoDoRestante(E) {
+    var p = daParcela(E && E.pagamentos, 'saldo', 'pago');
+    /* o restante ainda ABERTO com a prévia aprovada e a entrega bloqueada (a entrada foi estornada antes de ele ser pago): o banco recusa a cobrança, então a tela não chama o Pix: confere, como no estorno do restante */
+    if (!p) return E && E.entrega && E.entrega.bloqueada && E.entrega.passo === 'aprovada' ? 'conferencia' : 'aberto';
+    return p.quitada === false || !!(E.entrega && E.entrega.bloqueada) ? 'conferencia' : 'pago';
+  }
+  /* o restante já caiu e está limpo: a tela não cobra de novo e diz que o site vai ao ar */
+  function restantePago(E) { return estadoDoRestante(E) === 'pago'; }
+  /* o título e a frase do bloco com o site pronto (a prévia aprovada): antes, em conferência e depois do restante. Em conferência a tela fala como uma pessoa, sem código nem
+     termo do sistema: o que houve fica com a Beyon Zero (o dono já foi avisado) */
+  function textoDoPronto(estado) {
+    if (estado === 'conferencia') return { titulo: 'Estamos conferindo o pagamento', aviso: 'Estamos conferindo o pagamento do restante e falamos com você antes de colocar o site no ar. Não precisa pagar de novo.' };
+    return estado ? { titulo: 'Restante pago', aviso: 'Recebemos o restante. Agora a Beyon Zero coloca o site no ar e passa para uma conta no seu nome. Você recebe o aviso quando ele entrar no ar.' }
+      : { titulo: 'Seu site está pronto', aviso: 'Você vê tudo na prévia. Com o restante pago, o site vai ao ar e passa para uma conta no seu nome.' };
   }
   /* a seção da prévia está na tela: os passos previa, ajustes e aprovada, com a conversa em produção e o interruptor do servidor não desligado (a mesma regra de js/orcamento-previa.js + entrega) */
   function previaAberta(E) {
     var e = E && E.entrega;
     return !!e && E.entrega_ligada !== false && E.conversa.etapa === 'em_producao' && (e.passo === 'previa' || e.passo === 'ajustes' || e.passo === 'aprovada');
   }
-  /* o bloco em que cai quem volta ao pedido pelo link ou pelo aviso (o h2 dele recebe o foco): o aviso "A prévia está pronta" leva à prévia, o "no ar" ao restante */
+  /* o bloco em que cai quem volta ao pedido pelo link ou pelo aviso (o h2 dele recebe o foco): o aviso "A prévia está pronta" leva à prévia (também na aprovada: a frase de lá
+     aponta o restante logo abaixo), o "no ar" ao restante */
   function alvoDaRetomada(E) {
     var etapa = E.conversa.etapa, e = E.entrega;
-    if (etapa === 'em_producao') return restanteAberto(E) ? 'o-noar' : previaAberta(E) ? 'o-previa' : 'o-pronto';
+    if (etapa === 'em_producao') return previaAberta(E) ? 'o-previa' : restanteAberto(E) ? 'o-noar' : 'o-pronto';
     if (etapa === 'encerrada' && e) return e.passo === 'concluida' ? 'o-fim-concluido' : 'o-fim-encerrado';
     return 'o-pagamento';
   }
@@ -112,11 +134,18 @@
       pag.classList.toggle('is-restante', ativo);
       if (!ativo) { chavePix = null; return false; }
       if (!movido) { $('o-noar').after(pag); movido = true; }   /* decisão G: o mesmo componente da entrada, logo depois do "no ar" */
-      var s = e.site || {};
-      $('o-noar-titulo').textContent = e.passo === 'suspensa' ? 'Seu site saiu do ar' : 'Seu site está no ar';
-      endereco(s.url, 'o-noar-endereco', 'o-noar-abrir', e.passo !== 'suspensa');
-      var aviso = avisoDoRestante(s.dias_do_aviso, Number(s.limite_dias) || LIMITE_PADRAO, e.passo);
+      var s = e.site || {}, pronto = e.passo === 'aprovada', situacao = pronto ? estadoDoRestante(E) : 'aberto', pago = situacao !== 'aberto';   /* (pago ou em conferência: nada a cobrar) */
+      var t = pronto ? textoDoPronto(situacao === 'aberto' ? false : situacao) : null;
+      $('o-noar-titulo').textContent = t ? t.titulo : e.passo === 'suspensa' ? 'Seu site saiu do ar' : 'Seu site está no ar';
+      endereco(pronto ? '' : s.url, 'o-noar-endereco', 'o-noar-abrir', e.passo !== 'suspensa');   /* (pronto: o site ainda não tem endereço no ar; a prévia está logo acima) */
+      var aviso = t ? t.aviso : avisoDoRestante(s.dias_do_aviso, Number(s.limite_dias) || LIMITE_PADRAO, e.passo);
       $('o-noar-aviso').textContent = aviso; $('o-noar-aviso').hidden = !aviso;
+      $('o-noar-nota').hidden = !pronto || pago;   /* (a frase da ordem nova só vale para o site pronto ainda por pagar; a entrega antiga já está no ar ou saiu dele) */
+      if (pago) {   /* pago: nada a cobrar; a espera do Pix para e o bloco some (o fim aparece quando o site entrar no ar) */
+        chavePix = null; pag.hidden = true;
+        if (tela && typeof tela.parar === 'function') tela.parar();
+        return true;
+      }
       pedirOPix(E, pag);
       return true;
     }
@@ -154,5 +183,5 @@
     return { atualizar: atualizar };
   }
 
-  window.BZRestante = { criar: criar, hrefDoSite: hrefDoSite, valorDoRestante: valorDoRestante, avisoDoRestante: avisoDoRestante, dadosDoFim: dadosDoFim, restanteAberto: restanteAberto, alvoDaRetomada: alvoDaRetomada, LEMBRETES: LEMBRETES };
+  window.BZRestante = { criar: criar, hrefDoSite: hrefDoSite, valorDoRestante: valorDoRestante, avisoDoRestante: avisoDoRestante, dadosDoFim: dadosDoFim, restanteAberto: restanteAberto, restantePago: restantePago, estadoDoRestante: estadoDoRestante, textoDoPronto: textoDoPronto, alvoDaRetomada: alvoDaRetomada, LEMBRETES: LEMBRETES };
 })();

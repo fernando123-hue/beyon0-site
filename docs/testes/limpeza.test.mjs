@@ -69,17 +69,18 @@ test('pedido nunca importado: 30 dias depois de concluído; encerrado, no dia se
   await lic(d.entrega, 'encerrada', 2); assert.deepEqual(await pendencias(), [b]);
 });
 
-test('M3: sinal estornado há mais de 1 dia: o material nunca importado sai (a frase "no dia seguinte, se você desistir")', async () => {
+test('M3 (20/11, dono): sinal estornado = entrega bloqueada: o material nunca importado fica guardado por 60 dias e sai no 61º (antes saía no dia seguinte)', async () => {
   const e = await entrega();
   await db.query("update app.materiais set status = 'enviado' where entrega_id = $1", [e.entrega]);
   const a = await arquivo(e, { status: 'conferido' });
   /* (o carimbo de updated_at do banco volta o relógio para agora; a licença de restauração, só numa conexão SQL do dono, deixa datar o estorno) */
   const estornar = dias => db.transaction(async tx => {
     await tx.exec("set local bz.restaurando = 'on'");
-    await tx.query("update app.pagamentos set status = 'estornado', updated_at = now() - make_interval(days => $2) where proposta_id = (select proposta_id from app.entregas where id = $1) and parcela = 'sinal'", [e.entrega, dias]);
+    await tx.query("update app.pagamentos set status = 'estornado', status_em = now() - make_interval(days => $2) where proposta_id = (select proposta_id from app.entregas where id = $1) and parcela = 'sinal'", [e.entrega, dias]);
   });
   await estornar(0); assert.deepEqual(await pendencias(), [], 'recém-estornado: ainda não');
-  await estornar(2); assert.deepEqual(await pendencias(), [a]);
+  await estornar(2); assert.deepEqual(await pendencias(), [], 'estornado há 2 dias: guardado (a janela é de 60 dias)');
+  await estornar(61); assert.deepEqual(await pendencias(), [a]);
   const r = await rpc('rotinas_material_baixar', { caminhos: [a] });
   assert.ok(r.limpos >= 1, 'conta também os pedidos vencidos de testes anteriores, que dividem o banco');
   assert.equal((await um('select status from app.materiais where entrega_id = $1', [e.entrega])).status, 'limpo');

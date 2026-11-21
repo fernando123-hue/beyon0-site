@@ -25,13 +25,18 @@ const TELA = texto(ler('orcamento.html')) + '\n' + fs.readdirSync(new URL('../..
 const MATERIAL_1A = 'Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, nós avisamos que estamos aguardando e o projeto fica parado.';
 /* captação 8fb5208 (26/10): a frase vem logo depois da do material, no mesmo parágrafo, com "também" */
 const AJUSTES_1A = "Enquanto esperamos a sua lista de ajustes, o prazo também fica parado.";
-const RESTANTE_1A = 'Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso nós lembramos duas vezes, no segundo e no terceiro dia.';
+/* (19/11) a ordem nova do dono: o restante com o site pronto (a prévia aprovada) e o site só vai ao ar com ele pago. Os 3 dias depois do aviso "no ar" e os 2 lembretes
+   saíram (o site não está no ar antes do restante). A captação (docs/parte6/condicoes-lancamento.md) tem de trazer a mesma frase */
+const RESTANTE_1A = 'O site só vai ao ar com o restante pago.';
+const RESTANTE_ANTIGO = /3 dias depois d(o nosso|o) aviso de que o site está no ar|no segundo e no terceiro dia/;
 
 /* cada regra: um predicado por lugar (a mesma ideia, na voz do lugar: 1ª pessoa no contrato, em /condicoes e na tela; 3ª pessoa no consultor) */
 const REGRAS_D4 = [
   ['prazo parado enquanto se espera a lista de ajustes', t => /(esperamos a sua|o cliente não manda a) lista de ajustes, o prazo (também )?fica parado./.test(t)],
   ['material: nada vai ao ar sem material e autorização; a Beyon avisa que aguarda e o projeto fica parado (22/10)', t => /Nada vai ao ar sem (o seu material e a sua autorização|o material e a autorização do cliente): enquanto ele não chegar, (nós avisamos que estamos|a Beyon Zero avisa que está) aguardando e o projeto fica parado\./.test(t)],
-  ['restante: 3 dias depois do aviso de que o site está no ar ele sai do ar até o pagamento; dois lembretes antes (22/10)', t => /Se o restante não for pago em 3 dias depois d(o nosso|o) aviso de que o site está no ar, ele sai do ar até o pagamento\. Antes disso (nós lembramos|a Beyon Zero lembra) duas vezes, no segundo e no terceiro dia\./.test(t)],
+  ['restante (19/11): com o site pronto, antes de ir ao ar; o site só vai ao ar com o restante pago, e sem os 3 dias do site no ar', t => /antes de ir ao ar|quando o site fica pronto/.test(t)
+    && /O site só vai ao ar com o restante pago|com o restante pago, (ele|o site) vai ao ar/i.test(t) && !RESTANTE_ANTIGO.test(t)],
+  ['prazo PARA quando o cliente aprova a prévia; depois disso o site vai ao ar assim que o restante for pago (20/11, dono)', t => /para de vez quando (você|o cliente) aprova a prévia: depois disso, o site vai ao ar assim que o restante for pago\./.test(t)],
   ['2 listas de ajuste', t => /(2|[Dd]uas) listas de ajuste/.test(t)],
   ['atraso da Beyon devolve a entrada inteira, mesmo depois dos 7 dias', t => /entrada (é devolvida )?inteira( de volta)?,? mesmo depois dos 7 dias|devolvemos a entrada inteira, mesmo depois dos 7 dias/.test(t)]
 ];
@@ -52,18 +57,20 @@ test('22/10: /condicoes traz os trechos da captação LITERAIS, o do material em
   const pagamento = secao('Pagamento');
   assert.ok(pagamento.includes(RESTANTE_1A), 'Pagamento: ' + pagamento);
   assert.ok(pagamento.indexOf('No institucional:') < pagamento.indexOf(RESTANTE_1A), 'o trecho do restante vem depois do institucional');
-  /* 14/11: hospedagem na conta do cliente (Decisões 14/11); a captação grava esta data como condicoes_versao
+  /* 19/11: a ordem nova do restante (o site pronto, o ar só com ele pago; Decisões 19/11); a captação grava esta data como condicoes_versao
      (config/entrega.json de lá), que sobe junto no PR da captação */
-  assert.ok(CONDICOES.includes('Última atualização: 14 de novembro de 2026'), 'a data da versão');
+  assert.ok(CONDICOES.includes('Última atualização: 20 de novembro de 2026'), 'a data da versão (20/11: o prazo para na aprovação da prévia; a captação sobe a condicoes_versao junto)');
+  assert.ok(CONDICOES.includes('O site fica pronto e você vê tudo na prévia. Com o restante pago, ele vai ao ar e passa para uma conta no seu nome'), 'a hospedagem na ordem nova');
+  assert.ok(!/primeiro na conta da Beyon/.test(CONDICOES), 'o site não vai mais ao ar na conta da Beyon antes do restante');
 });
 
-test('o contrato diz que o restante é pago quando o site estiver no ar (não "na entrega") e os dias úteis continuam como a 3b-2 deixou', () => {
-  assert.match(CONTRATO, /e o restante quando o site estiver no ar/);
+test('o contrato diz que o restante é pago quando o site estiver pronto, antes de ir ao ar (não "na entrega"), e os dias úteis continuam como a 3b-2 deixou', () => {
+  assert.match(CONTRATO, /e o restante quando o site estiver pronto, antes de ir ao ar/);
   assert.doesNotMatch(CONTRATO, /restante na entrega/);
   assert.match(CONTRATO, /PRAZO: até 7 dias úteis, contados do sinal pago e do material recebido\. Sábado, domingo e feriado nacional não contam\./);
   assert.match(CONTRATO, /2 listas de ajuste/);
   /* o consultor diz a mesma coisa (revisão do PR: reintroduzir "na entrega" lá não falhava nada) */
-  assert.match(CONSULTOR, /o restante é pago por Pix quando o site estiver no ar/);
+  assert.match(CONSULTOR, /o restante é pago por Pix quando o site estiver pronto, antes de ir ao ar/);
   assert.doesNotMatch(CONSULTOR, /restante[^.]{0,30}na entrega|pagar só na entrega/i);
 });
 
@@ -77,12 +84,13 @@ test('22/10: as promessas antigas saíram dos quatro lugares ("imagens do modelo
   }
 });
 
-test('a tela diz "Quando pago o restante?" com a porcentagem da proposta (nunca escrita à mão) e a regra dos 3 dias; os rótulos "Na entrega" saíram', () => {
+test('a tela diz "Quando pago o restante?" com a porcentagem da proposta (nunca escrita à mão) e a ordem nova (o site pronto; o ar com o restante pago); os rótulos "Na entrega" saíram', () => {
   const html = ler('orcamento.html');
   const antes = html.slice(html.indexOf('id="o-antes"'), html.indexOf('</section>', html.indexOf('id="o-antes"')));
   assert.match(texto(antes), /Quando pago o restante\?/);
-  assert.match(texto(antes), /Quando o site estiver no ar: os outros.{0,40}% do total, por Pix, nesta mesma página\./);
-  assert.ok(texto(antes).includes(RESTANTE_1A), 'a pergunta traz a regra dos 3 dias literal');
+  assert.match(texto(antes), /Quando o site estiver pronto: você vê tudo na prévia e, ao aprovar, paga os outros.{0,40}% do total, por Pix, nesta mesma página\./);
+  assert.ok(texto(antes).includes('Com o restante pago, o site vai ao ar e passa para uma conta no seu nome.'), 'a pergunta diz que o ar vem com o restante pago');
+  assert.ok(!RESTANTE_ANTIGO.test(texto(antes)), 'a regra antiga dos 3 dias saiu');
   assert.ok(/id="o-ap-resto-pct"/.test(antes), 'o percentual do restante vem da proposta (js/orcamento-entrega.js), não do HTML');
   assert.ok(!/\b60\s?%/.test(texto(antes)), 'nenhum 60% à mão');
   assert.ok(!/Na entrega/.test(texto(html)), 'nenhum rótulo "Na entrega" (resumo e recibo): o restante é quando o site estiver no ar');

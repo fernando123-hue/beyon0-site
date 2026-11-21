@@ -32,9 +32,10 @@ test('os 6 textos: o link entra, valem 7 dias e abrem uma vez, sem preço, sem "
     assert.ok(t.split(/\s+/).length <= 70, momento + ': mensagem curta (' + t.split(/\s+/).length + ' palavras)');
   }
   assert.match(T.previa.texto('L'), /aprova ou manda a sua lista de ajustes/);
-  assert.match(T.material_parado.texto('L'), /^Aqui é a Beyon Zero\./);
-  assert.match(T.no_ar.texto('L'), /paga o restante por Pix/);
-  assert.match(T.no_ar.texto('L'), /3 dias/); assert.match(T.no_ar.texto('L'), /sai do ar à meia-noite/);   /* 22/10: o aviso "no ar" diz o prazo de 3 dias */
+  assert.match(T.material_parado.texto('L'), /^Aqui é a Beyon Zero./);
+  /* 19/11, a ordem nova: o site só vai ao ar com o restante PAGO; o aviso "no ar" não cobra nada nem fala de sair do ar, e diz a passagem para a conta do cliente */
+  assert.match(T.no_ar.texto('L'), /passamos o site para uma conta no seu nome/);
+  assert.doesNotMatch(T.no_ar.texto('L'), /paga o restante|3 dias|sai do ar/);
   assert.match(T.material_parado.texto('L'), /projeto fica parado/); assert.match(T.material_parado.texto('L'), /Nada vai ao ar sem a sua autorização/);
   for (const m of ['restante_lembrete_1', 'restante_lembrete_2']) assert.match(T[m].texto('L'), /sai do ar à meia-noite, no fim do 3º dia/, m);
   assert.equal(new Set(Object.values(T).map(x => x.assunto)).size, 6, 'cada aviso tem o seu assunto');
@@ -156,8 +157,8 @@ test('o painel de verdade: um cartão por momento, momento desconhecido ignorado
   assert.ok(achar(ids.avisos.children[0], n => n.textContent === 'WhatsApp +55 67 99123-4500'), 'o telefone vem como o banco manda e aparece formatado');
 });
 
-test('o painel de verdade: o aviso "no ar" de uma entrega que não está no ar (suspensa, encerrada, concluída ou sem o passo) NÃO vira cartão: não se oferece "O seu site está no ar!"', async () => {
-  for (const passo of ['suspensa', 'encerrada', 'concluida', undefined]) {
+test('o painel de verdade: o aviso "no ar" de uma entrega que não está no ar (suspensa, encerrada ou sem o passo) NÃO vira cartão: não se oferece "O seu site está no ar!"; a concluída da ordem nova (19/11) oferece', async () => {
+  for (const passo of ['suspensa', 'encerrada', undefined]) {
     const { ids, ouvintes } = montarPainel({ itens: [{ ...ITEM('no_ar', 5), passo }], aoPostar: ok({}) });
     ouvintes['bz-painel:entrou'](); await esperar();
     assert.equal(ids.avisos.children.length, 0, 'passo ' + passo + ': nenhum cartão');
@@ -166,6 +167,9 @@ test('o painel de verdade: o aviso "no ar" de uma entrega que não está no ar (
   const certo = montarPainel({ itens: [ITEM('no_ar', 5)], aoPostar: ok({}) });
   certo.ouvintes['bz-painel:entrou'](); await esperar();
   assert.equal(certo.ids.avisos.children.length, 1, 'no ar de verdade: o cartão aparece');
+  const concluida = montarPainel({ itens: [{ ...ITEM('no_ar', 5), passo: 'concluida' }], aoPostar: ok({}) });
+  concluida.ouvintes['bz-painel:entrou'](); await esperar();
+  assert.equal(concluida.ids.avisos.children.length, 1, '19/11: o pedido conclui ao entrar no ar (restante já pago) e o aviso "no ar" ainda é devido');
 });
 
 test('o painel de verdade: fila vazia diz que não há aviso; um item só diz "1 aviso"', async () => {
@@ -244,4 +248,15 @@ test('anonimato (dono, 20/11): nenhum texto do painel carrega o nome do dono', (
   for (const f of fs.readdirSync(new URL('../../js/', import.meta.url)).filter(n => /^(painel|orcamento-painel).*\.js$/.test(n))) {
     assert.doesNotMatch(ler('js/' + f), /Fernando/i, f + ': o painel fala como a empresa, nunca com o nome do dono');
   }
+});
+
+test('19/11 (revisão): o aviso "no ar" da entrega ANTIGA (no ar sem o restante) mantém o texto do Pix e dos 3 dias; o da ordem nova (concluída) não cobra nada', () => {
+  const P = janela.BZPainelEntregas;
+  assert.equal(P.textoDo({ momento: 'no_ar', passo: 'no_ar' }), P.NO_AR_ANTIGO);
+  assert.equal(P.textoDo({ momento: 'no_ar', passo: 'concluida' }), T.no_ar);
+  assert.equal(P.textoDo({ momento: 'previa', passo: 'previa' }), T.previa);
+  assert.equal(P.textoDo({ momento: 'inventado' }), null);
+  const antigo = P.NO_AR_ANTIGO.texto('L');
+  assert.match(antigo, /paga o restante por Pix/); assert.match(antigo, /3 dias/); assert.match(antigo, /sai do ar à meia-noite/);
+  assert.doesNotMatch(T.no_ar.texto('L'), /restante|3 dias/);
 });

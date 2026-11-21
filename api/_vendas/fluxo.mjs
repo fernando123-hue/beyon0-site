@@ -177,8 +177,9 @@ const SEM_CONFIRMACAO = ['O pedido ainda não foi confirmado.', undefined];
 function exigirNaoDescartado(est) {
   if (est.pedido && est.pedido.status === 'descartado') throw new Recusa(409, PEDIDO_ENCERRADO, { recado: true });
 }
-/* (PR 3b-3) o que se cobra com a conversa em produção é o RESTANTE: só com o interruptor ligado, só com o site no ar, só por Pix. A decisão é pela entrega (passo) e pela etapa
-   da conversa, nunca por "existe entrega" (uma entrega encerrada não é entrada paga nem site no ar). O VALOR e a parcela são do banco (pagamentos_iniciar_tentativa), nunca do
+/* (PR 3b-3; ordem nova do dono, 19/11) o que se cobra com a conversa em produção é o RESTANTE: só com o interruptor ligado, só com o site PRONTO (a prévia final aprovada; no_ar e
+   suspensa: as entregas antigas, que foram ao ar antes da ordem nova), só por Pix. A decisão é pela entrega (passo) e pela etapa
+   da conversa, nunca por "existe entrega" (uma entrega encerrada não é entrada paga nem site pronto). O VALOR e a parcela são do banco (pagamentos_iniciar_tentativa), nunca do
    corpo; aqui só a frase certa antes dele. Fora dessas etapas nada muda: a entrada segue o caminho de sempre */
 const RESTANTE_TRAVADO = 'Não foi possível abrir o pagamento do restante agora. A Beyon Zero confere o seu pedido: deixe um recado com o seu WhatsApp ou e-mail e a gente resolve com você.';
 function exigirRestanteAberto(est, corpo, env) {
@@ -187,7 +188,7 @@ function exigirRestanteAberto(est, corpo, env) {
   if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { recado: true });
   if (passo === 'concluida') throw new Recusa(409, 'O restante deste pedido já foi pago.');
   if (passo === 'encerrada') throw new Recusa(409, PEDIDO_ENCERRADO, { recado: true });
-  if (passo !== 'no_ar' && passo !== 'suspensa') throw new Recusa(409, 'O restante abre quando o site estiver no ar.');
+  if (passo !== 'aprovada' && passo !== 'no_ar' && passo !== 'suspensa') throw new Recusa(409, 'O restante abre quando você aprovar a prévia final do site.');
   if (corpo?.metodo !== 'pix') throw new Recusa(400, 'O restante é pago por Pix.');
 }
 

@@ -299,7 +299,7 @@ test('o prompt de sistema é o mesmo com a flag ligada e desligada (nada entra n
   await turno(off, {}, false);
   assert.equal(on.recebidos[0].sistema, off.recebidos[0].sistema);
   assert.equal(on.recebidos[0].sistema, montarSistema(REGRAS, { direcoes: 'manual', metodos: undefined }));
-  assert.ok(on.recebidos[0].sistema.length < 27500);
+  assert.ok(on.recebidos[0].sistema.length < 27700);
   assert.equal(on.recebidos[0].contexto.replace(PREFIXO_PLANTA, ''), off.recebidos[0].contexto);
 });
 

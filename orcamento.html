@@ -436,7 +436,7 @@
           <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">1</span><span class="orc-passo__nome">Entrada por Pix <span id="o-ap-entrada"></span></span></li>
           <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">2</span><span class="orc-passo__nome">Você manda o seu material, aqui mesmo</span></li>
           <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">3</span><span class="orc-passo__nome">Prévia do site, para aprovar</span></li>
-          <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">4</span><span class="orc-passo__nome">Site no ar e o restante <span id="o-ap-resto"></span></span></li>
+          <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">4</span><span class="orc-passo__nome">Site pronto: o restante e o ar <span id="o-ap-resto"></span></span></li>
         </ol>
       </div>
 
@@ -497,7 +497,7 @@
       <!-- D4 (21/10): as regras do lançamento valem para o orçamento; este texto é o de /condicoes (o teste de coerência confere) -->
       <details class="orc-det orc-antes__item">
         <summary>Quando fica pronto?</summary>
-        <p class="orc-antes__resposta">O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto esperamos a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, nós avisamos que estamos aguardando e o projeto fica parado.</p>
+        <p class="orc-antes__resposta">O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto esperamos a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, nós avisamos que estamos aguardando e o projeto fica parado. Ele para de vez quando você aprova a prévia: depois disso, o site vai ao ar assim que o restante for pago.</p>
       </details>
       <!-- D2 (21/10): 2 listas de ajuste; o que passar disso é orçado à parte (revê a decisão de 11/10, Decisões.md) -->
       <details class="orc-det orc-antes__item">
@@ -508,7 +508,7 @@
       <!-- 22/10: o restante (D4; a porcentagem vem da proposta, js/orcamento-entrega.js). Promete a tela do restante: nasce escondido, como as outras promessas da entrega -->
       <details class="orc-det orc-antes__item" id="o-faq-restante" hidden>
         <summary>Quando pago o restante?</summary>
-        <p class="orc-antes__resposta">Quando o site estiver no ar: os outros <span id="o-ap-resto-pct"></span>% do total, por Pix, nesta mesma página. Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso nós lembramos duas vezes, no segundo e no terceiro dia.</p>
+        <p class="orc-antes__resposta">Quando o site estiver pronto: você vê tudo na prévia e, ao aprovar, paga os outros <span id="o-ap-resto-pct"></span>% do total, por Pix, nesta mesma página. Com o restante pago, o site vai ao ar e passa para uma conta no seu nome.</p>
       </details>
       <details class="orc-det orc-antes__item" id="o-faq-fotos" hidden>
         <summary>Como mando fotos e textos?</summary>
@@ -546,7 +546,7 @@
           </div>
           <div class="recibo__parte recibo__parte--entrega" id="o-rec-entrega">
             <i class="recibo__luz" aria-hidden="true"><b></b></i>
-            <p class="recibo__parte-rot"><span aria-hidden="true">↓</span> Quando o site estiver no ar</p>
+            <p class="recibo__parte-rot"><span aria-hidden="true">↓</span> Quando o site estiver pronto</p>
             <div class="recibo__linha">
               <span class="recibo__chip recibo__chip--resto" id="o-rec-pct-resto"></span>
               <div class="recibo__dados"><p class="recibo__valor" id="o-rec-resto"></p><p class="recibo__meio" id="o-rec-prazo"></p></div>
@@ -632,18 +632,18 @@
       <p class="orc-nota" id="o-prv-duvida" hidden><span id="o-prv-duvida-lead">Outra dúvida? </span><a id="o-prv-duvida-wa" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a></p>
       <dialog class="orc-dialogo" id="o-prv-dialogo" aria-labelledby="o-prv-dialogo-titulo">
         <h3 id="o-prv-dialogo-titulo">Aprovar a prévia?</h3>
-        <p>Depois de aprovar, o próximo passo é pôr o site no ar.</p>
+        <p>Depois de aprovar, falta só o restante: com ele pago, o site vai ao ar.</p>
         <div class="orc-previa__acoes"><button class="btn btn--primary" type="button" id="o-prv-confirmar">Aprovar</button><button class="btn btn--ghost" type="button" id="o-prv-voltar">Voltar</button></div>
       </dialog>
     </section>
-    <!-- O SITE NO AR (PR 3b-3, js/orcamento-restante.js): passo 4. O #o-pagamento (o Pix, o mesmo componente da entrada) muda para logo depois desta seção -->
+    <!-- O SITE PRONTO E O RESTANTE (PR 3b-3; ordem nova de 19/11, js/orcamento-restante.js): passo 4. O restante abre com a prévia aprovada e o site só vai ao ar com ele pago. O #o-pagamento (o Pix, o mesmo componente da entrada) muda para logo depois desta seção -->
     <section class="orc-bloco orc-noar" id="o-noar" aria-labelledby="o-noar-titulo" hidden>
-      <p class="orc-previa__rotulo">Passo 4 de 4 · No ar e o restante</p>
+      <p class="orc-previa__rotulo">Passo 4 de 4 · O restante e o ar</p>
       <h2 id="o-noar-titulo" tabindex="-1"></h2>
       <p class="orc-noar__endereco" id="o-noar-endereco"></p>
       <div class="orc-previa__acoes"><a class="btn btn--primary" id="o-noar-abrir" target="_blank" rel="noopener noreferrer" href="#" hidden>Abrir o site<span class="sr-only"> (abre em nova aba)</span></a></div>
       <p class="orc-bloco__lead" id="o-noar-aviso" hidden></p>
-      <p class="orc-nota">Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, o site sai do ar até o pagamento.</p>
+      <p class="orc-nota" id="o-noar-nota">Com o restante pago, o site vai ao ar e passa para uma conta no seu nome.</p>
     </section>
     <!-- O FIM (PR 3b-3): pedido concluído (as duas partes pagas) ou encerrado -->
     <section class="orc-bloco orc-fim" id="o-fim" hidden>
