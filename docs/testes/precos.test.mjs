@@ -11,7 +11,8 @@ import { comFases } from './_motor-fases.mjs';
 import { comFora } from './_fora-do-automatico.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-v3-atelier-arquivada.json', import.meta.url), 'utf8'));
-const V4 = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+const V4 = JSON.parse(fs.readFileSync(new URL('../fase2/regras-v4-arquivada.json', import.meta.url), 'utf8'));
+const V5 = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 const copia = () => JSON.parse(JSON.stringify(REGRAS));
 /* a tabela com o teto de 10 dias e os limites antigos (ver _motor-fases.mjs): a lógica de fases e limites do motor */
 const MOTOR = comFases(REGRAS);
@@ -496,12 +497,31 @@ test('v4: o pedido gravado com o Atelier (tabela v3) continua calculando igual: 
   assert.deepEqual([b.formato.nome, b.valor_total], ['Atelier', 22500]);
 });
 
-test('v4: o SQL de ativação arquiva a v3, grava a v4 como ativa e é o mesmo que o gerador monta hoje (Postgres real)', async () => {
+/* ==== TABELA v5 (dono, 2026-11-21, chat: "Aprovo a proposta inteira"): sobem as peças que o cliente já vê funcionando; o resto fica ==== */
+const SUBIRAM_NA_V5 = { interacao_assinatura: [2500, 3500], visual_exclusivo: [3200, 3900], idioma: [800, 950] };
+
+test('v5: só a interação de assinatura, o visual exclusivo e o idioma mudam de valor; todo o resto é a v4', () => {
+  assert.deepEqual(validarRegras(V5), { ok: true });
+  for (const [k, [de, para]] of Object.entries(SUBIRAM_NA_V5)) assert.deepEqual([V4.adicionais[k].valor, V5.adicionais[k].valor], [de, para], k);
+  const semValores = t => { const c = JSON.parse(JSON.stringify(t)); delete c._status; for (const k of Object.keys(SUBIRAM_NA_V5)) delete c.adicionais[k].valor; return c; };
+  assert.deepEqual(semValores(V5), semValores(V4), 'nome, prazo, máximo, requer e os outros valores não mudam');
+  assert.ok(V5._status.startsWith(V4._status), 'o _status só ganha a linha da revisão, não perde histórico');
+  assert.match(V5._status, /2026-11-21/);
+});
+
+test('v5: o institucional com tudo o que é obra de arte (o pacote completo da revisão) soma R$ 17.950', () => {
+  const completo = estimar({ formato: 'institucional', adicionais: { visual_exclusivo: 1, interacao_leve: 1, interacao_assinatura: 1, textos: 5 } }, V5);
+  /* 7900 + 3900 + 900 + 3500 + 5 × 350 = 17950 */
+  assert.equal(completo.valor_total, 17950);
+  assert.equal(estimar({ formato: 'institucional', adicionais: { idioma: 1 } }, V5).valor_total, 7900 + 950);
+});
+
+test('v5: o SQL de ativação arquiva a v4, grava a v5 como ativa e é o mesmo que o gerador monta hoje (Postgres real)', async () => {
   const { novoBanco } = await import('./_banco.mjs');
   const { sqlDeAtivacao } = await import('../fase2/gerar-ativar-sql.mjs');
-  const sql = fs.readFileSync(new URL('../fase2/regras-v4-ativar.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const sql = fs.readFileSync(new URL('../fase2/regras-v5-ativar.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const json = fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8').replace(/\r\n/g, '\n').trim();
-  assert.equal(sql, sqlDeAtivacao(json, 'aprovada pelo dono em 2026-11-17 (chat): A proposta e 900 (Perfil no Google pronto); prazo de 8 a 13 dias uteis aprovado em 2026-11-18 (chat).'), 'o arquivo não ficou para trás da tabela-rascunho');
+  assert.equal(sql, sqlDeAtivacao(json, 'aprovada pelo dono em 2026-11-21 (chat): Aprovo a proposta inteira (revisao de precos: interacao de assinatura 3500, visual exclusivo 3900, idioma adicional 950).'), 'o arquivo não ficou para trás da tabela-rascunho');
   assert.throws(() => sqlDeAtivacao(JSON.stringify({ moeda: 'BRL' }), 'x'), /Tabela inválida/);
   assert.throws(() => sqlDeAtivacao(json, "o dono's"), /aspas simples/);
   for (const ruim of ['a\\b', 'a\nb', 'a\rb', '']) assert.throws(() => sqlDeAtivacao(json, ruim), /Fontes/, JSON.stringify(ruim));
@@ -511,10 +531,10 @@ test('v4: o SQL de ativação arquiva a v3, grava a v4 como ativa e é o mesmo q
   assert.match((await erroDe(db.exec(sql)))?.msg || '', /beyon-zero não existe/, 'sem a organização, aborta');
   const ORG = '99999999-0000-4000-8000-000000000099';
   await db.query(`insert into app.organizacoes (id, slug, nome) values ($1, 'beyon-zero', 'Beyon Zero')`, [ORG]);
-  await db.query(`insert into app.regras_comerciais (org_id, versao, status, regras, aprovada_em) values ($1, 3, 'ativa', $2::jsonb, now())`, [ORG, JSON.stringify(REGRAS)]);
+  await db.query(`insert into app.regras_comerciais (org_id, versao, status, regras, aprovada_em) values ($1, 4, 'ativa', $2::jsonb, now())`, [ORG, JSON.stringify(V4)]);
   await db.exec(sql);
   assert.match((await erroDe(db.exec(sql)))?.msg || '', /já está ativa/, 'rodar de novo aborta sem gravar outra versão');
   const linhas = (await db.query(`select versao, status, regras -> 'formatos' ? 'sob_medida' as atelier, regras from app.regras_comerciais order by versao`)).rows;
-  assert.deepEqual(linhas.map(l => [l.versao, l.status, l.atelier]), [[3, 'arquivada', true], [4, 'ativa', false]]);
+  assert.deepEqual(linhas.map(l => [l.versao, l.status, l.atelier]), [[4, 'arquivada', false], [5, 'ativa', false]]);
   assert.deepEqual(validarRegras(linhas[1].regras), { ok: true }, 'o que ficou no banco passa na validação do servidor');
 });
