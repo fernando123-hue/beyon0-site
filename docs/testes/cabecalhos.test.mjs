@@ -116,8 +116,16 @@ test('formato: ≤ 100 regras e nenhuma linha acima de 2.000 caracteres', () => 
   assert.ok(REGRAS.length <= 100);
   for (const l of TEXTO.split('\n')) assert.ok(l.length <= 2000, l.slice(0, 40));
 });
+/* HSTS: o navegador que já veio uma vez nunca mais tenta http (o 301 da Cloudflare deixava a 1ª ida de cada visita em
+   texto aberto). Um ano, SEM includeSubDomains (um subdomínio futuro, de cliente ou de teste, sem certificado ficaria
+   inalcançável por um ano) e SEM preload (a lista dos navegadores é difícil de desfazer). Um valor só, em qualquer ordem. */
+const HSTS = 'max-age=31536000';
+test('HSTS de um ano em todo caminho (sem includeSubDomains e sem preload), um valor só em qualquer ordem', () => {
+  for (const c of CAMINHOS) for (const ordem of ORDENS) assert.equal(cabecalhosPara(REGRAS, c, { ordem }).get('strict-transport-security'), HSTS, c + ' (' + ordem + ')');
+});
 /* paridade com o vercel.json enquanto ele existir: os mesmos cabeçalhos por caminho (a regra "/api/*" fica no rotear) */
-/* (a única diferença de propósito: só o /orcamento libera o microfone ao próprio site; o vercel.json é legado e não ganha a regra) */
+/* (diferenças de propósito: só o /orcamento libera o microfone ao próprio site; o HSTS só no _headers, porque a Vercel já
+   põe o dela sozinha; o vercel.json é legado e não ganha nenhum dos dois) */
 function doVercel(caminho, trocas = {}) {
   const h = {};
   for (const regra of VERCEL) {
@@ -125,7 +133,7 @@ function doVercel(caminho, trocas = {}) {
     if (!new RegExp('^' + regra.source + '$').test(caminho)) continue;
     for (const { key, value } of regra.headers) h[key.toLowerCase()] = value;
   }
-  return { ...h, ...trocas };
+  return { ...h, 'strict-transport-security': HSTS, ...trocas };
 }
 test('paridade com o vercel.json: mesmos cabeçalhos em /, /sites, /orcamento, /painel, /condicoes, /vendor, fontes', () => {
   for (const c of ['/', '/sites', '/automacao', '/orcamento', '/painel', '/condicoes', '/privacidade', '/resumo', '/vendor/x.js', '/assets/fonts/x.woff2'])
