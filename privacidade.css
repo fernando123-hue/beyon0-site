@@ -9,7 +9,8 @@ body { font-size: 1rem; line-height: 1.7; }
 .priv h1 { font-weight: 300; font-size: clamp(2rem, 7vw, 2.8rem); line-height: 1.1; letter-spacing: -.025em; color: var(--t1); }
 .priv__data { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); color: var(--t3); margin: .8rem 0 2.2rem; }
 .priv h2 { font-weight: 400; font-size: 1.25rem; color: var(--t1); margin: 2.2rem 0 .7rem; }
-.priv p, .priv li { color: var(--t2); max-width: 64ch; }
+/* text-wrap: pretty, como os parágrafos das outras páginas (css/base.css, que esta não carrega): sem palavra sozinha na última linha ("abaixo.", "volta.") */
+.priv p, .priv li { color: var(--t2); max-width: 64ch; text-wrap: pretty; }
 .priv strong { color: var(--t1); font-weight: 600; }
 .priv ul { list-style: none; display: flex; flex-direction: column; gap: .9rem; }
 .priv li { padding-left: 1.1rem; border-left: 1px solid var(--stroke); }
