@@ -48,6 +48,32 @@ o `npm audit` das dependências de produção e, no PR para a `main`, o E2E do o
 mudança toca o anti-robô; servidor local com as chaves de TESTE da Cloudflare, ver o cabeçalho de `docs/e2e-turnstile.mjs`).
 Detalhes no `CLAUDE.md`.
 
+## A CI em paralelo (fatias da mutação e rodadas do E2E)
+
+O guarda e o gate de promoção leem dois checks **pelo nome**: "Testes (banco real, IA e pagamento simulados) e mutação" e
+"E2E do orçamento (Chromium, do 1º texto ao projeto pago)". Os dois continuam existindo como **um check só cada**, mas agora são
+**agregados** (jobs `testes` e `e2e` do `ci.yml`) que esperam o trabalho real, feito em paralelo em outros jobs:
+
+- **Mutação:** o harness (`docs/testes/mutacao.mjs`) aceita `MUTACAO_FATIA=i/N`: a fatia `i` roda as sabotagens de índice
+  `i-1, i-1+N, …` da lista (revezamento; cada sabotagem em exatamente uma fatia). O CI roda N=8 jobs "Mutação (fatia i/8)", só na
+  `main` e à mão (`workflow_dispatch`, em qualquer ramo). Fatia vazia não é erro; `MUTACAO_FATIA` malformada é.
+- **E2E:** dois jobs "E2E do orçamento – sem consultor" e "– com consultor" (uma máquina cada), só no PR e à mão.
+- **O agregado só passa se tudo passou:** roda com `if: always()` e exige `success` da suíte e do conjunto de fatias (o
+  resultado agregado de uma matriz) **e** confere cada fatia pelo nome na API do GitHub (`scripts/ci/conferir-jobs.mjs`,
+  `actions: read`): fatia faltando, repetida, pulada, cancelada ou sem conclusão reprova. Onde a mutação não é esperada
+  (PR, ramo de promoção) ela tem de estar `skipped`/`success`. No push comum o agregado do E2E fica `skipped`, como antes.
+- **Ler os checks do PR:** o agregado só **aparece** na lista (`gh pr checks`) depois que todas as partes terminam. Enquanto
+  as partes rodam, a lista mostra só elas. **Agregado ausente = pendente**, nunca "tudo verde": só vale o PR com o
+  "Testes (…) e mutação" (e, no PR, o "E2E do orçamento (Chromium…)") presentes e `pass`. O guarda de promoção já trata
+  o agregado ausente como falta (exige o check por nome) e barra também qualquer fatia pendente ou vermelha. Reexecutar:
+  reexecute **todos** os jobs, não só os que falharam (o conferidor conta cada fatia da última tentativa).
+- **Nenhum passo dos jobs de trabalho tem `if:`** (o teste confere): um passo pulado deixaria o job verde sem ter testado nada.
+- **Mais fatias:** troque a lista `fatia: ['1/8', …]` do job `mutacao` **e** `MUTACAO_FATIAS` do job `testes` para o mesmo N
+  (nada mais). `docs/testes/ci-paralela.test.mjs` falha se as duas não baterem ou se a lista não for `1/N..N/N`. Escolha N
+  para a fatia ficar em ~8-10 min (≈ 8-15 s por sabotagem).
+- Provas na CI de verdade (sabotagem não pega, fatia pulada, rodada do E2E quebrada deixando o agregado vermelho): PR de
+  implantação desta mudança.
+
 ## Como se publica (a barreira)
 
 Desde a migração para a Cloudflare (PR C; plano em `docs/superpowers/plans/2026-10-21-migracao-cloudflare.md`, § 5.3):
