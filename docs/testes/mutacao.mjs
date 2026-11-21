@@ -191,7 +191,8 @@ export const SABOTAGENS = [
   { nome: 'cartão aceito com só Pix (o servidor)', fonte: 'api/_pagamentos/servico.mjs', testes: ['docs/testes/pagamentos.test.mjs'],
     de: "if (!(cfg.metodos || ['pix']).includes(metodo)) throw", para: "if (false) throw" },
   /* ---- a entrada (PR 3b-1): sem o percentual da proposta, nada é cobrado (a falha fechada no lugar do 50) ---- */
-  { nome: 'entrada sem percentual cobra assim mesmo', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/vendas-banco.test.mjs'],
+  /* (desde 20261119120000 a pagamentos_iniciar_tentativa mora na migration da segurança dos pagamentos) */
+  { nome: 'entrada sem percentual cobra assim mesmo', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/vendas-banco.test.mjs'],
     de: "if pr.sinal_percentual is null or pr.sinal_percentual < 1 then\n    raise exception 'proposta sem percentual de entrada'", para: "if false then\n    raise exception 'proposta sem percentual de entrada'" },
   /* ---- a entrega e o material (PR 3b-2) ---- */
   { nome: 'conferir aceita linha fora de "reservado"', arquivo: '20261023120100_pr3b2_material.sql', testes: ['docs/testes/material-banco.test.mjs'],
@@ -202,7 +203,8 @@ export const SABOTAGENS = [
     de: "or coalesce(m.autorizacao ->> 'marcada', '') <> 'true' then", para: "then" },
   { nome: 'o teto do balde ignora as reservas abertas', arquivo: '20261023120100_pr3b2_material.sql', testes: ['docs/testes/material-banco.test.mjs'],
     de: "from app.material_arquivos where status = 'reservado';", para: "from app.material_arquivos where status = 'conferido';" },
-  { nome: 'esquecer o dono da sessão na trava da entrega', arquivo: '20261023120000_pr3b2_entrega.sql', testes: ['docs/testes/material-banco.test.mjs', 'docs/testes/link-pedido-banco.test.mjs'],
+  /* (desde 20261119120000 a privado.entrega_trava mora na migration da segurança dos pagamentos) */
+  { nome: 'esquecer o dono da sessão na trava da entrega', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/material-banco.test.mjs', 'docs/testes/link-pedido-banco.test.mjs'],
     de: "c := privado.conversa_do(p_conversa, p_visitante);   -- trava 1 (de outro visitante: P0002)", para: "select * into c from app.conversas where id = p_conversa for update;" },
   { nome: 'a reconciliação apaga a reserva recente (menos de 24 h)', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/limpeza.test.mjs'],
     de: "where a.status = 'reservado' and a.created_at < now() - interval '24 hours'", para: "where a.status = 'reservado' and a.created_at < now()" },
@@ -225,8 +227,9 @@ export const SABOTAGENS = [
   { nome: '"Mandar para mim" por wa.me com o código', fonte: 'js/orcamento-entrega.js', testes: ['docs/testes/orcamento-entrega.test.mjs'],
     de: "await navigator.share({ title: 'Meu pedido na Beyon Zero', url: $('o-link-campo').value });", para: "window.open('https://wa.me/?text=' + encodeURIComponent($('o-link-campo').value));" },
   /* ---- as correções da revisão do plano ---- */
-  { nome: 'o sinal estornado ainda conta como pago (M3: o cliente que desistiu segue enviando e abrindo links)', arquivo: '20261023120000_pr3b2_entrega.sql', testes: ['docs/testes/material-banco.test.mjs', 'docs/testes/link-pedido-banco.test.mjs'],
-    de: "where proposta_id = p_proposta and parcela = 'sinal' and status = 'pago');", para: "where proposta_id = p_proposta and parcela = 'sinal' and status in ('pago', 'estornado'));" },
+  /* (desde 20261119120000 a privado.sinal_pago é a "entrada quitada" da migration da segurança dos pagamentos: a sabotagem devolve o estornado como pago ali) */
+  { nome: 'o sinal estornado ainda conta como pago (M3: o cliente que desistiu segue enviando e abrindo links)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/material-banco.test.mjs', 'docs/testes/link-pedido-banco.test.mjs'],
+    de: "  select privado.parcela_quitada(p_proposta, 'sinal');", para: "  select privado.parcela_quitada(p_proposta, 'sinal') or exists (select 1 from app.pagamentos where proposta_id = p_proposta and parcela = 'sinal' and status = 'estornado');" },
   { nome: '"Sair deste aparelho" só esquece no navegador (logout local, M1)', fonte: 'api/_vendas/visitante.mjs', testes: ['docs/testes/link-pedido-api.test.mjs'],
     de: "/auth/v1/logout?scope=global', { method: 'POST', headers: { apikey: cfg.publica", para: "/auth/v1/logout?scope=local', { method: 'POST', headers: { apikey: cfg.publica" },
   { nome: 'o interruptor da entrega sempre ligado (M5)', fonte: 'api/_material/interruptor.mjs', testes: ['docs/testes/interruptor.test.mjs'],
@@ -268,19 +271,23 @@ export const SABOTAGENS = [
   { nome: 'a função aceita o contato do site sem a versão da autorização', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-banco.test.mjs'],
     de: "or ((v_whats is not null or v_email is not null) and (v_versao is null or char_length(v_versao) > 20)) then", para: 'or false then' },
   /* ---- a aprovação e o prazo do cliente (fix wave final): a corrida e a chave estranha ---- */
-  { nome: 'aprovar sem conferir a versão que a tela viu', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-banco.test.mjs'],
+  /* (desde 20261119120000 a vendas_previa_aprovar mora na migration da segurança dos pagamentos; desde 20/11 ela filtra as chaves do prazo por
+     jsonb_each, sem o jsonb_strip_nulls: a regra das duas chaves continua, com outro texto) */
+  { nome: 'aprovar sem conferir a versão que a tela viu', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-banco.test.mjs'],
     de: "if e.updated_at is distinct from v_versao_vista then raise exception 'a prévia mudou' using errcode = '40001'; end if;", para: '' },
   { nome: 'a lista de ajustes aceita qualquer chave do prazo do servidor', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-banco.test.mjs'],
     de: "rodadas_usadas = rodadas_usadas + 1, prazo = prazo || jsonb_strip_nulls(jsonb_build_object('conta_desde', p -> 'prazo' -> 'conta_desde', 'pausas', p -> 'prazo' -> 'pausas')),", para: "rodadas_usadas = rodadas_usadas + 1, prazo = prazo || (p -> 'prazo')," },
-  { nome: 'aprovar aceita qualquer chave do prazo do servidor', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-banco.test.mjs'],
-    de: "aprovada_em = v_agora, prazo = prazo || jsonb_strip_nulls(jsonb_build_object('conta_desde', p -> 'prazo' -> 'conta_desde', 'pausas', p -> 'prazo' -> 'pausas')),", para: "aprovada_em = v_agora, prazo = prazo || (p -> 'prazo')," },
+  { nome: 'aprovar aceita qualquer chave do prazo do servidor', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-banco.test.mjs'],
+    de: "aprovada_em = v_agora, prazo = prazo || (select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) from jsonb_each(p -> 'prazo') as t(k, v) where k in ('conta_desde', 'pausas')),", para: "aprovada_em = v_agora, prazo = prazo || (p -> 'prazo')," },
   /* ---- A1 (revisão de 22/10): o aviso de material parado só vale a partir do dia 30 ---- */
   { nome: 'o aviso de material parado sai antes do dia 30', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "if v_dias < 30 then return jsonb_build_object('ok', false, 'dias', v_dias, 'motivo', 'cedo'); end if;", para: 'null;' },
   /* ---- 22/10: o restante em 3 dias, nada de encerrar por falta de material, o aviso "no ar" é a data de partida ---- */
-  { nome: 'o site sai do ar antes do fim do 3º dia do aviso', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+  /* (desde 20261119120000 a vendas_suspender e a vendas_encerrar moram na migration da segurança dos pagamentos; suspender continua valendo para as
+     entregas antigas, no ar antes da ordem nova de 19/11) */
+  { nome: 'o site sai do ar antes do fim do 3º dia do aviso', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "if v_dias < 4 then return jsonb_build_object('ok', false, 'motivo', 'cedo', 'dias', v_dias); end if;", para: 'null;' },
-  { nome: 'o encerrar volta a aceitar "sem_material" (encerrar por sumiço do cliente)', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+  { nome: 'o encerrar volta a aceitar "sem_material" (encerrar por sumiço do cliente)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "v_motivo not in ('desistencia', 'atraso', 'producao_manual', 'outro')", para: "v_motivo not in ('desistencia', 'atraso', 'sem_material', 'producao_manual', 'outro')" },
   { nome: 'o aviso "no ar" registrado de novo adia o prazo do cliente', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: 'coalesce(aviso_no_ar_feito_em, now())', para: 'now()' },
@@ -289,22 +296,24 @@ export const SABOTAGENS = [
     de: "or coalesce(m.autorizacao ->> 'marcada', '') <> 'true' or", para: 'or' },
   { nome: 'o aviso de material parado sai mesmo com o número autorizado (o caminho é dispensar)', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "\n      return jsonb_build_object('ok', false, 'motivo', 'dispensar');\n", para: '\n      null;\n' },
-  { nome: 'as ações do dono ficam abertas ao usuário logado', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+  /* (o grant vai no fim da migration MAIS NOVA que recria a função: a 20261119120000 refaz os privilégios da vendas_encerrar e apagava o grant da antiga) */
+  { nome: 'as ações do dono ficam abertas ao usuário logado', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     acrescentar: '\ngrant execute on function app.vendas_encerrar(jsonb) to authenticated;\n' },
   /* ---- revisão da Task 5: o Pix do restante em andamento, o que o encerrar faz, a DATA de Campo Grande e os 30 dias ---- */
-  { nome: 'encerrar com o Pix do restante em andamento', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+  { nome: 'encerrar com o Pix do restante em andamento', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "    return jsonb_build_object('ok', false, 'motivo', 'pagamento_em_andamento');\n  end if;\n  update app.pagamentos set status = 'cancelado'",
     para: "    null;\n  end if;\n  update app.pagamentos set status = 'cancelado'" },
-  { nome: 'suspender com o Pix do restante em andamento', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+  { nome: 'suspender com o Pix do restante em andamento', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "    return jsonb_build_object('ok', false, 'motivo', 'pagamento_em_andamento');\n  end if;\n  update app.entregas set passo = 'suspensa'",
     para: "    null;\n  end if;\n  update app.entregas set passo = 'suspensa'" },
-  { nome: 'encerrar deixa o saldo pendente de pé', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+  { nome: 'encerrar deixa o saldo pendente de pé', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "update app.pagamentos set status = 'cancelado' where proposta_id = e.proposta_id and parcela = 'saldo' and status = 'pendente';", para: 'null;' },
-  { nome: 'encerrar não cancela o projeto', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+  { nome: 'encerrar não cancela o projeto', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "update app.projetos set status = 'cancelado' where", para: 'update app.projetos set status = status where' },
-  { nome: 'encerrar não limita o link do pedido', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
-    de: 'perform privado.encerrar_links_do_pedido(e.conversa_id, 30);', para: 'null;' },
-  { nome: 'suspender conta 96 horas de relógio em vez da data de Campo Grande', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+  /* (na 20261119120000 a mesma linha aparece no "no ar" e na conclusão: o "de" leva o evento do encerrar) */
+  { nome: 'encerrar não limita o link do pedido', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: "perform privado.encerrar_links_do_pedido(e.conversa_id, 30);\n  perform privado.evento(e.org_id, e.conversa_id, 'entrega_encerrada'", para: "null;\n  perform privado.evento(e.org_id, e.conversa_id, 'entrega_encerrada'" },
+  { nome: 'suspender conta 96 horas de relógio em vez da data de Campo Grande', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "\n  v_dias := (now() at time zone 'America/Campo_Grande')::date - (e.aviso_no_ar_feito_em at time zone 'America/Campo_Grande')::date;",
     para: "\n  v_dias := floor(extract(epoch from (now() - e.aviso_no_ar_feito_em)) / 86400)::integer;" },
   { nome: 'os lembretes contam horas de relógio em vez da data de Campo Grande', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
@@ -329,34 +338,45 @@ export const SABOTAGENS = [
   { nome: 'o aviso de material parado fora do passo material volta a dizer "ja"', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "if e.passo <> 'material' then return jsonb_build_object('ok', false, 'motivo', 'estado'); end if;", para: "if e.passo <> 'material' then return jsonb_build_object('ok', false, 'motivo', 'ja'); end if;" },
   /* ---- o restante (PR 3b-3) ---- */
-  { nome: 'o restante abre fora do ar (qualquer passo da entrega)', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
-    de: "if not found or e.passo not in ('no_ar', 'suspensa') then", para: 'if not found then' },
-  { nome: 'o restante cobra um valor que não é o saldo (usa o total)', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+  /* (desde 20261119120000 a cobrança, o estado do pagamento, a conclusão, o gatilho do saldo e a leitura do estado moram na migration da segurança
+     dos pagamentos: sabotar a 20261024120200 não tinha efeito. A regra do passo mudou em 19/11: o restante abre com a prévia APROVADA, e com a
+     entrega antiga no ar ou suspensa; fora disso, 55000) */
+  { nome: 'o restante abre em qualquer passo da entrega (antes da prévia aprovada)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "if not found or e.passo not in ('aprovada', 'no_ar', 'suspensa') then", para: 'if not found then' },
+  { nome: 'o restante cobra um valor que não é o saldo (usa o total)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
     de: 'v_valor := pr.valor_total - v_sinal;', para: 'v_valor := pr.valor_total;' },
-  { nome: 'o restante pago não conclui a entrega', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
-    de: "update app.entregas set passo = 'concluida'", para: "update app.entregas set passo = passo" },
-  { nome: 'o restante aceita cartão no banco (B3)', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+  /* (o "de" é o da conclusão: o "no ar" da ordem nova tem um update parecido) */
+  { nome: 'o restante pago não conclui a entrega', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "update app.entregas set passo = 'concluida', concluida_em = now(), religar_pendente", para: "update app.entregas set passo = passo, concluida_em = now(), religar_pendente" },
+  { nome: 'o restante aceita cartão no banco (B3)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
     de: "if v_parcela = 'saldo' and p ->> 'metodo' <> 'pix' then", para: 'if false then' },
-  { nome: 'o estado do pagamento nunca olha o saldo', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+  { nome: 'o estado do pagamento nunca olha o saldo', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
     de: "then 'saldo' else 'sinal' end;", para: "then 'sinal' else 'sinal' end;" },
-  { nome: 'o gatilho do saldo deixa o erro derrubar o pagamento', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+  { nome: 'o gatilho do saldo deixa o erro derrubar o pagamento', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
     de: "exception when others then\n    raise warning 'entrega não concluída", para: "exception when no_data_found then\n    raise warning 'entrega não concluída" },
-  { nome: 'a leitura do estado deixa o erro da conclusão derrubar a tela', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+  { nome: 'a leitura do estado deixa o erro da conclusão derrubar a tela', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
     de: "exception when others then\n      raise warning 'conclusão pendente", para: "exception when no_data_found then\n      raise warning 'conclusão pendente" },
-  { nome: 'a conclusão refeita a cada contestação revertida (evento duplicado)', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+  { nome: 'a conclusão refeita a cada contestação revertida (evento duplicado)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
     de: "if e.passo not in ('no_ar', 'suspensa') then return false; end if;", para: 'null;' },
-  { nome: 'o restante pago com a entrega encerrada passa sem avisar a equipe', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
-    de: "and not exists (select 1 from app.entregas where proposta_id = new.proposta_id and passo = 'concluida') then", para: 'and false then' },
+  { nome: 'o restante pago com a entrega encerrada passa sem avisar a equipe', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    /* (a encerrada passa a contar como "já concluída": um "and false" no lugar deixava o Postgres pular a própria conclusão, e a sabotagem pegava mais do que dizia) */
+    de: "and not exists (select 1 from app.entregas where proposta_id = new.proposta_id and passo = 'concluida')\n", para: "and not exists (select 1 from app.entregas where proposta_id = new.proposta_id and passo in ('concluida', 'encerrada'))\n" },
   { nome: 'a tela conta os dias do aviso do ar em horas de relógio em vez da data de Campo Grande', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/restante-banco.test.mjs'],
     de: "\n                 else (now() at time zone 'America/Campo_Grande')::date - (e.aviso_no_ar_feito_em at time zone 'America/Campo_Grande')::date end;",
     para: "\n                 else floor(extract(epoch from (now() - e.aviso_no_ar_feito_em)) / 86400)::integer end;" },
-  { nome: 'o restante abre com a entrada estornada ou contestada', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
-    de: 'if not privado.sinal_pago(pr.id) then raise exception', para: 'if false then raise exception' },
-  { nome: 'o restante pago não limita o link do pedido', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
-    de: 'perform privado.encerrar_links_do_pedido(e.conversa_id, 30);', para: 'null;' },
-  { nome: 'o restante cobra com a entrega de outra proposta', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+  /* (19/11: a cobrança não confere mais o sinal_pago sozinho, e sim a entrega bloqueada inteira; a entrada estornada ou contestada é a 1ª cláusula
+     de privado.entrega_bloqueada, e é ela que a sabotagem tira) */
+  { nome: 'o restante abre com a entrada estornada ou contestada', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: '  select not privado.sinal_pago(e.proposta_id)\n      or exists', para: '  select false\n      or exists' },
+  /* (o "de" leva o evento da conclusão: a mesma linha aparece no "no ar" e no encerrar) */
+  { nome: 'o restante pago não limita o link do pedido', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "perform privado.encerrar_links_do_pedido(e.conversa_id, 30);   -- o link continua abrindo o recibo final por mais 30 dias\n  perform privado.evento(e.org_id, e.conversa_id, 'restante_pago');",
+    para: "null;\n  perform privado.evento(e.org_id, e.conversa_id, 'restante_pago');" },
+  { nome: 'o restante cobra com a entrega de outra proposta', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
     de: 'if e.proposta_id <> pr.id then raise exception', para: 'if false then raise exception' },
-  { nome: 'o restante pago com o projeto pausado passa sem avisar a equipe', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+  /* (19/11: o projeto PAUSADO bloqueia a entrega e a conclusão sai antes, com o rastro da entrega bloqueada; essa regra é presa por "(R2) o
+     restante pago conclui a entrega bloqueada". Este rastro ficou para o projeto fora de produção que NÃO bloqueia: o pedido sem projeto) */
+  { nome: 'o restante pago com o projeto fora de produção (sem projeto) passa sem avisar a equipe', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/restante-banco.test.mjs'],
     de: "if not found and not exists (select 1 from app.projetos where id = v_projeto and status = 'entregue') then", para: 'if false then' },
   /* ---- 3b-3 Task 7: a API do cliente (prévia e restante) ---- */
   { nome: 'a API aceita o telefone ou o e-mail do site sem a autorização de uso', fonte: 'api/_vendas/fluxo-previa.mjs', testes: ['docs/testes/previa-api.test.mjs'],
@@ -393,8 +413,8 @@ export const SABOTAGENS = [
   /* ---- a API do dono (PR 3b-3b, Task 8): o que SÓ o JS protege, ou onde o JS dá a frase certa ao dono ---- */
   { nome: 'o prazo vencido deixa publicar a prévia (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
     de: "const atrasoPrevia = barrarPeloPrazo(info, t.agora, 'mostrar a prévia'); if (atrasoPrevia) return atrasoPrevia;", para: '/* (sabotado: a prévia sai com o prazo vencido) */' },
-  { nome: 'o prazo vencido deixa pôr o site no ar (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
-    de: "const atrasoSite = barrarPeloPrazo(info, t.agora, 'publicar o site'); if (atrasoSite) return atrasoSite;", para: '/* (sabotado: o site sai com o prazo vencido) */' },
+  /* ("o prazo vencido deixa pôr o site no ar" saiu em 20/11: o prazo PARA na aprovação da prévia e o "no ar" não confere prazo, decisão do
+     dono; a regra nova é presa pela sabotagem "(A) o \"no ar\" volta a recusar por prazo vencido depois da aprovação", mais abaixo) */
   { nome: 'o dispensar devolve a data de agora no lugar da marcação real da caixa (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
     de: "marcada_em: (info.material && info.material.autorizacao && info.material.autorizacao.marcada_em) || null", para: 'marcada_em: t.iso' },
   { nome: 'o prazo com data ilegível passa por legível (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
@@ -406,11 +426,12 @@ export const SABOTAGENS = [
   { nome: 'dispensar o material sem conferir o número autorizado, no JS (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
     de: 'const falta = ESQ.faltas(info.material);', para: 'const falta = [];' },
   /* ---- a rotina diária (Task 9): a lista de ajustes, o prazo sem dias, o passo (D5) ---- */
-  { nome: 'a rotina diária apaga a lista de ajustes que ainda está na fila', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/rotina-entregas.test.mjs'],
+  /* (desde 20261119120000 a rotinas_entregas e a rotinas_conferir moram na migration da segurança dos pagamentos: sabotar a 20261024120300 não tinha efeito) */
+  { nome: 'a rotina diária apaga a lista de ajustes que ainda está na fila', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/rotina-entregas.test.mjs'],
     de: "where e.id = a.entrega_id and e.updated_at < now() - interval '30 days' and (a.status = 'feito' or e.passo in ('concluida', 'encerrada'))", para: "where e.id = a.entrega_id and e.updated_at < now() - interval '30 days' and true" },
-  { nome: 'a rotina apaga a lista de ajustes sem copiar a prova da autorização do contato (M1)', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/rotina-entregas.test.mjs'],
+  { nome: 'a rotina apaga a lista de ajustes sem copiar a prova da autorização do contato (M1)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/rotina-entregas.test.mjs'],
     de: "from apagadas where contato_whatsapp is not null or contato_email is not null", para: "from apagadas where false" },
-  { nome: 'a prova da autorização do contato é copiada de toda lista, mesmo sem contato (M1)', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/rotina-entregas.test.mjs'],
+  { nome: 'a prova da autorização do contato é copiada de toda lista, mesmo sem contato (M1)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/rotina-entregas.test.mjs'],
     de: "from apagadas where contato_whatsapp is not null or contato_email is not null", para: "from apagadas" },
   { nome: 'a tabela da prova do contato é aberta ao service_role (M1)', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/rotina-entregas.test.mjs'],
     acrescentar: '\ngrant select, delete on app.entrega_contato_autorizacoes to service_role;\n' },
@@ -428,7 +449,7 @@ export const SABOTAGENS = [
     de: 'if (parados >= PARADOS_DIAS_UTEIS_MAX) throw new RangeError(', para: 'if (false) throw new RangeError(' },
   { nome: 'o teto dos dias parados volta a ser de 260 (a prévia parada mais de um ano vence por engano) (B1)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo-limites.test.mjs'],
     de: 'export const PARADOS_DIAS_UTEIS_MAX = 3650;', para: 'export const PARADOS_DIAS_UTEIS_MAX = 260;' },
-  { nome: 'a rotina diária encerra o pedido parado (muda o passo, D5), dentro da função que lista as entregas', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/previa-esquema.test.mjs'],
+  { nome: 'a rotina diária encerra o pedido parado (muda o passo, D5), dentro da função que lista as entregas', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-esquema.test.mjs'],
     de: "  return jsonb_build_object('itens', v_itens, 'ajustes_apagados', v_apagados);", para: "  update app.entregas set passo = 'encerrada' where passo = 'material' and updated_at < now() - interval '400 days';\n  return jsonb_build_object('itens', v_itens, 'ajustes_apagados', v_apagados);" },
   /* ---- o material do projeto parado (decisão do dono de 22/10): 6 meses parado + aviso prévio + 30 dias; nunca com autorização completa; o cliente que volta recomeça ---- */
   { nome: 'o material parado é apagado antes dos 30 dias do aviso prévio', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/material-parado.test.mjs'],
@@ -474,9 +495,10 @@ export const SABOTAGENS = [
     de: "    and e.aviso_apagar_material_em >= privado.material_parado_desde(e)\n    and ((", para: "    and true\n    and ((" },
   { nome: 'o material que não é rascunho também é apagado pelo caminho do projeto parado', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/material-parado.test.mjs'],
     de: "    and exists (select 1 from app.materiais m where m.entrega_id = e.id and m.status = 'rascunho')\n", para: "" },
-  { nome: 'o histórico do dia grava zeros quando as entregas não foram lidas', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/rotina-entregas.test.mjs'],
-    de: "case when jsonb_typeof(p -> 'entregas') = 'object' then jsonb_build_object('prazo_vencido', v_prazo, 'material_30', v_mat, 'restante_vencido', v_resto, 'material_apagar', v_apagar) end))",
-    para: "jsonb_build_object('prazo_vencido', v_prazo, 'material_30', v_mat, 'restante_vencido', v_resto, 'material_apagar', v_apagar)))" },
+  /* (a rotinas_conferir de 20261119120000 grava também material_bloqueado e site_parado no histórico) */
+  { nome: 'o histórico do dia grava zeros quando as entregas não foram lidas', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/rotina-entregas.test.mjs'],
+    de: "case when jsonb_typeof(p -> 'entregas') = 'object' then jsonb_build_object('prazo_vencido', v_prazo, 'material_30', v_mat, 'restante_vencido', v_resto, 'material_apagar', v_apagar, 'material_bloqueado', v_bloq, 'site_parado', v_site) end))",
+    para: "jsonb_build_object('prazo_vencido', v_prazo, 'material_30', v_mat, 'restante_vencido', v_resto, 'material_apagar', v_apagar, 'material_bloqueado', v_bloq, 'site_parado', v_site)))" },
   /* ---- o comando do dono (Task 10): o que só vive no JS do terminal ---- */
   { nome: "o \"no ar\" sem pedir o código sorteado (terminal do dono)", fonte: "scripts/entregas-lib.mjs", testes: ['docs/testes/entregas-dono-previa.test.mjs'],
     de: "  if (!(await pedirConfirmacao(perguntar, gerar, 'pôr o site no ar e concluir o pedido'))) throw new Error('Não confirmado: nada foi feito.');\n", para: "  /* (confirmação removida) */\n" },
@@ -504,8 +526,10 @@ export const SABOTAGENS = [
     de: " && it.prazo && Number.isInteger(it.prazo_dias)) {", para: " && it.prazo) {" },
   { nome: "o terminal sai com sucesso quando o painel recusa (terminal do dono)", fonte: "scripts/entregas.mjs", testes: ['docs/testes/entregas-dono-previa.test.mjs'],
     de: "(chave ? frase.split(chave).join('[chave]') : frase));\n    return 1;", para: "(chave ? frase.split(chave).join('[chave]') : frase));\n    return 0;" },
-  { nome: "a lista do painel esconde que o aviso prévio do apagamento é devido", arquivo: "20261024120400_pr3b3_lista.sql", testes: ['docs/testes/lista-material-banco.test.mjs'],
-    de: "'apagar_material_devido', privado.material_apagar_devido(e),", para: "'apagar_material_devido', false," },
+  /* (desde 20261119120000 a vendas_entregas_lista mora na migration da segurança dos pagamentos; o "de" leva a linha de baixo porque a rotinas_entregas
+     de lá tem o mesmo campo) */
+  { nome: "a lista do painel esconde que o aviso prévio do apagamento é devido", arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/lista-material-banco.test.mjs'],
+    de: "'apagar_material_devido', privado.material_apagar_devido(e),\n      'dias_do_aviso'", para: "'apagar_material_devido', false,\n      'dias_do_aviso'" },
   /* ---- 3b-3c: o painel do dono, a tela da prévia, o restante só por Pix, o verificador do "antes de ligar" e o servidor local ---- */
   { nome: "o botão da mensagem pronta volta a montar ?text= (o link de retomada iria para o endereço de terceiro) (3b-3c)", fonte: "js/painel-pedido-comum.js", testes: ['docs/testes/painel-aviso.test.mjs'],
     de: "a.href = 'https://wa.me/' + digitos;", para: "a.href = 'https://wa.me/' + digitos + '?text=' + encodeURIComponent(msg.value);" },
@@ -586,13 +610,15 @@ export const SABOTAGENS = [
   { nome: "o servidor local liga a entrega mesmo com BZ_ENTREGA_LOCAL=desligada (3b-3c)", fonte: "docs/servidor.mjs", testes: ['docs/testes/interruptor.test.mjs'],
     de: "if (process.env.BZ_ENTREGA_LOCAL !== 'desligada') process.env.BZ_ENTREGA = 'ligada';", para: "process.env.BZ_ENTREGA = 'ligada';" },
   /* ---- 28/10: o aviso \"no ar\" só vale com o site no ar, e a fila de avisos traz o passo da entrega ---- */
-  { nome: "o aviso \"no ar\" da suspensa volta à fila (oferece \"O seu site está no ar!\" com o site fora do ar)", arquivo: '20261028120000_aviso_no_ar_so_no_ar.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
-    de: "e.aviso_no_ar_desde is not null and e.passo = 'no_ar'", para: "e.aviso_no_ar_desde is not null and e.passo in ('no_ar', 'suspensa')" },
-  { nome: "o aviso \"no ar\" da encerrada e da concluída volta à fila", arquivo: '20261028120000_aviso_no_ar_so_no_ar.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
-    de: "e.aviso_no_ar_desde is not null and e.passo = 'no_ar'", para: "e.aviso_no_ar_desde is not null" },
-  { nome: "a fila de avisos deixa de trazer o passo da entrega", arquivo: '20261028120000_aviso_no_ar_so_no_ar.sql', testes: ['docs/testes/previa-dono-banco.test.mjs', 'docs/testes/previa-painel.test.mjs'],
+  /* (desde 20261119120000 a vendas_avisos_lista mora na migration da segurança dos pagamentos, e o aviso "no ar" vale também na CONCLUÍDA da ordem
+     nova, que conclui ao pôr no ar; a concluída pelo caminho antigo, que espera religar, não. Suspensa e encerrada continuam fora) */
+  { nome: "o aviso \"no ar\" da suspensa volta à fila (oferece \"O seu site está no ar!\" com o site fora do ar)", arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: "and (e.passo = 'no_ar' or (e.passo = 'concluida'", para: "and (e.passo in ('no_ar', 'suspensa') or (e.passo = 'concluida'" },
+  { nome: "o aviso \"no ar\" da encerrada e da concluída que espera religar volta à fila", arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: "and (e.passo = 'no_ar' or (e.passo = 'concluida' and not e.religar_pendente)) and e.site_url is not null", para: "and e.site_url is not null" },
+  { nome: "a fila de avisos deixa de trazer o passo da entrega", arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs', 'docs/testes/previa-painel.test.mjs'],
     de: "'momento', x.momento, 'passo', x.passo, 'desde'", para: "'momento', x.momento, 'desde'" },
-  { nome: "a fila de avisos abre a função para o anon (privilégio da nova versão)", arquivo: '20261028120000_aviso_no_ar_so_no_ar.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+  { nome: "a fila de avisos abre a função para o anon (privilégio da nova versão)", arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     acrescentar: '\ngrant execute on function app.vendas_avisos_lista(jsonb) to anon;\n' },
   { nome: "o painel oferece o aviso \"no ar\" mesmo com a entrega fora do ar (segunda trava)", fonte: "js/painel-entregas.js", testes: ['docs/testes/painel-entregas.test.mjs'],
     de: "if (a.momento === 'no_ar' && a.passo !== 'no_ar' && a.passo !== 'concluida') return null;", para: "/* sem a segunda trava */" },
@@ -832,8 +858,10 @@ export const SABOTAGENS = [
     de: "e.concluida_em > now() - interval '30 days'))", para: "e.concluida_em > now() - interval '30 years'))" },
   { nome: '(E) o restante pago com a entrega bloqueada não alerta ninguém', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/seguranca-pagamentos-banco.test.mjs'],
     de: "then 'restante_pago_bloqueada'", para: 'then null' },
-  { nome: '(E) o restante pago com a entrega bloqueada não deixa rastro para a rotina diária', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/seguranca-pagamentos-banco.test.mjs'],
-    de: "if v_evento = 'restante_pago_bloqueada' then", para: 'if false then' },
+  /* (a 2ª revisão do PR 196 tirou o rastro de dentro do "if v_evento = 'restante_pago_bloqueada'" e o pôs antes do alerta: o "não grava" é
+     preso por "(R2) o rastro do restante pago bloqueado não é gravado antes do alerta"; esta prende o "UMA vez" do mesmo rastro) */
+  { nome: '(E) o restante pago com a entrega bloqueada deixa um rastro a cada aviso repetido (não uma vez só)', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/seguranca-pagamentos-banco.test.mjs'],
+    de: "      perform privado.auditar_uma_vez(pg.org_id, pg.id, null, 'project.error', 'sistema', v_order, 'operacao', null, null,", para: "      perform privado.auditar_pagamento(pg.org_id, pg.id, null, 'project.error', 'sistema', v_order, 'operacao', null, null," },
   { nome: '(H) o alerta do restante estornado diz que foi a entrada', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/seguranca-pagamentos-banco.test.mjs'],
     de: "'parcela', case when pg.parcela = 'sinal' then 'entrada' else 'restante' end", para: "'parcela', 'entrada'" },
   { nome: '(F) a leitura do cliente não diz se a parcela está quitada', arquivo: '20261119120000_seguranca_pagamentos.sql', testes: ['docs/testes/seguranca-pagamentos-banco.test.mjs'],
@@ -996,6 +1024,70 @@ export function problemasNaPartida(sabotagens, raiz = RAIZ, limpo = gitLimpo) {
     const texto = fs.readFileSync(path.join(raiz, s.fonte), 'utf8').replace(/\r\n/g, '\n');
     if (texto.includes(s.para) && !texto.includes(s.de)) problemas.push(s.fonte + ' já está sabotado ("' + s.para + '"): restaure com git checkout -- ' + s.fonte);
     else if (limpo(s.fonte) === false) problemas.push(s.fonte + ' tem mudança fora do git: faça o commit (ou desfaça) antes de rodar a mutação');
+  }
+  return problemas;
+}
+
+/* a sabotagem acerta o código que VALE hoje? (PR 196: a migration nova recriou com create or replace várias funções de migrations
+   anteriores, e 37 sabotagens continuaram mexendo na versão antiga, que já não roda; como o PR não roda a mutação, elas só ESCAPARAM
+   na main). Sem rodar teste nenhum, e por isso cabe na suíte do PR: (1) o "de" existe no arquivo alvo (senão: NÃO APLICADA);
+   (2) numa migration, o "de" cai no corpo de uma função que nenhuma migration mais nova recria (o rename leva o corpo junto:
+   "alter function x rename to y" deixa a versão antiga viva como y); (3) o "acrescentar" que mexe no privilégio de uma função fica
+   na ÚLTIMA migration que recria a função ou refaz os privilégios dela (senão a mais nova apaga o grant). Por nome de função, sem
+   olhar a assinatura: hoje não há sobrecarga com o mesmo nome; se aparecer uma, a conferência acusa a mais (nunca a menos) */
+/* o comentário de linha (-- até o fim) vira espaço do MESMO tamanho: as posições não mudam, mas um comentário que cita
+   "create or replace function x" ou "revoke … on function x" deixa de contar como se recriasse x (revisão técnica do #213) */
+const semComentarios = sql => sql.replace(/--[^\n]*/g, c => ' '.repeat(c.length));
+const RE_FUNCAO = /\bcreate\s+(?:or\s+replace\s+)?function\s+([\w.]+)\s*\(|\balter\s+function\s+([\w.]+)\s*\([^)]*\)\s+rename\s+to\s+(\w+)/gi;
+function funcoesDasMigrations(dir) {
+  const arquivos = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
+  const textos = new Map(arquivos.map(f => [f, fs.readFileSync(path.join(dir, f), 'utf8').replace(/\r\n/g, '\n')]));
+  const codigos = new Map(arquivos.map(f => [f, semComentarios(textos.get(f))]));
+  const corpos = new Map();   /* arquivo -> [{ id, ini, fim }]: onde fica o corpo ($$ … $$) de cada função criada ali */
+  const vale = new Map();     /* nome -> id do corpo que vale para esse nome depois de todas as migrations */
+  for (const f of arquivos) {
+    const t = codigos.get(f);
+    const lista = [];
+    for (const m of t.matchAll(RE_FUNCAO)) {
+      if (m[1]) {
+        const ini = t.indexOf('$$', m.index);
+        const id = f + '#' + m.index;
+        lista.push({ id, ini, fim: ini < 0 ? -1 : t.indexOf('$$', ini + 2) });
+        vale.set(m[1].toLowerCase(), id);
+      } else {
+        const velho = m[2].toLowerCase();
+        const novo = velho.split('.').slice(0, -1).concat(m[3].toLowerCase()).join('.');
+        if (vale.has(velho)) { vale.set(novo, vale.get(velho)); vale.delete(velho); }
+      }
+    }
+    corpos.set(f, lista);
+  }
+  return { arquivos, textos, codigos, corpos, vivos: new Set(vale.values()) };
+}
+export function alvosVencidos(sabotagens = SABOTAGENS, dir = ORIGEM, raiz = RAIZ) {
+  const { arquivos, textos, codigos, corpos, vivos } = funcoesDasMigrations(dir);
+  const problemas = [];
+  for (const s of sabotagens) {
+    if (s.fonte) {
+      if (!fs.readFileSync(path.join(raiz, s.fonte), 'utf8').replace(/\r\n/g, '\n').includes(s.de)) problemas.push('NÃO APLICADA: ' + s.nome + ' (o "de" não está em ' + s.fonte + ')');
+      continue;
+    }
+    const t = textos.get(s.arquivo);
+    if (t === undefined) { problemas.push('SEM ARQUIVO: ' + s.nome + ' (' + s.arquivo + ')'); continue; }
+    if (s.acrescentar) {
+      const depois = arquivos.filter(f => f > s.arquivo);
+      for (const m of s.acrescentar.matchAll(/\bon\s+function\s+([\w.]+)\s*\(/gi)) {
+        const nome = m[1].replace(/\./g, '\\.');
+        const mexe = new RegExp('(create\\s+(or\\s+replace\\s+)?function|revoke[^;]*\\bon\\s+function)\\s+' + nome + '\\s*\\(|\'' + nome.split('\\.').pop() + '\'', 'i');
+        const outra = depois.find(f => mexe.test(codigos.get(f)));
+        if (outra) problemas.push('VERSÃO VELHA: ' + s.nome + ' (' + m[1] + ' é recriada ou tem os privilégios refeitos em ' + outra + ': acrescente lá)');
+      }
+      continue;
+    }
+    const i = t.indexOf(s.de);
+    if (i < 0) { problemas.push('NÃO APLICADA: ' + s.nome + ' (o "de" não está em ' + s.arquivo + ')'); continue; }
+    const corpo = corpos.get(s.arquivo).find(c => c.ini >= 0 && c.ini < i && i < c.fim);
+    if (corpo && !vivos.has(corpo.id)) problemas.push('VERSÃO VELHA: ' + s.nome + ' (a função onde cai o "de", em ' + s.arquivo + ', foi recriada por uma migration mais nova)');
   }
   return problemas;
 }
