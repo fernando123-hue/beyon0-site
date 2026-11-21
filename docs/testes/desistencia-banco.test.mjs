@@ -325,11 +325,11 @@ test('com a desistência pedida (ou a entrada devolvida) NENHUMA cobrança nova 
 test('desistencia_restante: lista os Pix do restante abertos e diz se o restante foi pago (a conferência de ANTES de estornar)', async () => {
   const sem = await entregaEm(db, 'aprovada');
   const { desistencia_id: idSem } = await preparar(sem);
-  assert.deepEqual(await rpc('desistencia_restante', { desistencia_id: idSem }), { restante_pago: false, abertas: [] });
+  assert.deepEqual(await rpc('desistencia_restante', { desistencia_id: idSem }), { criando: false, restante_pago: false, abertas: [] });
   const c = await entregaEm(db, 'aprovada');
   const { t, order } = await iniciarRestante(db, c);
   const { desistencia_id } = await preparar(c);
-  assert.deepEqual(await rpc('desistencia_restante', { desistencia_id }), { restante_pago: false, abertas: [{ tentativa_id: t.tentativa_id, order }] });
+  assert.deepEqual(await rpc('desistencia_restante', { desistencia_id }), { criando: false, restante_pago: false, abertas: [{ tentativa_id: t.tentativa_id, order }] });
   await aprovarRestante(db, { t, order });
   assert.equal((await rpc('desistencia_restante', { desistencia_id })).restante_pago, true);
 });
@@ -357,4 +357,28 @@ test('a marca "liberada" só solta a trava da pedida (nada mais anda)', async ()
   assert.equal((await linhaDe(c)).iniciada_em, null); assert.equal((await linhaDe(c)).status, 'pedida');
   await marcar(id, 'estornada');
   assert.equal((await erroDe(marcar(id, 'liberada'))).codigo, '55000');
+});
+
+test('desistencia_restante: uma tentativa do restante recém-criada, sem order ainda, vale como "criando" (o Pix pode nascer: o servidor não estorna agora)', async () => {
+  const c = await entregaEm(db, 'aprovada');
+  await rpc('pagamentos_iniciar_tentativa', { ...base(c), metodo: 'pix', provedor: 'mercadopago' });   /* (sem vincular a order, como na criação que ainda não voltou) */
+  const { desistencia_id } = await preparar(c);
+  assert.deepEqual(await rpc('desistencia_restante', { desistencia_id }), { criando: true, restante_pago: false, abertas: [] });
+});
+
+test('a cobrança do restante envolta confere o dono da conversa ANTES de olhar a desistência: de outro visitante é P0002 (nada vaza), e só então a frase de bloqueio', async () => {
+  const a = await entregaEm(db, 'aprovada'), b = await entregaEm(db, 'aprovada');
+  await preparar(a);
+  const alheio = await erroDe(rpc('pagamentos_iniciar_tentativa', { conversa_id: a.conversa_id, visitante_id: b.visitante_id, metodo: 'pix', provedor: 'mercadopago' }));
+  assert.equal(alheio.codigo, 'P0002');
+  const dono = await erroDe(rpc('pagamentos_iniciar_tentativa', { ...base(a), metodo: 'pix', provedor: 'mercadopago' }));
+  assert.equal(dono.codigo, '55000');
+});
+
+test('desistencia_pendentes: as estornadas (só faltam encerrar) passam à frente das pedidas que só ficam em liberada', async () => {
+  const antigas = [];
+  for (let i = 0; i < 3; i++) { const p = await entregaEm(db, 'producao'); await preparar(p); await recuarPedida(p, (60 + i) + ' minutes'); antigas.push(p); }
+  const e = await entregaEm(db, 'producao'); const x = await preparar(e); await marcar(x.desistencia_id, 'estornada'); await recuarPedida(e, '12 minutes');
+  const ids = (await rpc('desistencia_pendentes', {})).itens.map(i => i.desistencia_id);
+  assert.ok(ids.includes(x.desistencia_id), 'a estornada mais nova entra apesar de 3 pedidas mais antigas');
 });

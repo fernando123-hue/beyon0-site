@@ -244,3 +244,15 @@ test('tela: depois de um erro o foco volta ao botão de confirmar; com o servido
   botoes(m.raiz.querySelector('.orc-desiste__painel')).find(b => b.textContent === 'Voltar').clicar();
   assert.equal(link.getAttribute('aria-controls'), null);
 });
+
+test('a frase "estamos confirmando" some quando o pedido passa a encerrado (não fica ao lado do "Pedido cancelado")', async () => {
+  const m = montar({ desistir: async () => ({ ok: true, encerrado: false, aguardando: true, mensagem: 'Recebemos o seu cancelamento e estamos confirmando com o Mercado Pago. Você não precisa fazer mais nada.' }) });
+  m.tela.atualizar(E());
+  botoes(m.raiz)[0].clicar();
+  m.doc.getElementById('o-desiste-confirmar').clicar();
+  await tique(); await tique(); await tique();
+  assert.match(m.raiz.textContent, /estamos confirmando/);
+  m.tela.atualizar({ conversa: { etapa: 'encerrada' }, entrega: { passo: 'encerrada', desistiu: true } });
+  assert.equal(m.raiz.hidden, true); assert.equal(m.raiz.textContent, '');
+  assert.equal(m.titulo.textContent, 'Pedido cancelado');
+});

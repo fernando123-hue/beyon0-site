@@ -995,8 +995,14 @@ export const SABOTAGENS = [
     de: "if (order.falhou || conferir(order, prep) !== 'estornada') { await marcar(prep, 'liberada'); continue; }", para: '/* sabotagem D7 reconciliacao */' },
   { nome: '(D7) com a desistência pedida o banco ainda abre cobrança nova do restante', arquivo: '20261120120000_desistencia_cliente.sql', testes: ['docs/testes/desistencia-banco.test.mjs', 'docs/testes/desistencia.test.mjs'],
     de: "raise exception 'a entrega está bloqueada: a desistência do cliente está em andamento' using errcode = '55000';", para: 'null;' },
-  { nome: '(D7) order "estornada" sem o estorno do mesmo valor na lista conta como devolvida', fonte: 'api/_pagamentos/desistencia.mjs', testes: ['docs/testes/desistencia.test.mjs'],
-    de: "if (r.estado === 'estornada') return r.reembolsado && centavos(r.reembolsado) === valor ? 'estornada' : 'estado';", para: "if (r.estado === 'estornada') return 'estornada';" },
+  { nome: '(D7) order "estornada" com estorno de OUTRO valor na lista conta como devolvida', fonte: 'api/_pagamentos/desistencia.mjs', testes: ['docs/testes/desistencia.test.mjs'],
+    de: "if (r.estado === 'estornada') return !r.reembolsado || centavos(r.reembolsado) === valor ? 'estornada' : 'estado';", para: "if (r.estado === 'estornada') return 'estornada';" },
+  { nome: '(D8) o encerramento que perde a corrida dispara o alerta de "não encerrou"', fonte: 'api/_pagamentos/desistencia.mjs', testes: ['docs/testes/desistencia.test.mjs'],
+    de: "if (e && e.codigo === '55000') {", para: 'if (false) {' },
+  { nome: '(D8) a tentativa do restante recém-criada (sem order) não impede o estorno da entrada', fonte: 'api/_pagamentos/desistencia.mjs', testes: ['docs/testes/desistencia.test.mjs'],
+    de: "if (antes.criando) return 'restante_criando';", para: '/* sabotagem D8 criando */' },
+  { nome: '(D8) a cobrança do restante envolta não confere o dono da conversa antes de olhar a desistência', arquivo: '20261120120000_desistencia_cliente.sql', testes: ['docs/testes/desistencia-banco.test.mjs'],
+    de: "perform privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);\n  if exists (select 1 from app.desistencias d", para: 'if exists (select 1 from app.desistencias d' },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não

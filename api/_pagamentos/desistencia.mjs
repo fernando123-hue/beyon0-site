@@ -48,7 +48,7 @@ export function criarDesistencia({ banco, mp, cfg, nucleo }) {
     if (r.external_reference !== prep.tentativa_id) return 'referencia';
     if (centavos(r.total_amount) !== valor || centavos(r.pagamento.amount) !== valor) return 'valor';
     if (r.currency && r.currency !== 'BRL') return 'moeda';
-    if (r.estado === 'estornada') return r.reembolsado && centavos(r.reembolsado) === valor ? 'estornada' : 'estado';
+    if (r.estado === 'estornada') return !r.reembolsado || centavos(r.reembolsado) === valor ? 'estornada' : 'estado';   /* (refunded é o estorno TOTAL do provedor; se a lista de estornos vem, o valor tem de ser o da entrada) */
     if (r.estado === 'aprovada' && !r.reembolsado && centavos(r.pagamento.paid_amount) === valor) return 'ok';
     return 'estado';
   }
@@ -73,6 +73,7 @@ export function criarDesistencia({ banco, mp, cfg, nucleo }) {
   async function restanteLivre(prep) {
     const antes = await banco('desistencia_restante', { desistencia_id: prep.desistencia_id });
     if (antes.restante_pago) return 'restante_pago';
+    if (antes.criando) return 'restante_criando';
     if (!Array.isArray(antes.abertas) || !antes.abertas.length) return null;
     await cancelarPixDoRestante(antes.abertas);
     const depois = await banco('desistencia_restante', { desistencia_id: prep.desistencia_id });
@@ -112,7 +113,12 @@ export function criarDesistencia({ banco, mp, cfg, nucleo }) {
   async function encerrar(prep) {
     let r = null;
     try { r = await banco('vendas_encerrar', { org_slug: ORG, codigo: prep.codigo, motivo: 'desistencia' }); }
-    catch (e) { if (e instanceof SemOrcamento) throw e; console.error('[desistencia] o pedido não encerrou:', (e && e.codigo) || 'erro'); }
+    catch (e) {
+      if (e instanceof SemOrcamento) throw e;
+      /* 55000: o passo já não é o de antes, ou seja, o pedido já foi encerrado por outra chamada (o duplo toque, a reconciliação) ou pelo dono: está feito, sem alarme */
+      if (e && e.codigo === '55000') { await marcar(prep, 'concluida').catch(() => {}); return { ok: true, encerrado: true }; }
+      console.error('[desistencia] o pedido não encerrou:', (e && e.codigo) || 'erro');
+    }
     if (r && r.ok === true) { await marcar(prep, 'concluida'); return { ok: true, encerrado: true }; }
     await avisarDono({ codigo: prep.codigo, evento: 'desistencia_nao_encerrada', parcela: 'entrada' });
     return { ok: true, encerrado: false };

@@ -319,11 +319,12 @@ test('o dono já tinha estornado a entrada à mão (com o estorno do mesmo valor
   assert.equal(await doBanco(c, 'passo'), 'encerrada');
 });
 
-test('order "estornada" SEM o estorno do mesmo valor na lista (ou parcial): nada é encerrado como desistência; o estado entra no banco e o dono é avisado', async () => {
+test('order "estornada" com a lista de estornos de OUTRO valor (parcial): nada é encerrado como desistência; o estado entra no banco e o dono é avisado', async () => {
   const { servico, avisos } = servicoCom();
   const { n, c } = await pedido({ pagamentos: servico });
   const e = await entradaDe(c);
-  sim.estornar(e.ord);   /* (o simulador não põe a lista de estornos aqui) */
+  sim.estornar(e.ord);
+  sim.editar(e.ord, o => { o.transactions.refunds = [{ id: 'REFPARCIAL1', amount: '1.00', status: 'processed' }]; });
   const r = await desistir(n, c);
   assert.equal(r.status, 503, JSON.stringify(r.corpo));
   assert.equal(refundsDe(e.ord).length, 0);
@@ -490,4 +491,35 @@ test('os três avisos novos ao dono: texto fixo, só o código do pedido; "desis
   assert.match(c, /URGENTE/); assert.match(c, /encerr/i);
   for (const t of [a, b, c]) assert.ok(!/[\r\n]|R\$|@|\+55/.test(t), t);
   assert.ok(!/BZ-ACDEF\r\n/.test(textoDoAvisoDePagamento({ codigo: 'BZ-ACDEF\r\nBcc: x@y.com', evento: 'desistencia', parcela: 'entrada' })));
+});
+
+test('order "estornada" sem a lista de estornos (o formato do provedor pode não trazê-la): refunded é o estorno total; nenhum novo estorno e o pedido encerra', async () => {
+  const { servico } = servicoCom();
+  const { n, c } = await pedido({ pagamentos: servico });
+  const e = await entradaDe(c);
+  sim.estornar(e.ord);
+  const r = await desistir(n, c);
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  assert.equal(refundsDe(e.ord).length, 0); assert.equal(await doBanco(c, 'passo'), 'encerrada');
+});
+
+test('o encerramento que perde a corrida (o pedido já foi encerrado por outra chamada ou pelo dono) NÃO dispara o alerta de "não encerrou": a desistência fica concluída', async () => {
+  const banco = async (nome, p) => { if (nome === 'vendas_encerrar') { const e = new Error('passo atual (encerrada) não permite esta ação'); e.codigo = '55000'; throw e; } return local.rpc(nome, p); };
+  const { servico, avisos } = servicoCom({ banco });
+  const { n, c } = await pedido({ pagamentos: servico });
+  const r = await desistir(n, c);
+  assert.equal(r.status, 200, JSON.stringify(r.corpo)); assert.equal(r.corpo.encerrado, true);
+  assert.deepEqual(avisos.map(a => a.evento), ['desistencia']);
+  assert.equal((await linha(c)).status, 'concluida');
+});
+
+test('uma tentativa do restante recém-criada, sem order ainda: a entrada NÃO é devolvida agora (o Pix pode nascer depois)', async () => {
+  const { servico } = servicoCom();
+  const { n, c } = await pedido({ pagamentos: servico, passo: 'aprovada' });
+  const e = await entradaDe(c);
+  const vid = (await um('select visitante_id as v from app.conversas where id = $1', [c])).v;
+  await local.rpc('pagamentos_iniciar_tentativa', { conversa_id: c, visitante_id: vid, metodo: 'pix', provedor: 'mercadopago' });
+  const r = await desistir(n, c);
+  assert.equal(r.status, 503, JSON.stringify(r.corpo));
+  assert.equal(refundsDe(e.ord).length, 0);
 });

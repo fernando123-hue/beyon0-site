@@ -115,7 +115,7 @@
     }
     function atualizar(E) {
       fimDoPedido(E);
-      if (ocupado || recebido) return;   /* (o servidor está trabalhando, ou já recebeu o pedido: a leitura não mexe no painel) */
+      if (ocupado || (recebido && !(E && E.conversa && E.conversa.etapa === 'encerrada'))) return;   /* (o servidor está trabalhando, ou já recebeu o pedido: a leitura não mexe no painel; só o pedido encerrado o tira) */
       if (visivel(E)) { mostrarLink(); return; }
       limpar();
     }

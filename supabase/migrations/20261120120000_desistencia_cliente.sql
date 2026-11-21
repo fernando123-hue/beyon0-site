@@ -69,7 +69,6 @@ end $$;
 revoke all on function privado.desistencia_motivo(app.entregas, boolean) from public, anon, authenticated, service_role;
 
 -- ---------- decidir e reservar ----------
--- ---------- decidir e reservar ----------
 -- Uma desistência JÁ pedida (linha `pedida` depois de falha ou de queda) só é retomada pela pessoa dentro de 24 horas do pedido (privado.desistencia_retomada): o direito de
 -- 7 dias não fica aberto para sempre por causa de uma falha; passado isso, a equipe resolve à mão (o dono já recebeu `desistencia_falhou`). Depois de 3 falhas, também.
 create function app.desistencia_preparar(p jsonb) returns jsonb
@@ -152,7 +151,10 @@ begin
   select coalesce(jsonb_agg(jsonb_build_object('tentativa_id', t.id, 'order', t.provedor_order_id) order by t.created_at), '[]'::jsonb) into v_abertas
     from app.tentativas_pagamento t join app.pagamentos pg on pg.id = t.pagamento_id
    where pg.proposta_id = e.proposta_id and pg.parcela = 'saldo' and t.status in ('criada', 'aguardando', 'requer_acao', 'processando') and t.provedor_order_id is not null;
-  return jsonb_build_object('restante_pago', exists (select 1 from app.pagamentos where proposta_id = e.proposta_id and parcela = 'saldo' and status in ('pago', 'contestado', 'estornado')),
+  -- criando: uma tentativa do restante recém-criada, cuja order ainda não voltou do provedor (não há o que cancelar, mas o Pix pode nascer): o servidor não estorna agora
+  return jsonb_build_object('criando', exists (select 1 from app.tentativas_pagamento t join app.pagamentos pg on pg.id = t.pagamento_id where pg.proposta_id = e.proposta_id and pg.parcela = 'saldo'
+                              and t.status = 'criada' and t.provedor_order_id is null and t.created_at > now() - interval '5 minutes'),
+                            'restante_pago', exists (select 1 from app.pagamentos where proposta_id = e.proposta_id and parcela = 'saldo' and status in ('pago', 'contestado', 'estornado')),
                             'abertas', v_abertas);
 end $$;
 revoke all on function app.desistencia_restante(jsonb) from public, anon, authenticated;
@@ -168,7 +170,7 @@ begin
   for d in select * from app.desistencias
             where status in ('pedida', 'estornada') and (iniciada_em is null or now() - iniciada_em >= privado.desistencia_trava())
               and now() - pedida_em >= interval '10 minutes' and now() - pedida_em < interval '3 days'
-            order by pedida_em limit 3 for update skip locked loop
+            order by (status = 'estornada') desc, pedida_em limit 3 for update skip locked loop   -- (as estornadas, que só faltam encerrar, passam à frente das pedidas que podem ficar em liberada)
     select * into e from app.entregas where conversa_id = d.conversa_id;
     if not found or privado.desistencia_motivo(e, true) is not null then continue; end if;
     select codigo into v_codigo from app.pedidos where conversa_id = d.conversa_id;
@@ -232,6 +234,8 @@ revoke all on function app.pagamentos_iniciar_tentativa_196(jsonb) from public, 
 create function app.pagamentos_iniciar_tentativa(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 begin
+  -- a conversa é travada (e o dono conferido: de outro visitante, P0002 como sempre) ANTES de olhar a desistência: o `pedir o restante` e o `desistir` não correm juntos
+  perform privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
   if exists (select 1 from app.desistencias d where d.conversa_id = (p ->> 'conversa_id')::uuid and d.status in ('pedida', 'estornada')) then
     raise exception 'a entrega está bloqueada: a desistência do cliente está em andamento' using errcode = '55000';
   end if;
