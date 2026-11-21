@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { estimar, validarRegras, validarFatores, listaDoPacote } from '../../api/_vendas/precos.mjs';
+import { estimar, validarRegras, validarFatores, listaDoPacote, valorDoPacoteCompleto, PACOTE_COMPLETO } from '../../api/_vendas/precos.mjs';
 import { comArea } from './_area-v2.mjs';
 import { comFases } from './_motor-fases.mjs';
 import { comFora } from './_fora-do-automatico.mjs';
@@ -514,6 +514,25 @@ test('v5: o institucional com tudo o que é obra de arte (o pacote completo da r
   /* 7900 + 3900 + 900 + 3500 + 5 × 350 = 17950 */
   assert.equal(completo.valor_total, 17950);
   assert.equal(estimar({ formato: 'institucional', adicionais: { idioma: 1 } }, V5).valor_total, 7900 + 950);
+  assert.equal(valorDoPacoteCompleto(V5), 17950, 'a referência que o Zero cita sai do motor');
+  assert.equal(valorDoPacoteCompleto(V4), 16250, 'na v4 seria 16.250');
+});
+
+test('v5: sem um item do pacote, com ele em preparo ou fora do automático, ou com a tabela inválida, não há referência', () => {
+  for (const k of Object.keys(PACOTE_COMPLETO.adicionais)) {
+    const sem = JSON.parse(JSON.stringify(V5)); delete sem.adicionais[k];
+    assert.equal(valorDoPacoteCompleto(sem), null, 'sem ' + k);
+    const preparo = JSON.parse(JSON.stringify(V5)); preparo.adicionais[k].em_preparo = true;
+    assert.equal(valorDoPacoteCompleto(preparo), null, k + ' em preparo');
+    const fora = JSON.parse(JSON.stringify(V5)); fora.adicionais[k].fora_do_automatico = true;
+    assert.equal(valorDoPacoteCompleto(fora), null, k + ' fora do automático');
+  }
+  const semInst = JSON.parse(JSON.stringify(V5)); delete semInst.formatos.institucional;
+  assert.equal(valorDoPacoteCompleto(semInst), null, 'sem o institucional');
+  for (const ruim of [null, undefined, {}, { moeda: 'BRL' }]) assert.equal(valorDoPacoteCompleto(ruim), null, JSON.stringify(ruim));
+  const curto = JSON.parse(JSON.stringify(V5)); curto.prazo_max_dias = 14;
+  assert.equal(valorDoPacoteCompleto(curto), null, 'se não fecha numa fase só, não é referência');
+  assert.ok(Object.isFrozen(PACOTE_COMPLETO) && Object.isFrozen(PACOTE_COMPLETO.adicionais));
 });
 
 test('v5: o SQL de ativação arquiva a v4, grava a v5 como ativa e é o mesmo que o gerador monta hoje (Postgres real)', async () => {

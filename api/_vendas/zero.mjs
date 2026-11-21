@@ -254,7 +254,10 @@ export function avisoRegulado(nicho, { pediuAgora = false } = {}) {
 /* o modelo às vezes escreve [[valor]], [[ entrada ]] ou [total]: sinônimos viram o número certo; qualquer outro marcador some e nunca vaza cru */
 const MARCADOR = /\[\[\s*([^\[\]\n]{1,30}?)\s*\]\]|\[\s*(total|sinal|restante)\s*\]/gi;
 const TEM_MARCADOR = /\[\[\s*[^\[\]\n]{1,30}?\s*\]\]|\[\s*(?:total|sinal|restante)\s*\]/i;
-const CAMPO = { total: 'total', valor: 'total', 'valor total': 'total', preco: 'total', 'preço': 'total', sinal: 'sinal', entrada: 'sinal', restante: 'restante', resto: 'restante' };
+const CAMPO = { total: 'total', valor: 'total', 'valor total': 'total', preco: 'total', 'preço': 'total', sinal: 'sinal', entrada: 'sinal', restante: 'restante', resto: 'restante',
+  completo: 'completo', 'pacote completo': 'completo' };
+const MARCADOR_COMPLETO = /\[\[\s*(?:pacote\s+)?completo\s*\]\]/i;
+const semFrasesDoCompleto = t => frasesDe(t).filter(f => !MARCADOR_COMPLETO.test(f)).join('');
 const dinheiro = n => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 }).replace(/\s/g, ' ');
 function valoresDe(e) {
   const total = Number(e?.valor_total), sinal = Number(e?.sinal);
@@ -288,11 +291,18 @@ export function semNotacaoInterna(texto) {
 
 /* e: a estimativa do motor (ou a linha do banco): valor_total e sinal. Sem estimativa válida, a frase com marcador sai e entra
    "esse valor eu ainda não tenho" com o recado; nunca um número, nunca o marcador cru */
-export function comMarcadores(texto, e) {
+/* completo: o valor do pacote completo (precos.mjs → valorDoPacoteCompleto), só no turno em que o Zero ainda não disse valor nenhum.
+   Sem ele, a frase que cita [[completo]] sai inteira: nunca um buraco no lugar do número, nunca a referência repetida */
+export function comMarcadores(texto, e, { completo = null } = {}) {
   const original = String(texto);
   if (!TEM_MARCADOR.test(original)) return { texto: original, semEstimativa: false };
   const v = valoresDe(e);
-  if (v) return { texto: original.replace(MARCADOR, (_, a, b) => { const campo = CAMPO[String(a || b).toLowerCase()]; return campo ? dinheiro(v[campo]) : ''; }).replace(/ {2,}/g, ' '), semEstimativa: false };
+  if (v) {
+    const temCompleto = Number.isFinite(completo) && completo > 0;
+    const base = temCompleto || !MARCADOR_COMPLETO.test(original) ? original : semFrasesDoCompleto(original).trim();
+    const valores = { ...v, completo: temCompleto ? completo : null };
+    return { texto: base.replace(MARCADOR, (_, a, b) => { const campo = CAMPO[String(a || b).toLowerCase()]; return campo && valores[campo] !== null ? dinheiro(valores[campo]) : ''; }).replace(/ {2,}/g, ' '), semEstimativa: false };
+  }
   let jaAvisou = false;
   const saida = [];
   for (const f of frasesDe(original)) {
