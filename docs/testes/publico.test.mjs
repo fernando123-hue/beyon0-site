@@ -95,6 +95,18 @@ test('domínio único (C1): sitemap.xml e robots.txt', () => {
   assert.deepEqual(locs, [DOMINIO + '/', DOMINIO + '/sites', DOMINIO + '/automacao', DOMINIO + '/orcamento', DOMINIO + '/privacidade']);
   assert.match(lerRaiz('robots.txt'), new RegExp('^Sitemap: ' + DOMINIO.replace(/[.]/g, '[.]') + '/sitemap[.]xml$', 'm'));
 });
+/* 21/11: o lastmod de cada página é a data do último commit que mexeu nela (regra do comentário do sitemap.xml); ficou parado em 09-10/11 com as
+   páginas mudando. Precisa do histórico inteiro: na CI a suíte faz checkout raso (mudar o workflow pede o sim do dono), então lá o teste pula com aviso */
+const RASO = execFileSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: RAIZ, encoding: 'utf8' }).trim() === 'true';
+test('sitemap.xml: o lastmod de cada página é a data do último commit dela', { skip: RASO ? 'checkout raso: lastmod NÃO conferido' : false }, () => {
+  const entradas = [...lerRaiz('sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>\s*<lastmod>([^<]+)<\/lastmod>/g)];
+  assert.equal(entradas.length, 5, 'as 5 páginas do sitemap têm lastmod');
+  for (const [, loc, lastmod] of entradas) {
+    const caminho = loc.slice(DOMINIO.length).replace(/^\//, '') || 'index';
+    const data = execFileSync('git', ['log', '-1', '--format=%cs', '--', caminho + '.html'], { cwd: RAIZ, encoding: 'utf8' }).trim();
+    assert.equal(lastmod, data, loc + ': atualize o lastmod no sitemap.xml');
+  }
+});
 test('domínio único (C1): o endereço que a página de resumo imprime é o do DOMINIO', () => {
   const impresso = lerRaiz('resumo.html').match(/<p class="r-impresso">([^<]*)<\/p>/);
   assert.ok(impresso && impresso[1].includes(HOST_DO_DOMINIO), 'resumo impresso: ' + (impresso && impresso[1]));
