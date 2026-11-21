@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { SINAIS_DE_SAIDA, problemasNaPartida, SABOTAGENS, escolherSabotagens, lerFatia, daFatia, rodar } from './mutacao.mjs';
+import { SINAIS_DE_SAIDA, problemasNaPartida, SABOTAGENS, escolherSabotagens, lerFatia, daFatia, rodar, alvosVencidos } from './mutacao.mjs';
 
 const comFonte = SABOTAGENS.filter(s => s.fonte);
 
@@ -139,4 +139,34 @@ test('mutação em fatias: fatia vazia sai com 0 ("0 de 0"); MUTACAO_FATIA invá
   const so2 = rodar({ env: { MUTACAO_FATIA: '2/3' }, sabotagens: lista, executarTestes: registra, log: () => {} });
   assert.equal(so2.codigo, 0);
   assert.equal(rodou.length, 1, 'fatia 2/3 de 3 sabotagens: só a do índice 1');
+});
+
+/* ---- o alvo da sabotagem é o código que VALE (PR 196: 37 sabotagens mexiam em funções que uma migration nova recriou, e 2 não
+   achavam mais o texto; o PR não roda a mutação, e elas só apareceram na main). Esta conferência não roda teste: cabe no PR ---- */
+test('mutação: toda sabotagem acha o seu texto e mexe na versão que vale de cada função (nenhuma na versão que uma migration mais nova recriou)', () => {
+  assert.deepEqual(alvosVencidos(), []);
+});
+
+test('mutação: a conferência do alvo acusa a função recriada, o grant antes da migration que refaz os privilégios e o texto sumido; o rename leva o corpo junto', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-alvos-'));
+  try {
+    fs.writeFileSync(path.join(dir, '001_velha.sql'), 'create function app.f(p jsonb) returns int language sql as $$\r\n  select 1 -- regra velha\r\n$$;\r\n'
+      + 'create function app.g(p jsonb) returns int language sql as $$ select 2 -- regra de g $$;\r\n');
+    fs.writeFileSync(path.join(dir, '002_nova.sql'), 'create or replace function app.f(p jsonb) returns int language sql as $$ select 1 -- regra nova $$;\n'
+      + 'revoke all on function app.f(jsonb) from public, anon, authenticated;\n'
+      + 'alter function app.g(jsonb) rename to g_base;\ncreate function app.g(p jsonb) returns int language sql as $$ select app.g_base(p) $$;\n');
+    const s = (nome, extra) => ({ nome, arquivo: '001_velha.sql', ...extra });
+    const r = alvosVencidos([
+      s('velha', { de: 'regra velha', para: 'x' }),
+      s('renomeada', { de: 'regra de g', para: 'x' }),
+      s('nova', { arquivo: '002_nova.sql', de: 'regra nova', para: 'x' }),
+      s('sumiu', { de: 'texto que não existe', para: 'x' }),
+      s('grant velho', { acrescentar: '\ngrant execute on function app.f(jsonb) to anon;\n' }),
+      s('grant novo', { arquivo: '002_nova.sql', acrescentar: '\ngrant execute on function app.f(jsonb) to anon;\n' })
+    ], dir, dir);
+    assert.equal(r.length, 3, r.join('\n'));
+    assert.match(r[0], /^VERSÃO VELHA: velha /);
+    assert.match(r[1], /^NÃO APLICADA: sumiu /);
+    assert.match(r[2], /^VERSÃO VELHA: grant velho .*002_nova\.sql/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
