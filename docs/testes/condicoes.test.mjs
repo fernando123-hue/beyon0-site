@@ -112,6 +112,17 @@ test('condições: desistência diz os 7 dias (CDC art. 49), a devolução intei
   assert.match(texto, /orçamento automático do site segue a tabela normal/);
 });
 
+/* 21/11 (dono, D1 a D3 da captação, spec captacao/docs/specs/2026-11-21-restante-antes-do-ar.md): 24 horas para o restante depois do Pix do site pronto (sem ele, o
+   projeto encerra), o restante pago volta se o cliente desistir antes de o site ir ao ar, e o domínio só é registrado com o restante pago. Cada regra de dinheiro fica
+   na seção em que o cliente decide (dono, 21/11: curta e à vista, nada em letra miúda) */
+test('condições (21/11): 24 horas para o restante, o encerramento sem ele, o restante devolvido antes do ar e o domínio depois do restante', () => {
+  const secao = nome => { const i = html.indexOf('<h2>' + nome + '</h2>'); assert.ok(i >= 0, nome); return limpo(html.slice(i, html.indexOf('<h2>', i + 1))); };
+  assert.match(secao('Pagamento'), /O site só vai ao ar com o restante pago\. Quando o site fica pronto, mandamos o Pix do restante\. Você tem 24 horas para pagar\. Sem o pagamento nesse prazo, encerramos o projeto\. A entrada segue a regra da desistência, mais abaixo\./);
+  assert.match(secao('Desistência'), /Se você desistir depois de pagar o restante, mas antes de o site ir ao ar, devolvemos o restante\./);
+  assert.match(secao('O que está incluso'), /1 ano de domínio grátis, registrado no seu nome \(no seu CPF ou CNPJ\) depois que o restante é pago\./);
+  assert.ok(!/(?:3|três) dias[^.]{0,60}restante|restante[^.]{0,60}(?:3|três) dias|sai do ar/.test(texto), 'a regra antiga (o site no ar antes do restante, 3 dias e a saída do ar) não volta');
+});
+
 /* o Banco Central proibiu o nome "Pix Parcelado" (dez/2025); o pagamento à Beyon Zero continua só Pix (dono, 2026-10-14) */
 test('condições: parcelar é pelo banco do cliente, com o nome permitido (Pix no crédito)', () => {
   assert.match(texto, /Se quiser parcelar, dá para usar o parcelamento do seu banco \(Pix no crédito\)\./);
