@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { executarTurno } from '../../api/_vendas/agente.mjs';
+import { executarTurno, estadoParaModelo, referenciaDoCompleto } from '../../api/_vendas/agente.mjs';
 import { montarSistema, ferramentas, IDENTIDADE } from '../../api/_vendas/consultor.mjs';
 import { PAPEIS, TETOS, custoUsd, RESERVA_USD } from '../../api/_ia/config.mjs';
 import { MAX_VERSOES } from '../../api/_vendas/planta.mjs';
@@ -350,6 +350,46 @@ test('turno: depois de estimar, o texto sai com o valor do motor; o R$ que o mod
   assert.doesNotMatch(r.resposta, /\[\[/);
   const resultado = JSON.parse(ia.recebidos[1].mensagens.at(-1).content[0].content);
   assert.match(resultado.valor, /\[\[total\]\]/);
+});
+
+/* o pacote completo como referência (revisão de preços, dono 2026-11-21) */
+test('marcadores: [[completo]] vira o valor do pacote completo; sem ele, a frase que o cita sai inteira, sem buraco', () => {
+  const e = { valor_total: 2900, sinal: 1160 };
+  const t = 'O site mais completo que a gente faz fica [[completo]]. Pro seu caso, uma página resolve: [[total]]. Quer ver três modelos?';
+  assert.equal(comMarcadores(t, e, { completo: 17950 }).texto, 'O site mais completo que a gente faz fica R$ 17.950. Pro seu caso, uma página resolve: R$ 2.900. Quer ver três modelos?');
+  assert.equal(comMarcadores('O completo sai [[pacote completo]].', e, { completo: 17950 }).texto, 'O completo sai R$ 17.950.');
+  for (const completo of [null, undefined, 0, -1, NaN, '17950']) {
+    assert.equal(comMarcadores(t, e, { completo }).texto, 'Pro seu caso, uma página resolve: R$ 2.900. Quer ver três modelos?', String(completo));
+  }
+  assert.equal(comMarcadores(t, e).texto, 'Pro seu caso, uma página resolve: R$ 2.900. Quer ver três modelos?', 'sem a opção, também sai');
+  assert.equal(comMarcadores('Fica [[total]].', e, { completo: 17950 }).texto, 'Fica R$ 2.900.', 'sem o marcador, nada muda');
+});
+
+test('marcadores: o [[completo]] só vale uma vez, sozinho na frase e antes do valor do caso; o valor dela nunca some (revisões do PR)', () => {
+  const e = { valor_total: 2900, sinal: 1160 };
+  const ok = { completo: 17950 }, nao = { completo: null };
+  assert.equal(comMarcadores('O completo fica [[completo]] e o seu caso [[total]]. Quer ver?', e, nao).texto, 'O completo fica e o seu caso R$ 2.900. Quer ver?', 'sem a referência, o total fica');
+  assert.equal(comMarcadores('O completo fica [[completo]] e o seu caso [[total]]. Quer ver?', e, ok).texto, 'O completo fica e o seu caso R$ 2.900. Quer ver?', 'na mesma frase do total, o pacote não sai como se fosse o preço dela');
+  assert.equal(comMarcadores('Completo [[completo]]. Repito: [[completo]]. Seu: [[total]].', e, ok).texto, 'Completo R$ 17.950. Seu: R$ 2.900.', 'uma vez só');
+  assert.equal(comMarcadores('O seu fica [[total]]. O completo, [[completo]].', e, ok).texto, 'O seu fica R$ 2.900.', 'depois do valor do caso, não vale');
+  assert.equal(comMarcadores('O seu fica [[completo]].', e, ok).texto.includes('17.950'), true, 'sozinho e primeiro: vale (a instrução manda escrever antes)');
+  assert.equal(comMarcadores('O completo fica [[completo]].', e, nao).texto, 'Pro seu caso, fica R$ 2.900.', 'nunca uma resposta vazia');
+  const sem = comMarcadores('O completo fica [[completo]]. O seu, [[total]]. Quer ver?', null, ok);
+  assert.doesNotMatch(sem.texto, /\[\[|\d/); assert.equal(sem.semEstimativa, true);
+});
+
+test('turno: o Zero cita o pacote completo só no primeiro valor da conversa, e nunca a quem já orçou o próprio pacote', async () => {
+  const frase = 'O mais completo que a gente faz fica [[completo]]. Pro seu caso, [[total]]. Quer ver três modelos?';
+  const briefing = { negocio: { segmento: 'padaria' }, objetivos: ['vender'], projeto: { formato: 'landing_page' } };
+  const primeira = await executarTurno({ ia: roteiro(comFerr({ id: 'e1', nome: 'estimar', entrada: { formato: 'landing_page' } }), fim(frase)), regras: REGRAS, conversa: nova({ briefing }), mensagem: 'quanto custa?' });
+  assert.match(primeira.resposta, /O mais completo que a gente faz fica R\$ 17\.950\. Pro seu caso, R\$ 2\.900\./);
+  const jaDisse = nova({ briefing, mensagens: [{ papel: 'agente', conteudo: 'Uma página fica R$ 2.900.' }] });
+  const segunda = await executarTurno({ ia: roteiro(comFerr({ id: 'e1', nome: 'estimar', entrada: { formato: 'landing_page' } }), fim(frase)), regras: REGRAS, conversa: jaDisse, mensagem: 'e com mais uma página?' });
+  assert.doesNotMatch(segunda.resposta, /completo|17\.950|\[\[/);
+  assert.match(segunda.resposta, /Pro seu caso, R\$ 2\.900\./);
+  const tudo = { formato: 'institucional', adicionais: { visual_exclusivo: 1, interacao_leve: 1, interacao_assinatura: 2, textos: 5 } };
+  const grande = await executarTurno({ ia: roteiro(comFerr({ id: 'e1', nome: 'estimar', entrada: tudo }), fim(frase)), regras: REGRAS, conversa: nova({ briefing: { ...briefing, projeto: { formato: 'institucional' } } }), mensagem: 'quero tudo' });
+  assert.doesNotMatch(grande.resposta, /completo|17\.950/, 'o caso dela já passa do pacote: a referência não aparece');
 });
 
 test('turno: o marcador em conversa sem estimativa nunca chega cru à tela', async () => {
@@ -1263,6 +1303,25 @@ test('hospedagem e código: o Zero diz conta no nome do cliente e código do cli
     assert.doesNotMatch(html, /vai ao ar (primeiro )?na (conta da Beyon|nossa conta)/, pag + ': o site não vai ao ar na conta da Beyon antes do restante');
     assert.match(html, /com o restante pago, (ele|o site) vai ao ar e passa para uma conta (da Cloudflare )?no seu nome/i, pag + ': com o restante pago, o site vai ao ar e passa ao cliente');
   }
+});
+
+
+test('ESTADO: a instrução do pacote completo vai só no turno em que vale, sem número, e o prompt fixo não muda', () => {
+  const estado = o => JSON.parse(estadoParaModelo({ briefing: {}, estimativa: null, etapa: 'descoberta', regras: REGRAS, ...o }).split('\n')[1]);
+  const com = estado({});
+  assert.match(com.pacote_completo, /\[\[completo\]\] \(este marcador vale só aqui\)/);
+  assert.match(com.pacote_completo, /É referência, não oferta: não recomende o completo por isso/);
+  assert.doesNotMatch(com.pacote_completo, /\d/, 'sem número: o valor é do motor');
+  assert.equal(estado({ jaDitoNaConversa: ['valor_dito'] }).pacote_completo, undefined, 'já disse um valor');
+  assert.equal(estado({ liberado: false }).pacote_completo, undefined, 'o valor ainda espera');
+  assert.equal(estado({ etapa: 'escopo' }).pacote_completo, undefined, 'no escopo só dúvidas');
+  assert.equal(estado({ etapa: 'descoberta', pedidoStatus: 'confirmado' }).pacote_completo, undefined, 'pacote fechado');
+  assert.equal(estado({ estimativa: { valor_total: 17950, sinal: 7180 } }).pacote_completo, undefined, 'o caso dela já é o pacote');
+  const sem = JSON.parse(JSON.stringify(REGRAS)); delete sem.adicionais.visual_exclusivo;
+  assert.equal(estado({ regras: sem }).pacote_completo, undefined, 'a tabela não fecha o pacote');
+  assert.equal(referenciaDoCompleto({ regras: REGRAS, etapa: 'descoberta' }), 17950);
+  assert.equal(referenciaDoCompleto({ regras: REGRAS, etapa: 'descoberta', estimativa: { valor_total: 2900 } }), 17950);
+  assert.doesNotMatch(montarSistema(REGRAS), /completo\]\]/, 'o prompt fixo (com cache) não ganha nada');
 });
 
 import './planta-todos.test.mjs';
