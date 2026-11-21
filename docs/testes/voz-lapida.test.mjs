@@ -27,7 +27,7 @@ test('com o modelo respondendo bem: volta o texto lapidado', async () => {
 
 test('o modelo falhou, estourou o tempo ou devolveu vazio: volta o texto cru, sem erro para a pessoa', async () => {
   for (const lapidar of [async () => { throw new Error('modelo caiu'); }, () => new Promise(() => {}), async () => '   ', async () => null]) {
-    const r = await rodar(transcritorCom(lapidar), { lapidarTempoMs: 30 });
+    const r = await rodar(transcritorCom(lapidar), { lapidarTempoMs: 30, lapidarSobraMinMs: 0 });
     assert.equal(r.status, 200);
     assert.equal(r.corpo.texto, CRU.replace(/\s+/g, ' '));
     assert.equal(r.linhas.find(l => l.evento === 'voz').lapidado, false);
@@ -102,6 +102,61 @@ test('o interruptor BZ_VOZ_LAPIDA=0 liga só o Whisper (a lapidação some, a vo
   const t = criarTranscritor({ BZ_VOZ: '1', BZ_VOZ_LAPIDA: '0', AI: { run: async () => ({ text: CRU }) } });
   assert.equal(typeof t.transcrever, 'function');
   assert.equal(t.lapidar, undefined);
+});
+
+/* achados das revisões do PR #211 */
+test('a trava recusa o limpo que perdeu uma negação ("não quero" virando "quero")', () => {
+  assert.equal(aceitarLapidado('hum eu não quero parcelar o pagamento do site não', 'Eu quero parcelar o pagamento do site.'), false);
+  assert.equal(aceitarLapidado('eu nunca tive site e nem instagram da loja', 'Eu tive site e instagram da loja.'), false);
+  assert.equal(aceitarLapidado('hum eu não quero parcelar o pagamento do site', 'Eu não quero parcelar o pagamento do site.'), true);
+});
+
+test('a trava recusa link e marcação que a pessoa não falou', () => {
+  for (const ruim of ['Veja [o site](http://exemplo.com) da confeitaria em Niterói.', 'Eu tenho uma **confeitaria** em Niterói e queria mais encomendas.',
+    'Eu tenho uma confeitaria em Niterói, www.exemplo.com, e queria mais encomendas.', '# Eu tenho uma confeitaria em Niterói e queria mais encomendas.',
+    'Eu tenho uma `confeitaria` em Niterói e queria mais encomendas pelo site.']) {
+    assert.equal(aceitarLapidado(CRU, ruim), false, ruim);
+  }
+  /* a pessoa ditou o endereço: aí ele pode ficar */
+  assert.equal(aceitarLapidado('o meu site hoje é www.doce.com.br e quero um novo', 'O meu site hoje é www.doce.com.br e quero um novo.'), true);
+});
+
+test('a trava compara palavras longas pelo começo maior ("dezenove" não vira "dezessete")', () => {
+  assert.equal(aceitarLapidado('a festa é dia dezenove de dezembro em niterói', 'A festa é dia dezessete de dezembro em Niterói.'), false);
+  assert.equal(aceitarLapidado('a festa é dia dezenove de dezembro em niterói', 'A festa é dia dezenove de dezembro, em Niterói.'), true);
+});
+
+test('a trava recusa o limpo que comeu demais (menos de 60 % do cru)', () => {
+  const cru = 'eu tenho uma confeitaria em niterói e vendo bolos de aniversário doces finos e cupcakes para festas e casamentos da região';
+  assert.equal(aceitarLapidado(cru, 'Eu tenho uma confeitaria em Niterói e vendo bolos.'), false);
+});
+
+test('as aspas só saem quando embrulham o texto inteiro', async () => {
+  const { extrairResposta } = await import('../../api/_vendas/voz.mjs');
+  assert.equal(extrairResposta({ response: '"Eu tenho a confeitaria Doce Mel."' }), 'Eu tenho a confeitaria Doce Mel.');
+  assert.equal(extrairResposta({ response: 'Minha loja se chama "Doce Mel"' }), 'Minha loja se chama "Doce Mel"');
+});
+
+test('resposta cortada pelo limite de tokens não vale (volta o cru)', async () => {
+  const { extrairResposta } = await import('../../api/_vendas/voz.mjs');
+  assert.equal(extrairResposta({ response: 'Eu tenho uma confeitaria em', finish_reason: 'length' }), '');
+  assert.equal(extrairResposta({ choices: [{ message: { content: 'Eu tenho uma confeitaria em' }, finish_reason: 'length' }] }), '');
+  const chamadas = [];
+  const t = criarTranscritor({ BZ_VOZ: '1', AI: { run: async (m, e) => { chamadas.push(e); return { response: LIMPO }; } } });
+  await t.lapidar(CRU);
+  assert.ok(chamadas[0].max_tokens >= 1200, 'cabe o texto de 2000 caracteres');
+});
+
+test('o tempo da lapidação cabe no que sobrou do teto do navegador (30 s), senão nem chama', async () => {
+  const { VOZ_TETO_TOTAL_MS } = await import('../../api/_vendas/voz.mjs');
+  assert.ok(VOZ_TETO_TOTAL_MS <= 28000, 'margem para o upload antes dos 30 s do navegador');
+  let chamou = 0;
+  const lento = { transcrever: async () => CRU, lapidar: async () => { chamou++; return LIMPO; } };
+  /* o Whisper "levou" quase todo o teto: a lapidação nem começa */
+  const r = await rodar(lento, { agora: (() => { let n = 0; return () => (n++ === 0 ? 0 : VOZ_TETO_TOTAL_MS - 500); })() });
+  assert.equal(r.corpo.texto, CRU);
+  assert.equal(chamou, 0);
+  assert.equal(r.linhas.find(l => l.evento === 'voz').lapidar_motivo, 'sem_tempo');
 });
 
 test('o prompt trava o que importa e o tempo é curto', () => {

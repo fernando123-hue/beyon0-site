@@ -25,6 +25,10 @@ export const TIPO_AUDIO = /^audio\/(webm|ogg|mp4|mpeg|aac|x-m4a|m4a|wav|x-wav)\s
 export const MODELO_LAPIDAR = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 export const VOZ_LAPIDAR_TEMPO_MS = 6000;           /* a limpeza de um texto curto leva ~1 s; passou disso, entrega o cru */
 export const VOZ_LAPIDAR_MIN = 15;                  /* abaixo disso ("oi", "quero um site") não há o que lapidar */
+export const VOZ_TETO_TOTAL_MS = 27000;             /* Whisper + lapidação, contados do início da transcrição: o navegador desiste em 30 s
+                                                       (js/orcamento-api.js) e o envio do áudio também conta; a lapidação só usa o que sobrar */
+export const VOZ_LAPIDAR_SOBRA_MIN_MS = 1500;       /* sobrou menos que isso: nem chama o modelo, devolve o cru */
+export const VOZ_LAPIDAR_MAX_TOKENS = 1200;         /* 2000 caracteres em português passam de 700 tokens: o corte comeria o fim da mensagem */
 export const PROMPT_LAPIDAR = [
   'Você revisa a transcrição de uma mensagem FALADA em português do Brasil. A pessoa vai conferir o texto e enviá-lo por escrito.',
   'Faça só isto: ponha pontuação e maiúsculas; tire vícios de fala (hum, ãh, "né" e "tipo" sobrando), repetições e recomeços de frase;',
@@ -40,29 +44,53 @@ export function limparTexto(t) {
   return String(t == null ? '' : t).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, VOZ_MAX_TEXTO);
 }
 
-/* o modelo às vezes embrulha a resposta em aspas, ou devolve no formato "choices" em vez de "response" */
+/* o modelo às vezes embrulha a resposta em aspas, ou devolve no formato "choices" em vez de "response".
+   Aspas só saem quando embrulham o texto INTEIRO (a aspa de um nome no fim, como "Doce Mel", fica).
+   Resposta cortada pelo limite de tokens (finish_reason 'length') não vale: devolve '' e volta o texto cru. */
+const EMBRULHO = /^["“”'](.*)["“”']$/s;
 export function extrairResposta(r) {
-  const t = r && (typeof r.response === 'string' ? r.response : r.choices && r.choices[0] && r.choices[0].message && r.choices[0].message.content);
-  return typeof t === 'string' ? t.trim().replace(/^["“”']+|["“”']+$/g, '').trim() : '';
+  if (!r) return '';
+  const escolha = r.choices && r.choices[0];
+  if (r.finish_reason === 'length' || (escolha && escolha.finish_reason === 'length')) return '';
+  const t = typeof r.response === 'string' ? r.response : escolha && escolha.message && escolha.message.content;
+  if (typeof t !== 'string') return '';
+  const aparado = t.trim();
+  const embrulhado = EMBRULHO.exec(aparado);
+  return (embrulhado && !/["“”]/.test(embrulhado[1]) ? embrulhado[1] : aparado).trim();
 }
 
 const COMENTARIO_DE_ROBO = /^\s*(aqui est[áa]|aqui vai|texto (corrigido|lapidado|revisado)|vers[ãa]o (corrigida|revisada)|desculp|sinto muito|n[ãa]o (posso|consigo)|como (um )?(assistente|ia|modelo))/i;
 const semAcento = t => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const palavrasLongas = t => semAcento(t).match(/[a-z]{4,}/g) || [];
 
+/* marcação e link que a pessoa não ditou (o texto vai para uma caixa de mensagem e depois ao consultor) */
+const SINAIS_DE_MARCACAO = ['://', 'www.', '[', ']', '*', '#', '`'];
+/* negações: limpar pode juntar um "não" repetido, nunca sumir com ele ("não quero" virando "quero") */
+const NEGACAO = /\b(nao|nunca|nem|jamais|ninguem|nada|nenhum|nenhuma)\b/g;
+/* números por extenso ("dezenove" × "dezessete"): a mesma sequência, como os algarismos ("um"/"uma" são artigo, ficam de fora) */
+const NUMERO_POR_EXTENSO = /\b(zero|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzentos|duzentas|trezentos|trezentas|quatrocentos|quinhentos|seiscentos|setecentos|oitocentos|novecentos|mil|milhao|milhoes)\b/g;
+const contar = (t, re) => (semAcento(t).match(re) || []).length;
+const extenso = t => (semAcento(t).match(NUMERO_POR_EXTENSO) || []).join(' ');
+
 /* a trava: o texto lapidado só vale se for, de fato, o mesmo texto mais limpo. Na dúvida, recusa (e volta o cru).
-   • sem sinais de HTML, sem comentário de robô em volta (a menos que a pessoa tenha falado assim);
-   • os algarismos saem iguais e na mesma ordem (telefone, valor, data);
-   • o tamanho fica entre 40 % e 125 % do cru (+10): limpar encurta um pouco, nunca reescreve nem enche;
+   • sem sinais de HTML, link ou marcação que a pessoa não falou, sem comentário de robô em volta (a menos que a pessoa tenha falado assim);
+   • os algarismos e os números por extenso saem iguais e na mesma ordem (telefone, valor, data);
+   • as negações não somem (pode juntar "não… não" repetido em um);
+   • o tamanho fica entre 60 % e 125 % do cru (+10): limpar encurta um pouco, nunca reescreve, nem enche, nem corta o fim;
    • pelo menos 70 % das palavras de 4+ letras do resultado já estavam na fala (aproximação: mesmas 4 primeiras letras):
      pega o modelo que "obedeceu" ao que a pessoa disse em vez de só limpar, e a invenção. */
 export function aceitarLapidado(cru, lapidado) {
   if (typeof cru !== 'string' || typeof lapidado !== 'string') return false;
   const novo = lapidado.trim();
   if (!novo || /[<>]/.test(novo)) return false;
+  const cruMinusculo = cru.toLowerCase(), novoMinusculo = novo.toLowerCase();
+  if (SINAIS_DE_MARCACAO.some(s => novoMinusculo.includes(s) && !cruMinusculo.includes(s))) return false;
   if (COMENTARIO_DE_ROBO.test(novo) && !COMENTARIO_DE_ROBO.test(cru)) return false;
   if (cru.replace(/\D/g, '') !== novo.replace(/\D/g, '')) return false;
-  if (novo.length < cru.length * 0.4 || novo.length > cru.length * 1.25 + 10) return false;
+  if (extenso(cru) !== extenso(novo)) return false;
+  const negacoes = contar(cru, NEGACAO);
+  if (negacoes && contar(novo, NEGACAO) < Math.max(1, negacoes - 1)) return false;
+  if (novo.length < cru.length * 0.6 || novo.length > cru.length * 1.25 + 10) return false;
   const fala = palavrasLongas(cru);
   const exatas = new Set(fala), inicios = new Set(fala.map(p => p.slice(0, 4)));
   const saida = palavrasLongas(novo);
@@ -91,7 +119,7 @@ export function criarTranscritor(env) {
   const lapidar = env.BZ_VOZ_LAPIDA === '0' ? undefined : async texto => {
     const r = await env.AI.run(MODELO_LAPIDAR, {
       messages: [{ role: 'system', content: PROMPT_LAPIDAR }, { role: 'user', content: texto }],
-      temperature: 0.2, max_tokens: 700
+      temperature: 0.2, max_tokens: VOZ_LAPIDAR_MAX_TOKENS
     });
     return extrairResposta(r);
   };
@@ -128,9 +156,11 @@ export async function lerAudio(request) {
 }
 
 /* devolve { status, corpo }: quem chama monta a resposta (a mesma de api/vendas.mjs) */
-/* a lapidação: devolve { texto, lapidado } ou { texto, motivo } quando voltou o cru ('tempo', 'erro' ou 'recusado'); nunca lança */
-async function lapidarOuCru(transcritor, cru, tempoMs) {
+/* a lapidação: devolve { texto, lapidado } ou { texto, motivo } quando voltou o cru ('sem_tempo', 'tempo', 'erro' ou 'recusado');
+   nunca lança. tempoMs já é o que sobrou do teto total (VOZ_TETO_TOTAL_MS) */
+async function lapidarOuCru(transcritor, cru, tempoMs, sobraMinMs) {
   if (typeof transcritor.lapidar !== 'function' || cru.length < VOZ_LAPIDAR_MIN) return { texto: cru };
+  if (tempoMs < sobraMinMs) return { texto: cru, motivo: 'sem_tempo' };
   let relogio;
   try {
     const limite = new Promise((_, rej) => { relogio = setTimeout(() => rej(new Error('tempo')), tempoMs); });
@@ -140,7 +170,7 @@ async function lapidarOuCru(transcritor, cru, tempoMs) {
   finally { clearTimeout(relogio); }
 }
 
-export async function transcrever({ request, transcritor, visitantes, freios, log, requestId, tempoMs = VOZ_TEMPO_MS, lapidarTempoMs = VOZ_LAPIDAR_TEMPO_MS }) {
+export async function transcrever({ request, transcritor, visitantes, freios, log, requestId, tempoMs = VOZ_TEMPO_MS, lapidarTempoMs = VOZ_LAPIDAR_TEMPO_MS, lapidarSobraMinMs = VOZ_LAPIDAR_SOBRA_MIN_MS, agora = Date.now }) {
   if (!transcritor) return { status: 503, corpo: { erro: 'O microfone não está disponível agora. Escreva a sua mensagem.' } };
   const tipo = request.headers.get('content-type') || '';
   if (!TIPO_AUDIO.test(tipo)) return { status: 415, corpo: { erro: 'Esse tipo de áudio não é aceito.' } };
@@ -160,7 +190,7 @@ export async function transcrever({ request, transcritor, visitantes, freios, lo
   }
   if (lido.erro === 413) return { status: 413, corpo: { erro: 'A gravação ficou longa demais. Grave um trecho menor.' } };
   if (lido.erro === 400) return { status: 400, corpo: { erro: 'Não consegui ouvir nada. Tente gravar de novo.' } };
-  const inicio = Date.now();
+  const inicio = agora();
   let texto = '';
   try {
     let relogio;
@@ -168,11 +198,12 @@ export async function transcrever({ request, transcritor, visitantes, freios, lo
     try { texto = await Promise.race([transcritor.transcrever(lido.buffer, tipo), limite]); } finally { clearTimeout(relogio); }
   } catch (e) {
     /* só o motivo, nunca o áudio nem o que o modelo ouviu */
-    log('erro', { request_id: requestId, evento: 'voz falhou', motivo: e && e.message === 'tempo' ? 'tempo' : 'erro', bytes: lido.buffer.byteLength, ms: Date.now() - inicio });
+    log('erro', { request_id: requestId, evento: 'voz falhou', motivo: e && e.message === 'tempo' ? 'tempo' : 'erro', bytes: lido.buffer.byteLength, ms: agora() - inicio });
     return { status: 503, corpo: { erro: 'Não consegui transcrever agora. Escreva a sua mensagem.' } };
   }
   const cru = limparTexto(texto);
-  const { texto: limpo, lapidado = false, motivo } = await lapidarOuCru(transcritor, cru, lapidarTempoMs);
-  log('info', { request_id: requestId, evento: 'voz', bytes: lido.buffer.byteLength, ms: Date.now() - inicio, vazio: !limpo, simulado: !!transcritor.simulado, lapidado, ...(motivo ? { lapidar_motivo: motivo } : {}) });
+  const sobra = Math.min(lapidarTempoMs, VOZ_TETO_TOTAL_MS - (agora() - inicio));
+  const { texto: limpo, lapidado = false, motivo } = await lapidarOuCru(transcritor, cru, sobra, lapidarSobraMinMs);
+  log('info', { request_id: requestId, evento: 'voz', bytes: lido.buffer.byteLength, ms: agora() - inicio, vazio: !limpo, simulado: !!transcritor.simulado, lapidado, ...(motivo ? { lapidar_motivo: motivo } : {}) });
   return { status: 200, corpo: limpo ? { texto: limpo } : { texto: '', vazio: true } };
 }
