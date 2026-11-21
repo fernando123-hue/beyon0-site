@@ -53,9 +53,10 @@ test('handler que lança: 500 genérico com x-request-id, sem a mensagem', async
   assert.equal(r.status, 500); assert.ok(r.headers.get('x-request-id'));
   assert.doesNotMatch(await r.text(), /segredo-no-erro/);
 });
-test('toda resposta da API: noindex, nosniff, no-store se faltar', async () => {
+test('toda resposta da API: noindex, nosniff, HSTS de um ano, no-store se faltar', async () => {
   const r = await rotear(pedido('/api/eco'), {});
   assert.equal(r.headers.get('x-robots-tag'), 'noindex'); assert.equal(r.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(r.headers.get('strict-transport-security'), 'max-age=31536000');
   assert.equal(r.headers.get('cache-control'), 'no-store');
 });
 test('limite do Worker ≥ 3 × o do handler, em toda rota (revisão M1)', () => {

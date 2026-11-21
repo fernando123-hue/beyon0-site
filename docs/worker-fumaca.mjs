@@ -151,7 +151,12 @@ async function noWorker(dev) {
     codificado.status + ' ' + codificado.headers.get('location') + ' ' + cspCodificado.slice(0, 100));
   for (const c of ['/docs/PROCESSO.md', '/_headers', '/publico/index.html', '/wrangler.jsonc', '/api/_freio', '/package.json', '/api/vendas.mjs'])
     confere(c + ' → 404', (await get(c)).status === 404);
+  /* HSTS de um ano, UM valor (sem soma de regras), nas páginas, na raiz, no 404 e na API (que não passa pelo _headers) */
   const cf = { 'cf-connecting-ip': IP_DE_TESTE };
+  for (const [c, op] of [['/', {}], ['/orcamento', {}], ['/painel', {}], ['/qualquer-coisa', {}], ['/api/vendas?acao=sessao-config', { headers: cf }]]) {
+    const hsts = (await get(c, op)).headers.get('strict-transport-security');
+    confere(c + ' com HSTS max-age=31536000 (um valor só)', hsts === 'max-age=31536000', String(hsts));
+  }
   const cfg = await get('/api/vendas?acao=sessao-config', { headers: cf });
   const corpo = await cfg.json().catch(() => null);
   confere('sessao-config fechado (turnstile: null, consultor: false)', cfg.status === 200 && corpo && corpo.turnstile === null && corpo.consultor === false, JSON.stringify(corpo));
