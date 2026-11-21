@@ -13,7 +13,7 @@ import { ErroBanco } from './transporte.mjs';
 import { ehUuid } from '../_valida-app.mjs';
 import { redigir, semInvisiveis } from './seguranca.mjs';
 import ESQ from '../../js/orcamento-material-esquema.js';
-import { fecharPausa, calcularEntregarAte, isoNoFuso } from '../_material/prazo.mjs';
+import { abrirPausa, fecharPausa, calcularEntregarAte, isoNoFuso } from '../_material/prazo.mjs';
 import { entregaLigada, FRASE_DESLIGADA } from '../_material/interruptor.mjs';
 
 export const MAX_LISTA = 1500;
@@ -86,8 +86,11 @@ export function criarAcoesDaPrevia({ banco, visitante, estado, env }) {
       /* (B1, revisão de segurança) a tela diz QUAL prévia a pessoa viu (`rodada_base`, o mesmo número da lista de ajustes). Sem ela a porta velha ficaria aberta: numa aba antiga
          o servidor aprovaria a prévia nova, que a pessoa nunca abriu (D5). Faltou ou veio torta: 400; não é a rodada da entrega lida: 409 "a prévia mudou" */
       if (!soCom(corpo, ['conversa_id', 'rodada_base']) || !ehUuid(corpo.conversa_id) || !Number.isInteger(corpo.rodada_base) || corpo.rodada_base < 0) throw new Recusa(400, FRASES.conversaInvalida);
-      const { vid, e, agora, prazo } = await entregaNaPrevia(request, corpo.conversa_id);
+      const { vid, e, agora } = await entregaNaPrevia(request, corpo.conversa_id);
       if (corpo.rodada_base !== e.rodadas.usadas) throw new Recusa(409, FRASES.mudou);
+      /* (20/11, dono) a aprovação NÃO fecha a pausa: o prazo nosso fica parado (a bola está com o cliente) até o site ir ao ar; o restante pago é a única condição. A pausa já está aberta desde
+         que a prévia saiu; abrirPausa é idempotente */
+      const prazo = abrirPausa(e.prazo, isoNoFuso(agora));
       const r = await chamar('vendas_previa_aprovar', { conversa_id: corpo.conversa_id, visitante_id: vid, versao: e.versao, agora: agora.toISOString(), prazo });
       if (!r || r.ok !== true) throw new Recusa(409, FRASES.passo, { recado: true });
       return { ok: true };

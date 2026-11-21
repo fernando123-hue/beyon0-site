@@ -1,6 +1,6 @@
 /* ==========================================================================
    SEU PEDIDO (PR 3b-2; spec §1 e §3), no bloco #o-pronto de /orcamento.
-   • Os 4 passos (entrada, material, prévia, no ar e restante) com a data que o SERVIDOR calculou (a regra da captação,
+   • Os 4 passos (entrada, material, prévia, o restante e o ar) com a data que o SERVIDOR calculou (a regra da captação,
      fuso de Campo Grande); a tela nunca calcula prazo.
    • "Guarde o link do seu pedido": o servidor sorteia o código e o devolve UMA vez; aqui ele só vive na memória da página e
      num campo de leitura. Copiar usa a área de transferência; "Mandar para mim" usa o compartilhamento do próprio aparelho
@@ -14,7 +14,7 @@
   var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var FUSO = 'America/Campo_Grande';
   var INDICE = { material: 2, producao: 3, previa: 3, ajustes: 3, aprovada: 4, no_ar: 4, suspensa: 4, concluida: 5, encerrada: 0 };
-  var NOMES = ['Entrada paga', 'Seu material', 'Prévia do site', 'No ar e o restante'];
+  var NOMES = ['Entrada paga', 'Seu material', 'Prévia do site', 'O restante e o ar'];
   var LIMITE_PADRAO = 3;   /* os dias do restante; o servidor manda o seu em site.limite_dias (como em js/orcamento-restante.js) */
   var LEAD_DEPOIS_DO_MATERIAL = 'Entrada recebida.';
   var $ = function (id) { return document.getElementById(id); };
@@ -63,7 +63,8 @@
       ajustes: 'Lista recebida.' + (previsao ? ' Previsão: ' + previsao + '.' : '')
     };
     var limite = Number(e.site && e.site.limite_dias) || LIMITE_PADRAO;
-    var notaDoNoAr = { aprovada: 'O próximo passo é pôr o site no ar.', no_ar: 'Seu site está no ar. Falta o restante.',
+    /* (19/11) a ordem nova: o restante na aprovação, o ar só com ele pago */
+    var notaDoNoAr = { aprovada: 'Site pronto. Com o restante pago, ele vai ao ar.', no_ar: 'Seu site está no ar. Falta o restante.',
       suspensa: 'O restante não foi pago em ' + limite + ' dias: o site saiu do ar até o pagamento.', concluida: 'Pago. Pedido concluído.' };
     var notas = ['',
       atual === 2 ? 'O prazo começa quando você enviar.' : 'Enviado' + (enviado ? ' em ' + enviado : '') + '.',

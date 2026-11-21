@@ -18,7 +18,7 @@ const material = { status: 'rascunho', enviado_em: null };
 test('passos com o material por enviar: entrada feita, material agora, o resto depois; os valores vêm da proposta', () => {
   const p = B.passos({ passo: 'material', entrega_ate: null, material }, { entrada: 1200, restante: 1800 });
   assert.deepEqual(p.map(x => [x.n, x.estado]), [[1, 'feito'], [2, 'agora'], [3, 'depois'], [4, 'depois']]);
-  assert.deepEqual(p.map(x => x.nome), ['Entrada paga', 'Seu material', 'Prévia do site', 'No ar e o restante']);
+  assert.deepEqual(p.map(x => x.nome), ['Entrada paga', 'Seu material', 'Prévia do site', 'O restante e o ar']);
   assert.equal(p[1].nota, 'O prazo começa quando você enviar.');
   assert.deepEqual([p[0].valor, p[3].valor], [1200, 1800]);
   assert.deepEqual(B.passos({ passo: 'material', material }, null).map(x => x.valor), [null, null, null, null], 'sem valor conhecido, nenhum valor inventado');
@@ -145,7 +145,7 @@ test('as notas dos passos 3 e 4 por passo da entrega (3b-3c): "Previsão", nunca
   assert.equal(nota('previa'), 'Esperando a sua resposta.', 'a seção da prévia já diz o resto: a nota do passo é curta');
   assert.equal(nota('ajustes'), 'Lista recebida. Previsão: 5 de novembro.');
   assert.equal(nota('ajustes', { entrega_ate: null }), 'Lista recebida.');
-  assert.equal(nota('aprovada'), 'Prévia aprovada.'); assert.equal(nota('aprovada', {}, 3), 'O próximo passo é pôr o site no ar.');
+  assert.equal(nota('aprovada'), 'Prévia aprovada.'); assert.equal(nota('aprovada', {}, 3), 'Site pronto. Com o restante pago, ele vai ao ar.');   /* (19/11: o restante na aprovação, o ar com ele pago) */
   assert.equal(nota('no_ar', {}, 3), 'Seu site está no ar. Falta o restante.');
   assert.equal(nota('suspensa', {}, 3), 'O restante não foi pago em 3 dias: o site saiu do ar até o pagamento.', 'sem o limite do servidor, o padrão de 3 dias');
   assert.equal(nota('suspensa', { site: { limite_dias: 5 } }, 3), 'O restante não foi pago em 5 dias: o site saiu do ar até o pagamento.', 'o número é o do servidor (site.limite_dias), como na seção do passo 4');

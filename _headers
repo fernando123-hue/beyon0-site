@@ -15,6 +15,10 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
+  Strict-Transport-Security: max-age=31536000
+
+# HSTS (acima): um ano, sem includeSubDomains e sem preload, e só aqui (a Vercel, legado, põe o dela). Motivo e limites em
+# docs/testes/cabecalhos.test.mjs; a API ganha o mesmo em cloudflare/rotas.mjs.
 
 # A CSP geral NÃO fica em "/*" (que casa também "/"): fica em ":trecho" (um trecho NÃO vazio, sem "/"), que casa todo
 # caminho menos a raiz. "/:trecho" cobre as páginas de um trecho e o 404 de um trecho (/condicoes, /qualquer-coisa,

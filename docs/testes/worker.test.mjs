@@ -53,10 +53,24 @@ test('handler que lança: 500 genérico com x-request-id, sem a mensagem', async
   assert.equal(r.status, 500); assert.ok(r.headers.get('x-request-id'));
   assert.doesNotMatch(await r.text(), /segredo-no-erro/);
 });
-test('toda resposta da API: noindex, nosniff, no-store se faltar', async () => {
+test('toda resposta da API: noindex, nosniff, HSTS de um ano, no-store se faltar', async () => {
   const r = await rotear(pedido('/api/eco'), {});
   assert.equal(r.headers.get('x-robots-tag'), 'noindex'); assert.equal(r.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(r.headers.get('strict-transport-security'), 'max-age=31536000');
   assert.equal(r.headers.get('cache-control'), 'no-store');
+});
+test('HSTS também nas respostas de erro da API (404, 405, 403, 413, 500): um valor só', async () => {
+  const r403 = criarRoteador({ eco: { limite: 10, GET: async () => new Response('x') } });
+  const casos = [
+    [404, await rotear(pedido('/api/nada'), {})],
+    [405, await rotear(pedido('/api/eco', { method: 'PUT', body: 'x' }), {})],
+    [403, await r403(pedido('/api/eco'), CF)],
+    [413, await rotear(pedido('/api/eco', { method: 'POST', body: 'x'.repeat(1025) }), {})],
+    [500, await rotear(pedido('/api/quebra'), {})]];
+  for (const [status, r] of casos) {
+    assert.equal(r.status, status);
+    assert.equal(r.headers.get('strict-transport-security'), 'max-age=31536000', String(status));
+  }
 });
 test('limite do Worker ≥ 3 × o do handler, em toda rota (revisão M1)', () => {
   const minimo = { vendas: vendas.LIMITE_BYTES, pagamentos: pagamentos.LIMITE_BYTES, evento: LIMITE_EVENTO, leads: leads.LIMITE_BYTES, painel: painel.CORPO_MAX, rotinas: 0, atendente: atendente.LIMITE_BYTES };

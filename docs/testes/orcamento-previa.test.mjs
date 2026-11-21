@@ -79,7 +79,7 @@ test('ajustes recebidos e aprovada: "Previsão", nunca "Pronto até" (M2); sem "
   assert.equal(B.fase(entrega({ passo: 'ajustes', entrega_ate: null })).texto, 'A nova prévia aparece aqui.');
   for (const importada of [true, false]) assert.doesNotMatch(B.fase(entrega({ passo: 'ajustes', importada })).texto, /Pronto até/, 'M2: só "Previsão" até existir o importar-site da captação (importada: ' + importada + ')');
   const ap = B.fase(entrega({ passo: 'aprovada' }));
-  assert.equal(ap.fase, 'aprovada'); assert.match(ap.texto, /pôr o site no ar/);
+  assert.equal(ap.fase, 'aprovada'); assert.match(ap.texto, /Falta só o restante/); assert.match(ap.texto, /com ele pago, o site vai ao ar/);   /* (19/11: o restante na aprovação) */
   for (const p of ['material', 'producao', 'no_ar', 'suspensa', 'concluida', 'encerrada']) assert.equal(B.fase(entrega({ passo: p })).fase, 'nenhuma', p);
   assert.equal(B.fase(null).fase, 'nenhuma');
   assert.doesNotMatch(semComentario(FONTE) + SECAO, /Pronto até/);
@@ -112,7 +112,7 @@ test('a seção #o-previa: aprovar num <dialog> (nunca confirm), o campo único 
   const s = SECAO;
   assert.ok(s.length > 500, 'a seção existe');
   assert.match(s, /<dialog class="orc-dialogo" id="o-prv-dialogo"/); assert.ok(!/window\.confirm|\bconfirm\(/.test(semComentario(FONTE)));
-  assert.match(texto(s), /Depois de aprovar, o próximo passo é pôr o site no ar\./);
+  assert.match(texto(s), /Depois de aprovar, falta só o restante: com ele pago, o site vai ao ar\./);
   assert.match(texto(s), /Escreva tudo de uma vez/); assert.match(texto(s), /Enquanto esperamos a sua lista de ajustes, o prazo fica parado\./);
   assert.match(texto(s), /Não escreva CPF, CNPJ nem dados de outras pessoas\./);
   assert.match(texto(s), /Telefone e e-mail escritos aqui são apagados\. Para trocar os do site, use os campos abaixo\./);   /* M3: a lista de texto livre é redigida no servidor; a tela avisa antes e aponta os campos */
@@ -164,7 +164,7 @@ const IDS = ['o-previa', 'o-prv-titulo', 'o-prv-texto', 'o-prv-ver-acoes', 'o-pr
 const falha = (status, mensagem, dados = {}) => Object.assign(new Error(mensagem), { status, dados });
 const estado = (passo = 'previa', rodadas = { usadas: 0, max: 2 }, url = PREVIA) => ({ conversa: { etapa: 'em_producao' }, entrega: { passo, rodadas, previa: { url }, entrega_ate: '2026-11-05' } });
 
-function montar({ comEsquema = true } = {}) {
+function montar({ comEsquema = true, comRestante = false } = {}) {
   const doc = { activeElement: null, body: null, getElementById(id) { if (!this.els[id]) throw new Error('id fora do HTML: ' + id); return this.els[id]; }, els: {} };
   for (const id of IDS) {
     doc.els[id] = { id, textContent: '', hidden: false, value: '', checked: false, href: '', open: false, atributos: {}, ouvintes: {}, filhos: [],
@@ -184,6 +184,7 @@ function montar({ comEsquema = true } = {}) {
   };
   const win = {};
   if (comEsquema) win.BZMaterialEsquema = ESQ;
+  if (comRestante) new Function('window', ler('js/orcamento-restante.js'))(win);   /* (no navegador o orcamento-restante.js também está na página; a frase usa a regra dele) */
   win.BZMaterialRecarregar = async () => { ctx.recargas++; if (ctx.falhaDaRecarga) throw ctx.falhaDaRecarga; if (ctx.proximo) P.atualizar(ctx.proximo); };
   new Function('window', 'document', FONTE)(win, doc);
   const P = win.BZPreviaEntrega.criar({ API });
@@ -457,4 +458,35 @@ test('a volta à aba em produção recarrega o estado (a nova prévia aparece se
   doc.hidden = true; ouvintes.visibilitychange(); assert.equal(leituras, 1, 'aba escondida: não lê');
   doc.hidden = false; E = { conversa: { etapa: 'conversa' } }; ouvintes.visibilitychange(); assert.equal(leituras, 1, 'etapa que não espera nada de fora: não lê');
   E = { conversa: { etapa: 'aguardando_pagamento' } }; ouvintes.visibilitychange(); assert.equal(leituras, 2, 'o pagamento por fora continua lendo');
+});
+
+test('19/11 (revisão): a prévia aprovada com o restante já pago não diz mais "falta o restante"', () => {
+  const ap = B.fase(entrega({ passo: 'aprovada', previa: { url: null } }), true);
+  assert.equal(ap.fase, 'aprovada'); assert.doesNotMatch(ap.texto, /Falta/); assert.match(ap.texto, /restante foi pago/); assert.match(ap.texto, /coloca o site no ar/);
+  assert.match(B.fase(entrega({ passo: 'aprovada', previa: { url: null } })).texto, /Falta só o restante/, 'sem o restante pago, a frase de antes');
+});
+
+test('revisão F: a prévia aprovada com o restante em conferência (estorno parcial) não diz "o restante foi pago" nem promete o ar, e não mostra código', () => {
+  const ap = B.fase(entrega({ passo: 'aprovada', previa: { url: null } }), 'conferencia');
+  assert.equal(ap.fase, 'aprovada'); assert.doesNotMatch(ap.texto, /foi pago|Falta só|vai ao ar|coloca o site no ar/); assert.match(ap.texto, /conferindo/);
+  assert.doesNotMatch(ap.texto, /\bBZ-|código|estorn|bloquead|disputa|contest/i);
+});
+
+test('revisão F: pela tela inteira (com o orcamento-restante.js na página) a prévia aprovada diz a frase certa para cada situação do restante: aberto, pago e limpo, e em conferência', () => {
+  const com = pagamentos => ({ ...estado('aprovada'), pagamentos });
+  const entrada = { parcela: 'sinal', status: 'pago', valor: '1200.00' };
+  const texto = E => { const t = montar({ comRestante: true }); t.P.atualizar(E); return t.el['o-prv-texto'].textContent; };
+  assert.match(texto(com([entrada])), /Falta só o restante/);
+  assert.match(texto(com([entrada, { parcela: 'saldo', status: 'pago', valor: '1800.00', quitada: true }])), /o restante foi pago/);
+  const suja = com([entrada, { parcela: 'saldo', status: 'pago', valor: '1800.00', quitada: false }]);
+  assert.match(texto(suja), /conferindo o pagamento do restante/);
+  assert.doesNotMatch(texto(suja), /foi pago|vai ao ar|coloca o site no ar|estorn|bloquead|BZ-/);
+  const bloqueada = com([entrada, { parcela: 'saldo', status: 'pago', valor: '1800.00', quitada: true }]); bloqueada.entrega.bloqueada = true;
+  assert.match(texto(bloqueada), /conferindo o pagamento do restante/, 'a entrega bloqueada também confere');
+});
+
+test('revisão 2/1: a prévia aprovada com o restante aberto e a entrega bloqueada não diz "Falta só o restante"', () => {
+  const E = { ...estado('aprovada'), pagamentos: [{ parcela: 'sinal', status: 'estornado', valor: '1200.00' }] }; E.entrega.bloqueada = true;
+  const t = montar({ comRestante: true }); t.P.atualizar(E);
+  assert.match(t.el['o-prv-texto'].textContent, /conferindo/); assert.doesNotMatch(t.el['o-prv-texto'].textContent, /Falta só/);
 });

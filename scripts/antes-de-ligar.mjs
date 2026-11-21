@@ -10,14 +10,14 @@ import { fileURLToPath } from 'node:url';
 import { validarBase, HOSTS_VERCEL } from './direcoes.mjs';
 import { hostDoStaging } from '../docs/acesso.mjs';
 
-/* a ordem de aplicação no Supabase real: 3b-1 (1), 3b-2 (4), 3b-3 (5), a correção do aviso "no ar" (1, de 28/10), os recados (1, de 29/10), a confirmação automática (1, de 30/10), o atendente (1, de 30/10) o modo sombra do JEV (1, de 10/11), o WhatsApp do recado (1, de 10/11) a versão do aceite do pedido na conversa (1, de 13/11) a memória do vigia (1, de 15/11) e a confirmação da entrada por e-mail (1, de 15/11). Um teste confere esta lista com a pasta supabase/migrations */
+/* a ordem de aplicação no Supabase real: 3b-1 (1), 3b-2 (4), 3b-3 (5), a correção do aviso "no ar" (1, de 28/10), os recados (1, de 29/10), a confirmação automática (1, de 30/10), o atendente (1, de 30/10) o modo sombra do JEV (1, de 10/11), o WhatsApp do recado (1, de 10/11) a versão do aceite do pedido na conversa (1, de 13/11) a memória do vigia (1, de 15/11), a confirmação da entrada por e-mail (1, de 15/11) e a segurança dos pagamentos na entrega (1, de 19/11: reembolso bloqueia a entrega, o restante na aprovação, o ar só com ele pago). Um teste confere esta lista com a pasta supabase/migrations */
 export const MIGRATIONS = [
   '20261022120000_pr3b1_entrada.sql',
   '20261023120000_pr3b2_entrega.sql', '20261023120100_pr3b2_material.sql', '20261023120200_pr3b2_link_pedido.sql', '20261023120300_pr3b2_dono.sql',
   '20261024120000_pr3b3_esquema.sql', '20261024120100_pr3b3_previa.sql', '20261024120200_pr3b3_restante.sql', '20261024120300_pr3b3_rotina.sql', '20261024120400_pr3b3_lista.sql',
   '20261028120000_aviso_no_ar_so_no_ar.sql', '20261029120000_recados.sql', '20261030120000_confirmacao_automatica.sql', '20261030130000_atendente.sql',
   '20261110120000_jev_sombra.sql', '20261111120000_recado_whatsapp.sql', '20261113120000_aceite_versao.sql', '20261115120000_vigia.sql',
-  '20261115130000_confirmacao_entrada.sql'
+  '20261115130000_confirmacao_entrada.sql', '20261119120000_seguranca_pagamentos.sql'
 ];
 /* o endereço do envio assinado, token inteiro; o grupo 1 é o projeto */
 const SUPABASE_EXATO = /^https:\/\/([a-z0-9]{20})\.supabase\.co\/storage\/v1\/object\/upload\/sign\/$/;
@@ -288,7 +288,7 @@ const DO_DONO = [
   item('CONFIRMAR', 'a tabela ativa tem sinal_percentual 40 (npm run validar:regras) e a migration do 3b-1 foi aplicada', ''),
   item('CONFIRMAR', 'a captação aceita os valores da tabela normal e a venda do site (importar-site, ou o passo manual que você aceitou)', ''),
   item('CONFIRMAR', 'a captação conta só feriados nacionais (mais a Sexta-feira Santa) e aceita o prazo da proposta de 1 a 60 dias úteis (sem trava de prazo desde 28/10)', 'em 28/10 a captação ainda recusava fora de 5 a 10 (clientes/fechamento.mjs, PRAZO_SITE): proposta acima de 10 dias não entra na esteira até ela mudar'),
-  item('CONFIRMAR', 'o código da captação cumpre o que você decidiu em 22/10: material parado sem publicar e sem encerrar o pedido (nada de sem_material), e o site sai do ar à 00:00 depois dos 3 dias, com os 2 lembretes registrados', 'sem isso o contrato promete o que a captação ainda não faz'),
+  item('CONFIRMAR', 'o código da captação cumpre o que você decidiu em 22/10: material parado sem publicar e sem encerrar o pedido (nada de sem_material), o site sai do ar à 00:00 depois dos 3 dias com os 2 lembretes (só as entregas que já foram ao ar antes de 19/11) e, na ordem nova de 19/11, nada é publicado antes do restante pago, nem na conta da Beyon', 'sem isso o contrato promete o que a captação ainda não faz'),
   item('CONFIRMAR', 'o ensaio completo rodou com Mercado Pago e Supabase de TESTE, sem FALHA, e os PNG a 390 e 320 px foram vistos', ''),
   item('CONFIRMAR', 'o seu PC tem PAINEL_CHAVE e BZ_BASE na janela do terminal (nunca em arquivo)', ''),
   conclusao('entrada estornada ou contestada não abre o restante (o site recusa e manda o cliente falar com você)'),

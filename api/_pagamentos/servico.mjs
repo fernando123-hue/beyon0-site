@@ -78,6 +78,8 @@ function traduzirLimite(e) {
   if (e && e.codigo === '23514' && /cartão pausado/.test(m)) throw new ErroPagamento(503, 'O pagamento com cartão está pausado por segurança. Use o Pix ou deixe um recado para a equipe.', { recado: true });
   if (e && e.codigo === '23514' && /tentativas esgotadas/.test(m)) throw new ErroPagamento(429, 'Foram muitas tentativas de pagamento. Deixe um recado para a equipe para concluir.', { recado: true });
   if (e && e.codigo === '55P03') throw new ErroPagamento(429, 'Espere alguns segundos antes de tentar de novo.');
+  /* a entrega bloqueada (entrada estornada, contestada ou projeto pausado): o banco recusa cobrar o restante; a pessoa lê uma frase humana, sem a palavra do sistema; o dono já foi avisado */
+  if (e && e.codigo === '55000' && /bloqueada/.test(m)) throw new ErroPagamento(409, 'Estamos conferindo o seu pagamento. A Beyon Zero fala com você antes de seguir.', { recado: true });
   if (e && e.codigo === '55000' && /verificação/.test(m)) throw new ErroPagamento(409, 'Seu pagamento está em verificação. A Beyon Zero fala com você em breve.', { recado: true });
   /* (PR 3b-1) proposta sem o percentual da entrada: o banco não cobra (falha fechada); a pessoa fala com a Beyon Zero */
   if (e && e.codigo === '23514' && /sem percentual de entrada/.test(m)) throw new ErroPagamento(409, 'Este pedido está sem o valor da entrada. Deixe um recado para a equipe.', { recado: true });
@@ -88,8 +90,11 @@ function traduzirLimite(e) {
    para a reconciliação criar, a CADA execução, um núcleo com banco e provedor CONTADOS (orçamento de subpedidos da
    Cloudflare, api/_orcamento.mjs); o serviço normal usa um núcleo com o banco e o provedor sem contagem.
    `confirmacao` (api/_pagamentos/confirmacao.mjs): com ela, a entrada aprovada AGORA (aplicado = 'aprovada', o banco diz isso
-   uma vez só) recebe o e-mail logo depois de gravada; o núcleo contado da reconciliação vai sem ela e confirma pela varredura */
-function criarNucleo({ banco, mp, cfg, agora, confirmacao = null }) {
+   uma vez só) recebe o e-mail logo depois de gravada; o núcleo contado da reconciliação vai sem ela e confirma pela varredura.
+   `avisar` (19/11; api/_aviso.mjs, avisarDonoPagamento): o banco devolve `alerta` ({ codigo, evento, parcela }) quando um estorno, estorno parcial ou
+   contestação bloqueou a entrega, ou quando o restante caiu; o dono é avisado NA HORA, pelo aviso do provedor ou pela reconciliação. O aviso nunca
+   derruba o pagamento (ele já está gravado): falhou ou lançou, só vai para o log; a rotina diária continua contando (pagamentos_atencao) */
+function criarNucleo({ banco, mp, cfg, agora, confirmacao = null, avisar = null }) {
   const PROV = mp.nome;
   const idade = iso => (agora() - new Date(iso).getTime()) / 1000;
   const ocorrencia = (evento, tentativa_id, provedor_ref, detalhe, origem) =>
@@ -107,7 +112,38 @@ function criarNucleo({ banco, mp, cfg, agora, confirmacao = null }) {
     const r = await banco('pagamentos_aplicar', { provedor: PROV, origem, request_id: request_id || null, conta_esperada: cfg.contaEsperada, org_slug: ORG, retrato });
     /* o pagamento já está gravado (outra transação): o e-mail nunca o desfaz; erro do e-mail só vai para o log */
     if (confirmacao && r && r.aplicado === 'aprovada') await confirmarEntradas({ banco, confirmacao, provedor: PROV, filtro: { provedor_order_id: retrato.order_id } });
+    if (r && r.alerta) await avisarDono(r.alerta);
+    if (r && Array.isArray(r.cancelar_restante)) await cancelarPixDoRestante(r.cancelar_restante);
     return r;
+  }
+
+  /* (S2, revisão de segurança) a entrada foi estornada, estornada em parte ou contestada: o Pix do restante que ainda estava aberto não pode ser pago (nada vai ao ar). O banco
+     lista as orders; aqui se cancela no provedor, com a chave de idempotência da tentativa. Melhor esforço: o pagamento já está gravado, então uma falha só vai para o log e
+     para a trilha, nunca o desfaz (a tela já esconde o QR e o Pix expira sozinho). Só o orçamento de subpedidos esgotado sobe, como em todo o serviço. */
+  async function cancelarPixDoRestante(lista) {
+    for (const o of lista.slice(0, 3)) {
+      if (!o || !/^[A-Za-z0-9_-]{4,64}$/.test(o.order || '') || !/^[0-9a-f-]{36}$/.test(o.tentativa_id || '')) continue;
+      try {
+        if (typeof mp.cancelarOrdem !== 'function') throw new Error('provedor sem cancelamento');
+        await aplicar(await mp.cancelarOrdem(o.order, 'cx-' + o.tentativa_id), 'consulta');
+      } catch (e) {
+        if (e instanceof SemOrcamento) throw e;
+        if (e instanceof ErroProvedor) await erroDoProvedor(e, o.tentativa_id, o.order, 'consulta');
+        console.error('[pagamentos] o Pix do restante não foi cancelado no provedor:', (e && (e.codigo || e.tipo)) || 'erro');
+        /* conflito = a order mudou agora mesmo (talvez paga): reconsulta e aplica, como resolverAtiva; o banco decide (paga com a entrega bloqueada = rastro e aviso) */
+        if (e instanceof ErroProvedor && e.tipo === 'conflito') {
+          try { await aplicar(await mp.consultarOrdem(o.order), 'consulta'); }
+          catch (e2) { if (e2 instanceof SemOrcamento) throw e2; console.error('[pagamentos] a reconsulta do Pix do restante falhou:', (e2 && (e2.codigo || e2.tipo)) || 'erro'); }
+        }
+      }
+    }
+  }
+
+  /* o aviso ao dono (estorno, contestação, restante pago): sem dado pessoal no log, só o evento */
+  async function avisarDono(alerta) {
+    if (typeof avisar !== 'function') return;
+    try { if (!(await avisar(alerta))) console.error('[pagamentos] o aviso ao dono não saiu:', alerta.evento); }
+    catch (e) { console.error('[pagamentos] o aviso ao dono falhou:', alerta.evento, (e && e.codigo) || 'erro'); }
   }
 
   /* traz uma tentativa ativa para o estado real do provedor. Erro do provedor: não muda nada */
@@ -139,10 +175,10 @@ function criarNucleo({ banco, mp, cfg, agora, confirmacao = null }) {
   return { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar };
 }
 
-export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Date.now(), confirmacao = null }) {
+export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Date.now(), confirmacao = null, avisar = null }) {
   if (!cfg || !cfg.ativo) throw new Error('pagamentos desligados');
   const mp = provedor || criarMercadoPago({ token: cfg.token, base: cfg.base, fetch: cfg.fetch || globalThis.fetch });
-  const { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar } = criarNucleo({ banco, mp, cfg, agora, confirmacao });
+  const { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar } = criarNucleo({ banco, mp, cfg, agora, confirmacao, avisar });
 
   /* decide o que fazer com a tentativa ativa antes de começar outra */
   async function resolverAtiva(ctx, t, metodoNovo) {
@@ -265,8 +301,10 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
       const gasto = orcamentoDe(orcamento, RESERVA_FINAL);
       const bancoContado = gasto.contar(banco);
       const mpContado = { ...mp, consultarOrdem: gasto.contar(mp.consultarOrdem), buscarRecentes: gasto.contar(mp.buscarRecentes),
-        buscarPorReferencia: gasto.contar(mp.buscarPorReferencia) };
-      const nucleo = criarNucleo({ banco: bancoContado, mp: mpContado, cfg, agora });
+        buscarPorReferencia: gasto.contar(mp.buscarPorReferencia),
+        /* (S2, re-revisão) o cancelamento do Pix do restante também é uma ida ao provedor: gasta o orçamento de subpedidos da execução */
+        cancelarOrdem: typeof mp.cancelarOrdem === 'function' ? gasto.contar(mp.cancelarOrdem) : undefined };
+      const nucleo = criarNucleo({ banco: bancoContado, mp: mpContado, cfg, agora, avisar });   /* (o estorno achado aqui, com o aviso do provedor perdido, também avisa na hora) */
       let parou = false, paginaCheia = false;
       const contar = r => { if (r && r.aplicado) resumo.aplicadas++; if (r && r.ignorado === 'order desconhecida') resumo.desconhecidas++; if (r && r.erro_provedor) resumo.erros++; };
       /* um item com erro (banco, provedor, dado ruim) não derruba os outros; o fim do orçamento NÃO é erro: o laço para */

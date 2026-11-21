@@ -36,7 +36,8 @@ export const ROTAS = Object.freeze({
   atendente:  { limite: BYTES_POR_UNIDADE * atendente.LIMITE_BYTES, GET: atendente.GET, POST: atendente.POST, OPTIONS: atendente.OPTIONS }
 });
 const METODOS = ['GET', 'POST', 'OPTIONS'];
-const CABECALHOS_API = { 'x-robots-tag': 'noindex', 'x-content-type-options': 'nosniff' };
+/* o HSTS igual ao das páginas (_headers): o _headers não vale para a resposta do Worker */
+const CABECALHOS_API = { 'x-robots-tag': 'noindex', 'x-content-type-options': 'nosniff', 'strict-transport-security': 'max-age=31536000' };
 
 const json = (dados, status, extra = {}) => new Response(JSON.stringify(dados), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...CABECALHOS_API, ...extra } });
 const log = dados => console.error(JSON.stringify({ origem: 'worker', nivel: 'erro', ...dados }));

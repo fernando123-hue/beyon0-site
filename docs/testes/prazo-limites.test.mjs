@@ -55,11 +55,11 @@ test('contarAlarmes: um item torto vira "ilegiveis" e NÃO derruba os alarmes do
     null                                                                                            // lixo no meio da lista
   ];
   const r = rapido(() => contarAlarmes(itens, AGORA));
-  assert.deepEqual(r, { prazo_vencido: 1, material_30: 1, restante_vencido: 0, material_apagar: 0, ilegiveis: 4 });
+  assert.deepEqual(r, { prazo_vencido: 1, material_30: 1, restante_vencido: 0, material_apagar: 0, material_bloqueado: 0, site_parado: 0, ilegiveis: 4 });
   /* só o dado torto vira "ilegível": um erro de programação (TypeError) NÃO some calado, sobe */
   const bug = { passo: 'producao', prazo_dias: 5, prazo: { get conta_desde() { throw new TypeError('bug de programação'); } } };
   assert.throws(() => contarAlarmes([bug], AGORA), TypeError);
-  assert.deepEqual(contarAlarmes([], AGORA), { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0, ilegiveis: 0 });
+  assert.deepEqual(contarAlarmes([], AGORA), { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0, material_bloqueado: 0, site_parado: 0, ilegiveis: 0 });
 });
 
 test('D5: a prévia parada por mais de um ano NÃO vira "prazo vencido" por engano e a data limite conta TODOS os dias úteis parados (o teto antigo de 260 errava os dois)', () => {
