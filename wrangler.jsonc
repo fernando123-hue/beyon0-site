@@ -33,7 +33,7 @@
     // o TESTE DO PIX DE R$ 0,01 do painel do dono (api/_pagamentos/teste-pix.mjs): rotas só com a chave do painel E com "1" aqui.
     // VAZIA por padrão (fechado). Para o teste do dono: trocar "" por "1" aqui (PR de uma linha, promovido) e desfazer depois; a Cloudflare pode
     // sobrescrever no próximo deploy qualquer valor posto no painel, e isso só fecha o teste (lado seguro)
-    "BZ_TESTE_PIX": "1" },   // LIGADO só para o teste do dono em 20/11 (a CI derruba depois de 2026-11-22); depois do teste: voltar para ""
+    "BZ_TESTE_PIX": "" },
   "ai": { "binding": "AI" },
   "send_email": [{ "name": "AVISO_EMAIL", "destination_address": "contato.beyon.zero@gmail.com" }],
   "observability": { "enabled": true, "logs": { "enabled": true, "head_sampling_rate": 1 }, "traces": { "enabled": true } },
