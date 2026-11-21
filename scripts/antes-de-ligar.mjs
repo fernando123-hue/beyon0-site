@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { validarBase, HOSTS_VERCEL } from './direcoes.mjs';
 import { hostDoStaging } from '../docs/acesso.mjs';
+import { LIMITES } from '../api/_entrega/alarmes.mjs';
 
 /* a ordem de aplicação no Supabase real: 3b-1 (1), 3b-2 (4), 3b-3 (5), a correção do aviso "no ar" (1, de 28/10), os recados (1, de 29/10), a confirmação automática (1, de 30/10), o atendente (1, de 30/10) o modo sombra do JEV (1, de 10/11), o WhatsApp do recado (1, de 10/11) a versão do aceite do pedido na conversa (1, de 13/11) a memória do vigia (1, de 15/11), a confirmação da entrada por e-mail (1, de 15/11) e a segurança dos pagamentos na entrega (1, de 19/11: reembolso bloqueia a entrega, o restante na aprovação, o ar só com ele pago). Um teste confere esta lista com a pasta supabase/migrations */
 export const MIGRATIONS = [
@@ -30,9 +31,13 @@ const FONTE_ABERTA = /^(\*|[a-z][a-z0-9+.-]*:|'unsafe-(inline|eval|hashes)')$|\*
 const SCRIPT_PERMITIDAS = ["'self'", "'none'", 'https://challenges.cloudflare.com', 'https://sdk.mercadopago.com'];
 const DIRETIVAS_POR_LISTA = ['script-src', 'script-src-elem'];
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-/* o que o site promete ao cliente sobre o restante (as frases protegidas por textos-d4.test.mjs): 3 dias, um lembrete no 2º e outro no 3º dia */
-const RESTANTE_DIAS = 3;
-const LEMBRETES_RESTANTE = [2, 3];
+/* o que o site promete sobre o restante (21/11, D2 do dono; a frase de /condicoes é protegida por condicoes.test.mjs): 24 horas depois do Pix do site pronto, com os 2
+   lembretes da captação dentro delas (8 h e 20 h); restante pago e o site fora do ar há mais de 2 dias é alarme dos dois lados (site_parado_dias em api/_entrega/alarmes.mjs).
+   As chaves da ordem antiga (3 dias do aviso "no ar", lembretes no 2º e 3º dia) saíram da captação em 7bdb9e9: de volta, são FALTA */
+const RESTANTE_ENCERRAR_HORAS = 24;
+const LEMBRETES_RESTANTE_HORAS = [8, 20];
+const PAGO_SEM_AR_DIAS = LIMITES.site_parado_dias;
+const CHAVES_ANTIGAS = ['restante_fora_do_ar_dias', 'lembretes_restante'];
 const ARQUIVOS_DE_DEPLOY = ['vercel.json', 'package.json', 'wrangler.jsonc', 'wrangler.json', 'wrangler.toml', '.env.example'];
 /* o que também faz deploy ou liga o Worker (B3): nenhum desses arquivos tem motivo para mexer no BZ_ENTREGA; qualquer menção fora de comentário é FALTA */
 const PASTAS_DE_DEPLOY = [['.github/workflows', /\.ya?ml$/i], ['cloudflare', /\.(mjs|js|json|jsonc|toml|ya?ml)$/i]];
@@ -187,8 +192,9 @@ function itensCaptacao({ ler, captacao }) {
   if (!captacao) {
     return [
       item('CONFIRMAR', 'condicoes_versao da captação (config/entrega.json) é ' + (pagina || 'a data de /condicoes') + ': a pasta da captação não está ao lado', 'ela recusa aceite de data anterior à versão em vigor'),
-      item('CONFIRMAR', 'restante_fora_do_ar_dias da captação é ' + RESTANTE_DIAS + ' (config/entrega.json): a pasta da captação não está ao lado', ''),
-      item('CONFIRMAR', 'lembretes_restante da captação é ' + lista(LEMBRETES_RESTANTE) + ' (config/entrega.json): a pasta da captação não está ao lado', '')
+      item('CONFIRMAR', 'restante_encerrar_horas da captação é ' + RESTANTE_ENCERRAR_HORAS + ' (config/entrega.json): a pasta da captação não está ao lado', ''),
+      item('CONFIRMAR', 'lembretes_restante_horas da captação é ' + lista(LEMBRETES_RESTANTE_HORAS) + ' (config/entrega.json): a pasta da captação não está ao lado', ''),
+      item('CONFIRMAR', 'pago_sem_ar_dias da captação é ' + PAGO_SEM_AR_DIAS + ' (config/entrega.json): a pasta da captação não está ao lado', '')
     ];
   }
   let cfg;
@@ -197,8 +203,12 @@ function itensCaptacao({ ler, captacao }) {
   if (!pagina) itens.push(item('FALTA', 'não achei a "Última atualização" em condicoes.html para conferir a condicoes_versao', 'a página precisa dizer "Última atualização: D de mês de AAAA"'));
   else if (cfg.condicoes_versao === pagina) itens.push(item('OK', 'condicoes_versao da captação = ' + pagina + ' = a data de /condicoes'));
   else itens.push(item('FALTA', 'condicoes_versao da captação é ' + cfg.condicoes_versao + ' e /condicoes diz ' + pagina, 'a captação troca condicoes_versao para ' + pagina + ' (e os textos dela) antes de ligar'));
-  itens.push(confrontar('restante_fora_do_ar_dias', cfg.restante_fora_do_ar_dias, RESTANTE_DIAS, String, RESTANTE_DIAS + ' dias do aviso de que o site está no ar'));
-  itens.push(confrontar('lembretes_restante', cfg.lembretes_restante, LEMBRETES_RESTANTE, lista, 'um lembrete no 2º dia e outro no 3º'));
+  itens.push(confrontar('restante_encerrar_horas', cfg.restante_encerrar_horas, RESTANTE_ENCERRAR_HORAS, String, RESTANTE_ENCERRAR_HORAS + ' horas depois do Pix do site pronto, como diz /condicoes'));
+  itens.push(confrontar('lembretes_restante_horas', cfg.lembretes_restante_horas, LEMBRETES_RESTANTE_HORAS, lista, 'um lembrete 8 h e outro 20 h depois da cobrança, dentro das 24 h'));
+  itens.push(confrontar('pago_sem_ar_dias', cfg.pago_sem_ar_dias, PAGO_SEM_AR_DIAS, String, 'o site_parado_dias do site: restante pago e fora do ar há mais de ' + PAGO_SEM_AR_DIAS + ' dias é alarme'));
+  for (const velha of CHAVES_ANTIGAS.filter(c => Object.hasOwn(cfg, c))) {
+    itens.push(item('FALTA', velha + ' ainda está na captação: é da ordem antiga (o site no ar antes do restante)', 'a captação tira ' + velha + ' de config/entrega.json (a ordem de 21/11 conta o restante em horas)'));
+  }
   return itens;
 }
 
@@ -288,7 +298,7 @@ const DO_DONO = [
   item('CONFIRMAR', 'a tabela ativa tem sinal_percentual 40 (npm run validar:regras) e a migration do 3b-1 foi aplicada', ''),
   item('CONFIRMAR', 'a captação aceita os valores da tabela normal e a venda do site (importar-site, ou o passo manual que você aceitou)', ''),
   item('CONFIRMAR', 'a captação conta só feriados nacionais (mais a Sexta-feira Santa) e aceita o prazo da proposta de 1 a 60 dias úteis (sem trava de prazo desde 28/10)', 'em 28/10 a captação ainda recusava fora de 5 a 10 (clientes/fechamento.mjs, PRAZO_SITE): proposta acima de 10 dias não entra na esteira até ela mudar'),
-  item('CONFIRMAR', 'o código da captação cumpre o que você decidiu em 22/10: material parado sem publicar e sem encerrar o pedido (nada de sem_material), o site sai do ar à 00:00 depois dos 3 dias com os 2 lembretes (só as entregas que já foram ao ar antes de 19/11) e, na ordem nova de 19/11, nada é publicado antes do restante pago, nem na conta da Beyon', 'sem isso o contrato promete o que a captação ainda não faz'),
+  item('CONFIRMAR', 'o código da captação cumpre o que você decidiu em 22/10: material parado sem publicar e sem encerrar o pedido (nada de sem_material); na ordem nova (19/11 e 21/11), nada é publicado antes do restante pago, nem na conta da Beyon, o domínio só é registrado depois dele e, sem ele, o projeto encerra 24 h depois da cobrança, com os lembretes de 8 h e 20 h; e não há entrega antiga no ar sem o restante (a captação não tem mais a saída do ar depois dos 3 dias, que saiu em 7bdb9e9)', 'sem isso o contrato promete o que a captação ainda não faz'),
   item('CONFIRMAR', 'o ensaio completo rodou com Mercado Pago e Supabase de TESTE, sem FALHA, e os PNG a 390 e 320 px foram vistos', ''),
   item('CONFIRMAR', 'o seu PC tem PAINEL_CHAVE e BZ_BASE na janela do terminal (nunca em arquivo)', ''),
   conclusao('entrada estornada ou contestada não abre o restante (o site recusa e manda o cliente falar com você)'),
