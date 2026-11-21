@@ -3,7 +3,7 @@
    texto cru do Whisper (a pessoa nunca fica sem texto). Sem banco, sem rede: o modelo é falso. node --test */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { criarTranscritor, transcrever, aceitarLapidado, PROMPT_LAPIDAR, MODELO_LAPIDAR, VOZ_LAPIDAR_TEMPO_MS } from '../../api/_vendas/voz.mjs';
+import { criarTranscritor, transcrever, aceitarLapidado, extrairResposta, PROMPT_LAPIDAR, MODELO_LAPIDAR, VOZ_LAPIDAR_TEMPO_MS, VOZ_TETO_TOTAL_MS } from '../../api/_vendas/voz.mjs';
 
 const visitantes = { quem: async () => 'visitante-1' };
 const freios = { visitante: () => false };
@@ -109,19 +109,27 @@ test('a trava recusa o limpo que perdeu uma negação ("não quero" virando "que
   assert.equal(aceitarLapidado('hum eu não quero parcelar o pagamento do site não', 'Eu quero parcelar o pagamento do site.'), false);
   assert.equal(aceitarLapidado('eu nunca tive site e nem instagram da loja', 'Eu tive site e instagram da loja.'), false);
   assert.equal(aceitarLapidado('hum eu não quero parcelar o pagamento do site', 'Eu não quero parcelar o pagamento do site.'), true);
+  /* duas negações que não são gagueira: sumir com uma troca o sentido (2ª revisão técnica) */
+  assert.equal(aceitarLapidado('eu não gosto de bolo de chocolate nem de torta de limão', 'Eu gosto de bolo de chocolate, nem de torta de limão.'), false);
+  assert.equal(aceitarLapidado('eu não gosto de bolo de chocolate e não gosto de torta de limão', 'Eu não gosto de bolo de chocolate e gosto de torta de limão.'), false);
+  /* o "não não" gaguejado pode virar um só */
+  assert.equal(aceitarLapidado('eu não não quero parcelar o pagamento do site', 'Eu não quero parcelar o pagamento do site.'), true);
 });
 
 test('a trava recusa link e marcação que a pessoa não falou', () => {
   for (const ruim of ['Veja [o site](http://exemplo.com) da confeitaria em Niterói.', 'Eu tenho uma **confeitaria** em Niterói e queria mais encomendas.',
     'Eu tenho uma confeitaria em Niterói, www.exemplo.com, e queria mais encomendas.', '# Eu tenho uma confeitaria em Niterói e queria mais encomendas.',
-    'Eu tenho uma `confeitaria` em Niterói e queria mais encomendas pelo site.']) {
+    'Eu tenho uma `confeitaria` em Niterói e queria mais encomendas pelo site.', 'Eu tenho uma confeitaria em Niterói, contato@exemplo.com, e queria mais encomendas.',
+    'Eu tenho uma confeitaria em Niterói e queria mais encomendas http exemplo.']) {
     assert.equal(aceitarLapidado(CRU, ruim), false, ruim);
   }
   /* a pessoa ditou o endereço: aí ele pode ficar */
   assert.equal(aceitarLapidado('o meu site hoje é www.doce.com.br e quero um novo', 'O meu site hoje é www.doce.com.br e quero um novo.'), true);
+  /* um sinal que a pessoa ditou não libera outro igual em qualquer lugar (conta, não só existe) */
+  assert.equal(aceitarLapidado('a minha loja é a número #1 da cidade de niterói', 'A minha loja é a número #1 da cidade de #Niterói.'), false);
 });
 
-test('a trava compara palavras longas pelo começo maior ("dezenove" não vira "dezessete")', () => {
+test('a trava recusa número por extenso trocado ("dezenove" não vira "dezessete")', () => {
   assert.equal(aceitarLapidado('a festa é dia dezenove de dezembro em niterói', 'A festa é dia dezessete de dezembro em Niterói.'), false);
   assert.equal(aceitarLapidado('a festa é dia dezenove de dezembro em niterói', 'A festa é dia dezenove de dezembro, em Niterói.'), true);
 });
@@ -131,14 +139,12 @@ test('a trava recusa o limpo que comeu demais (menos de 60 % do cru)', () => {
   assert.equal(aceitarLapidado(cru, 'Eu tenho uma confeitaria em Niterói e vendo bolos.'), false);
 });
 
-test('as aspas só saem quando embrulham o texto inteiro', async () => {
-  const { extrairResposta } = await import('../../api/_vendas/voz.mjs');
+test('as aspas só saem quando embrulham o texto inteiro', () => {
   assert.equal(extrairResposta({ response: '"Eu tenho a confeitaria Doce Mel."' }), 'Eu tenho a confeitaria Doce Mel.');
   assert.equal(extrairResposta({ response: 'Minha loja se chama "Doce Mel"' }), 'Minha loja se chama "Doce Mel"');
 });
 
 test('resposta cortada pelo limite de tokens não vale (volta o cru)', async () => {
-  const { extrairResposta } = await import('../../api/_vendas/voz.mjs');
   assert.equal(extrairResposta({ response: 'Eu tenho uma confeitaria em', finish_reason: 'length' }), '');
   assert.equal(extrairResposta({ choices: [{ message: { content: 'Eu tenho uma confeitaria em' }, finish_reason: 'length' }] }), '');
   const chamadas = [];
@@ -148,15 +154,30 @@ test('resposta cortada pelo limite de tokens não vale (volta o cru)', async () 
 });
 
 test('o tempo da lapidação cabe no que sobrou do teto do navegador (30 s), senão nem chama', async () => {
-  const { VOZ_TETO_TOTAL_MS } = await import('../../api/_vendas/voz.mjs');
   assert.ok(VOZ_TETO_TOTAL_MS <= 28000, 'margem para o upload antes dos 30 s do navegador');
-  let chamou = 0;
-  const lento = { transcrever: async () => CRU, lapidar: async () => { chamou++; return LIMPO; } };
-  /* o Whisper "levou" quase todo o teto: a lapidação nem começa */
-  const r = await rodar(lento, { agora: (() => { let n = 0; return () => (n++ === 0 ? 0 : VOZ_TETO_TOTAL_MS - 500); })() });
-  assert.equal(r.corpo.texto, CRU);
-  assert.equal(chamou, 0);
-  assert.equal(r.linhas.find(l => l.evento === 'voz').lapidar_motivo, 'sem_tempo');
+  /* relógio falso: o Whisper falso avança o tempo, como se tivesse levado `gasto` ms */
+  const comRelogio = gasto => {
+    let t = 0;
+    const chamadas = [];
+    const transcritor = { transcrever: async () => { t += gasto; return CRU; },
+      lapidar: () => new Promise(res => { chamadas.push(t); setTimeout(() => res(LIMPO), 60); }) };
+    return { transcritor, agora: () => t, chamadas };
+  };
+  /* o Whisper levou quase todo o teto: a lapidação nem começa */
+  const quase = comRelogio(VOZ_TETO_TOTAL_MS - 500);
+  const r1 = await rodar(quase.transcritor, { agora: quase.agora });
+  assert.equal(r1.corpo.texto, CRU);
+  assert.equal(quase.chamadas.length, 0);
+  assert.equal(r1.linhas.find(l => l.evento === 'voz').lapidar_motivo, 'sem_tempo');
+  /* sobrou pouco: a lapidação ganha só a sobra (40 ms), não os 6 s inteiros; o modelo leva 60 ms e estoura */
+  const pouco = comRelogio(VOZ_TETO_TOTAL_MS - 40);
+  const r2 = await rodar(pouco.transcritor, { agora: pouco.agora, lapidarSobraMinMs: 0 });
+  assert.equal(r2.corpo.texto, CRU);
+  assert.equal(r2.linhas.find(l => l.evento === 'voz').lapidar_motivo, 'tempo');
+  /* com folga: lapida normalmente */
+  const folga = comRelogio(2000);
+  const r3 = await rodar(folga.transcritor, { agora: folga.agora });
+  assert.equal(r3.corpo.texto, LIMPO);
 });
 
 test('o prompt trava o que importa e o tempo é curto', () => {

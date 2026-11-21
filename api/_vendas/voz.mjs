@@ -64,18 +64,31 @@ const semAcento = t => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]
 const palavrasLongas = t => semAcento(t).match(/[a-z]{4,}/g) || [];
 
 /* marcação e link que a pessoa não ditou (o texto vai para uma caixa de mensagem e depois ao consultor) */
-const SINAIS_DE_MARCACAO = ['://', 'www.', '[', ']', '*', '#', '`'];
-/* negações: limpar pode juntar um "não" repetido, nunca sumir com ele ("não quero" virando "quero") */
-const NEGACAO = /\b(nao|nunca|nem|jamais|ninguem|nada|nenhum|nenhuma)\b/g;
+const SINAIS_DE_MARCACAO = ['://', 'http', 'www.', '@', '[', ']', '*', '#', '`'];
+const vezes = (t, sinal) => t.split(sinal).length - 1;
+/* negações: limpar pode juntar a GAGUEIRA ("não não quero", a mesma negação repetida em até 3 palavras), nunca sumir com
+   uma negação de verdade ("não quero" virando "quero"; "não gosto de bolo nem de torta" perdendo o "não") */
+const NEGACAO = /^(nao|nunca|nem|jamais|ninguem|nada|nenhum|nenhuma)$/;
+const PERTO = 3;
+function negacoes(t, descontarGagueira) {
+  const palavras = semAcento(t).match(/[a-z]+/g) || [];
+  const ultima = {}, conta = {};
+  palavras.forEach((p, i) => {
+    if (!NEGACAO.test(p)) return;
+    const gagueira = descontarGagueira && ultima[p] !== undefined && i - ultima[p] <= PERTO;
+    ultima[p] = i;
+    if (!gagueira) conta[p] = (conta[p] || 0) + 1;
+  });
+  return conta;
+}
 /* números por extenso ("dezenove" × "dezessete"): a mesma sequência, como os algarismos ("um"/"uma" são artigo, ficam de fora) */
 const NUMERO_POR_EXTENSO = /\b(zero|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzentos|duzentas|trezentos|trezentas|quatrocentos|quinhentos|seiscentos|setecentos|oitocentos|novecentos|mil|milhao|milhoes)\b/g;
-const contar = (t, re) => (semAcento(t).match(re) || []).length;
 const extenso = t => (semAcento(t).match(NUMERO_POR_EXTENSO) || []).join(' ');
 
 /* a trava: o texto lapidado só vale se for, de fato, o mesmo texto mais limpo. Na dúvida, recusa (e volta o cru).
    • sem sinais de HTML, link ou marcação que a pessoa não falou, sem comentário de robô em volta (a menos que a pessoa tenha falado assim);
    • os algarismos e os números por extenso saem iguais e na mesma ordem (telefone, valor, data);
-   • as negações não somem (pode juntar "não… não" repetido em um);
+   • as negações não somem (só a gagueira, a mesma negação repetida em até 3 palavras, pode virar uma);
    • o tamanho fica entre 60 % e 125 % do cru (+10): limpar encurta um pouco, nunca reescreve, nem enche, nem corta o fim;
    • pelo menos 70 % das palavras de 4+ letras do resultado já estavam na fala (aproximação: mesmas 4 primeiras letras):
      pega o modelo que "obedeceu" ao que a pessoa disse em vez de só limpar, e a invenção. */
@@ -84,12 +97,12 @@ export function aceitarLapidado(cru, lapidado) {
   const novo = lapidado.trim();
   if (!novo || /[<>]/.test(novo)) return false;
   const cruMinusculo = cru.toLowerCase(), novoMinusculo = novo.toLowerCase();
-  if (SINAIS_DE_MARCACAO.some(s => novoMinusculo.includes(s) && !cruMinusculo.includes(s))) return false;
+  if (SINAIS_DE_MARCACAO.some(s => vezes(novoMinusculo, s) > vezes(cruMinusculo, s))) return false;
   if (COMENTARIO_DE_ROBO.test(novo) && !COMENTARIO_DE_ROBO.test(cru)) return false;
   if (cru.replace(/\D/g, '') !== novo.replace(/\D/g, '')) return false;
   if (extenso(cru) !== extenso(novo)) return false;
-  const negacoes = contar(cru, NEGACAO);
-  if (negacoes && contar(novo, NEGACAO) < Math.max(1, negacoes - 1)) return false;
+  const naFala = negacoes(cru, true), noLimpo = negacoes(novo, false);
+  if (Object.entries(naFala).some(([p, n]) => (noLimpo[p] || 0) < n)) return false;
   if (novo.length < cru.length * 0.6 || novo.length > cru.length * 1.25 + 10) return false;
   const fala = palavrasLongas(cru);
   const exatas = new Set(fala), inicios = new Set(fala.map(p => p.slice(0, 4)));
