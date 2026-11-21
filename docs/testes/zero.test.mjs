@@ -365,6 +365,19 @@ test('marcadores: [[completo]] vira o valor do pacote completo; sem ele, a frase
   assert.equal(comMarcadores('Fica [[total]].', e, { completo: 17950 }).texto, 'Fica R$ 2.900.', 'sem o marcador, nada muda');
 });
 
+test('marcadores: o [[completo]] só vale uma vez, sozinho na frase e antes do valor do caso; o valor dela nunca some (revisões do PR)', () => {
+  const e = { valor_total: 2900, sinal: 1160 };
+  const ok = { completo: 17950 }, nao = { completo: null };
+  assert.equal(comMarcadores('O completo fica [[completo]] e o seu caso [[total]]. Quer ver?', e, nao).texto, 'O completo fica e o seu caso R$ 2.900. Quer ver?', 'sem a referência, o total fica');
+  assert.equal(comMarcadores('O completo fica [[completo]] e o seu caso [[total]]. Quer ver?', e, ok).texto, 'O completo fica e o seu caso R$ 2.900. Quer ver?', 'na mesma frase do total, o pacote não sai como se fosse o preço dela');
+  assert.equal(comMarcadores('Completo [[completo]]. Repito: [[completo]]. Seu: [[total]].', e, ok).texto, 'Completo R$ 17.950. Seu: R$ 2.900.', 'uma vez só');
+  assert.equal(comMarcadores('O seu fica [[total]]. O completo, [[completo]].', e, ok).texto, 'O seu fica R$ 2.900.', 'depois do valor do caso, não vale');
+  assert.equal(comMarcadores('O seu fica [[completo]].', e, ok).texto.includes('17.950'), true, 'sozinho e primeiro: vale (a instrução manda escrever antes)');
+  assert.equal(comMarcadores('O completo fica [[completo]].', e, nao).texto, 'Pro seu caso, fica R$ 2.900.', 'nunca uma resposta vazia');
+  const sem = comMarcadores('O completo fica [[completo]]. O seu, [[total]]. Quer ver?', null, ok);
+  assert.doesNotMatch(sem.texto, /\[\[|\d/); assert.equal(sem.semEstimativa, true);
+});
+
 test('turno: o Zero cita o pacote completo só no primeiro valor da conversa, e nunca a quem já orçou o próprio pacote', async () => {
   const frase = 'O mais completo que a gente faz fica [[completo]]. Pro seu caso, [[total]]. Quer ver três modelos?';
   const briefing = { negocio: { segmento: 'padaria' }, objetivos: ['vender'], projeto: { formato: 'landing_page' } };

@@ -257,7 +257,24 @@ const TEM_MARCADOR = /\[\[\s*[^\[\]\n]{1,30}?\s*\]\]|\[\s*(?:total|sinal|restant
 const CAMPO = { total: 'total', valor: 'total', 'valor total': 'total', preco: 'total', 'preço': 'total', sinal: 'sinal', entrada: 'sinal', restante: 'restante', resto: 'restante',
   completo: 'completo', 'pacote completo': 'completo' };
 const MARCADOR_COMPLETO = /\[\[\s*(?:pacote\s+)?completo\s*\]\]/i;
-const semFrasesDoCompleto = t => frasesDe(t).filter(f => !MARCADOR_COMPLETO.test(f)).join('');
+const MARCADORES_COMPLETO = /\[\[\s*(?:pacote\s+)?completo\s*\]\]/gi;
+const VALOR_DO_CASO_FIXO = 'Pro seu caso, fica [[total]].';
+/* (revisões do PR) o [[completo]] só vale na PRIMEIRA frase que o cita, sozinho (sem outro valor na frase) e antes de qualquer valor do
+   caso: "o seu fica [[completo]] e o total [[total]]" nunca mostra o pacote como se fosse o preço dela, e a referência não se repete.
+   Qualquer outra citação sai: a frase inteira, ou só o marcador quando a frase também traz o valor do caso (o valor dela nunca some).
+   Sem a referência valendo, toda citação sai; se não sobrar nada, fica o valor do caso numa frase */
+function arrumarCompleto(texto, vale) {
+  let usado = false, valorAntes = false;
+  const saida = [];
+  for (const f of frasesDe(texto)) {
+    const semCompleto = f.replace(MARCADORES_COMPLETO, '');
+    const outroValor = TEM_MARCADOR.test(semCompleto);
+    if (!MARCADOR_COMPLETO.test(f)) { saida.push(f); valorAntes ||= outroValor; continue; }
+    if (vale && !usado && !outroValor && !valorAntes) { usado = true; saida.push(f); continue; }
+    if (outroValor) { saida.push(semCompleto); valorAntes = true; }
+  }
+  return saida.join('').trim() || VALOR_DO_CASO_FIXO;
+}
 const dinheiro = n => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 }).replace(/\s/g, ' ');
 function valoresDe(e) {
   const total = Number(e?.valor_total), sinal = Number(e?.sinal);
@@ -299,7 +316,7 @@ export function comMarcadores(texto, e, { completo = null } = {}) {
   const v = valoresDe(e);
   if (v) {
     const temCompleto = Number.isFinite(completo) && completo > 0;
-    const base = temCompleto || !MARCADOR_COMPLETO.test(original) ? original : semFrasesDoCompleto(original).trim();
+    const base = MARCADOR_COMPLETO.test(original) ? arrumarCompleto(original, temCompleto) : original;
     const valores = { ...v, completo: temCompleto ? completo : null };
     return { texto: base.replace(MARCADOR, (_, a, b) => { const campo = CAMPO[String(a || b).toLowerCase()]; return campo && valores[campo] !== null ? dinheiro(valores[campo]) : ''; }).replace(/ {2,}/g, ' '), semEstimativa: false };
   }

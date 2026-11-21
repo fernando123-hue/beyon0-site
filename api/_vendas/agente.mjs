@@ -269,7 +269,8 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   resposta = regulado.texto;
   if (nichoFinal) briefing = briefingSemProibidos(briefing);
   /* o pacote completo (dono, 2026-11-21): a referência só vai no turno em que o Zero ainda não disse valor nenhum, e nunca a quem já orçou
-     o próprio pacote completo ou mais; fora disso a frase que a cita sai (comMarcadores) */
+     o próprio pacote completo ou mais; fora disso a frase que a cita sai (comMarcadores). A mesma regra do ESTADO, mas com a estimativa
+     FINAL do turno (o ESTADO só conhece a do começo): se o estimar deste turno já deu o pacote ou mais, a frase pedida cai aqui, de propósito */
   const estimativaFinal = estimativa || conversa.estimativa;
   const completo = referenciaDoCompleto({ regras, jaDitoNaConversa: ditoAntes, etapa: conversa.etapa, pedidoStatus: conversa.pedido_status, liberado, estimativa: estimativaFinal });
   const valores = comMarcadores(resposta, estimativaFinal, { completo });
