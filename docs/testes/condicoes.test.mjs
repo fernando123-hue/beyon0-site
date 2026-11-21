@@ -118,7 +118,7 @@ test('condições: desistência diz os 7 dias (CDC art. 49), a devolução intei
 test('condições (21/11): 24 horas para o restante, o encerramento sem ele, o restante devolvido antes do ar e o domínio depois do restante', () => {
   const secao = nome => { const i = html.indexOf('<h2>' + nome + '</h2>'); assert.ok(i >= 0, nome); return limpo(html.slice(i, html.indexOf('<h2>', i + 1))); };
   assert.match(secao('Pagamento'), /O site só vai ao ar com o restante pago\. Quando o site fica pronto, mandamos o Pix do restante\. Você tem 24 horas para pagar\. Sem o pagamento nesse prazo, encerramos o projeto\. A entrada segue a regra da desistência, mais abaixo\./);
-  assert.match(secao('Desistência'), /Se você desistir depois de pagar o restante, mas antes de o site ir ao ar, devolvemos o restante\./);
+  assert.match(secao('Desistência'), /Se você desistir depois de pagar o restante, mas antes de o site ir ao ar, devolvemos o restante pelo Pix, para a mesma conta que pagou\./);
   assert.match(secao('O que está incluso'), /1 ano de domínio grátis, registrado no seu nome \(no seu CPF ou CNPJ\) depois que o restante é pago\./);
   assert.ok(!/(?:3|três) dias[^.]{0,60}restante|restante[^.]{0,60}(?:3|três) dias|sai do ar/.test(texto), 'a regra antiga (o site no ar antes do restante, 3 dias e a saída do ar) não volta');
 });
@@ -238,6 +238,6 @@ test('voz da empresa: o contrato e /condicoes usam a mesma voz no plural', () =>
   for (const t of [escopo, condicoes]) {
     assert.match(t, /nós avisamos que estamos aguardando/);
     assert.match(t, /O site só vai ao ar com o restante pago\./);   /* (19/11, a ordem nova: os 3 dias e os lembretes saíram junto com o site no ar antes do restante) */
-    assert.match(t, /devolvemos a entrada inteira/);
+    assert.match(t, /devolvemos a(?: |&nbsp;)entrada inteira/);   /* (o espaço sem quebra da página segura o "a" junto da "entrada" em 320 px) */
   }
 });

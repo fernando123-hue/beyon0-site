@@ -108,3 +108,21 @@ test('captação: o site pago e fora do ar alarma no mesmo dia (pago_sem_ar_dias
   assert.equal(cfg.restante_encerrar_horas, 24, 'as 24 horas de /condicoes');
   assert.deepEqual(cfg.lembretes_restante_horas, [8, 20]);
 });
+
+/* 21/11 (revisão técnica do PR #216): o espelho docs/parte6/condicoes-lancamento.md é o que a captação manda ao cliente; cada parágrafo e item visível da
+   /condicoes tem de estar nele, palavra por palavra (o espelho quebra linha em 120 colunas e usa markdown; aqui só espaço, aspas e marcadores são normalizados) */
+const textoVisivel = html => html.replace(/<(svg|script|style)[\s\S]*?<\/\1>/gi, '').replace(/<!--[\s\S]*?-->/g, '')
+  .match(/<(p|li)(\s[^>]*)?>[\s\S]*?<\/\1>/gi)
+  .filter(el => !/^<p[^>]*\bhidden\b/i.test(el) && !/priv__voltar/.test(el))
+  .map(el => normalizar(el.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')))
+  .filter(Boolean);
+const normalizar = t => t.replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
+
+test('captação: o espelho das condições tem cada parágrafo e item visível da /condicoes', opcoes, () => {
+  const pagina = textoVisivel(fs.readFileSync(path.resolve(import.meta.dirname, '../../condicoes.html'), 'utf8'));
+  const espelho = normalizar(fs.readFileSync(path.join(PASTA, 'docs', 'parte6', 'condicoes-lancamento.md'), 'utf8').replace(/\r\n/g, '\n')
+    .replace(/^---[\s\S]*?\n---\n/, '').replace(/^\s*(#+|-)\s+/gm, ''));
+  assert.ok(pagina.length > 20, 'a página tem os parágrafos');
+  const faltam = pagina.filter(t => !espelho.includes(t));
+  assert.deepEqual(faltam, [], 'o espelho da captação não acompanha a página');
+});
