@@ -78,7 +78,7 @@ const FRASES_APAGAR = Object.freeze({
   ja: 'O aviso prévio do apagamento já foi registrado.'
 });
 
-/* M1 (clientes/entrega.mjs:162): o prazo corre até a PRÉVIA sair; vencido, ela não sai e a saída é a devolução por atraso. Desde 20/11 (dono) ele PARA na aprovação da prévia: depois dela o site só espera o restante e não há mais prazo nosso a vencer */
+/* M1 (clientes/entrega.mjs:162): o prazo corre até a PRÉVIA sair; vencido, ela não sai: o dono combina a nova data com o cliente, ou devolve a entrada se ele cancelar (21/11, dono). Desde 20/11 (dono) ele PARA na aprovação da prévia: depois dela o site só espera o restante e não há mais prazo nosso a vencer */
 const instanteOk = v => typeof v === 'string' && Number.isFinite(Date.parse(v));
 /* o prazo guardado tem de ter datas que se leem: a conta (Intl) lança com data torta e o dono veria 500 */
 function prazoLegivel(prazo) {

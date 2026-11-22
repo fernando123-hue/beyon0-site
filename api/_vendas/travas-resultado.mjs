@@ -478,6 +478,9 @@ const PROMESSAS_DE_REEMBOLSO = [
    olhadas na frase inteira, sem o filtro de negação (o \"não\" faz parte da promessa). \"não gostar dos modelos\" é antes de pagar: verdade */
 const SEM_PAGAR = '(?:nao paga\\w*|nao precisa pagar|nao cobramos|nao cobra|nao ha custo|nao tem custo|nao devolve nada|(?:a gente |nos )?(?:refaz\\w*|refazemos|refaco|refazer|devolv\\w+|devolve|restitu\\w+)|sem custo|de graca)';
 const PROMESSAS_CONDICIONAIS = [
+  /* (21/11, dono; revisão de segurança do #220) atraso ligado a devolver, mesmo sem dizer o quê ("se atrasar, devolvemos") */
+  rx`\b(?:atras\w*|nao entreg\w*|nao cumpr\w*)\b(?:\W+${W}){0,6}?\W+devolv\w*`,
+  rx`\bdevolv\w*(?:\W+${W}){0,6}?\W+(?:atras\w*|nao entreg\w*|nao cumpr\w*)\b`,
   rx`\b(?:se|caso)\s+(?:${W}\s+){0,3}?${NAO_GOSTAR}\b(?!\s+(?:${W}\s+){0,3}?(?:modelos?|previas?|propostas?|opcoes?|rascunhos?|layouts?))(?:\s+${W}){0,4}?\s+(?:voce\s+)?${SEM_PAGAR}\b`,
   rx`\b(?:${SEM_PAGAR})\s+(?:nada\s+)?(?:${W}\s+){0,2}?(?:se|caso)\s+(?:${W}\s+){0,3}?${NAO_GOSTAR}\b(?!\s+(?:${W}\s+){0,3}?(?:modelos?|previas?|propostas?|opcoes?|rascunhos?|layouts?))`
 ];

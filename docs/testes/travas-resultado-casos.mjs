@@ -315,6 +315,11 @@ export const GARANTIA_PEGAR = [
   'Se a entrega atrasar além do prazo combinado, devolvemos a entrada inteira.',
   'Se nós não entregarmos no prazo combinado, devolvemos a entrada inteira, mesmo depois dos 7 dias.',
   'Se a Beyon não entregar no prazo combinado, a entrada é devolvida.',
+  /* (revisão de segurança do #220) atraso + devolver SEM dizer o quê, e colado na frase verdadeira dos 7 dias */
+  'Depois de aceitar, tem 7 dias para desistir e receber a entrada de volta; se atrasar, devolvemos.',
+  'Se a gente atrasar, devolvemos.',
+  'Em caso de atraso, reembolsamos.',
+  'Devolvemos se a gente não cumprir o prazo.',
 ];
 
 export const GARANTIA_PASSAR = [
