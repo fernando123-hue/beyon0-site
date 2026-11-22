@@ -56,7 +56,7 @@ import { PONTUACAO, CONTRASTE, limpa } from './travas-promessa.mjs';
 
 export const DADO_FIXO = 'Ainda não tenho casos publicados para mostrar.';
 export const RESULTADO_FIXO = 'Resultado, como mais clientes, mais vendas ou posição no Google, não dá para garantir, e a gente não promete isso. O que a gente faz é um site claro, para a pessoa encontrar você, entender o que você faz e decidir com tranquilidade.';
-export const GARANTIA_FIXO = 'Garantia eu não consigo confirmar. O que existe está nas condições: depois de aceitar, você tem 7 dias para desistir e receber a entrada de volta.';
+export const GARANTIA_FIXO = 'A garantia é a das condições: você vê o site pronto antes de pagar o restante. Se não gostar, não paga o restante, e o site não vai ao ar. E, depois de aceitar, você tem 7 dias para desistir e receber a entrada de volta.';
 
 /* ---------- apoio: texto, orações e variantes ---------- */
 const rx = (partes, ...vs) => new RegExp(String.raw(partes, ...vs), 'g');
@@ -478,6 +478,14 @@ const PROMESSAS_DE_REEMBOLSO = [
    olhadas na frase inteira, sem o filtro de negação (o \"não\" faz parte da promessa). \"não gostar dos modelos\" é antes de pagar: verdade */
 const SEM_PAGAR = '(?:nao paga\\w*|nao precisa pagar|nao cobramos|nao cobra|nao ha custo|nao tem custo|nao devolve nada|(?:a gente |nos )?(?:refaz\\w*|refazemos|refaco|refazer|devolv\\w+|devolve|restitu\\w+)|sem custo|de graca)';
 const PROMESSAS_CONDICIONAIS = [
+  /* (revisão de segurança do #221) ajuste sem limite, "paga só o que gostar" e "o risco é nosso" prometem o que a empresa não faz */
+  rx`\bquant[oa]s\s+(?:mudancas|ajustes|alteracoes|revisoes|vezes|correcoes)\s+(?:voce\s+|vc\s+)?quiser\b`,
+  rx`\bpaga\w*\s+(?:so|somente|apenas)\s+(?:o\s+|pelo\s+)?que\s+(?:voce\s+)?gost\w*`,
+  rx`\b(?:o\s+)?risco\s+(?:e|fica|eh)\s+(?:todo\s+|so\s+)?(?:nosso|da beyon|meu)\b`,
+  /* (revisão de segurança do #221) prazo garantido dito de outro jeito ("entregamos em 5 dias garantido", "fica pronto, garantido") */
+  rx`\b(?:entreg\w+|pronto|no ar)\b(?:\W+${W}){0,5}?\W+garantid\w*`,
+  /* (revisão técnica do #221) "vê o site pronto antes de pagar" só vale para o RESTANTE (antes do sinal são os modelos) */
+  rx`\bve\w* o site pronto antes de (?:pagar|fechar|contratar|aceitar)\b(?! o restante\b)`,
   /* (21/11, dono; revisão de segurança do #220) atraso ligado a devolver, mesmo sem dizer o quê ("se atrasar, devolvemos") */
   rx`\b(?:atras\w*|nao entreg\w*|nao cumpr\w*)\b(?:\W+${W}){0,6}?\W+devolv\w*`,
   rx`\bdevolv\w*(?:\W+${W}){0,6}?\W+(?:atras\w*|nao entreg\w*|nao cumpr\w*)\b`,
@@ -550,8 +558,18 @@ function frasePrometeGarantia(crua) {
   });
 }
 /* a pergunta com garantia só promete se a frase seguinte confirma ("Tem garantia? Tem sim.") ou se for retórica ("Sabia que temos garantia?") */
+/* (21/11, dono; revisão de segurança do #221) a garantia publicada em /condicoes passa SÓ como frase inteira igual à da página:
+   qualquer coisa colada nela ("…, a qualquer momento", "nem a entrada", "garantido") volta a ser olhada pelas outras regras */
+const GARANTIA_EXATA = new Set([
+  'voce ve o site pronto antes de pagar o restante',
+  'voce ve o site pronto na previa antes de pagar o restante',
+  'se nao gostar nao paga o restante e o site nao vai ao ar',
+  'se voce nao gostar nao paga o restante e o site nao vai ao ar'
+]);
+const ehGarantiaExata = f => GARANTIA_EXATA.has(paraBusca(f).replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim());
 function decidirGarantia(frases, i) {
   const f = frases[i];
+  if (ehGarantiaExata(f)) return null;
   if (!ehPergunta(f) || eRetorica(f)) return frasePrometeGarantia(f) ? { n: 1, fixo: GARANTIA_FIXO } : null;
   const q = paraBusca(f);
   if (i + 1 >= frases.length || !/\bgarantia\b/.test(q) || doCliente(q)) return null;

@@ -320,6 +320,25 @@ export const GARANTIA_PEGAR = [
   'Se a gente atrasar, devolvemos.',
   'Em caso de atraso, reembolsamos.',
   'Devolvemos se a gente não cumprir o prazo.',
+  /* (21/11) além da garantia publicada: não gostar não devolve a entrada nem deixa de pagar tudo */
+  'Se não gostar, não paga nada.',
+  'Se não gostar, não paga o restante e devolvemos a entrada.',
+  /* (revisão de segurança do #221) a garantia exata colada a uma promessa extra: só a frase INTEIRA igual à da página passa */
+  'Se não gostar, não paga o restante e o site não vai ao ar, a qualquer momento.',
+  'Se não gostar, não paga o restante, e o site não vai ao ar, e você não paga nada.',
+  'Se não gostar, não paga o restante nem a entrada.',
+  'Se não gostar, não paga o restante nem o sinal.',
+  'Se não gostar, não paga o restante, sem custo nenhum.',
+  'Se não gostar, não paga o restante e o site não vai ao ar, garantido.',
+  'Se não gostar, não paga o restante e o site não vai ao ar, em 3 dias você tem o site.',
+  'Você vê o site pronto antes de pagar o restante, e entregamos em 5 dias garantido.',
+  'Se não gostar dele, não paga o restante, e o site não vai ao ar.',
+  'Você vê o site pronto antes de pagar qualquer coisa.',
+  /* (revisão de segurança do #221, 2ª passada) promessas que a empresa não cumpre: são 2 listas de ajuste e o restante é o que não se paga */
+  'Pode pedir quantas mudanças quiser.',
+  'Você faz quantos ajustes quiser.',
+  'Você paga só o que gostar.',
+  'Fica tranquilo, o risco é nosso.',
 ];
 
 export const GARANTIA_PASSAR = [
@@ -371,7 +390,10 @@ export const GARANTIA_PASSAR = [
   'Não é garantia, é o direito de desistir em 7 dias.',
   'Você tem direito de arrependimento por 7 dias, como manda a lei.',
   'Perfeito. Já tenho o ramo e o objetivo; falta só saber se você tem logotipo.',
-  'Oi! Me conta o que você faz e eu te digo qual formato de site cabe.'
+  'Oi! Me conta o que você faz e eu te digo qual formato de site cabe.',
+  /* (21/11, dono) a garantia publicada em /condicoes, na forma exata */
+  'Você vê o site pronto antes de pagar o restante. Se não gostar, não paga o restante, e o site não vai ao ar.',
+  'Você vê o site pronto na prévia antes de pagar o restante.',
 ];
 
 /* Furos CONHECIDOS: o filtro de lista não pega (documentados, não corrigidos de propósito: cada palavra a mais custa falso
