@@ -323,6 +323,17 @@ export const GARANTIA_PEGAR = [
   /* (21/11) além da garantia publicada: não gostar não devolve a entrada nem deixa de pagar tudo */
   'Se não gostar, não paga nada.',
   'Se não gostar, não paga o restante e devolvemos a entrada.',
+  /* (revisão de segurança do #221) a garantia exata colada a uma promessa extra: só a frase INTEIRA igual à da página passa */
+  'Se não gostar, não paga o restante e o site não vai ao ar, a qualquer momento.',
+  'Se não gostar, não paga o restante, e o site não vai ao ar, e você não paga nada.',
+  'Se não gostar, não paga o restante nem a entrada.',
+  'Se não gostar, não paga o restante nem o sinal.',
+  'Se não gostar, não paga o restante, sem custo nenhum.',
+  'Se não gostar, não paga o restante e o site não vai ao ar, garantido.',
+  'Se não gostar, não paga o restante e o site não vai ao ar, em 3 dias você tem o site.',
+  'Você vê o site pronto antes de pagar o restante, e entregamos em 5 dias garantido.',
+  'Se não gostar dele, não paga o restante, e o site não vai ao ar.',
+  'Você vê o site pronto antes de pagar qualquer coisa.',
 ];
 
 export const GARANTIA_PASSAR = [
@@ -378,7 +389,6 @@ export const GARANTIA_PASSAR = [
   /* (21/11, dono) a garantia publicada em /condicoes, na forma exata */
   'Você vê o site pronto antes de pagar o restante. Se não gostar, não paga o restante, e o site não vai ao ar.',
   'Você vê o site pronto na prévia antes de pagar o restante.',
-  'Se não gostar, não paga o restante.',
 ];
 
 /* Furos CONHECIDOS: o filtro de lista não pega (documentados, não corrigidos de propósito: cada palavra a mais custa falso

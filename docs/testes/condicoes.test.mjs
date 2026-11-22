@@ -44,6 +44,9 @@ test('condições sem a oferta: nenhum preço fixo, nem "10 primeiros", nem a vi
   assert.match(html, /<p>O preço é o do seu <a href="\/orcamento">orçamento<\/a>, sem mensalidade\.<\/p>/);
   assert.ok(!/<dl class="priv__valores">/.test(html), 'o painel de valores (preço, entrada, restante em reais) saiu com a oferta');
   assert.doesNotMatch(priv, /lançamento/i, 'a /privacidade também não fala mais da oferta');
+  /* (revisão de segurança do #221) a garantia pública consta do contrato que o cliente confirma em "Li e confirmo" */
+  assert.match(ler('api/_vendas/escopo.mjs'), /GARANTIA: você vê o site pronto antes de pagar o restante\. Se não gostar, não paga o restante, e o site não vai ao ar\./);
+  assert.match(ler('api/_vendas/consultor.mjs'), /Só isso: a entrada volta só nos 7 dias; sem garantia de prazo nem de resultado\./);
 });
 
 /* a garantia, com o texto da proposta ao dono (21/11: aguardando o sim dele; as palavras não mudam sem ele) */
