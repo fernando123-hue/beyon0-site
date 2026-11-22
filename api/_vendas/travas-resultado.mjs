@@ -56,7 +56,7 @@ import { PONTUACAO, CONTRASTE, limpa } from './travas-promessa.mjs';
 
 export const DADO_FIXO = 'Ainda não tenho casos publicados para mostrar.';
 export const RESULTADO_FIXO = 'Resultado, como mais clientes, mais vendas ou posição no Google, não dá para garantir, e a gente não promete isso. O que a gente faz é um site claro, para a pessoa encontrar você, entender o que você faz e decidir com tranquilidade.';
-export const GARANTIA_FIXO = 'Garantia eu não consigo confirmar. O que existe está nas condições: depois de aceitar, você tem 7 dias para desistir e receber a entrada de volta.';
+export const GARANTIA_FIXO = 'A garantia é a das condições: você vê o site pronto antes de pagar o restante. Se não gostar, não paga o restante, e o site não vai ao ar. E, depois de aceitar, você tem 7 dias para desistir e receber a entrada de volta.';
 
 /* ---------- apoio: texto, orações e variantes ---------- */
 const rx = (partes, ...vs) => new RegExp(String.raw(partes, ...vs), 'g');
@@ -448,6 +448,9 @@ const TUDO_DE_VOLTA = '(?:devolv\\w+\\s+(?:o |todo o |tudo o |toda a )?(?:tudo|d
 const DES7 = '(?:(?:voce )?(?:tem|tera|pode|podera|possui) )?(?:(?:ate|em ate|dentro d[eo]s?) )?(?:7|sete) dias(?: de garantia(?: legal)?)? (?:para|pra) (?:voce |vc )?(?:desistir|se arrepender)|desist\\w+ (?:' + W + ' ){0,4}?(?:em ate|em|dentro d[eo]s?|ate) (?:7|sete) dias';
 const FOLGA = '(?:(?!(?:devolv|reembols|dinheiro|tudo|todo|gost|satisf|qualquer|quiser|momento|depois|mesmo|alem|apos|\\d{2,}))' + W + ' ){0,8}';
 const MASCARAS = [
+  /* (21/11, dono) a garantia de /condicoes, só na forma exata: o site pronto antes do restante; não gostou, não paga o RESTANTE */
+  rx`\b(?:voce )?ve o site pronto (?:na previa )?antes de pagar o restante\b`,
+  rx`\bse (?:voce )?nao gostar (?:dele )?(?:%% )?(?:voce )?nao paga o restante(?: (?:%% )?e o site nao vai ao ar)?\b`,
   rx`\b(?:${DES7}) ${FOLGA}(?:${ENTRADA}|${TUDO_DE_VOLTA})`,
   rx`\b(?:${ENTRADA}|${TUDO_DE_VOLTA}) ${FOLGA}(?:${DES7})`,
   /* por último: dizer só que há 7 dias para desistir é a verdade (o que vem junto e não é a entrada de volta continua sendo olhado) */

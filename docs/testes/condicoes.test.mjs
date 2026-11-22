@@ -46,11 +46,11 @@ test('condições sem a oferta: nenhum preço fixo, nem "10 primeiros", nem a vi
 });
 
 /* a garantia, com o texto da proposta ao dono (21/11: aguardando o sim dele; as palavras não mudam sem ele) */
-test('condições: o bloco "Nossa garantia" com as três frases, logo depois do preço do orçamento', () => {
+test('condições: o bloco "Nossa garantia" com as duas frases (sem o atraso, 21/11 dono), logo depois do preço do orçamento', () => {
   const i = html.indexOf('<h2>Nossa garantia</h2>');
   assert.ok(i > 0, 'o bloco Nossa garantia');
   const bloco = limpo(html.slice(i, html.indexOf('<h2>', i + 1)));
-  assert.equal(bloco.trim(), 'Nossa garantia Você vê o site pronto antes de pagar o restante. Se não gostar, não paga o restante, e o site não vai ao ar. Se a gente atrasar a entrega, devolvemos a entrada inteira. Até 7 dias depois de aceitar, você pode desistir por qualquer motivo e recebe a entrada de volta.');
+  assert.equal(bloco.trim(), 'Nossa garantia Você vê o site pronto antes de pagar o restante. Se não gostar, não paga o restante, e o site não vai ao ar. Até 7 dias depois de aceitar, você pode desistir por qualquer motivo e recebe a entrada de volta.');
   assert.ok(html.indexOf('O preço é o do seu orçamento') < i && i < html.indexOf('<h2>Pagamento</h2>'), 'a garantia vem antes do pagamento');
 });
 
@@ -76,7 +76,7 @@ test('condições: a entrada é 40% e o restante 60%, com o site pronto, antes d
 test('condições: meta, canonical e OG apontam para /condicoes no domínio vigente (decisão do dono, 2026-10-14; domínio próprio em 2026-10-21)', () => {
   const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   for (const re of [new RegExp('rel="canonical" href="' + esc(DOMINIO + '/condicoes') + '"'), new RegExp('property="og:url" content="' + esc(DOMINIO + '/condicoes') + '"'),
-    /property="og:title"/, new RegExp('property="og:image" content="' + esc(DOMINIO + '/assets/og-cover.jpg') + '"'), /name="description"/, /<h1>Condições do lançamento<\/h1>/]) {
+    /property="og:title"/, new RegExp('property="og:image" content="' + esc(DOMINIO + '/assets/og-cover.jpg') + '"'), /name="description"/, /<h1>Condições<\/h1>/, /<title>Condições — Beyon Zero<\/title>/]) {
     assert.match(html, re);
   }
   const externos = [...visivel.replace(/http-equiv[^>]*>/, '').matchAll(/https?:\/\/([^\/\s"'<>]+)/g)].map(m => m[1]).filter(h => h !== HOST_DO_DOMINIO && h !== 'wa.me' && h !== 'www.w3.org');
@@ -143,8 +143,10 @@ test('privacidade: diz que um segundo modelo pode ler a conversa só para medir 
     'dessa leitura ficam guardados só números e rótulos, nunca o texto']) assert.ok(priv.includes(trecho), 'privacidade sem: ' + trecho);
 });
 
-test('condições: a vaga é confirmada na conversa, antes do "ok"', () => {
-  assert.match(texto, /A vaga é confirmada na conversa, antes do seu “ok”\./);
+/* (21/11, dono) sem a oferta de lançamento não há vaga: aceitar é responder "ok"; nada de "lançamento" nem "vaga" na página */
+test('condições: aceitar é responder "ok" na conversa, sem vaga nem lançamento', () => {
+  assert.match(texto, /Como aceitar Responda “ok” na conversa\./);
+  assert.doesNotMatch(html, /lançamento|vaga/i);
 });
 
 test('condições: diz, sem tom de aviso, que por enquanto não há nota fiscal (decisão do dono, 2026-10-11)', () => {

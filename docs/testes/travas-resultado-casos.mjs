@@ -320,6 +320,9 @@ export const GARANTIA_PEGAR = [
   'Se a gente atrasar, devolvemos.',
   'Em caso de atraso, reembolsamos.',
   'Devolvemos se a gente não cumprir o prazo.',
+  /* (21/11) além da garantia publicada: não gostar não devolve a entrada nem deixa de pagar tudo */
+  'Se não gostar, não paga nada.',
+  'Se não gostar, não paga o restante e devolvemos a entrada.',
 ];
 
 export const GARANTIA_PASSAR = [
@@ -371,7 +374,11 @@ export const GARANTIA_PASSAR = [
   'Não é garantia, é o direito de desistir em 7 dias.',
   'Você tem direito de arrependimento por 7 dias, como manda a lei.',
   'Perfeito. Já tenho o ramo e o objetivo; falta só saber se você tem logotipo.',
-  'Oi! Me conta o que você faz e eu te digo qual formato de site cabe.'
+  'Oi! Me conta o que você faz e eu te digo qual formato de site cabe.',
+  /* (21/11, dono) a garantia publicada em /condicoes, na forma exata */
+  'Você vê o site pronto antes de pagar o restante. Se não gostar, não paga o restante, e o site não vai ao ar.',
+  'Você vê o site pronto na prévia antes de pagar o restante.',
+  'Se não gostar, não paga o restante.',
 ];
 
 /* Furos CONHECIDOS: o filtro de lista não pega (documentados, não corrigidos de propósito: cada palavra a mais custa falso
