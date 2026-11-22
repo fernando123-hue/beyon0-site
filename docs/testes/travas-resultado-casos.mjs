@@ -334,6 +334,11 @@ export const GARANTIA_PEGAR = [
   'Você vê o site pronto antes de pagar o restante, e entregamos em 5 dias garantido.',
   'Se não gostar dele, não paga o restante, e o site não vai ao ar.',
   'Você vê o site pronto antes de pagar qualquer coisa.',
+  /* (revisão de segurança do #221, 2ª passada) promessas que a empresa não cumpre: são 2 listas de ajuste e o restante é o que não se paga */
+  'Pode pedir quantas mudanças quiser.',
+  'Você faz quantos ajustes quiser.',
+  'Você paga só o que gostar.',
+  'Fica tranquilo, o risco é nosso.',
 ];
 
 export const GARANTIA_PASSAR = [

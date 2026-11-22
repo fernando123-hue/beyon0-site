@@ -478,6 +478,10 @@ const PROMESSAS_DE_REEMBOLSO = [
    olhadas na frase inteira, sem o filtro de negação (o \"não\" faz parte da promessa). \"não gostar dos modelos\" é antes de pagar: verdade */
 const SEM_PAGAR = '(?:nao paga\\w*|nao precisa pagar|nao cobramos|nao cobra|nao ha custo|nao tem custo|nao devolve nada|(?:a gente |nos )?(?:refaz\\w*|refazemos|refaco|refazer|devolv\\w+|devolve|restitu\\w+)|sem custo|de graca)';
 const PROMESSAS_CONDICIONAIS = [
+  /* (revisão de segurança do #221) ajuste sem limite, "paga só o que gostar" e "o risco é nosso" prometem o que a empresa não faz */
+  rx`\bquant[oa]s\s+(?:mudancas|ajustes|alteracoes|revisoes|vezes|correcoes)\s+(?:voce\s+|vc\s+)?quiser\b`,
+  rx`\bpaga\w*\s+(?:so|somente|apenas)\s+(?:o\s+|pelo\s+)?que\s+(?:voce\s+)?gost\w*`,
+  rx`\b(?:o\s+)?risco\s+(?:e|fica|eh)\s+(?:todo\s+|so\s+)?(?:nosso|da beyon|meu)\b`,
   /* (revisão de segurança do #221) prazo garantido dito de outro jeito ("entregamos em 5 dias garantido", "fica pronto, garantido") */
   rx`\b(?:entreg\w+|pronto|no ar)\b(?:\W+${W}){0,5}?\W+garantid\w*`,
   /* (revisão técnica do #221) "vê o site pronto antes de pagar" só vale para o RESTANTE (antes do sinal são os modelos) */
