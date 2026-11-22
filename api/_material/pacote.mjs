@@ -78,10 +78,10 @@ export function montarPedido({ codigo, negocio, proposta, entradaPagaEm, whatsap
   if (faltas.length) throw new Error('pedido incompleto, falta: ' + faltas.join(', '));
   if (!Object.hasOwn(PLANOS, proposta.formato)) throw new Error('formato sem esteira na captação (' + proposta.formato + '): produção manual');
   /* o prazo da proposta aceita (o que o cliente viu), em dias úteis, de 1 ao máximo do banco (dono, 2026-10-28: sem trava de
-     prazo; até então eram 5 a 10). A captação ainda recusa fora de 5 a 10 (clientes/fechamento.mjs, PRAZO_SITE) até alinhar */
+     prazo; até então eram 5 a 10). A captação aceita o mesmo intervalo desde 2026-11-21 (clientes/fechamento.mjs, PRAZO_SITE, 1 a 60) */
   const dias = proposta.prazo_dias;
   if (!Number.isInteger(dias) || dias < 1 || dias > PRAZO_DIAS_MAX) throw new Error('prazo da proposta (' + dias + ') fora de 1 a ' + PRAZO_DIAS_MAX + ' dias úteis: produção manual');
-  /* os valores da proposta, em REAIS INTEIROS (preco = entrada + final); a tabela normal, fora das 10 vagas (D6) */
+  /* os valores da proposta, em REAIS INTEIROS (preco = entrada + final): o preço da tabela do orçamento (sem oferta de lançamento desde 2026-11-21) */
   const preco = Number(proposta.valor_total);
   if (!Number.isInteger(preco)) throw new Error('o total (' + preco + ') não está em reais inteiros: produção manual');
   if ((preco * pct) % 100 !== 0) throw new Error('a entrada de ' + pct + '% sobre ' + preco + ' tem centavos: produção manual (a captação só aceita reais inteiros)');
