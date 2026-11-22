@@ -104,8 +104,9 @@ test('condições: desistência diz os 7 dias (CDC art. 49), a devolução intei
   /* depois dos 7 dias a entrada fica, comece ou não o trabalho (dono, 2026-10-14: "Caso ela cancele após o primeiro pagamento, ficará comigo") */
   assert.match(texto, /Depois dos 7 dias, a entrada paga o trabalho reservado para você e não é devolvida\. Se você desistir, não paga o restante, e o site não vai ao ar\./);
   assert.ok(!/se eu ainda não comecei|se eu já comecei/.test(texto), 'a regra antiga (depende de ter começado) sobrou');
-  /* atraso da Beyon Zero devolve a entrada, mesmo depois dos 7 dias (dono, 2026-10-14; CDC arts. 51 e 53) */
-  assert.match(texto, /Se nós não entregarmos no prazo combinado, devolvemos a entrada inteira, mesmo depois dos 7 dias\./);
+  /* (dono, 21/11, revê a de 14/10) o atraso não devolve a entrada por regra, só se o cliente quiser cancelar, e a página não promete
+     nem anuncia isso: nenhuma frase liga atraso a devolução */
+  assert.doesNotMatch(texto, /atras\w*|não entregarmos no prazo|mesmo depois dos 7 dias/i, 'a página fala de atraso ou de devolução depois dos 7 dias');
   assert.match(html, /Para desistir, escreva para <a href="mailto:contato.beyon.zero@gmail.com">/);
   /* (a devolução imediata é só a dos 7 dias: depois deles a entrada não volta, e o texto não pode prometer o contrário) */
   assert.match(texto, /Dentro dos 7 dias, a devolução é imediata, pelo mesmo meio do pagamento \(o Pix\), com o valor corrigido/);
@@ -238,6 +239,5 @@ test('voz da empresa: o contrato e /condicoes usam a mesma voz no plural', () =>
   for (const t of [escopo, condicoes]) {
     assert.match(t, /nós avisamos que estamos aguardando/);
     assert.match(t, /O site só vai ao ar com o restante pago\./);   /* (19/11, a ordem nova: os 3 dias e os lembretes saíram junto com o site no ar antes do restante) */
-    assert.match(t, /devolvemos a(?: |&nbsp;)entrada inteira/);   /* (o espaço sem quebra da página segura o "a" junto da "entrada" em 320 px) */
   }
 });
