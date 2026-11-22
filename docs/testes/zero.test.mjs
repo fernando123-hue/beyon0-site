@@ -1083,6 +1083,8 @@ test('travas de resultado e garantia: o texto fixo não dispara a si mesmo nem a
   /* (o texto fixo de garantia só repete o que está em condicoes.html: 7 dias para desistir e a entrada de volta; desde 21/11, dono, sem
      a devolução no atraso) */
   assert.match(GARANTIA_FIXO, /7 dias para desistir/);
+  /* (21/11) o texto fixo É a garantia publicada em /condicoes */
+  assert.match(GARANTIA_FIXO, /você vê o site pronto antes de pagar o restante\. Se não gostar, não paga o restante, e o site não vai ao ar\./);
   assert.doesNotMatch(GARANTIA_FIXO, /atras/i);
   assert.equal(semPromessaDeResultado('').trocou, false);
   assert.equal(semGarantia(null).texto, '');

@@ -82,6 +82,7 @@ export function montarEscopo({ estimativa, direcao, alteracoesAplicadas, briefin
   linhas.push('AJUSTES: 2 listas de ajuste na prévia (uma lista é o conjunto de pedidos que você manda de uma vez). O que passar das duas listas é orçado à parte.');
   /* (19/11, ordem nova do dono) o restante com o site pronto; o site só vai ao ar com ele pago (o texto de /condicoes) */
   linhas.push('RESTANTE: você paga o restante por Pix quando o site estiver pronto, antes de ir ao ar. O site fica pronto e você vê tudo na prévia. O site só vai ao ar com o restante pago.');
+  linhas.push('GARANTIA: você vê o site pronto antes de pagar o restante. Se não gostar, não paga o restante, e o site não vai ao ar.');   /* (21/11, a de /condicoes) */
   linhas.push('', 'Os textos, imagens e dados de prova social marcados como espaço reservado nas prévias são preenchidos com o material real do cliente.');
   return { titulo: titulo.slice(0, 160), escopo: linhas.join('\n').slice(0, 20000) };
 }
