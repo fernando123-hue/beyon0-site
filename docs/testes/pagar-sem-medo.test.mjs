@@ -98,7 +98,8 @@ test('D4 (21/10): a regra do prazo é a mesma no contrato, no consultor, em /con
   assert.match(texto(ler('condicoes.html')), /contados do pagamento da entrada e do envio do seu material/);
   assert.ok(perguntas().includes('Quando fica pronto?'), perguntas().join(' | '));
   assert.ok(texto(antes()).includes('O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto esperamos a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, nós avisamos que estamos aguardando e o projeto fica parado.'), texto(antes()));
-  assert.ok(texto(antes()).includes('Se a Beyon Zero não entregar no prazo combinado, você recebe a entrada inteira de volta, mesmo depois dos 7 dias.'), texto(antes()));
+  /* (dono, 21/11) a tela não promete devolver a entrada se a Beyon atrasar */
+  assert.ok(!/prazo combinado|mesmo depois dos 7 dias/.test(texto(antes())), texto(antes()));
 });
 
 /* revisão do 3b-1, MÉDIO-2 e BAIXO-5: o texto que acalma e informa é frase em Sora de 16 px, não o rótulo mono de 14 px */

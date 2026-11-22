@@ -38,7 +38,9 @@ const REGRAS_D4 = [
     && /O site só vai ao ar com o restante pago|com o restante pago, (ele|o site) vai ao ar/i.test(t) && !RESTANTE_ANTIGO.test(t)],
   ['prazo PARA quando o cliente aprova a prévia; depois disso o site vai ao ar assim que o restante for pago (20/11, dono)', t => /para de vez quando (você|o cliente) aprova a prévia: depois disso, o site vai ao ar assim que o restante for pago\./.test(t)],
   ['2 listas de ajuste', t => /(2|[Dd]uas) listas de ajuste/.test(t)],
-  ['atraso da Beyon devolve a entrada inteira, mesmo depois dos 7 dias', t => /entrada (é devolvida )?inteira( de volta)?,? mesmo depois dos 7 dias|devolvemos a entrada inteira, mesmo depois dos 7 dias/.test(t)]
+  /* (dono, 21/11, revê a D4 de 21/10) o atraso da Beyon não devolve a entrada por regra (só se o cliente quiser cancelar) e nenhum
+     lugar promete isso: o predicado é a AUSÊNCIA da promessa */
+  ['nenhuma promessa de devolver a entrada se a Beyon atrasar (21/11, dono)', t => !/mesmo depois dos 7 dias|(atras\w*|não entreg\w*)[^.]{0,60}(devolv\w*|de volta|entrada volta)|(devolv\w*|de volta)[^.]{0,60}se (a Beyon|a gente|nós)[^.]{0,20}(atras|não entreg)|entrada devolvida se atrasar/i.test(t)]
 ];
 for (const [nome, ok] of REGRAS_D4) {
   test('D4, ' + nome + ': aparece no contrato, no consultor, em /condicoes e na tela', () => {
