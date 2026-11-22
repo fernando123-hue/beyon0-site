@@ -1080,9 +1080,10 @@ test('travas de resultado e garantia: o texto fixo não dispara a si mesmo nem a
   assert.equal(semGarantia('Damos garantia de 12 meses.').texto, GARANTIA_FIXO);
   assert.match(RESULTADO_FIXO, /não dá para garantir/, 'o texto de resultado nega a garantia de resultado');
   assert.doesNotMatch(RESULTADO_FIXO, /primeiro lugar/i, 'o texto fixo não promete nada');
-  /* (o texto fixo de garantia só repete o que está em condicoes.html: 7 dias para desistir e a entrada de volta; devolução se a Beyon atrasar) */
+  /* (o texto fixo de garantia só repete o que está em condicoes.html: 7 dias para desistir e a entrada de volta; desde 21/11, dono, sem
+     a devolução no atraso) */
   assert.match(GARANTIA_FIXO, /7 dias para desistir/);
-  assert.match(GARANTIA_FIXO, /atrasar a entrega, a gente devolve a entrada/);
+  assert.doesNotMatch(GARANTIA_FIXO, /atras/i);
   assert.equal(semPromessaDeResultado('').trocou, false);
   assert.equal(semGarantia(null).texto, '');
 });

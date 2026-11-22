@@ -85,7 +85,7 @@ export function alertasDe(it, agora = new Date()) {
     if (legivel) { try { vencido = prazoVencido(it.prazo, { prazoDias: it.prazo_dias }, agora); } catch (e) { if (!(e instanceof RangeError || e instanceof TypeError)) throw e; legivel = false; } }
     if (!legivel) a.push('o prazo desta entrega tem uma data que não dá para ler: confira no banco antes de publicar a prévia ou o site');
     else if (vencido) {
-      a.push('prazo vencido (era até ' + it.entrega_ate + '): a regra da D4 devolve a entrada se a Beyon atrasar (estorno no Mercado Pago; depois "encerrar ' + it.codigo + ' atraso" e a devolução na captação)');
+      a.push('prazo vencido (era até ' + it.entrega_ate + '): avise o cliente e pergunte se ele segue; se ele pedir para cancelar, devolva a entrada (depois "encerrar ' + it.codigo + ' atraso" e a devolução na captação)');
     }
   }
   /* (19/11) a ordem nova: o restante é cobrado com a prévia aprovada; o site só vai ao ar com ele pago */
