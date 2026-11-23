@@ -438,7 +438,10 @@
     if (m.status === 'limpo') return;
     var d = m.dados || {}, ul = el('ul', 'orc-mat__resumo'), fotos = (m.arquivos || []).filter(function (a) { return a.papel === 'foto'; }).length;
     [['Logo', (m.arquivos || []).some(function (a) { return a.papel === 'logo'; }) ? 'enviada' : 'não enviada'], ['Fotos', String(fotos)],
-      ['Serviços', d.servicos ? String(d.servicos.length) : '0'], ['WhatsApp dos botões', d.whatsapp ? formatarTelefone(d.whatsapp) : 'não informado']].forEach(function (p) { ul.appendChild(el('li', null, p[0] + ': ' + p[1])); });
+      ['Serviços', d.servicos ? String(d.servicos.length) : '0'], ['WhatsApp dos botões', d.whatsapp ? formatarTelefone(d.whatsapp) : 'não informado']].forEach(function (p) {
+      /* o valor numa peça só (o telefone quebrava no hífen em 320: "98013-" / "7512"); o texto lido é o mesmo */
+      var li = el('li', null, p[0] + ': '); li.appendChild(el('span', 'orc-sem-quebra', p[1])); ul.appendChild(li);
+    });
     corpo.appendChild(ul);
   }
 

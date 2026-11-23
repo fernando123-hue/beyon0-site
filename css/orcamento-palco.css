@@ -130,7 +130,9 @@
 
 /* os contadores: três números, o primeiro na luz */
 .orc-contadores { display: grid; grid-template-columns: repeat(3, minmax(min-content, 1fr)); margin-top: 14px; border-top: 1px solid var(--line); }
-.orc-contador { min-width: 0; margin: 0; padding: 12px 0 0; }
+/* (a mesma folga dos dois lados de cada régua: 12 px antes e 12 px depois; a coluna cresce para o valor caber inteiro, nunca corta) */
+.orc-contador { min-width: 0; margin: 0; padding: 12px 12px 0 0; }
+.orc-contador:last-child { padding-right: 0; }
 .orc-contador + .orc-contador { padding-left: 12px; border-left: 1px solid var(--line); }
 .orc-contador b { display: block; font: 600 1.375rem/1.1 var(--sans); color: var(--t1); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .orc-contador--luz b { color: var(--ac); }
@@ -161,7 +163,8 @@ html.orc-retomando .orc-vitrine, html.orc-retomando .orc-contadores { display: n
 @media (max-width: 359px) {
   .orc-topo .orc-etapas li:not([aria-current="step"]) .orc-etapas__n { display: inline; }
   .orc-topo .orc-etapas li:not([aria-current="step"]) .orc-etapas__nome { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .orc-contador span { letter-spacing: .06em; }
+  .orc-contador span { letter-spacing: .04em; }
+  .orc-contador b { font-size: 1.25rem; }
 }
 
 /* ---------- a conversa: branca, sem cartão ---------- */
@@ -169,6 +172,9 @@ html.orc-retomando .orc-vitrine, html.orc-retomando .orc-contadores { display: n
 .orc-conversa { padding: 22px 0 0; border: 0; border-radius: 0; background: none; }
 .orc-conversa > .orc-rotulo { margin: 0 0 4px; padding-left: 38px; font-weight: 400; letter-spacing: .12em; color: var(--t3); }
 .orc-log__lista { gap: 14px; }
+/* a caixa da conversa ROLA (a estrutura de 18/11): uma régua nítida de 1 px em cima e outra embaixo marcam a borda da rolagem, para a
+   linha que passa por ela ler como "tem mais aqui", não como texto cortado (sem esmaecer: regra do dono) */
+.orc-log { padding-block: 14px; border-block: 1px solid var(--line); }
 
 /* a fala do Zero: o símbolo claro à esquerda, "Zero" em mono e a frase; a fala mais nova em destaque, as antigas mais baixas */
 .msg--agente { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 10px; max-width: 100%; padding-left: 0; border-left: 0; color: var(--t1); }
@@ -216,12 +222,35 @@ html.orc-retomando .orc-vitrine, html.orc-retomando .orc-contadores { display: n
 
 /* ---------- o radar e os cartões ao lado: branco com traço; o núcleo é um pedaço do palco (preto, o valor na luz) ---------- */
 .orc-painel > div, .rde { border-color: var(--line); background: var(--bg); }
+/* a barra fina do radar (celular): o nome do estado inteiro, nunca com reticências. Cabe numa linha até em 320 (o espaçamento e os vãos
+   apertam só ali); com a fonte grande do aparelho ele quebra, e nunca some */
+.rde-barra__estado { overflow: visible; white-space: normal; text-overflow: clip; line-height: 1.25; }
+@media (max-width: 359px) {
+  .rde-barra { gap: 8px; }
+  .rde-barra__estado { letter-spacing: .02em; }
+  .rde-barra__ver { padding: 0 10px; letter-spacing: .06em; }
+}
+/* o investimento em tela estreita: prazo, entrada e restante viram linhas (nome à esquerda, valor à direita), sem palavra partida no meio;
+   as sugestões levam o preço para baixo do texto, que ganha a largura do cartão */
+@media (max-width: 379px) {
+  .orc-est__dados { grid-template-columns: minmax(0, 1fr); }
+  .orc-est__dados div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: .6rem 0; }
+  .orc-est__dados div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+  .orc-est__dados dd { margin: 0; text-align: right; }
+  .orc-reco__item { grid-template-columns: 24px minmax(0, 1fr); align-items: start; }
+  .orc-reco__valor { grid-column: 2; text-align: left; }
+}
 .rde-nucleo { fill: #000000; stroke: #000000; }
 /* no disco preto o rótulo do miolo não pode passar da borda (no grafite de antes ele sumia no fundo; aqui apareceria cortado): quebra em duas linhas quando falta lugar */
 .rde-miolo__rot { max-width: 50cqi; text-align: center; }
 .rde-nucleo-anel { stroke: rgb(205 212 212 / .22); }
 .rde-guia.is-confirmada { stroke: rgb(11 12 13 / .45); }
 .rde-anel__trilho { stroke: rgb(11 12 13 / .14); }
+/* os cantos do radar quebram entre palavras (o hífen automático partia "Agen-damento" em 360); só uma palavra que não cabe sozinha quebra */
+.rde-canto__valor { hyphens: manual; overflow-wrap: break-word; }
+/* o título do visor da prévia (passo 2): inteiro, nunca com reticências; quebra entre os pedaços (js/orcamento-visor.js, tituloEmPartes) */
+.visor__titulo { overflow: visible; white-space: normal; text-wrap: wrap; text-overflow: clip; }
+.visor__parte { display: inline-block; max-width: 100%; }
 
 /* ---------- o movimento é acréscimo: o número novo do palco dá o mesmo pulo das peças da miniatura ---------- */
 @media (prefers-reduced-motion: no-preference) {
