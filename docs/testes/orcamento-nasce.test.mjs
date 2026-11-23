@@ -275,6 +275,10 @@ test('a barra fina do radar não repete o valor ao lado do palco: só aparece de
   assert.match(barra, /var mostrar = [^;]*!palcoVisto/, 'a decisão espera o palco sair da tela');
   assert.match(barra, /querySelector\('\.orc-palco'\)/);
   assert.match(barra, /io\.observe\(palco\)/);
+  /* depois de escrever, a barra espera a pessoa rolar: voltando na hora ela cobria o "Seguir" no meio do toque (o E2E pegou depois da retomada) */
+  assert.match(barra, /var mostrar = [^;]*!esperaRolar/);
+  assert.match(barra, /function mudarEscrita\(agora\) \{ if \(escrevendo && !agora\) esperaRolar = true;/);
+  assert.match(barra, /addEventListener\('scroll', function \(\) \{ if \(!esperaRolar\) return; esperaRolar = false; decidir\(\); \}, \{ passive: true \}\)/);
 });
 test('uma identificação só do Zero na conversa (o título, com "assistente virtual (IA)"); cada fala fica com o símbolo', () => {
   const css = semComentario(lerTexto('css/orcamento-palco.css'));
@@ -284,7 +288,7 @@ test('uma identificação só do Zero na conversa (o título, com "assistente vi
 });
 test('a caixa da conversa para a rolagem no começo de uma fala: nada cortado no topo', () => {
   const css = semComentario(lerTexto('css/orcamento-palco.css'));
-  assert.match(css, /\.orc-log \{[^}]*scroll-snap-type: y mandatory/);
+  assert.match(css, /\.orc-log \{[^}]*scroll-snap-type: y proximity/, 'proximity: o mandatory brigava com a rolagem até o botão de um passo aberto');
   assert.match(css, /\.orc-log__lista > li \{[^}]*scroll-snap-align: start/);
   assert.match(css, /\.orc-log__lista > li:last-child \{[^}]*scroll-snap-align: start end/, 'o fim da conversa continua alcançável');
   assert.match(lerTexto('docs/cortes.mjs'), /cortado no topo da rolagem/, 'o varredor confere o topo da caixa');
@@ -293,4 +297,8 @@ test('a caixa da conversa para a rolagem no começo de uma fala: nada cortado no
   assert.equal(P.folgaNecessaria(500, 620), 0, 'o que vem depois da fala já passa da caixa: nenhuma folga');
   for (const [a, b] of [[NaN, 10], [500, NaN], [0, 10], [-5, 10], [500, -1], ['500', 10]]) assert.equal(P.folgaNecessaria(a, b), a === '500' ? 490 : 0, String([a, b]));
   assert.doesNotThrow(() => P.ligarCaixa({ getElementById: () => null }, {}), 'sem a caixa, nada acontece');
+  assert.doesNotThrow(() => P.ajustarFolga(), 'sem a caixa ligada, ajustar não faz nada');
+  /* quem rola é quem já rolava: eles ajustam a folga antes da conta; o palco não rola (2 rolagens suaves brigavam e o toque caía fora do botão) */
+  for (const arq of ['js/orcamento-toques.js', 'js/orcamento.js']) assert.match(lerTexto(arq), /BZOrcPalco\.ajustarFolga\(\)/, arq);
+  assert.doesNotMatch(semComentario(lerTexto('js/orcamento-palco.js')), /scrollTop\s*=/, 'o palco não rola a caixa');
 });

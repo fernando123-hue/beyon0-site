@@ -178,8 +178,10 @@ html.orc-retomando .orc-vitrine, html.orc-retomando .orc-contadores { display: n
 .orc-log__lista { gap: 14px; }
 /* a caixa da conversa ROLA (a estrutura de 18/11): uma régua nítida de 1 px em cima e outra embaixo marcam a borda da rolagem, para a
    linha que passa por ela ler como "tem mais aqui", não como texto cortado (sem esmaecer: regra do dono) */
-.orc-log { padding-block: 14px; border-block: 1px solid var(--line); scroll-snap-type: y mandatory; scroll-padding-block: 12px 14px; }   /* (12 px em cima: a borda do item anterior fica 2 px acima da régua, nunca um fio dela) */
-/* a caixa PARA a rolagem no começo de uma fala (ou de uma resposta): nada fica cortado pela régua de cima (o "ZERO" atravessado no print do
+.orc-log { padding-block: 14px; border-block: 1px solid var(--line); scroll-snap-type: y proximity; scroll-padding-block: 12px 14px; }   /* (12 px em cima: a borda do item anterior fica 2 px acima da régua, nunca um fio dela) */
+/* a caixa PARA a rolagem no começo de uma fala (ou de uma resposta) quando a pessoa solta o dedo perto dele ("proximity": o "mandatory"
+   brigava com a rolagem até um botão de um passo aberto e o toque caía fora dele); a fala nova o JS já leva ao topo (js/orcamento-palco.js).
+   Nada fica cortado pela régua de cima (o "ZERO" atravessado no print do
    dono, 24/11). A última pode encostar embaixo também, para o fim da conversa continuar alcançável; o que é mais alto que a caixa rola livre */
 .orc-log__lista > li { scroll-snap-align: start; }
 .orc-log__lista > li:last-child { scroll-snap-align: start end; }

@@ -66,7 +66,9 @@
      O CSS faz a caixa parar a rolagem no começo de cada item (scroll-snap). Mas quando o que vem depois da última fala do Zero é curto, a
      rolagem acaba antes de a fala chegar ao topo, e o topo cortava a fala anterior. Aqui a lista ganha embaixo a folga que falta para a
      última fala poder ficar no topo, inteira (como num app de conversa: a pergunta nova em cima, o espaço livre embaixo). A folga muda
-     por evento (a conversa mudou, a tela mudou de tamanho), nunca por quadro. Sem fala do Zero, folga zero. */
+     por evento (a conversa mudou, a tela mudou de tamanho), nunca por quadro. Sem fala do Zero, folga zero.
+     Quem ROLA continua sendo quem já rolava (js/orcamento-toques.js rolar, js/orcamento.js rolarConversa): eles chamam ajustarFolga() antes
+     da conta. Aqui não se rola nada: uma 2ª rolagem suave brigava com a 1ª e um toque no meio dela caía fora do botão (o E2E pegou). */
   function folgaNecessaria(alturaUtil, daFalaAoFim) {
     var a = Number(alturaUtil), b = Number(daFalaAoFim);
     if (!isFinite(a) || !isFinite(b) || a <= 0 || b < 0) return 0;
@@ -78,24 +80,25 @@
     var visivel = function (el) { return el.getClientRects().length > 0; };
     function ultimaFala() { var f = lista.querySelectorAll(':scope > .msg--agente'), i; for (i = f.length - 1; i >= 0; i--) if (visivel(f[i])) return f[i]; return null; }
     function ultimoItem() { var i, c = lista.children; for (i = c.length - 1; i >= 0; i--) if (visivel(c[i])) return c[i]; return null; }
-    function medirEAjustar(trazerFala) {
+    function medirEAjustar() {
       var fala = ultimaFala(), fim = ultimoItem(), cs = win.getComputedStyle(caixa);
-      var util = caixa.clientHeight - (parseFloat(cs.scrollPaddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+      var util = caixa.clientHeight - (parseFloat(cs.paddingBottom) || 0);   /* (a fala sobe até a régua de cima; a folga a mais são poucos px em branco) */
       var folga = fala && fim ? folgaNecessaria(util, fim.getBoundingClientRect().bottom - fala.getBoundingClientRect().top) : 0;
       var atual = lista.style.paddingBottom;
       if (atual !== folga + 'px') lista.style.paddingBottom = folga + 'px';
-      if (!trazerFala || !fala) return;
-      /* a fala nova vai para o topo da caixa, inteira (o mesmo lugar que js/orcamento-toques.js e js/orcamento.js pedem; agora a rolagem alcança) */
-      var topo = caixa.getBoundingClientRect().top + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.scrollPaddingTop) || 0);
-      caixa.scrollTop = caixa.scrollTop + fala.getBoundingClientRect().top - topo;
     }
     new win.MutationObserver(function (mudancas) {
-      var falaNova = mudancas.some(function (m) { return [].some.call(m.addedNodes || [], function (n) { return n.nodeType === 1 && n.classList && n.classList.contains('msg--agente'); }); });
-      medirEAjustar(falaNova);
-    }).observe(lista, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-feito', 'hidden'] });
-    win.addEventListener('resize', function () { medirEAjustar(false); });
-    medirEAjustar(false);
+      /* (só o que muda os ITENS da lista conta: o aviso de erro que aparece dentro de um passo aberto não mexe na folga, senão a lista andava
+         embaixo do dedo no meio de um toque) */
+      mudancas = mudancas.filter(function (m) { return m.type === 'childList' ? m.target === lista : m.target.parentElement === lista; });
+      if (mudancas.length) medirEAjustar();
+    }).observe(lista, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-feito', 'hidden'] });   /* (subtree: o atributo chega no item; o filtro acima descarta o que é de dentro dele) */
+    win.addEventListener('resize', function () { medirEAjustar(); });
+    medirEAjustar();
+    ajustar = medirEAjustar;
   }
+  var ajustar = null;
+  function ajustarFolga() { if (ajustar) ajustar(); }
 
-  return Object.freeze({ VAZIO: VAZIO, partes: partes, inteiro: inteiro, valor: valor, ligar: ligar, folgaNecessaria: folgaNecessaria, ligarCaixa: ligarCaixa });
+  return Object.freeze({ VAZIO: VAZIO, partes: partes, inteiro: inteiro, valor: valor, ligar: ligar, folgaNecessaria: folgaNecessaria, ligarCaixa: ligarCaixa, ajustarFolga: ajustarFolga });
 });
