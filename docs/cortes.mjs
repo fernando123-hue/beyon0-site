@@ -45,6 +45,15 @@ export function procurarCortes() {
       break;
     }
   }
+  /* a caixa da conversa ROLA, mas para no começo de uma fala: nenhuma fala atravessada pela borda de cima (print do dono, 24/11) */
+  for (const caixa of document.querySelectorAll('#o-log-caixa')) {
+    if (!caixa.checkVisibility()) continue;
+    const topo = caixa.getBoundingClientRect().top + parseFloat(getComputedStyle(caixa).borderTopWidth);
+    for (const li of caixa.querySelectorAll('#o-log > li')) {
+      const r = li.getBoundingClientRect();
+      if (r.height > 0 && r.top < topo - 1 && r.bottom > topo + 1 && r.height <= caixa.clientHeight) anota('cortado no topo da rolagem', li, li.textContent || '');
+    }
+  }
   /* o texto de uma coluna não encosta no traço da coluna seguinte (8 px de folga, no mínimo: a mesma ordem do respiro do outro lado) */
   for (const col of document.querySelectorAll('main *')) {
     if (col.closest(FORA) || !col.checkVisibility()) continue;

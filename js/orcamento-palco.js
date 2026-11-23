@@ -15,7 +15,7 @@
   /* (a miniatura e os rótulos são lidos na hora do evento: a ordem dos scripts não importa) */
   if (raiz) {
     raiz.BZOrcPalco = api;
-    if (raiz.document) api.ligar(raiz.document, function () { return raiz.BZOrcNasce; }, function () { return raiz.BZOrcRotulos; });
+    if (raiz.document) { api.ligar(raiz.document, function () { return raiz.BZOrcNasce; }, function () { return raiz.BZOrcRotulos; }); api.ligarCaixa(raiz.document, raiz); }
   }
 })(typeof window !== 'undefined' ? window : null, function () {
   'use strict';
@@ -62,5 +62,43 @@
     });
   }
 
-  return Object.freeze({ VAZIO: VAZIO, partes: partes, inteiro: inteiro, valor: valor, ligar: ligar });
+  /* ---------- A CAIXA DA CONVERSA PARA NO COMEÇO DE UMA FALA (dono, 24/11: o "ZERO" saía atravessado pela régua de cima) ----------
+     O CSS faz a caixa parar a rolagem no começo de cada item (scroll-snap). Mas quando o que vem depois da última fala do Zero é curto, a
+     rolagem acaba antes de a fala chegar ao topo, e o topo cortava a fala anterior. Aqui a lista ganha embaixo a folga que falta para a
+     última fala poder ficar no topo, inteira (como num app de conversa: a pergunta nova em cima, o espaço livre embaixo). A folga muda
+     por evento (a conversa mudou, a tela mudou de tamanho), nunca por quadro. Sem fala do Zero, folga zero.
+     Quem ROLA continua sendo quem já rolava (js/orcamento-toques.js rolar, js/orcamento.js rolarConversa): eles chamam ajustarFolga() antes
+     da conta. Aqui não se rola nada: uma 2ª rolagem suave brigava com a 1ª e um toque no meio dela caía fora do botão (o E2E pegou). */
+  function folgaNecessaria(alturaUtil, daFalaAoFim) {
+    var a = Number(alturaUtil), b = Number(daFalaAoFim);
+    if (!isFinite(a) || !isFinite(b) || a <= 0 || b < 0) return 0;
+    return Math.max(0, Math.round(a - b));
+  }
+  function ligarCaixa(doc, win) {
+    var caixa = doc && doc.getElementById && doc.getElementById('o-log-caixa'), lista = doc && doc.getElementById && doc.getElementById('o-log');
+    if (!caixa || !lista || !win || typeof win.MutationObserver !== 'function' || typeof win.getComputedStyle !== 'function') return;
+    var visivel = function (el) { return el.getClientRects().length > 0; };
+    function ultimaFala() { var f = lista.querySelectorAll(':scope > .msg--agente'), i; for (i = f.length - 1; i >= 0; i--) if (visivel(f[i])) return f[i]; return null; }
+    function ultimoItem() { var i, c = lista.children; for (i = c.length - 1; i >= 0; i--) if (visivel(c[i])) return c[i]; return null; }
+    function medirEAjustar() {
+      var fala = ultimaFala(), fim = ultimoItem(), cs = win.getComputedStyle(caixa);
+      var util = caixa.clientHeight - (parseFloat(cs.paddingBottom) || 0);   /* (a fala sobe até a régua de cima; a folga a mais são poucos px em branco) */
+      var folga = fala && fim ? folgaNecessaria(util, fim.getBoundingClientRect().bottom - fala.getBoundingClientRect().top) : 0;
+      var atual = lista.style.paddingBottom;
+      if (atual !== folga + 'px') lista.style.paddingBottom = folga + 'px';
+    }
+    new win.MutationObserver(function (mudancas) {
+      /* (só o que muda os ITENS da lista conta: o aviso de erro que aparece dentro de um passo aberto não mexe na folga, senão a lista andava
+         embaixo do dedo no meio de um toque) */
+      mudancas = mudancas.filter(function (m) { return m.type === 'childList' ? m.target === lista : m.target.parentElement === lista; });
+      if (mudancas.length) medirEAjustar();
+    }).observe(lista, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-feito', 'hidden'] });   /* (subtree: o atributo chega no item; o filtro acima descarta o que é de dentro dele) */
+    win.addEventListener('resize', function () { medirEAjustar(); });
+    medirEAjustar();
+    ajustar = medirEAjustar;
+  }
+  var ajustar = null;
+  function ajustarFolga() { if (ajustar) ajustar(); }
+
+  return Object.freeze({ VAZIO: VAZIO, partes: partes, inteiro: inteiro, valor: valor, ligar: ligar, folgaNecessaria: folgaNecessaria, ligarCaixa: ligarCaixa, ajustarFolga: ajustarFolga });
 });

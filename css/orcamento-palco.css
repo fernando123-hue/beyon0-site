@@ -20,9 +20,13 @@
    nada fica mais largo que a tela.
    ========================================================================== */
 
+/* ---------- o tema claro TRAVADO: o Chrome do celular com escurecimento automático invertia o branco e trocava a cor da logo e do
+   nome (print do dono, 24/11). "only light" é o pedido oficial para o navegador não escurecer a página (o palco já é preto de propósito) ---------- */
+:root { color-scheme: only light; }
+
 /* ---------- os tokens claros: a página do orçamento e o topo ---------- */
 .orc__main, .orc .nav, .orc .rde-barra {
-  color-scheme: light;
+  color-scheme: only light;
   --bg: #FFFFFF;
   --s1: #F6F7F7;
   --s2: #EEF0F0;
@@ -174,13 +178,19 @@ html.orc-retomando .orc-vitrine, html.orc-retomando .orc-contadores { display: n
 .orc-log__lista { gap: 14px; }
 /* a caixa da conversa ROLA (a estrutura de 18/11): uma régua nítida de 1 px em cima e outra embaixo marcam a borda da rolagem, para a
    linha que passa por ela ler como "tem mais aqui", não como texto cortado (sem esmaecer: regra do dono) */
-.orc-log { padding-block: 14px; border-block: 1px solid var(--line); }
+.orc-log { padding-block: 14px; border-block: 1px solid var(--line); scroll-snap-type: y proximity; scroll-padding-block: 12px 14px; }   /* (12 px em cima: a borda do item anterior fica 2 px acima da régua, nunca um fio dela) */
+/* a caixa PARA a rolagem no começo de uma fala (ou de uma resposta) quando a pessoa solta o dedo perto dele ("proximity": o "mandatory"
+   brigava com a rolagem até um botão de um passo aberto e o toque caía fora dele); a fala nova o JS já leva ao topo (js/orcamento-palco.js).
+   Nada fica cortado pela régua de cima (o "ZERO" atravessado no print do
+   dono, 24/11). A última pode encostar embaixo também, para o fim da conversa continuar alcançável; o que é mais alto que a caixa rola livre */
+.orc-log__lista > li { scroll-snap-align: start; }
+.orc-log__lista > li:last-child { scroll-snap-align: start end; }
 
 /* a fala do Zero: o símbolo claro à esquerda, "Zero" em mono e a frase; a fala mais nova em destaque, as antigas mais baixas */
 .msg--agente { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 10px; max-width: 100%; padding-left: 0; border-left: 0; color: var(--t1); }
-.msg--agente::before { content: ""; grid-column: 1; grid-row: 1 / span 2; width: 28px; height: 28px; background: url('../assets/zero-simbolo-claro.svg') no-repeat 0 50% / contain; }
-.msg--agente::after { content: "Zero"; content: "Zero" / ""; grid-column: 2; grid-row: 1; margin-bottom: 4px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: .12em; line-height: 1.4; text-transform: uppercase; color: var(--t3); }
-.orc-log__lista > .msg--agente:first-child::after { content: none; }   /* (a 1ª fala já tem o nome inteiro logo acima, no título da conversa) */
+.msg--agente::before { content: ""; grid-column: 1; grid-row: 1; width: 28px; height: 28px; background: url('../assets/zero-simbolo-claro.svg') no-repeat 0 50% / contain; }
+/* (uma identificação só: o título da conversa diz "Zero, assistente virtual (IA) da Beyon Zero"; o "ZERO" em cada fala repetia isso e saiu
+   a pedido do dono, 24/11: "muita informação nessa página". O símbolo continua marcando cada fala dele) */
 .msg--agente > * { grid-column: 2; }
 .msg--agente p { font-size: 1.0625rem; line-height: 1.45; }
 .msg--agente:has(~ .msg--agente) p { font-size: .9375rem; color: var(--t2); }
