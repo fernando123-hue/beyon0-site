@@ -26,9 +26,12 @@
 
   function criar(o) {
     var el = null, anel = null, estadoEl = null, valorEl = null;
-    var radarVisto = true, mesaVista = false, escrevendo = false, ativo = false, st = null;
+    var radarVisto = true, mesaVista = false, escrevendo = false, ativo = false, st = null, palcoVisto = false;
     var mq = W.matchMedia ? W.matchMedia('(max-width: 899px)') : null;
     var mesa = doc.querySelector('.orc-mesa');
+    /* o palco do orçamento (direção C) já mostra o valor: a barra não repete isso ao lado dele nem cobre o título (dono, 24/11). Ela só entra
+       depois que o palco inteiro passou para trás do menu; sem palco na página, nada muda */
+    var palco = doc.querySelector('.orc-palco');
 
     function montar() {
       el = doc.createElement('div');
@@ -53,7 +56,7 @@
       el.classList.toggle('is-ouro', !!st.ouro);
     }
     function decidir() {
-      var mostrar = ativo && !radarVisto && mesaVista && !escrevendo && !!(mq && mq.matches);
+      var mostrar = ativo && !radarVisto && mesaVista && !escrevendo && !palcoVisto && !!(mq && mq.matches);
       if (!el && !mostrar) return;
       if (!el) montar();
       el.classList.toggle('is-visivel', mostrar);
@@ -64,11 +67,13 @@
       var io = new W.IntersectionObserver(function (entradas) {
         entradas.forEach(function (e) {
           if (e.target === mesa) mesaVista = e.isIntersecting;
+          else if (e.target === palco) palcoVisto = e.isIntersecting;
           else radarVisto = e.isIntersecting && e.intersectionRect.height >= Math.min(LIMIAR_PX, e.boundingClientRect.height);
         });
         decidir();
       }, { rootMargin: '-72px 0px 0px 0px', threshold: LIMIARES });
       io.observe(o.alvo); io.observe(mesa);
+      if (palco) io.observe(palco);
     }
     /* o foco do teclado nunca fica atrás da barra (WCAG 2.4.11): campo de escrever em qualquer lugar da página tira a barra; outro
        controle que cairia atrás dela desce para a vista (o scroll-padding de html.tem-barra-escopo conta a altura da barra) */
