@@ -1,3 +1,3 @@
 /* sem JavaScript a conversa não funciona: some a mesa, fica o aviso com o WhatsApp (carregado por <noscript> no head) */
-.orc-mesa, .orc-etapas { display: none !important; }
+.orc-mesa, .orc-etapas, .orc-vitrine, .orc-contadores { display: none !important; }   /* (o palco fica só com o título: a vitrine e os contadores vivem do JS) */
 .orc-aviso--semjs { display: block; }
