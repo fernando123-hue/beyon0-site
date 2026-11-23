@@ -121,6 +121,8 @@ test('condições (21/11): 24 horas para o restante, o encerramento sem ele, o r
   assert.match(secao('Pagamento'), /O site só vai ao ar com o restante pago\. Quando o site fica pronto, mandamos o Pix do restante\. Você tem 24 horas para pagar\. Sem o pagamento nesse prazo, encerramos o projeto\. A entrada segue a regra da desistência, mais abaixo\./);
   assert.match(secao('Desistência'), /Se você desistir depois de pagar o restante, mas antes de o site ir ao ar, devolvemos o restante pelo Pix, para a mesma conta que pagou\./);
   assert.match(secao('O que está incluso'), /1 ano de domínio grátis, registrado no seu nome \(no seu CPF ou CNPJ\) depois que o restante é pago\./);
+  /* 23/11 (dono): nós registramos o domínio no nome do cliente; ele manda os dados e confirma 2 e-mails do Registro.br; o aceite autoriza */
+  assert.match(secao('O que está incluso'), /Nós fazemos o registro: você manda o nome, o CPF e a data de nascimento de quem vai ser o dono \(ou o CNPJ\) e um e-mail, e confirma 2 e-mails do Registro\.br\. Aceitar estas condições autoriza o registro no seu nome\./);
   assert.ok(!/(?:3|três) dias[^.]{0,60}restante|restante[^.]{0,60}(?:3|três) dias|sai do ar/.test(texto), 'a regra antiga (o site no ar antes do restante, 3 dias e a saída do ar) não volta');
 });
 
@@ -164,7 +166,7 @@ test('privacidade: cobre o primeiro contato, a busca na web com a Anthropic, o P
     'legítimo interesse (artigo 7º, inciso IX', 'responda “não”', '90 dias depois do último envio', 'Pix direto', 'Depoimento e portfólio', 'com a sua autorização por escrito',
     'a Beyon Zero manda o nome, o tipo, a cidade, o estado (UF) e o celular do negócio à Anthropic', 'conta de assinatura da Beyon Zero no Claude',
     'buscador usado pela Anthropic', 'anthropic.com/legal/privacy', 'A Anthropic guarda os dados conforme a política de privacidade dela',
-    'o Registro.br exige o seu CPF ou CNPJ', 'a hospedagem do site dos clientes: na conta da Beyon Zero até o restante ser pago, depois numa conta no nome do próprio cliente',
+    'o Registro.br exige o seu CPF ou CNPJ', 'pedimos esses dados pela conversa, depois do restante pago, e usamos só para fazer o registro', 'a hospedagem do site dos clientes: na conta da Beyon Zero até o restante ser pago, depois numa conta no nome do próprio cliente',
     'obrigação legal (artigo 7º, inciso II', 'a ponderação do artigo 10', 'dados mínimos', 'envio um a um', 'oposição imediata',
     'A avaliação fica registrada por escrito pela Beyon Zero (este texto e as decisões internas) e é enviada a pedido',
     'De todo contato apagado, fica por 12 meses um código embaralhado do contato usado no envio', 'a data da publicação mais recente',
