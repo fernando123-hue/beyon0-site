@@ -15,7 +15,7 @@
    ========================================================================== */
 (function () {
   'use strict';
-  var LEMBRETES = [2, 3];   /* = lembretes_restante (2º e 3º dia, decisão do dono de 22/10) */
+  var LEMBRETES = [2, 3];   /* = LIMITES.lembretes_restante (2º e 3º dia, decisão do dono de 22/10): só a entrega antiga, no ar antes de 19/11; a captação não tem mais esta chave */
   var LIMITE_PADRAO = 3;    /* os dias do restante; o servidor manda o seu em site.limite_dias */
   var $ = function (id) { return document.getElementById(id); };
   var nada = function () { /* a espera do Pix é do componente: se a chamada falhar, ele mostra o seu aviso */ };

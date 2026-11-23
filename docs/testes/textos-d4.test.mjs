@@ -38,7 +38,9 @@ const REGRAS_D4 = [
     && /O site só vai ao ar com o restante pago|com o restante pago, (ele|o site) vai ao ar/i.test(t) && !RESTANTE_ANTIGO.test(t)],
   ['prazo PARA quando o cliente aprova a prévia; depois disso o site vai ao ar assim que o restante for pago (20/11, dono)', t => /para de vez quando (você|o cliente) aprova a prévia: depois disso, o site vai ao ar assim que o restante for pago\./.test(t)],
   ['2 listas de ajuste', t => /(2|[Dd]uas) listas de ajuste/.test(t)],
-  ['atraso da Beyon devolve a entrada inteira, mesmo depois dos 7 dias', t => /entrada (é devolvida )?inteira( de volta)?,? mesmo depois dos 7 dias|devolvemos a entrada inteira, mesmo depois dos 7 dias/.test(t)]
+  /* (dono, 21/11, revê a D4 de 21/10) o atraso da Beyon não devolve a entrada por regra (só se o cliente quiser cancelar) e nenhum
+     lugar promete isso: o predicado é a AUSÊNCIA da promessa */
+  ['nenhuma promessa de devolver a entrada se a Beyon atrasar (21/11, dono)', t => !/mesmo depois dos 7 dias|(atras\w*|não entreg\w*)[^.]{0,60}(devolv\w*|de volta|entrada volta)|(devolv\w*|de volta)[^.]{0,60}se (a Beyon|a gente|nós)[^.]{0,20}(atras|não entreg)|entrada devolvida se atrasar/i.test(t)]
 ];
 for (const [nome, ok] of REGRAS_D4) {
   test('D4, ' + nome + ': aparece no contrato, no consultor, em /condicoes e na tela', () => {
@@ -56,10 +58,11 @@ test('22/10: /condicoes traz os trechos da captação LITERAIS, o do material em
   assert.equal(secao('Prazo').split('lista de ajustes, o prazo').length, 2, 'a frase do prazo parado aparece uma vez só em Prazo');
   const pagamento = secao('Pagamento');
   assert.ok(pagamento.includes(RESTANTE_1A), 'Pagamento: ' + pagamento);
-  assert.ok(pagamento.indexOf('No institucional:') < pagamento.indexOf(RESTANTE_1A), 'o trecho do restante vem depois do institucional');
+  const divisao = pagamento.indexOf('60% quando o site estiver pronto');
+  assert.ok(divisao >= 0 && divisao < pagamento.indexOf(RESTANTE_1A),'o trecho do restante vem depois da divisão 40% + 60% (21/11: sem a oferta, o institucional saiu)');
   /* 19/11: a ordem nova do restante (o site pronto, o ar só com ele pago; Decisões 19/11); a captação grava esta data como condicoes_versao
      (config/entrega.json de lá), que sobe junto no PR da captação */
-  assert.ok(CONDICOES.includes('Última atualização: 21 de novembro de 2026'), 'a data da versão (21/11: a desistência também pelo próprio pedido, dentro dos 7 dias; a captação sobe a condicoes_versao para 2026-11-21 junto)');
+  assert.ok(CONDICOES.includes('Última atualização: 21 de novembro de 2026'), 'a data da versão (21/11: as 24 horas do restante, a devolução dele antes do ar e o domínio depois dele; e a desistência também pelo próprio pedido, dentro dos 7 dias; a captação sobe a condicoes_versao junto)');
   assert.ok(CONDICOES.includes('O site fica pronto e você vê tudo na prévia. Com o restante pago, ele vai ao ar e passa para uma conta no seu nome'), 'a hospedagem na ordem nova');
   assert.ok(!/primeiro na conta da Beyon/.test(CONDICOES), 'o site não vai mais ao ar na conta da Beyon antes do restante');
 });

@@ -229,6 +229,18 @@ test('o restante pago com o projeto PAUSADO (entrega bloqueada, 19/11): a entreg
   assert.equal(aud.length, 1); assert.match(aud[0].detalhe.motivo, /entrega bloqueada/);
 });
 
+test('o restante pago de um pedido SEM projeto (nada a bloquear): a entrega conclui, e o caso vai para a auditoria ("sem projeto"), uma pessoa decide', async () => {
+  const c = await entregaEm(db, 'no_ar');
+  const x = await iniciarRestante(db, c);
+  /* (a proposta enviada não solta o projeto; o pedido que nunca teve um se monta desligando o gatilho só aqui) */
+  await db.exec('alter table app.propostas disable trigger proposta_imutavel');
+  try { await db.query('update app.propostas set projeto_id = null where id = $1', [c.proposta]); } finally { await db.exec('alter table app.propostas enable trigger proposta_imutavel'); }
+  assert.equal((await aprovarRestante(db, x)).aplicado, 'aprovada');
+  assert.equal((await um('select passo from app.entregas where conversa_id = $1', [c.conversa_id])).passo, 'concluida', 'sem projeto não bloqueia: conclui');
+  const aud = (await db.query("select a.detalhe from app.pagamentos_auditoria a join app.pagamentos p on p.id = a.pagamento_id where p.proposta_id = $1 and p.parcela = 'saldo' and a.evento = 'project.error'", [c.proposta])).rows;
+  assert.equal(aud.length, 1); assert.match(aud[0].detalhe.motivo, /fora de produção \(sem projeto\)/);
+});
+
 test('o restante só cobra a proposta da entrega: com outra proposta aceita mais nova na conversa, 55000 e nenhum saldo é criado', async () => {
   const c = await entregaEm(db, 'no_ar');
   await db.query('create temp table _p as select * from app.propostas where id = $1', [c.proposta]);

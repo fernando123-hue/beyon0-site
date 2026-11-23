@@ -124,7 +124,7 @@ test('alertas por passo: 30 dias sem material (dispensar com a autorização exp
   assert.equal(depois.length, 1, 'uma nota só: o projeto espera o cliente, sem ação'); assert.match(depois[0], /PARADO/);
   assert.ok(!/encerrar|sem_material|dispensar|vencid|suspender|devolve/i.test(depois[0]), 'não sugere encerrar nem publicar: ' + depois[0]);
   const venc = alertasDe(base({ passo: 'producao', prazo_dias: 5, entrega_ate: '2026-10-08', prazo: { conta_desde: '2026-10-01T12:00:00-04:00', pausas: [] } }), HOJE);
-  assert.match(venc[0], /prazo vencido/); assert.match(venc[0], /devolve a entrada/);
+  assert.match(venc[0], /prazo vencido/); assert.match(venc[0], /pergunte se ele segue/); assert.doesNotMatch(venc[0], /regra da D4|devolve a entrada se/);   /* (21/11, dono) devolve só se o cliente pedir para cancelar */
   /* 20/11 (dono): o prazo PARA na aprovação da prévia: aprovada com o prazo "vencido" de antes NÃO alarma nem manda devolver a entrada */
   const vencAprovada = alertasDe(base({ passo: 'aprovada', prazo_dias: 5, entrega_ate: '2026-10-08', prazo: { conta_desde: '2026-10-01T12:00:00-04:00', pausas: [{ desde: '2026-10-02T12:00:00-04:00', ate: '2026-10-03T12:00:00-04:00' }] } }), HOJE);
   assert.ok(!/prazo vencido|devolve a entrada|NÃO vai ao ar/.test(vencAprovada.join(' ')), vencAprovada.join(' | '));

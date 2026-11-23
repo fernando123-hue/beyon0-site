@@ -78,7 +78,7 @@ const FRASES_APAGAR = Object.freeze({
   ja: 'O aviso prévio do apagamento já foi registrado.'
 });
 
-/* M1 (clientes/entrega.mjs:162): o prazo corre até a PRÉVIA sair; vencido, ela não sai e a saída é a devolução por atraso. Desde 20/11 (dono) ele PARA na aprovação da prévia: depois dela o site só espera o restante e não há mais prazo nosso a vencer */
+/* M1 (clientes/entrega.mjs:162): o prazo corre até a PRÉVIA sair; vencido, ela não sai: o dono combina a nova data com o cliente, ou devolve a entrada se ele cancelar (21/11, dono). Desde 20/11 (dono) ele PARA na aprovação da prévia: depois dela o site só espera o restante e não há mais prazo nosso a vencer */
 const instanteOk = v => typeof v === 'string' && Number.isFinite(Date.parse(v));
 /* o prazo guardado tem de ter datas que se leem: a conta (Intl) lança com data torta e o dono veria 500 */
 function prazoLegivel(prazo) {
@@ -95,7 +95,7 @@ function barrarPeloPrazo(info, agora, oQue) {
     return prazoVencido(info.prazo, { prazoDias: info.prazo_dias }, agora) ? json({ erro: fraseDoAtraso(info, oQue) }, 409) : null;
   } catch (e) { if (e instanceof RangeError) return PRAZO_TORTO(); throw e; }
 }
-const fraseDoAtraso = (info, oQue) => 'O prazo combinado (' + info.entrega_ate + ') venceu: ' + oQue + ' agora esconderia o atraso. O caminho é a devolução por atraso (D4: a entrada volta, mesmo depois dos 7 dias): estorne no Mercado Pago, rode "encerrar BZ-… atraso" e registre a devolução na captação. Se o cliente quiser seguir: o site ainda não recebe a nova data (é pendência), e é preciso registrar a nova data antes de publicar.';
+const fraseDoAtraso = (info, oQue) => 'O prazo combinado (' + info.entrega_ate + ') venceu: ' + oQue + ' agora esconderia o atraso. Avise o cliente e pergunte se ele segue (21/11, dono: o atraso não devolve a entrada por regra). Se ele pedir para cancelar, é a devolução por atraso: devolva a entrada, rode "encerrar BZ-… atraso" e registre a devolução na captação. Se o cliente quiser seguir: o site ainda não recebe a nova data (é pendência), e é preciso registrar a nova data antes de publicar.';
 
 export function criarAcoesDoDono(env) {
   const rpc = criarTransporte(env);
