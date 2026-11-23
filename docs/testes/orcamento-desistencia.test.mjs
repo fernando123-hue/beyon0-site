@@ -222,8 +222,8 @@ test('o HTML do fim do pedido tem o lugar da frase da desistência, escondido e 
 
 test('/condicoes diz que dentro dos 7 dias dá também para desistir pelo próprio pedido, em "Seu pedido", e a versão sobe para 21/11 (a captação sobe a condicoes_versao junto)', () => {
   const cond = texto(ler('condicoes.html'));
-  assert.match(cond, /Para desistir, escreva para contato\.beyon\.zero@gmail\.com ?\. Dentro dos 7 dias, a devolução é imediata, pelo mesmo meio do pagamento \(o Pix\), com o valor corrigido, e você também pode desistir pelo próprio pedido, em “Seu pedido”, na página do orçamento\./);
-  assert.match(cond, /Última atualização: 21 de novembro de 2026/);
+  assert.match(cond, /Para desistir, escreva para contato\.beyon\.zero@gmail\.com ?ou, se a nossa conversa foi pelo WhatsApp, mande uma mensagem por lá\. Dentro dos 7 dias, a devolução é imediata, pelo mesmo meio do pagamento \(o Pix\), com o valor corrigido, e você também pode desistir pelo próprio pedido, em “Seu pedido”, na página do orçamento\./);
+  assert.match(cond, /Última atualização: 23 de novembro de 2026/);
   assert.ok(HTML.includes('<p class="orcamento-pedido-rotulo') || /Seu pedido<span id="o-ped-codigo"/.test(HTML), 'o rótulo "Seu pedido" que a página das condições cita existe na tela');
 });
 
