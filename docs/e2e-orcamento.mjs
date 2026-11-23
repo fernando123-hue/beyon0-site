@@ -94,7 +94,8 @@ try {
   ok(await page.locator('#o-perguntas').count() === 0 && await page.locator('#o-conversar').count() === 0, 'sem tela de perguntas e sem "Prefere conversar?"');
   ok(CONSULTOR ? await page.locator('#o-form').isVisible() : await page.locator('#o-form').isHidden(), CONSULTOR ? 'com consultor: a caixa de texto está à mão' : 'sem consultor: tudo por toques, sem caixa de texto');
   await foto(page, '1a-conversa-cel');
-  /* A CASCA NOVA (remodelação de 18/11, direção B): a miniatura do site espera o 1º toque, cada opção do ramo vem com ícone, a barra diz "1 de 5" */
+  /* A CASCA NOVA (remodelação de 18/11, direção B; visual do palco, direção C de 23/11): a miniatura do site espera o 1º toque, cada opção do ramo
+     vem com ícone (escondido no palco: o número mono à direita faz as vezes dele), os passos são abas e a da conversa está sublinhada */
   ok(await page.locator('#o-nasce').isHidden() && await page.locator('#o-log .orc-toque:not([data-feito]) .orc-op--ic svg').count() === 8, 'casca: a miniatura espera o 1º toque e as 8 opções do ramo vêm com ícone');
   /* a pergunta do Zero aparece INTEIRA na caixa da conversa: com os cartões com ícone, fala + opções passam da altura da caixa, e rolar até o fim
      cortava o começo da pergunta (achado das fotos de 19/11: 51 px cortados na chegada, 46 a cada toque). A fala fica no topo; as opções seguem abaixo */
@@ -110,7 +111,7 @@ try {
     return !!antes && antes.dc >= -1 && (antes.cabe || antes.dc <= 24);
   };
   ok(await falaInteira(), 'casca: na chegada, a 1ª pergunta do Zero aparece inteira na caixa (não começa cortada)');
-  ok(await page.getAttribute('#o-etapas', 'data-n') === '1' && /1 de 5/.test(await page.evaluate(() => getComputedStyle(document.getElementById('o-etapas'), '::after').content)), 'casca: a barra de progresso diz "1 de 5"');
+  ok(await page.getAttribute('#o-etapas', 'data-n') === '1' && await page.evaluate(() => { const li = document.querySelector('#o-etapas li[aria-current="step"]'); return !!li && li.getAttribute('data-passo') === 'conversa' && /inset/.test(getComputedStyle(li).boxShadow) && li.querySelector('.orc-etapas__nome').getClientRects().length > 0; }), 'casca: a aba da conversa é a atual, com o nome à vista e o sublinhado');
   /* O MICROFONE DO ZERO (18/11): o botão Falar grava, o servidor local devolve a frase simulada e ela cai na caixa para a pessoa conferir;
      nada é enviado ao Zero sozinho. Só com o consultor (é a caixa de texto dele) */
   if (CONSULTOR) {
