@@ -237,3 +237,25 @@ test('o módulo do palco escreve só por textContent; o radar avisa o palco com 
   const radar = semComentario(lerTexto('js/orcamento-escopo.js'));
   assert.match(radar, /new CustomEvent\('bz:radar', \{ detail: \{ integracoes: st\.dims\.integracoes\.n, valor: st\.valor \} \}\)/);
 });
+
+/* espaçamento sem corte (regra do dono; achados de 23/11 em 320): nada de reticências, folga igual nos dois lados da régua, a borda
+   da caixa que rola marcada por régua, nenhuma palavra partida no meio. O varredor de tela é docs/cortes.mjs (CORTES=1 no E2E) */
+const regrasSemCorte = css => {
+  const erros = [];
+  if (!/\.rde-barra__estado \{[^}]*white-space: normal[^}]*text-overflow: clip/.test(css)) erros.push('a barra fina do radar ainda corta o estado com reticências');
+  if (!/\.orc-contador \{[^}]*padding: 12px 12px 0 0/.test(css)) erros.push('os contadores sem a folga de 12 px antes da régua seguinte');
+  if (!/\.orc-log \{[^}]*border-block: 1px solid/.test(css)) erros.push('a caixa da conversa sem a régua que marca a borda da rolagem');
+  if (!/\.rde-canto__valor \{[^}]*hyphens: manual/.test(css)) erros.push('os cantos do radar ainda partem palavra com hífen');
+  if (!/@media \(max-width: 379px\) \{[\s\S]*?\.orc-est__dados div \{[^}]*display: flex/.test(css)) erros.push('o prazo e os valores do investimento seguem em 3 colunas apertadas no celular estreito');
+  if (!/\.visor__titulo \{[^}]*white-space: normal[^}]*text-overflow: clip/.test(css)) erros.push('o título do visor da prévia ainda corta com reticências');
+  return erros;
+};
+test('espaçamento sem corte no palco: sem reticências, folga igual, borda da rolagem marcada, sem palavra partida', () => {
+  assert.deepEqual(regrasSemCorte(semComentario(lerTexto('css/orcamento-palco.css'))), []);
+  const varredor = lerTexto('docs/cortes.mjs');
+  for (const tipo of ['reticências', 'fora da tela', 'preso numa caixa', 'palavra partida', 'encostado na régua']) assert.ok(varredor.includes("'" + tipo) || varredor.includes(tipo + ' ('), 'o varredor procura: ' + tipo);
+  assert.match(lerTexto('docs/e2e-orcamento.mjs'), /CORTES === '1'[\s\S]*cortes\(page\)/, 'o E2E roda o varredor a cada foto quando pedido');
+  const visor = semComentario(lerTexto('js/orcamento-visor.js'));
+  assert.match(visor, /tituloEmPartes\(d\.id === 'final'/, 'o título do visor é montado em pedaços que quebram pelo sentido');
+  assert.doesNotMatch(visor, /'o-visor-titulo'\)\.textContent = /, 'nada de título numa linha só, cortada com reticências');
+});

@@ -21,6 +21,7 @@ import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { passoDosAjustes } from './e2e-ajustes.mjs';
+import { cortes } from './cortes.mjs';
 import { passoDoPix } from './e2e-pix.mjs';
 import { passoDaEntrega } from './e2e-entrega.mjs';
 import { passoDaPrevia, passoSemEntrega } from './e2e-previa.mjs';
@@ -66,7 +67,15 @@ const anotar = (pg, rotulo) => {
   pg.on('requestfinished', async r => { if (!r.url().includes('/api/')) return; const t = r.timing(); const resp = await r.response(); diario.push(`${rotulo}: ${r.method()} ${new URL(r.url()).pathname}${new URL(r.url()).search} → ${resp ? resp.status() : '?'} em ${Math.round(t.responseEnd)} ms`); });
   pg.on('requestfailed', r => { if (r.url().includes('/api/')) diario.push(`${rotulo}: ${r.method()} ${new URL(r.url()).pathname} → falhou: ${r.failure()?.errorText}`); });
 };
-const foto = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + (CONSULTOR ? '-consultor' : '') + '.png', PASTA)) });   /* (pathname deixa %20 no caminho) */
+const fotoSo = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + (CONSULTOR ? '-consultor' : '') + '.png', PASTA)) });   /* (pathname deixa %20 no caminho) */
+/* CORTES=1: a cada foto, o varredor de texto cortado (docs/cortes.mjs; regra do dono "espaçamento sem corte") passa pela tela e cada achado vira FALHA */
+const CORTES = process.env.CORTES === '1';
+const foto = async (page, nome) => {
+  await fotoSo(page, nome);
+  if (!CORTES) return;
+  const achados = await cortes(page).catch(e => ['o varredor falhou: ' + e.message.split('\n')[0]]);
+  ok(achados.length === 0, 'cortes em ' + nome + (achados.length ? ': ' + achados.join(' · ') : ': nada cortado'));
+};
 
 try {
   const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
