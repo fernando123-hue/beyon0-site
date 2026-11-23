@@ -233,7 +233,9 @@ test('ligar: escuta a resposta (bz:respostas) e o radar (bz:radar); só escreve 
 
 test('o módulo do palco escreve só por textContent; o radar avisa o palco com o número e o valor que ELE já mostra', () => {
   const fonte = semComentario(lerTexto('js/orcamento-palco.js'));
-  assert.doesNotMatch(fonte, /innerHTML|insertAdjacentHTML|\.style\b|setAttribute\(\s*['"]style/);
+  assert.doesNotMatch(fonte, /innerHTML|insertAdjacentHTML|setAttribute\(\s*['"]style/);
+  /* o único estilo por JS é a folga embaixo da lista da conversa (por evento, nunca por quadro; CLAUDE.md permite el.style) */
+  assert.deepEqual([...new Set(fonte.match(/\w+\.style\.\w+/g) || [])], ['lista.style.paddingBottom']);
   const radar = semComentario(lerTexto('js/orcamento-escopo.js'));
   assert.match(radar, /new CustomEvent\('bz:radar', \{ detail: \{ integracoes: st\.dims\.integracoes\.n, valor: st\.valor \} \}\)/);
 });
@@ -286,4 +288,9 @@ test('a caixa da conversa para a rolagem no começo de uma fala: nada cortado no
   assert.match(css, /\.orc-log__lista > li \{[^}]*scroll-snap-align: start/);
   assert.match(css, /\.orc-log__lista > li:last-child \{[^}]*scroll-snap-align: start end/, 'o fim da conversa continua alcançável');
   assert.match(lerTexto('docs/cortes.mjs'), /cortado no topo da rolagem/, 'o varredor confere o topo da caixa');
+  /* a folga embaixo: o que falta para a última fala do Zero alcançar o topo (a rolagem acabava antes, e o topo cortava a fala anterior) */
+  assert.equal(P.folgaNecessaria(500, 180), 320, 'fala + opções curtas: a lista ganha a folga que falta');
+  assert.equal(P.folgaNecessaria(500, 620), 0, 'o que vem depois da fala já passa da caixa: nenhuma folga');
+  for (const [a, b] of [[NaN, 10], [500, NaN], [0, 10], [-5, 10], [500, -1], ['500', 10]]) assert.equal(P.folgaNecessaria(a, b), a === '500' ? 490 : 0, String([a, b]));
+  assert.doesNotThrow(() => P.ligarCaixa({ getElementById: () => null }, {}), 'sem a caixa, nada acontece');
 });
