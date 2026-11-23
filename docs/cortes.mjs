@@ -53,9 +53,11 @@ export function procurarCortes() {
     const ant = col.previousElementSibling;
     if (!ant || ant.closest(FORA) || soLeitor(ant) || !ant.checkVisibility()) continue;
     const borda = col.getBoundingClientRect().left, ra = ant.getBoundingClientRect(), rc = col.getBoundingClientRect();
-    if (ra.right > borda + 1 || ra.bottom <= rc.top || ra.top >= rc.bottom) continue;   /* (só colunas lado a lado: a moldura de um bloco embaixo do outro não é régua de coluna) */
+    if (ra.right > borda + 1 || ra.bottom <= rc.top || ra.top >= rc.bottom) continue;
+    if (/auto|scroll/.test(getComputedStyle(col.parentElement).overflowX)) continue;   /* (cartões de um carrossel que rola de lado não são colunas) */   /* (só colunas lado a lado: a moldura de um bloco embaixo do outro não é régua de coluna) */
     const tw2 = document.createTreeWalker(ant, NodeFilter.SHOW_TEXT);
     while (tw2.nextNode()) {
+      if (tw2.currentNode.parentElement.closest(FORA)) continue;
       const rg = document.createRange(); rg.selectNodeContents(tw2.currentNode);
       const q = [...rg.getClientRects()].filter(x => x.width > 0 && x.top < col.getBoundingClientRect().bottom && x.bottom > col.getBoundingClientRect().top);
       if (q.some(x => x.right > borda - 8)) { anota('encostado na régua de ' + nome(col), tw2.currentNode.parentElement, tw2.currentNode.textContent); break; }
