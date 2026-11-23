@@ -259,3 +259,31 @@ test('espaçamento sem corte no palco: sem reticências, folga igual, borda da r
   assert.match(visor, /tituloEmPartes\(d\.id === 'final'/, 'o título do visor é montado em pedaços que quebram pelo sentido');
   assert.doesNotMatch(visor, /'o-visor-titulo'\)\.textContent = /, 'nada de título numa linha só, cortada com reticências');
 });
+
+/* retorno do dono sobre o palco no celular (24/11): o Chrome do celular escureceu a página sozinho e a logo e o nome mudaram de cor;
+   a barra fina repetia o valor por cima do palco; "ZERO" se repetia em cada fala e saía cortado pela régua no topo da conversa */
+test('o tema claro do orçamento é travado: o escurecimento automático do navegador não mexe na logo nem no nome', () => {
+  const html = semComentario(lerTexto('orcamento.html'));
+  assert.match(html, /<meta name="color-scheme" content="only light" \/>/, 'a página diz ao navegador que só tem o tema claro');
+  assert.match(semComentario(lerTexto('css/orcamento-palco.css')), /:root \{[^}]*color-scheme: only light/, 'e a folha também');
+  for (const outra of ['index.html', 'sites.html', 'automacao.html']) assert.doesNotMatch(lerTexto(outra), /name="color-scheme"/, 'as outras páginas (escuras) não mudam: ' + outra);
+});
+test('a barra fina do radar não repete o valor ao lado do palco: só aparece depois que o palco saiu da tela', () => {
+  const barra = semComentario(lerTexto('js/orcamento-escopo-barra.js'));
+  assert.match(barra, /var mostrar = [^;]*!palcoVisto/, 'a decisão espera o palco sair da tela');
+  assert.match(barra, /querySelector\('\.orc-palco'\)/);
+  assert.match(barra, /io\.observe\(palco\)/);
+});
+test('uma identificação só do Zero na conversa (o título, com "assistente virtual (IA)"); cada fala fica com o símbolo', () => {
+  const css = semComentario(lerTexto('css/orcamento-palco.css'));
+  assert.doesNotMatch(css, /content: "Zero"/, 'sem o "ZERO" repetido em cada fala');
+  assert.match(css, /\.msg--agente::before \{[^}]*zero-simbolo-claro\.svg/, 'o símbolo segue marcando quem fala');
+  assert.match(semComentario(lerTexto('orcamento.html')), /<h2 id="o-conversa-titulo" class="orc-rotulo">Zero, assistente virtual \(IA\) da Beyon Zero<\/h2>/, 'a identificação de IA continua à vista');
+});
+test('a caixa da conversa para a rolagem no começo de uma fala: nada cortado no topo', () => {
+  const css = semComentario(lerTexto('css/orcamento-palco.css'));
+  assert.match(css, /\.orc-log \{[^}]*scroll-snap-type: y mandatory/);
+  assert.match(css, /\.orc-log__lista > li \{[^}]*scroll-snap-align: start/);
+  assert.match(css, /\.orc-log__lista > li:last-child \{[^}]*scroll-snap-align: start end/, 'o fim da conversa continua alcançável');
+  assert.match(lerTexto('docs/cortes.mjs'), /cortado no topo da rolagem/, 'o varredor confere o topo da caixa');
+});
