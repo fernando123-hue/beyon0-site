@@ -1,17 +1,25 @@
 /* O microfone do Zero (js/orcamento-voz.js). Um microfone desenhado na linha da logo (traço de 1,5 com pontas redondas e o núcleo em
-   ponto na cor de ação) e, só durante a gravação, UM traço fino que gira em volta dele (dono, 24/11: "mais bonitinho e com efeitos
-   minimalistas"). Sem blur, sem brilho, sem sombra; o giro é só transform; movimento reduzido: o traço fica parado, fechando o anel. */
-.orc-mic { gap: .5rem; min-height: 48px; padding: 6px 20px 6px 10px; }   /* (o ícone de 32 px já dá a altura: o botão fica com os 48 px do Enviar) */
+   ponto na cor de ação) sobre um disco chapado da cor de ação bem clarinha; só durante a gravação, UM traço fino gira pela borda do
+   disco e o núcleo pisca devagar (dono, 24/11: "mais bonitinho e com efeitos minimalistas"; depois, "mais detalhes... no microfone e
+   seu ícone"). Sem blur, sem brilho, sem sombra; o giro e a piscada são só transform/opacidade; movimento reduzido: o traço fica parado,
+   fechando o anel, e o núcleo aceso. */
+.orc-mic { gap: .5rem; min-height: 48px; padding: 6px 20px 6px 8px; }   /* (o ícone de 34 px já dá a altura: o botão fica com os 48 px do Enviar) */
 .orc-mic[hidden] { display: none; }
-.orc-mic__icone { position: relative; display: inline-grid; place-items: center; flex: none; width: 32px; height: 32px; }
+.orc-mic .orc-mic__icone { position: relative; display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 50%; background-color: rgb(var(--ac-rgb) / .16); transition: background-color var(--t-micro) var(--ease-micro); }
 .orc-mic__svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .orc-mic__nucleo { fill: var(--ac); stroke: none; }
+.orc-mic:hover .orc-mic__icone { background-color: rgb(var(--ac-rgb) / .22); }
 .orc-mic__icone::after { content: ""; position: absolute; inset: 0; border: 1.5px solid transparent; border-radius: 50%; }
+#o-mic-rotulo { font-variant-numeric: tabular-nums; }   /* (o relógio da gravação não sacode a cada segundo) */
 .orc-mic.is-gravando { border-color: var(--ac); }
 .orc-mic.is-gravando .orc-mic__svg { stroke: var(--ac); }
 .orc-mic.is-gravando .orc-mic__icone::after { border-top-color: var(--ac); animation: orc-mic-giro 1.2s linear infinite; }
+.orc-mic.is-gravando .orc-mic__nucleo { animation: orc-mic-pisca 1.2s steps(2, jump-none) infinite; }
 @keyframes orc-mic-giro {
   to { transform: rotate(1turn); }
+}
+@keyframes orc-mic-pisca {
+  50% { opacity: .25; }
 }
 .orc-mic__cancelar { flex: none; background: none; border: 0; padding: .5rem .25rem; min-height: 44px; color: var(--t1); font: inherit; font-size: var(--fs-s); text-decoration: underline; text-decoration-color: var(--line-hi); text-underline-offset: .2em; cursor: pointer; }
 .orc-mic__cancelar:hover { text-decoration-color: var(--ac); }
@@ -20,8 +28,14 @@
 .orc-voz { margin-top: .6rem; color: var(--t2, var(--t3)); font-size: var(--fs-s); }
 .orc-voz[hidden] { display: none; }
 /* (no celular estreito o "Falar" e o "Enviar" dividem a linha embaixo do campo: css/orcamento-palco.css, .orc-envio) */
+/* o toque afunda o botão um tantinho (só transform) */
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .orc-mic:active { transform: scale(.97); }
+}
 /* movimento reduzido (o aparelho ou o interruptor do rodapé): o traço não gira; fecha o anel, parado, e a gravação segue visível */
 @media (prefers-reduced-motion: reduce) {
   .orc-mic.is-gravando .orc-mic__icone::after { animation: none; border-color: var(--ac); }
+  .orc-mic.is-gravando .orc-mic__nucleo { animation: none; }
 }
 html.menos-movimento .orc-mic.is-gravando .orc-mic__icone::after { animation: none; border-color: var(--ac); }
+html.menos-movimento .orc-mic.is-gravando .orc-mic__nucleo { animation: none; }

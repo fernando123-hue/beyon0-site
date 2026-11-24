@@ -474,7 +474,7 @@ test('o microfone: ícone próprio, um traço só que gira durante a gravação 
   assert.doesNotMatch(mic[1], /orc-mic__ponto/, 'o ponto antigo saiu');
   assert.match(mic[1], /<span id="o-mic-rotulo">Falar<\/span>/, 'o rótulo (e o tempo, gravando) continua escrito');
   const css = semComentario(lerTexto('css/orcamento-voz.css'));
-  assert.ok(px(blocoDe(css, '.orc-mic__icone'), 'width') >= 24, 'o ícone tem corpo');
+  assert.ok(px(blocoDe(css, '.orc-mic .orc-mic__icone'), 'width') >= 24, 'o ícone tem corpo');
   assert.match(css, /\.orc-mic\.is-gravando \.orc-mic__icone::after \{[^}]*animation: orc-mic-giro/, 'gravando: o traço gira');
   const giro = /@keyframes orc-mic-giro \{([^@]*?)\}\s*\}/.exec(css);
   assert.ok(giro, 'a volta do traço');
@@ -482,4 +482,53 @@ test('o microfone: ícone próprio, um traço só que gira durante a gravação 
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[^@]*\.orc-mic\.is-gravando \.orc-mic__icone::after \{[^}]*animation: none/, 'movimento reduzido: o traço para');
   assert.match(css, /html\.menos-movimento \.orc-mic\.is-gravando \.orc-mic__icone::after \{[^}]*animation: none/, 'o interruptor do rodapé também');
   assert.doesNotMatch(css, /blur|backdrop-filter|drop-shadow|filter\s*:|text-shadow|radial-gradient|box-shadow|glow/i, 'sem desfoque, sem brilho, sem sombra');
+});
+
+/* dono, 24/11 (depois): "Dê um pouco mais de detalhes em tudo, com ênfase no campo aonde o usuário escreve e no microfone e seu ícone".
+   A variação B de docs/design/orcamento-detalhes-2026-11-24.md: a luz que dá UMA volta pela linha do campo ao entrar nele, o microfone
+   num disco chapado (centrado de verdade), o núcleo piscando enquanto grava, o Enviar com a seta */
+test('o campo: ao entrar nele, uma luz curta dá UMA volta pela própria linha da borda; parado e com movimento reduzido, nada a mais', () => {
+  const html = semComentario(lerTexto('orcamento.html'));
+  const campo = /<div class="orc-campo">([\s\S]*?)<\/div>/.exec(html);
+  assert.ok(campo, 'o campo mora na caixa .orc-campo (a luz acompanha o tamanho dele)');
+  assert.match(campo[1], /<textarea id="o-texto"/);
+  assert.match(campo[1], /<svg class="orc-campo__luz" aria-hidden="true" focusable="false"><rect pathLength="100"\/><\/svg>/, 'a luz: um traço só, escondido do leitor de tela');
+  const css = semComentario(lerTexto('css/orcamento-palco.css'));
+  assert.match(css, /\n\.orc-campo__luz \{ display: none; \}/, 'sem movimento (ou sem o @media), a luz nem existe');
+  const mov = /@media \(prefers-reduced-motion: no-preference\) \{([^@]*?\.orc-campo__luz[^@]*?)\n\}/.exec(css);
+  assert.ok(mov, 'a luz só com movimento ligado');
+  assert.match(mov[1], /html:not\(\.menos-movimento\) \.orc-campo__luz \{[^}]*display: block/, 'o interruptor do rodapé também a desliga');
+  const volta = /html:not\(\.menos-movimento\) \.orc-campo:focus-within \.orc-campo__luz rect \{([^}]*)\}/.exec(mov[1]);
+  assert.ok(volta, 'a volta começa quando a pessoa entra no campo');
+  assert.match(volta[1], /animation: orc-campo-volta /);
+  assert.doesNotMatch(volta[1], /infinite/, 'UMA volta: depois o campo fica quieto para a pessoa escrever');
+  const traco = /\.orc-campo__luz rect \{[^}]*stroke-dasharray: (\d+) (\d+)/.exec(mov[1]);
+  assert.ok(traco && Number(traco[1]) + Number(traco[2]) === 100 && Number(traco[1]) <= 12, 'um traço curto (até 12 % da volta), nunca a borda inteira acesa');
+  const kf = /@keyframes orc-campo-volta \{([^\n]*)\}/.exec(css);
+  assert.ok(kf, 'a volta');
+  assert.doesNotMatch(kf[1].replace(/stroke-dashoffset:[^;}]+|opacity:[^;}]+/g, ''), /[a-z-]+:/, 'só o caminho do traço e a opacidade');
+  assert.match(blocoDe(css, '.orc-envio textarea'), /caret-color: var\(--ac\)/, 'o cursor na cor de ação');
+});
+
+test('o microfone: centrado no disco (ganha da regra geral .btn span), o núcleo pisca enquanto grava e para com movimento reduzido', () => {
+  const css = semComentario(lerTexto('css/orcamento-voz.css'));
+  const icone = blocoDe(css, '.orc-mic .orc-mic__icone');
+  assert.ok(icone, 'a regra do ícone tem de vencer ".btn span { display: inline-block }" (css/base.css), que o deixava torto');
+  assert.match(icone, /display: inline-grid; place-items: center/);
+  assert.match(icone, /border-radius: 50%; background-color: rgb\(var\(--ac-rgb\) \/ \.\d+\)/, 'o disco chapado da cor de ação, clarinho');
+  assert.match(css, /\.orc-mic\.is-gravando \.orc-mic__nucleo \{[^}]*animation: orc-mic-pisca/, 'gravando: o núcleo pisca');
+  const pisca = /@keyframes orc-mic-pisca \{([^@]*?)\}\s*\}/.exec(css);
+  assert.ok(pisca, 'a piscada');
+  assert.doesNotMatch(pisca[1].replace(/opacity:[^;}]+/g, ''), /[a-z-]+:/, 'só opacidade');
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[^@]*\.orc-mic\.is-gravando \.orc-mic__nucleo \{[^}]*animation: none/, 'movimento reduzido: o núcleo fica aceso');
+  assert.match(css, /html\.menos-movimento \.orc-mic\.is-gravando \.orc-mic__nucleo \{[^}]*animation: none/);
+  assert.match(css, /#o-mic-rotulo \{[^}]*font-variant-numeric: tabular-nums/, 'o relógio da gravação não sacode');
+});
+
+test('o Enviar casado com o campo: a palavra e uma seta de traço escondida do leitor de tela, na altura do Falar', () => {
+  const html = semComentario(lerTexto('orcamento.html'));
+  assert.match(html, /<button class="btn btn--primary orc-enviar" type="submit" id="o-enviar">Enviar<svg class="orc-enviar__seta" aria-hidden="true" focusable="false"/, 'o nome do botão continua "Enviar"');
+  const palco = semComentario(lerTexto('css/orcamento-palco.css')), voz = semComentario(lerTexto('css/orcamento-voz.css'));
+  assert.equal(px(blocoDe(palco, '.orc-envio #o-enviar'), 'min-height'), px(blocoDe(voz, '.orc-mic'), 'min-height'), 'Enviar e Falar com a mesma altura');
+  assert.ok(px(blocoDe(palco, '.orc-envio #o-enviar'), 'min-height') >= 44, 'alvo de toque');
 });
