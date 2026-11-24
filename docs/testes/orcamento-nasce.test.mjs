@@ -183,11 +183,14 @@ test('palco no CSS: no claro a conversa em branco e a logo para fundo claro; fai
   assert.doesNotMatch(css, /\bleft:\s*-|\bright:\s*-|\d{3,}vw/, 'nenhuma caixa mais larga que a tela (regra 10)');
 });
 
-test('palco no CSS: os passos viram abas mono com sublinhado; as escolhas, cartões de contorno com o número à direita', () => {
+/* dono, 24/11: "Tire os numeros ao lados das opções pré selecionadas": as opções ficam só com o texto (marcada, o ✓ continua) */
+test('palco no CSS: os passos viram abas mono com sublinhado; as escolhas, cartões de contorno SEM número', () => {
   const css = semComentario(lerTexto('css/orcamento-palco.css'));
   assert.match(css, /\.orc-etapas li\[aria-current="step"\][^{]*\{[^}]*box-shadow: inset 0 -3px 0/, 'a aba atual tem o sublinhado');
-  assert.match(css, /\.orc-toque__ops \{[^}]*counter-reset/, 'as opções se numeram sozinhas (01, 02…), sem mexer no texto delas');
-  assert.match(css, /\.orc-op--toque::after \{[^}]*counter\([^)]*decimal-leading-zero\)/);
+  assert.doesNotMatch(css, /counter-reset: op|counter-increment: op|counter\(op/, 'as opções não se numeram mais (01, 02… saíram)');
+  for (const arq of ['css/orcamento.css', 'css/orcamento-casca.css', 'css/orcamento-modelos.css', 'css/orcamento-semjs.css', 'css/cartoes.css']) assert.doesNotMatch(semComentario(lerTexto(arq)), /\.orc-op[^{]*::(after|before)[^{]*\{[^}]*counter\(/, arq + ': nenhum número nas opções por outro arquivo');
+  assert.doesNotMatch(blocoDe(css, '.orc-op--toque::after') || '', /content: counter/, 'o ::after da opção solta não desenha número');
+  assert.match(css, /\.orc-op--toque\[aria-pressed="true"\]::after \{[^}]*content: "✓"/, 'marcada: o ✓ continua à direita');
   assert.match(css, /\.orc-op--toque\[aria-pressed="true"\]/, 'marcada também pela forma, não só pela cor');
   assert.match(css, /html\.orc-retomando[^{]*\.orc-vitrine[^{]*\{[^}]*display: none/, 'abrindo o pedido pelo link, a vitrine vazia não diz que a pessoa está no começo');
 });
@@ -456,7 +459,6 @@ test('a conversa: as opções prontas ficam um degrau abaixo do campo de escreve
   assert.ok(px(op, 'min-height') < px(campo, 'min-height'), 'a opção é mais baixa que o campo');
   assert.ok(px(op, 'font-size') < px(campo, 'font-size'), 'a letra da opção é menor que a do campo');
   assert.match(op, /(?:^|[;\s])color: var\(--t2\)/, 'o texto da opção em cinza (o branco/tinta fica para o que a pessoa escreve)');
-  assert.match(blocoDe(css, '.orc-op--toque::after'), /color: var\(--t3\)/, 'o número da opção sem a cor de ação');
   assert.match(campo, /(?:^|[;\s])border: 1px solid var\(--ac\)/, 'o campo tem o contorno na cor de ação: é ele que chama');
   assert.match(campo, /border-radius: \d+px/);
   assert.match(semComentario(lerTexto('orcamento.html')), /<textarea id="o-texto"[^>]*placeholder="Ou conte do seu jeito[^"]*"/, 'a dica convida a falar com as próprias palavras');
