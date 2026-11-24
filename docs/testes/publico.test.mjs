@@ -95,6 +95,17 @@ test('domínio único (C1): sitemap.xml e robots.txt', () => {
   assert.deepEqual(locs, [DOMINIO + '/', DOMINIO + '/sites', DOMINIO + '/automacao', DOMINIO + '/orcamento', DOMINIO + '/privacidade']);
   assert.match(lerRaiz('robots.txt'), new RegExp('^Sitemap: ' + DOMINIO.replace(/[.]/g, '[.]') + '/sitemap[.]xml$', 'm'));
 });
+/* 24/11: o Search Console recusou o sitemap inteiro ("Erro na análise, linha 2", 0 páginas encontradas desde 21/11): o comentário trazia
+   "git log ... -- <pagina>", e "--" dentro de comentário é proibido em XML. O Google não leu nenhuma página pelo sitemap por 3 dias. */
+test('sitemap.xml é XML válido: declaração na 1ª linha, comentário sem "--" no meio, urlset fechado', () => {
+  const xml = lerRaiz('sitemap.xml');
+  assert.match(xml, /^<\?xml version="1\.0" encoding="UTF-8"\?>\r?\n/, 'a declaração XML abre o arquivo');
+  for (const [, corpo] of xml.matchAll(/<!--([\s\S]*?)-->/g)) {
+    assert.ok(!corpo.includes('--') && !corpo.endsWith('-'), 'comentário com "--" quebra o XML: ' + corpo.trim().slice(0, 60));
+  }
+  assert.equal((xml.match(/<!--/g) || []).length, (xml.match(/-->/g) || []).length, 'todo comentário fecha');
+  assert.match(xml, /<\/urlset>\s*$/, 'o urlset fecha no fim');
+});
 /* 21/11: o lastmod de cada página não pode ser anterior ao último commit que mexeu nela (regra do comentário do sitemap.xml); ficou parado em 09-10/11 com
    as páginas mudando. ">=" e não "=" (revisão do PR #218): virada de dia, fuso do committer ou rebase mudam a data do commit sem a página estar velha no
    sitemap. Nem no futuro (+1 dia de folga de fuso). Precisa do histórico inteiro: na CI a suíte faz checkout raso (mudar o workflow pede o sim do dono),
