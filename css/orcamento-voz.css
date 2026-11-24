@@ -28,10 +28,6 @@
 .orc-voz { margin-top: .6rem; color: var(--t2, var(--t3)); font-size: var(--fs-s); }
 .orc-voz[hidden] { display: none; }
 /* (no celular estreito o "Falar" e o "Enviar" dividem a linha embaixo do campo: css/orcamento-palco.css, .orc-envio) */
-/* o toque afunda o botão um tantinho (só transform) */
-@media (prefers-reduced-motion: no-preference) {
-  html:not(.menos-movimento) .orc-mic:active { transform: scale(.97); }
-}
 /* movimento reduzido (o aparelho ou o interruptor do rodapé): o traço não gira; fecha o anel, parado, e a gravação segue visível */
 @media (prefers-reduced-motion: reduce) {
   .orc-mic.is-gravando .orc-mic__icone::after { animation: none; border-color: var(--ac); }

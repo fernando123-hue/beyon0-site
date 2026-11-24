@@ -298,8 +298,12 @@ html[data-tema="claro"] .msg--agente::before { background-image: url('../assets/
 @keyframes orc-campo-volta { 0% { stroke-dashoffset: 0; opacity: 0; } 8% { opacity: 1; } 88% { opacity: 1; } 100% { stroke-dashoffset: -100; opacity: 0; } }
 /* o "Enviar" casado com o campo: a mesma altura do "Falar" (48) e uma seta de traço que dá um passo à frente no toque */
 .orc-envio #o-enviar { flex: none; width: auto; min-height: 48px; margin-left: auto; padding: 12px 18px 12px 22px; gap: 8px; }
-.orc-enviar__seta { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--t-micro) var(--ease-micro); }
-.orc-envio #o-enviar:hover .orc-enviar__seta, .orc-envio #o-enviar:focus-visible .orc-enviar__seta { transform: translateX(2px); }
+.orc-enviar__seta { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+/* (o passo da seta: só com movimento ligado, e nunca enquanto o Zero pensa, quando o botão está travado) */
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .orc-enviar__seta { transition: transform var(--t-micro) var(--ease-micro); }
+  html:not(.menos-movimento) .orc-envio #o-enviar:not([aria-disabled="true"]):is(:hover, :focus-visible, :active) .orc-enviar__seta { transform: translateX(2px); }
+}
 .orc-envio .orc-mic, .orc-envio .orc-mic__cancelar { flex: none; width: auto; }
 
 /* ---------- os botões da página: pílulas; o principal escuro (o "Enviar" do desenho), o secundário de contorno ---------- */
