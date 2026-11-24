@@ -443,3 +443,41 @@ test('a caixa da conversa para a rolagem no começo de uma fala: nada cortado no
   for (const arq of ['js/orcamento-toques.js', 'js/orcamento.js']) assert.match(lerTexto(arq), /BZOrcPalco\.ajustarFolga\(\)/, arq);
   assert.doesNotMatch(semComentario(lerTexto('js/orcamento-palco.js')), /scrollTop\s*=/, 'o palco não rola a caixa');
 });
+
+/* dono, 24/11: "as opções já pré-selecionadas [com] um destaque um pouco menor do que a opção do usuário conversar com o Zero com suas
+   próprias palavras". As opções descem um degrau (menores, texto e número em cinza); o campo de escrever vira o protagonista */
+const OPCAO = '.orc-op--toque, .orc-op--ic, .orc-toque__ops:has(.orc-op--ic) > .orc-op--ic:last-child:nth-child(odd)';
+const px = (bloco, prop) => { const m = new RegExp('(?:^|[;\\s])' + prop + ':\\s*([\\d.]+)(px|rem)').exec(bloco || ''); return m ? Number(m[1]) * (m[2] === 'rem' ? 16 : 1) : NaN; };
+test('a conversa: as opções prontas ficam um degrau abaixo do campo de escrever, sem perder o alvo de toque', () => {
+  const css = semComentario(lerTexto('css/orcamento-palco.css'));
+  const op = blocoDe(css, OPCAO), campo = blocoDe(css, '.orc-envio textarea');
+  assert.ok(op && campo, 'as duas regras');
+  assert.ok(px(op, 'min-height') >= 44, 'opção: alvo de 44 px ou mais');
+  assert.ok(px(op, 'min-height') < px(campo, 'min-height'), 'a opção é mais baixa que o campo');
+  assert.ok(px(op, 'font-size') < px(campo, 'font-size'), 'a letra da opção é menor que a do campo');
+  assert.match(op, /(?:^|[;\s])color: var\(--t2\)/, 'o texto da opção em cinza (o branco/tinta fica para o que a pessoa escreve)');
+  assert.match(blocoDe(css, '.orc-op--toque::after'), /color: var\(--t3\)/, 'o número da opção sem a cor de ação');
+  assert.match(campo, /(?:^|[;\s])border: 1px solid var\(--ac\)/, 'o campo tem o contorno na cor de ação: é ele que chama');
+  assert.match(campo, /border-radius: \d+px/);
+  assert.match(semComentario(lerTexto('orcamento.html')), /<textarea id="o-texto"[^>]*placeholder="Ou conte do seu jeito[^"]*"/, 'a dica convida a falar com as próprias palavras');
+});
+
+/* "deixe o ícone de onde clicam para ativar o áudio mais bonitinho e com efeitos minimalistas": um microfone desenhado na linha da logo
+   (traço de 1,5, pontas redondas, o núcleo em ponto) e, gravando, UM traço fino girando em volta. Sem blur, sem brilho, sem sombra */
+test('o microfone: ícone próprio, um traço só que gira durante a gravação e para com movimento reduzido', () => {
+  const html = semComentario(lerTexto('orcamento.html'));
+  const mic = /<button class="btn orc-mic"[^>]*id="o-mic"[^>]*>([\s\S]*?)<\/button>/.exec(html);
+  assert.ok(mic, 'o botão do microfone');
+  assert.match(mic[1], /<span class="orc-mic__icone" aria-hidden="true"><svg class="orc-mic__svg"[^>]*viewBox="0 0 24 24"/, 'o ícone desenhado, escondido do leitor de tela');
+  assert.doesNotMatch(mic[1], /orc-mic__ponto/, 'o ponto antigo saiu');
+  assert.match(mic[1], /<span id="o-mic-rotulo">Falar<\/span>/, 'o rótulo (e o tempo, gravando) continua escrito');
+  const css = semComentario(lerTexto('css/orcamento-voz.css'));
+  assert.ok(px(blocoDe(css, '.orc-mic__icone'), 'width') >= 24, 'o ícone tem corpo');
+  assert.match(css, /\.orc-mic\.is-gravando \.orc-mic__icone::after \{[^}]*animation: orc-mic-giro/, 'gravando: o traço gira');
+  const giro = /@keyframes orc-mic-giro \{([^@]*?)\}\s*\}/.exec(css);
+  assert.ok(giro, 'a volta do traço');
+  assert.doesNotMatch(giro[1].replace(/transform:[^;}]+/g, ''), /[a-z-]+:/, 'só transform (compositor; regra 1)');
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[^@]*\.orc-mic\.is-gravando \.orc-mic__icone::after \{[^}]*animation: none/, 'movimento reduzido: o traço para');
+  assert.match(css, /html\.menos-movimento \.orc-mic\.is-gravando \.orc-mic__icone::after \{[^}]*animation: none/, 'o interruptor do rodapé também');
+  assert.doesNotMatch(css, /blur|backdrop-filter|drop-shadow|filter\s*:|text-shadow|radial-gradient|box-shadow|glow/i, 'sem desfoque, sem brilho, sem sombra');
+});
