@@ -2,7 +2,7 @@
    FREIO POR IP, comum às funções (antes vivia só em api/evento.mjs).
    Por instância da função: segura rajadas de um mesmo IP sem banco nem
    serviço externo. Não é muralha (instâncias diferentes não somam); a
-   muralha é a regra de limite no firewall da Vercel (docs/fundacao/02-OPERACAO.md).
+   muralha é a regra de limite da zona na Cloudflare (docs/fundacao/02-OPERACAO.md §4.3; docs/fundacao/03-STATUS.md).
    Na Vercel o IP vem do x-vercel-forwarded-for, que a plataforma garante (ipDe, abaixo).
    ========================================================================== */
 import { normalizarIp } from './_vendas/ip.mjs';

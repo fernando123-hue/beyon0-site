@@ -84,7 +84,7 @@ export const TETOS = {
      (65.536 redes /64) e trocava de /64 à vontade, fugindo do teto acima. Maior que o do /64 (mais de um aparelho por
      casa), mas ainda abaixo do dia: 12 × conversa_usd (2) = US$ 24 < dia_usd (25), no limite; quem subir a
      conversa_usd é avisado por docs/testes/auditoria-correcoes.test.mjs. Estreita, não resolve: quem tem vários IPv4
-     segue de fora (Firewall da Vercel na criação da sessão e limite de gasto na Anthropic, com o dono) */
+     segue de fora (regra de limite da zona na Cloudflare na criação da sessão e limite de gasto na Anthropic, com o dono) */
   conversas_por_ip48_dia: 12
 };
 

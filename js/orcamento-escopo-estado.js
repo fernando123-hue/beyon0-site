@@ -70,7 +70,8 @@
   function curto(t) { return t.length > MAX_TEXTO ? t.slice(0, MAX_TEXTO - 1) + '…' : t; }
   function primeiroMais(nomes) { return nomes.length ? curto(nomes[0]) + (nomes.length > 1 ? ' +' + (nomes.length - 1) : '') : ''; }
   function dias(n) { return n === 1 ? '1 dia útil' : n + ' dias úteis'; }
-  function dim(nivel, texto) { return texto ? { nivel: nivel, texto: texto } : null; }
+  /* n: a contagem (só nas integrações), para o palco do orçamento mostrar o número sem ler o "+1" do texto */
+  function dim(nivel, texto, n) { if (!texto) return null; var d = { nivel: nivel, texto: texto }; if (typeof n === 'number') d.n = n; return d; }
 
   /* ---------- as fontes: o pedido salvo, a simulação, o briefing ---------- */
   function pacoteConfirmado(E) { return objeto(E) && objeto(E.conversa) && (E.conversa.tem_contato === true || naLista(ETAPAS_DO_PACOTE, E.conversa.etapa)); }
@@ -120,12 +121,12 @@
     if (extras) a.push(extras + (extras === 1 ? ' extra' : ' extras'));
     return a.length ? a.join(' · ') : 'Só o pacote';
   }
-  function textoDasIntegracoes(itens) {
-    if (!itens) return '';
+  function nomesDasIntegracoes(itens) {
     var v = itensValidos(itens), nomes = [];
     for (var i = 0; i < v.length; i++) if (proprio(INTEGRACOES, v[i].chave)) nomes.push(INTEGRACOES[v[i].chave]);
-    return nomes.length ? primeiroMais(nomes) : 'Só as do pacote';
+    return nomes;
   }
+  function textoDasIntegracoes(nomes) { return nomes.length ? primeiroMais(nomes) : 'Só as do pacote'; }
   function textoDoPrazo(prazo, urgencia) { return prazo !== null && prazo > 0 ? dias(prazo) + (urgencia ? ' · com urgência' : '') : ''; }
   function nomesDe(funcs, mapa) {
     var nomes = [];
@@ -137,7 +138,7 @@
     if (qual === 'entrega') return dim(f.nivel, nomeDoFormato(f.chave, f.nome));
     if (f.nivel === 1 && !f.comValor) return null;   /* (a simulação sem valor só sabe o formato) */
     if (qual === 'escopo') return dim(f.nivel, textoDoEscopo(f.paginas, f.itens));
-    if (qual === 'integracoes') return dim(f.nivel, textoDasIntegracoes(f.itens));
+    if (qual === 'integracoes') { if (!f.itens) return null; var ni = nomesDasIntegracoes(f.itens); return dim(f.nivel, textoDasIntegracoes(ni), ni.length); }
     return dim(f.nivel, textoDoPrazo(f.prazo, f.urgencia));
   }
   function dimDoBriefing(b, qual) {
@@ -149,7 +150,7 @@
       if (conteudo) partes.push(conteudo);
       return dim(1, partes.join(' · '));
     }
-    if (qual === 'integracoes') return dim(1, primeiroMais(nomesDe(b.funcs, FUNC_INTEGRACAO)));
+    if (qual === 'integracoes') { var nb = nomesDe(b.funcs, FUNC_INTEGRACAO); return dim(1, primeiroMais(nb), nb.length); }
     return dim(1, b.urgencia ? 'Com urgência' : '');
   }
 

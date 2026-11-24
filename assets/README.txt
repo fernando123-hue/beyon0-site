@@ -17,6 +17,11 @@ og-cover.jpg         imagem de preview em redes sociais (og:image), 1200x630: a 
                      (https://beyonzero.com.br/assets/og-cover.jpg): se o domínio
                      mudar, atualizar og:image, twitter:image e <link rel="canonical"> juntos.
 
+zero-simbolo-claro.svg  o símbolo médio da logo na versão para fundo claro: a marca de cada fala do
+                     Zero na conversa do orçamento (css/orcamento-palco.css, direção C de 23/11).
+                     Cópia de 06 Operação/Remodelação da conversa 2026-11-22/direcoes/assets/
+                     simbolo-medio-claro.svg (o desenho aprovado), mesmas cores da logo clara.
+
 A LOGO (2026-10-12, aprovada pelo dono) vem de 03 Projetos/marca/logo/ (o vault, fora do
 repositório): o desenho é código (estudos/sistema.mjs, nome2.mjs) e `node site.mjs <pasta do
 site>` regera a logo do topo, do rodapé e do resumo (SVG no HTML, cores por classe em

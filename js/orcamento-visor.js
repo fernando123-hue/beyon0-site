@@ -19,6 +19,16 @@
   var $ = function (id) { return document.getElementById(id); };
   var NOMES = { conversao: 'Para vender mais', autoridade: 'Para passar confiança', experiencia: 'Para encantar' };   /* (= js/orcamento.js) */
   function el(tag, classe, texto) { var e = document.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; }
+  /* o título em pedaços que não se partem ("Modelo 2 ·", "Para passar confiança ·", o nome): no celular a linha quebra ENTRE eles, pelo sentido,
+     em vez de cortar com reticências (regra do dono, 23/11). O texto lido é o mesmo de antes, letra por letra */
+  function tituloEmPartes(partes) {
+    var t = $('o-visor-titulo');
+    t.textContent = '';
+    partes.forEach(function (p, i) {
+      if (i) t.appendChild(document.createTextNode(' '));
+      t.appendChild(el('span', 'visor__parte', String(p) + (i < partes.length - 1 ? ' ·' : '')));
+    });
+  }
 
   function criar(o) {
     var estado = { id: null, largura: 390, origem: null, assinatura: '' };
@@ -88,7 +98,7 @@
       var rolagem = forcar ? 0 : palco.scrollTop;
       estado.assinatura = assinatura;
       var d = a.d;
-      $('o-visor-titulo').textContent = d.id === 'final' ? 'Sua versão, com os ajustes' : 'Modelo ' + d.numero + ' · ' + (NOMES[d.estrategia] || '') + ' · ' + d.conteudo.nome_conceito;
+      tituloEmPartes(d.id === 'final' ? ['Sua versão, com os ajustes'] : ['Modelo ' + d.numero, NOMES[d.estrategia] || '', d.conteudo.nome_conceito]);
       $('o-visor-resumo').textContent = d.conteudo.resumo || '';
       desenharAbas(a.lista, d);
       botaoEscolher.hidden = d.id === 'final' || !o.podeEscolher() || o.escolhida() === d.id;

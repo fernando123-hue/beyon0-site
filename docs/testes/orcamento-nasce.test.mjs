@@ -136,3 +136,169 @@ test('a miniatura é decorativa e escondida até o 1º toque: o HTML tem aria-hi
   assert.match(html, /orcamento-nasce\.js" defer><\/script>\s*<script src="js\/orcamento-rotulos\.js" defer><\/script>\s*<script src="js\/orcamento-toques\.js"/, 'rótulos, toques e perguntas seguem colados (planta-orcamento-leve.test.mjs)');
   assert.ok(html.indexOf('<script src="js/orcamento-icones.js"') < html.indexOf('<script src="js/orcamento-toques.js"'), 'os ícones vêm antes dos toques que os usam');
 });
+
+/* ==========================================================================
+   O PALCO (direção C "palco", escolhida pelo dono em 23/11: "C ficou muito bom"). A conversa fica em branco e o site nasce numa
+   faixa preta de ponta a ponta, como vitrine, com três contadores em verde-água (partes, integração, valor). A estrutura de 18/11
+   não muda: a miniatura que cresce a cada resposta (agora dentro do palco, no topo), os 5 passos e o radar. Os contadores só
+   repetem o que já existe (as peças da miniatura e o radar); nada é calculado nem inventado aqui.
+   ========================================================================== */
+const P = require('../../js/orcamento-palco.js');
+const lerTexto = rel => fs.readFileSync(new URL('../../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const semComentario = s => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/<!--[\s\S]*?-->/g, ' ');
+
+test('palco no HTML: kicker, título, a vitrine com a miniatura e os contadores numa faixa só; os passos logo abaixo, fora dela', () => {
+  const html = semComentario(lerTexto('orcamento.html'));
+  const topo = html.slice(html.indexOf('<section class="orc-topo"'), html.indexOf('</section>', html.indexOf('<section class="orc-topo"')));
+  const palco = topo.slice(topo.indexOf('<div class="orc-palco"'), topo.indexOf('<ol class="orc-etapas"'));
+  assert.ok(topo.indexOf('<div class="orc-palco"') >= 0 && palco.length > 0, 'o palco existe e vem antes dos passos');
+  for (const pedaco of ['class="orc-kicker"', 'id="orc-titulo"', 'class="orc-vitrine"', 'id="o-nasce"', 'class="orc-contadores"', 'id="o-palco-partes"', 'id="o-palco-integracoes"', 'id="o-palco-valor"']) {
+    assert.ok(palco.includes(pedaco), 'falta no palco: ' + pedaco);
+  }
+  const conversa = html.slice(html.indexOf('<section class="orc-conversa"'), html.indexOf('</section>', html.indexOf('<section class="orc-conversa"')));
+  assert.ok(!conversa.includes('id="o-nasce"'), 'a miniatura saiu de dentro da conversa (ela é o palco agora)');
+  assert.match(palco, /<div class="orc-vitrine" aria-hidden="true">/, 'a vitrine é desenho: quem usa leitor de tela segue pela conversa');
+  assert.match(palco, /<div class="orc-contadores" aria-hidden="true">/, 'os contadores repetem o radar, que é o texto de verdade');
+  assert.match(palco, /id="o-palco-partes">0</, 'começa sem peça nenhuma');
+  assert.match(palco, /id="o-palco-integracoes">—</);
+  assert.match(palco, /id="o-palco-valor">—</, 'o valor só aparece quando o Zero entende o caso');
+  assert.ok(html.indexOf('<script src="js/orcamento-palco.js" defer>') > 0 && html.indexOf('<script src="js/orcamento-palco.js"') < html.indexOf('<script src="js/orcamento-escopo.js"'),
+    'o palco escuta antes de o radar falar pela 1ª vez');
+  assert.ok(html.indexOf('href="css/orcamento-palco.css"') > html.indexOf('href="css/previa.css"') && html.indexOf('href="css/orcamento-palco.css"') < html.indexOf('href="css/passagem.css"'),
+    'a folha do palco vem depois das do orçamento (ganha delas) e antes da passagem (que segue mandando no movimento entre páginas)');
+});
+
+test('palco no CSS: conversa em branco, faixa preta com a luz #49E5DD, logo para fundo claro; sem desfoque, sem brilho, sem sombra suave', () => {
+  const css = semComentario(lerTexto('css/orcamento-palco.css'));
+  assert.match(css, /\.orc__main[^{]*\{[^}]*--bg: #FFFFFF/, 'a página do orçamento é branca');
+  assert.match(css, /\.orc-palco[^{]*\{[^}]*--ac: #49E5DD/, 'no palco a luz é o verde-água da marca');
+  assert.match(css, /\.orc-palco \{[^}]*background(-color)?: #000/, 'o palco é preto chapado');
+  assert.match(css, /\.orc \.nav[^{]*\{[^}]*background(-color)?: #FFFFFF/, 'o topo é branco');
+  assert.match(css, /\.marca__nome \{[^}]*fill: #0B0C0D/, 'a logo para fundo claro (o nome em tinta)');
+  assert.doesNotMatch(css, /blur|backdrop-filter|drop-shadow|filter\s*:|text-shadow|radial-gradient/i);
+  for (const s of css.match(/box-shadow:[^;}]+/g) || []) {
+    /* só traço: inset de 1 a 3 px sem desfoque, nunca sombra que espalha luz */
+    for (const parte of s.replace('box-shadow:', '').split(',')) assert.match(parte.trim(), /^(none|inset 0 (0|-?[1-3]px) 0( 0)? (-?[0-3]px )?\S+|0 [1-3]px 0 \S+)$/, 'sombra que não é traço: ' + parte);
+  }
+  assert.doesNotMatch(css, /\bleft:\s*-|\bright:\s*-|\d{3,}vw/, 'nenhuma caixa mais larga que a tela (regra 10)');
+});
+
+test('palco no CSS: os passos viram abas mono com sublinhado; as escolhas, cartões de contorno com o número à direita', () => {
+  const css = semComentario(lerTexto('css/orcamento-palco.css'));
+  assert.match(css, /\.orc-etapas li\[aria-current="step"\][^{]*\{[^}]*box-shadow: inset 0 -3px 0/, 'a aba atual tem o sublinhado');
+  assert.match(css, /\.orc-toque__ops \{[^}]*counter-reset/, 'as opções se numeram sozinhas (01, 02…), sem mexer no texto delas');
+  assert.match(css, /\.orc-op--toque::after \{[^}]*counter\([^)]*decimal-leading-zero\)/);
+  assert.match(css, /\.orc-op--toque\[aria-pressed="true"\]/, 'marcada também pela forma, não só pela cor');
+  assert.match(css, /html\.orc-retomando[^{]*\.orc-vitrine[^{]*\{[^}]*display: none/, 'abrindo o pedido pelo link, a vitrine vazia não diz que a pessoa está no começo');
+});
+
+test('contadores: partes = as peças da miniatura (a mesma conta do desenho); integração e valor vêm do radar; vazio é —', () => {
+  assert.equal(P.partes({ ramo: 'saude', objetivos: ['agendamentos', 'pedidos_whatsapp'], material: 'tenho' }, N, R), '3');
+  assert.equal(P.partes({ ramo: 'saude', objetivos: [] }, N, R), '0');
+  for (const lixo of [null, undefined, 'saude', {}, { ramo: '__proto__' }]) assert.equal(P.partes(lixo, N, R), '0', JSON.stringify(lixo));
+  assert.equal(P.partes({ ramo: 'saude', objetivos: ['agendamentos'] }, null, R), '0', 'sem o módulo da miniatura não quebra');
+  assert.equal(P.inteiro(0), '0'); assert.equal(P.inteiro(2), '2');
+  for (const v of [undefined, null, -1, NaN, Infinity, '2', 1.5, 1e6]) assert.equal(P.inteiro(v), '—', String(v));
+  assert.equal(P.valor(null), '—'); assert.equal(P.valor(0), '—'); assert.equal(P.valor(-5), '—'); assert.equal(P.valor('3200'), '—', 'só número de verdade');
+  assert.equal(P.valor(3200).replace(/\s/g, ' '), 'R$ 3.200');
+  assert.equal(P.valor(8350.5).replace(/\s/g, ' '), 'R$ 8.350,5');
+});
+
+function palcoDeMentira() {
+  const nos = { 'o-palco-partes': noh('b'), 'o-palco-integracoes': noh('b'), 'o-palco-valor': noh('b') };
+  nos['o-palco-partes'].textContent = '0'; nos['o-palco-integracoes'].textContent = '—'; nos['o-palco-valor'].textContent = '—';
+  const ouvintes = {};
+  return { nos, ouvintes, getElementById: id => nos[id] || null, addEventListener: (n, f) => { ouvintes[n] = f; } };
+}
+
+test('ligar: escuta a resposta (bz:respostas) e o radar (bz:radar); só escreve o que mudou e marca o número novo para o pulo', () => {
+  const d = palcoDeMentira();
+  P.ligar(d, () => N, () => R);
+  d.ouvintes['bz:respostas']({ detail: { ramo: 'beleza', objetivos: ['agendamentos'] } });
+  assert.equal(d.nos['o-palco-partes'].textContent, '1');
+  assert.equal(d.nos['o-palco-partes'].animou, 1, 'o número novo pula');
+  d.ouvintes['bz:respostas']({ detail: { ramo: 'beleza', objetivos: ['agendamentos'] } });
+  assert.equal(d.nos['o-palco-partes'].animou, 1, 'o mesmo número não pula de novo');
+  d.ouvintes['bz:radar']({ detail: { integracoes: 2, valor: null } });
+  assert.equal(d.nos['o-palco-integracoes'].textContent, '2');
+  assert.equal(d.nos['o-palco-valor'].textContent, '—', 'sem valor enquanto o Zero não entende o caso');
+  assert.equal(d.nos['o-palco-valor'].animou, 0);
+  d.ouvintes['bz:radar']({ detail: { integracoes: 2, valor: 4100 } });
+  assert.equal(d.nos['o-palco-valor'].textContent.replace(/\s/g, ' '), 'R$ 4.100');
+  assert.equal(d.nos['o-palco-valor'].animou, 1);
+  assert.doesNotThrow(() => { d.ouvintes['bz:radar'](undefined); d.ouvintes['bz:radar']({ detail: 'lixo' }); d.ouvintes['bz:respostas']({}); });
+  assert.equal(d.nos['o-palco-valor'].textContent, '—', 'detail inválido volta ao vazio, nunca a um número velho');
+  assert.doesNotThrow(() => P.ligar({ getElementById: () => null, addEventListener() { throw new Error('não era para ligar'); } }));
+});
+
+test('o módulo do palco escreve só por textContent; o radar avisa o palco com o número e o valor que ELE já mostra', () => {
+  const fonte = semComentario(lerTexto('js/orcamento-palco.js'));
+  assert.doesNotMatch(fonte, /innerHTML|insertAdjacentHTML|setAttribute\(\s*['"]style/);
+  /* o único estilo por JS é a folga embaixo da lista da conversa (por evento, nunca por quadro; CLAUDE.md permite el.style) */
+  assert.deepEqual([...new Set(fonte.match(/\w+\.style\.\w+/g) || [])], ['lista.style.paddingBottom']);
+  const radar = semComentario(lerTexto('js/orcamento-escopo.js'));
+  assert.match(radar, /new CustomEvent\('bz:radar', \{ detail: \{ integracoes: st\.dims\.integracoes\.n, valor: st\.valor \} \}\)/);
+});
+
+/* espaçamento sem corte (regra do dono; achados de 23/11 em 320): nada de reticências, folga igual nos dois lados da régua, a borda
+   da caixa que rola marcada por régua, nenhuma palavra partida no meio. O varredor de tela é docs/cortes.mjs (CORTES=1 no E2E) */
+const regrasSemCorte = css => {
+  const erros = [];
+  if (!/\.rde-barra__estado \{[^}]*white-space: normal[^}]*text-overflow: clip/.test(css)) erros.push('a barra fina do radar ainda corta o estado com reticências');
+  if (!/\.orc-contador \{[^}]*padding: 12px 12px 0 0/.test(css)) erros.push('os contadores sem a folga de 12 px antes da régua seguinte');
+  if (!/\.orc-log \{[^}]*border-block: 1px solid/.test(css)) erros.push('a caixa da conversa sem a régua que marca a borda da rolagem');
+  if (!/\.rde-canto__valor \{[^}]*hyphens: manual/.test(css)) erros.push('os cantos do radar ainda partem palavra com hífen');
+  if (!/@media \(max-width: 379px\) \{[\s\S]*?\.orc-est__dados div \{[^}]*display: flex/.test(css)) erros.push('o prazo e os valores do investimento seguem em 3 colunas apertadas no celular estreito');
+  if (!/\.visor__titulo \{[^}]*white-space: normal[^}]*text-overflow: clip/.test(css)) erros.push('o título do visor da prévia ainda corta com reticências');
+  return erros;
+};
+test('espaçamento sem corte no palco: sem reticências, folga igual, borda da rolagem marcada, sem palavra partida', () => {
+  assert.deepEqual(regrasSemCorte(semComentario(lerTexto('css/orcamento-palco.css'))), []);
+  const varredor = lerTexto('docs/cortes.mjs');
+  for (const tipo of ['reticências', 'fora da tela', 'preso numa caixa', 'palavra partida', 'encostado na régua']) assert.ok(varredor.includes("'" + tipo) || varredor.includes(tipo + ' ('), 'o varredor procura: ' + tipo);
+  assert.match(lerTexto('docs/e2e-orcamento.mjs'), /CORTES === '1'[\s\S]*cortes\(page\)/, 'o E2E roda o varredor a cada foto quando pedido');
+  const visor = semComentario(lerTexto('js/orcamento-visor.js'));
+  assert.match(visor, /tituloEmPartes\(d\.id === 'final'/, 'o título do visor é montado em pedaços que quebram pelo sentido');
+  assert.doesNotMatch(visor, /'o-visor-titulo'\)\.textContent = /, 'nada de título numa linha só, cortada com reticências');
+});
+
+/* retorno do dono sobre o palco no celular (24/11): o Chrome do celular escureceu a página sozinho e a logo e o nome mudaram de cor;
+   a barra fina repetia o valor por cima do palco; "ZERO" se repetia em cada fala e saía cortado pela régua no topo da conversa */
+test('o tema claro do orçamento é travado: o escurecimento automático do navegador não mexe na logo nem no nome', () => {
+  const html = semComentario(lerTexto('orcamento.html'));
+  assert.match(html, /<meta name="color-scheme" content="only light" \/>/, 'a página diz ao navegador que só tem o tema claro');
+  assert.match(semComentario(lerTexto('css/orcamento-palco.css')), /:root \{[^}]*color-scheme: only light/, 'e a folha também');
+  for (const outra of ['index.html', 'sites.html', 'automacao.html']) assert.doesNotMatch(lerTexto(outra), /name="color-scheme"/, 'as outras páginas (escuras) não mudam: ' + outra);
+});
+test('a barra fina do radar não repete o valor ao lado do palco: só aparece depois que o palco saiu da tela', () => {
+  const barra = semComentario(lerTexto('js/orcamento-escopo-barra.js'));
+  assert.match(barra, /var mostrar = [^;]*!palcoVisto/, 'a decisão espera o palco sair da tela');
+  assert.match(barra, /querySelector\('\.orc-palco'\)/);
+  assert.match(barra, /io\.observe\(palco\)/);
+  /* depois de escrever, a barra espera a pessoa rolar: voltando na hora ela cobria o "Seguir" no meio do toque (o E2E pegou depois da retomada) */
+  assert.match(barra, /var mostrar = [^;]*!esperaRolar/);
+  assert.match(barra, /function mudarEscrita\(agora\) \{ if \(escrevendo && !agora\) esperaRolar = true;/);
+  assert.match(barra, /addEventListener\('scroll', function \(\) \{ if \(!esperaRolar\) return; esperaRolar = false; decidir\(\); \}, \{ passive: true \}\)/);
+});
+test('uma identificação só do Zero na conversa (o título, com "assistente virtual (IA)"); cada fala fica com o símbolo', () => {
+  const css = semComentario(lerTexto('css/orcamento-palco.css'));
+  assert.doesNotMatch(css, /content: "Zero"/, 'sem o "ZERO" repetido em cada fala');
+  assert.match(css, /\.msg--agente::before \{[^}]*zero-simbolo-claro\.svg/, 'o símbolo segue marcando quem fala');
+  assert.match(semComentario(lerTexto('orcamento.html')), /<h2 id="o-conversa-titulo" class="orc-rotulo">Zero, assistente virtual \(IA\) da Beyon Zero<\/h2>/, 'a identificação de IA continua à vista');
+});
+test('a caixa da conversa para a rolagem no começo de uma fala: nada cortado no topo', () => {
+  const css = semComentario(lerTexto('css/orcamento-palco.css'));
+  assert.match(css, /\.orc-log \{[^}]*scroll-snap-type: y proximity/, 'proximity: o mandatory brigava com a rolagem até o botão de um passo aberto');
+  assert.match(css, /\.orc-log__lista > li \{[^}]*scroll-snap-align: start/);
+  assert.match(css, /\.orc-log__lista > li:last-child \{[^}]*scroll-snap-align: start end/, 'o fim da conversa continua alcançável');
+  assert.match(lerTexto('docs/cortes.mjs'), /cortado no topo da rolagem/, 'o varredor confere o topo da caixa');
+  /* a folga embaixo: o que falta para a última fala do Zero alcançar o topo (a rolagem acabava antes, e o topo cortava a fala anterior) */
+  assert.equal(P.folgaNecessaria(500, 180), 320, 'fala + opções curtas: a lista ganha a folga que falta');
+  assert.equal(P.folgaNecessaria(500, 620), 0, 'o que vem depois da fala já passa da caixa: nenhuma folga');
+  for (const [a, b] of [[NaN, 10], [500, NaN], [0, 10], [-5, 10], [500, -1], ['500', 10]]) assert.equal(P.folgaNecessaria(a, b), a === '500' ? 490 : 0, String([a, b]));
+  assert.doesNotThrow(() => P.ligarCaixa({ getElementById: () => null }, {}), 'sem a caixa, nada acontece');
+  assert.doesNotThrow(() => P.ajustarFolga(), 'sem a caixa ligada, ajustar não faz nada');
+  /* quem rola é quem já rolava: eles ajustam a folga antes da conta; o palco não rola (2 rolagens suaves brigavam e o toque caía fora do botão) */
+  for (const arq of ['js/orcamento-toques.js', 'js/orcamento.js']) assert.match(lerTexto(arq), /BZOrcPalco\.ajustarFolga\(\)/, arq);
+  assert.doesNotMatch(semComentario(lerTexto('js/orcamento-palco.js')), /scrollTop\s*=/, 'o palco não rola a caixa');
+});

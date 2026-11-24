@@ -290,6 +290,7 @@
      inteiros: 472 px contra 526 em 390x844, medido em 12/11) a fala nova fica no topo da caixa e o cartão logo abaixo dela */
   function rolarConversa(li) {
     var caixa = $('o-log-caixa');
+    if (window.BZOrcPalco && window.BZOrcPalco.ajustarFolga) window.BZOrcPalco.ajustarFolga();   /* (a folga embaixo da lista antes da conta: a fala alcança o topo, js/orcamento-palco.js) */
     if (!li || !ficaNoFim()) {
       /* sem o cartão: até o fim, mas a fala do Zero maior que a caixa começa no topo dela, nunca cortada em cima (achado da revisão de 19/11) */
       if (li && li.classList.contains('msg--agente')) caixa.scrollTop = Math.max(0, Math.min(caixa.scrollHeight - caixa.clientHeight, caixa.scrollTop + li.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA_FALA));

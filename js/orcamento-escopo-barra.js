@@ -26,9 +26,16 @@
 
   function criar(o) {
     var el = null, anel = null, estadoEl = null, valorEl = null;
-    var radarVisto = true, mesaVista = false, escrevendo = false, ativo = false, st = null;
+    var radarVisto = true, mesaVista = false, escrevendo = false, ativo = false, st = null, palcoVisto = false;
+    /* depois de escrever (o campo perdeu o foco: a pessoa foi tocar em "Seguir"), a barra só volta quando ela ROLAR a página. Voltando na hora,
+       ela deslizava por cima do botão no meio do toque (e o foco no botão ainda rolava a página para tirá-lo de trás dela): o toque se perdia */
+    var esperaRolar = false;
+    function mudarEscrita(agora) { if (escrevendo && !agora) esperaRolar = true; escrevendo = agora; }
     var mq = W.matchMedia ? W.matchMedia('(max-width: 899px)') : null;
     var mesa = doc.querySelector('.orc-mesa');
+    /* o palco do orçamento (direção C) já mostra o valor: a barra não repete isso ao lado dele nem cobre o título (dono, 24/11). Ela só entra
+       depois que o palco inteiro passou para trás do menu; sem palco na página, nada muda */
+    var palco = doc.querySelector('.orc-palco');
 
     function montar() {
       el = doc.createElement('div');
@@ -53,7 +60,7 @@
       el.classList.toggle('is-ouro', !!st.ouro);
     }
     function decidir() {
-      var mostrar = ativo && !radarVisto && mesaVista && !escrevendo && !!(mq && mq.matches);
+      var mostrar = ativo && !radarVisto && mesaVista && !escrevendo && !esperaRolar && !palcoVisto && !!(mq && mq.matches);
       if (!el && !mostrar) return;
       if (!el) montar();
       el.classList.toggle('is-visivel', mostrar);
@@ -64,23 +71,26 @@
       var io = new W.IntersectionObserver(function (entradas) {
         entradas.forEach(function (e) {
           if (e.target === mesa) mesaVista = e.isIntersecting;
+          else if (e.target === palco) palcoVisto = e.isIntersecting;
           else radarVisto = e.isIntersecting && e.intersectionRect.height >= Math.min(LIMIAR_PX, e.boundingClientRect.height);
         });
         decidir();
       }, { rootMargin: '-72px 0px 0px 0px', threshold: LIMIARES });
       io.observe(o.alvo); io.observe(mesa);
+      if (palco) io.observe(palco);
     }
     /* o foco do teclado nunca fica atrás da barra (WCAG 2.4.11): campo de escrever em qualquer lugar da página tira a barra; outro
        controle que cairia atrás dela desce para a vista (o scroll-padding de html.tem-barra-escopo conta a altura da barra) */
     doc.addEventListener('focusin', function (ev) {
       var alvo = ev.target;
-      escrevendo = campoDeEscrita(alvo);
+      mudarEscrita(campoDeEscrita(alvo));
       decidir();
       if (!escrevendo && el && el.classList.contains('is-visivel') && alvo && alvo !== el && !el.contains(alvo) && alvo.getBoundingClientRect &&
         encobre(alvo.getBoundingClientRect(), el.getBoundingClientRect())) alvo.scrollIntoView({ block: 'nearest' });
     });
     /* (no tique seguinte: indo de um campo para outro, o focusin chega antes e a barra não pisca) */
-    doc.addEventListener('focusout', function () { W.setTimeout(function () { escrevendo = campoDeEscrita(doc.activeElement); decidir(); }, 0); });
+    doc.addEventListener('focusout', function () { W.setTimeout(function () { mudarEscrita(campoDeEscrita(doc.activeElement)); decidir(); }, 0); });
+    W.addEventListener('scroll', function () { if (!esperaRolar) return; esperaRolar = false; decidir(); }, { passive: true });
     if (mq && mq.addEventListener) mq.addEventListener('change', decidir);
 
     return {
