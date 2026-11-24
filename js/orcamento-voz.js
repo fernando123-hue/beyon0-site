@@ -3,7 +3,8 @@
    A pessoa toca em "Falar", fala (até 90 s), toca em "Parar"; o áudio vai ao servidor, vira TEXTO e cai na caixa da
    conversa: ela confere, corrige e envia como qualquer mensagem. O Zero só recebe texto. Nada do áudio fica guardado
    (api/_vendas/voz.mjs). O botão só aparece se o aparelho grava (MediaRecorder) e o servidor tem o recurso ligado.
-   Sem blur, sem brilho: um ponto cheio e o tempo. Sem animação, então movimento reduzido já está respeitado.
+   Sem blur, sem brilho: o microfone desenhado e o tempo; gravando, um traço fino gira em volta do ícone (só CSS, pela classe
+   is-gravando; com movimento reduzido ele para e fecha o anel: css/orcamento-voz.css).
    Cada gravação tem o seu próprio objeto (rec): um evento atrasado de uma gravação antiga nunca mexe na nova.
    ========================================================================== */
 (function () {

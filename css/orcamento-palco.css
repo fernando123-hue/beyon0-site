@@ -20,16 +20,38 @@
    nada fica mais largo que a tela.
    ========================================================================== */
 
-/* ---------- o tema claro TRAVADO: o Chrome do celular com escurecimento automático invertia o branco e trocava a cor da logo e do
-   nome (print do dono, 24/11). "only light" é o pedido oficial para o navegador não escurecer a página (o palco já é preto de propósito) ---------- */
-:root { color-scheme: only light; }
+/* ---------- DOIS TEMAS (dono, 23/11 ~21h: "escuro ativado de inicio, caso o usuario deseje mudar ele clicar em um botão e muda").
+   O ESCURO é o padrão (sem atributo, sem JS ou com o js/tema.js pondo data-tema="escuro"): diz "dark" ao navegador, que não escurece
+   uma página que já é escura. O CLARO (a v2, html[data-tema="claro"]) continua TRAVADO: o Chrome do celular com escurecimento
+   automático invertia o branco e trocava a cor da logo e do nome (print do dono, 24/11); "only light" é o pedido oficial para o
+   navegador não escurecer a página (o palco já é preto de propósito). O botão do topo troca e o aparelho guarda (js/tema.js) ---------- */
+:root { color-scheme: dark; }
+html[data-tema="claro"] { color-scheme: only light; }
 
-/* ---------- os tokens claros: a página do orçamento e o topo ---------- */
+/* ---------- os tokens ESCUROS da página e do topo: um grafite um degrau acima do preto, para o palco (o preto puro) se destacar
+   dela como no claro, sem virar uma massa preta (dono, 20/11: "muito escura, sem vida"). Só superfície, traço e o 3º nível do texto:
+   a marca (--ac, --ac-3, --t1, --logo-*) vem de css/tokens.css como no resto do site, e o ouro continua trocando todos.
+   Contraste no --bg / no --cartao: --t1 16,5 / 15,2; --t2 9,0 / 8,4; --t3 6,9 / 6,4; --stroke 3,9 / 3,6; o ciano 11,7 / 10,8 ---------- */
 .orc__main, .orc .nav, .orc .rde-barra {
+  color-scheme: dark;
+  --bg: #131617;
+  --s1: #1A1E1F;
+  --s2: #222728;
+  --cartao: #1A1E1F;   /* (as escolhas da conversa: um degrau acima da página) */
+  --grafite-rgb: 26 30 31;
+  --line: rgb(205 212 212 / .14);
+  --line-2: rgb(205 212 212 / .24);
+  --t3: #9AA1A1;
+  --stroke: #6E7676;
+}
+
+/* ---------- os tokens claros (o tema da v2): a página do orçamento e o topo ---------- */
+html[data-tema="claro"] .orc__main, html[data-tema="claro"] .orc .nav, html[data-tema="claro"] .orc .rde-barra {
   color-scheme: only light;
   --bg: #FFFFFF;
   --s1: #F6F7F7;
   --s2: #EEF0F0;
+  --cartao: #FFFFFF;
   --grafite-rgb: 246 247 247;
   --line: #E3E5E5;
   --line-2: #CDD2D2;
@@ -79,24 +101,49 @@
   --ouro-rgb: 255 190 60;
 }
 
-/* ---------- a página branca: de ponta a ponta também no computador (pintura para fora da coluna, sem alargar nada) ---------- */
+/* ---------- a página (grafite no escuro, branca no claro): de ponta a ponta também no computador (pintura para fora da coluna, sem alargar nada) ---------- */
 .orc__main {
   padding-top: var(--nav-h);
-  background-color: #FFFFFF;
-  border-image: linear-gradient(#FFFFFF 0 0) fill 0 / / 0 50vw;
+  background-color: var(--bg);
+  border-image: linear-gradient(var(--bg) 0 0) fill 0 / / 0 50vw;
   color: var(--t1);
 }
 
-/* ---------- o topo branco, a logo para fundo claro ---------- */
-.orc .nav, .orc .nav.is-stuck, .orc .nav.is-open { background-color: #FFFFFF; box-shadow: 0 1px 0 var(--line); }
+/* ---------- o topo da cor da página; a logo do escuro é a do site inteiro (css/tokens.css), a do claro é a versão para fundo claro ---------- */
+.orc .nav, .orc .nav.is-stuck, .orc .nav.is-open { background-color: var(--bg); box-shadow: 0 1px 0 var(--line); }
 .orc .nav__links { box-shadow: 0 1px 0 var(--line); }   /* (o painel do menu no celular: traço, não a sombra que espalha do resto do site) */
-.orc .marca--nav .marca__aro { fill: #0B0C0D; }
-.orc .marca--nav .marca__lente, .orc .marca--nav .marca__saida { fill: #0B6F72; }
-.orc .marca--nav .marca__entrada { fill: #3FA3A6; }
-.orc .marca--nav .marca__nucleo, .orc .marca--nav .marca__zero { fill: #0E8C90; }
-.orc .marca--nav .marca__nome { fill: #0B0C0D; }
-.orc .marca--nav .marca__pulso-out { fill: #0B0C0D; }
-.orc .marca--nav .marca__brilho { fill: #0E8C90; }   /* o reflexo que atravessa o nome: no claro, um traço verde-água (a prata sumia no branco) */
+html[data-tema="claro"] .orc .marca--nav .marca__aro { fill: #0B0C0D; }
+html[data-tema="claro"] .orc .marca--nav .marca__lente, html[data-tema="claro"] .orc .marca--nav .marca__saida { fill: #0B6F72; }
+html[data-tema="claro"] .orc .marca--nav .marca__entrada { fill: #3FA3A6; }
+html[data-tema="claro"] .orc .marca--nav .marca__nucleo, html[data-tema="claro"] .orc .marca--nav .marca__zero { fill: #0E8C90; }
+html[data-tema="claro"] .orc .marca--nav .marca__nome { fill: #0B0C0D; }
+html[data-tema="claro"] .orc .marca--nav .marca__pulso-out { fill: #0B0C0D; }
+html[data-tema="claro"] .orc .marca--nav .marca__brilho { fill: #0E8C90; }   /* o reflexo que atravessa o nome: no claro, um traço verde-água (a prata sumia no branco) */
+
+/* ---------- o botão do tema (js/tema.js): no topo, entre a logo e o menu; 48 × 48 como o do som do site, ícone de traço.
+   No escuro mostra o sol (tocar leva ao claro); no claro, a lua. O ícone segue o tema APLICADO (o data-tema do <html>, posto antes
+   da 1ª pintura), não o clique; o aria-pressed diz ao leitor de tela que o "Tema claro" está ligado ou não. Sem JS não aparece ---------- */
+.nav__tema {
+  display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; flex: none; margin-left: auto;
+  padding: 0; background: none; border: 0; border-radius: var(--raio-s); color: var(--t2); cursor: pointer;
+  transition: color var(--t-micro) var(--ease-micro);
+}
+html:not([data-tema]) .nav__tema { display: none; }
+.nav__tema:hover { color: var(--t1); }
+.nav__tema:focus-visible { outline: 2px solid var(--ac); outline-offset: -2px; }
+.nav__tema__icone { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.nav__tema__lua { display: none; }
+html[data-tema="claro"] .nav__tema__sol { display: none; }
+html[data-tema="claro"] .nav__tema__lua { display: inline; }
+/* a logo encolhe para caber ao lado do tema e do menu até 320 (a mesma conta de css/base.css com o som: 48 + 48) */
+@media (max-width: 400px) {
+  .orc .nav:has(.nav__tema) .marca--nav { height: min(40px, calc((100 * 1vw - 2 * var(--pad) - 2rem - 96px) / 5.557)); }   /* (100 × 1vw: é uma ALTURA, e a trava da regra 10 procura largura em vw de 3 dígitos) */
+}
+/* no computador (sem o menu): os links logo depois da logo, o tema no fim da barra */
+@media (min-width: 981px) {
+  .orc .nav:has(.nav__tema) .nav__links { margin-left: auto; }
+  .nav__tema { order: 1; margin-left: 1rem; }
+}
 
 /* ---------- O PALCO: a faixa preta de ponta a ponta ---------- */
 .orc-palco {
@@ -188,7 +235,8 @@ html.orc-retomando .orc-vitrine, html.orc-retomando .orc-contadores { display: n
 
 /* a fala do Zero: o símbolo claro à esquerda, "Zero" em mono e a frase; a fala mais nova em destaque, as antigas mais baixas */
 .msg--agente { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 10px; max-width: 100%; padding-left: 0; border-left: 0; color: var(--t1); }
-.msg--agente::before { content: ""; grid-column: 1; grid-row: 1; width: 28px; height: 28px; background: url('../assets/zero-simbolo-claro.svg') no-repeat 0 50% / contain; }
+.msg--agente::before { content: ""; grid-column: 1; grid-row: 1; width: 28px; height: 28px; background: url('../assets/zero-simbolo-escuro.svg') no-repeat 0 50% / contain; }
+html[data-tema="claro"] .msg--agente::before { background-image: url('../assets/zero-simbolo-claro.svg'); }   /* (o mesmo desenho; no claro, as cores da logo para fundo claro) */
 /* (uma identificação só: o título da conversa diz "Zero, assistente virtual (IA) da Beyon Zero"; o "ZERO" em cada fala repetia isso e saiu
    a pedido do dono, 24/11: "muita informação nessa página". O símbolo continua marcando cada fala dele) */
 .msg--agente > * { grid-column: 2; }
@@ -198,34 +246,44 @@ html.orc-retomando .orc-vitrine, html.orc-retomando .orc-contadores { display: n
 /* a resposta do cliente: balão de contorno escuro, encostado à direita */
 .msg--visitante { max-width: 80%; padding: 12px 16px; border: 1px solid var(--t1); border-radius: 16px 16px 4px 16px; background: none; color: var(--t1); font-size: .9375rem; line-height: 1.45; }
 
-/* as escolhas: cartões de contorno, o número mono à direita (contado pelo CSS, o texto da opção não muda). Marcada: contorno duplo e ✓ */
+/* as escolhas: cartões de contorno, o número mono à direita (contado pelo CSS, o texto da opção não muda). Marcada: contorno duplo e ✓.
+   Um degrau ABAIXO do campo de escrever (dono, 24/11: as opções prontas com "um destaque um pouco menor" do que conversar com o Zero
+   com as próprias palavras): mais baixas (46 px, alvo de toque mantido), letra de 15 px em cinza e o número sem a cor de ação.
+   No toque e marcada, a opção volta à tinta cheia */
 .orc-log__lista > .orc-toque { gap: 8px; }
 .orc-toque__ops { counter-reset: op; }
-.orc-toque__ops, .orc-toque__ops:has(.orc-op--ic) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; width: 100%; max-width: none; }
+.orc-toque__ops, .orc-toque__ops:has(.orc-op--ic) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; width: 100%; max-width: none; }
 .orc-op--toque, .orc-op--ic, .orc-toque__ops:has(.orc-op--ic) > .orc-op--ic:last-child:nth-child(odd) {
-  display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 52px; padding: 15px 16px;
-  border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--t1); font-size: 1rem; line-height: 1.3; text-align: left; counter-increment: op;
+  display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 46px; padding: 11px 14px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--cartao); color: var(--t2); font-size: .9375rem; line-height: 1.3; text-align: left; counter-increment: op;
 }
-.orc-op--toque::after { content: counter(op, decimal-leading-zero); content: counter(op, decimal-leading-zero) / ""; flex: none; margin-left: auto; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: .04em; color: var(--ac); }
+.orc-op--toque::after { content: counter(op, decimal-leading-zero); content: counter(op, decimal-leading-zero) / ""; flex: none; margin-left: auto; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: .04em; color: var(--t3); }
 .orc-op--ic .orc-ic { display: none; }
-.orc-op--toque:hover { border-color: var(--t1); }
-.orc-op--toque[aria-pressed="true"], .orc-op--ic[aria-pressed="true"] { border-color: var(--t1); background: var(--bg); box-shadow: inset 0 0 0 1px var(--t1); }
+.orc-op--toque:hover { border-color: var(--t1); color: var(--t1); }
+.orc-op--toque[aria-pressed="true"], .orc-op--ic[aria-pressed="true"] { border-color: var(--t1); background: var(--cartao); color: var(--t1); box-shadow: inset 0 0 0 1px var(--t1); }
 .orc-op--toque[aria-pressed="true"]::before, .orc-op--ic[aria-pressed="true"]::before { content: none; }
 .orc-op--toque[aria-pressed="true"]::after { content: "✓"; content: "✓" / ""; color: var(--t1); font-size: .875rem; }
 .orc-toque__pronto { align-self: start; }
 
-/* o campo: sublinhado; o "Enviar" escuro ao lado; o "Falar" (quando o aparelho grava) logo abaixo */
-.orc-envio { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px 8px; margin-top: 18px; }
-.orc-envio textarea { grid-column: 1; grid-row: 1; min-height: 48px; padding: 12px 2px; border: 0; border-bottom: 2px solid var(--t1); border-radius: 0; background: none; color: var(--t1); resize: vertical; }
+/* o campo: o PROTAGONISTA da conversa (dono, 24/11: escrever com as próprias palavras vale mais que tocar uma opção pronta). Caixa com
+   o contorno de 1 px na cor de ação (uma linha só, sem sombra nem brilho), letra de 17 px como a fala do Zero. Ele ocupa a
+   largura toda (ao lado do "Enviar", no celular de 320 sobravam ~15 letras por linha e a dica quebrava no meio da frase); embaixo,
+   o "Falar" à esquerda e o "Enviar" à direita, como em todo aplicativo de conversa. O que não cabe na linha (o tempo da gravação
+   em 320) desce inteiro, sem cortar */
+.orc-envio { display: flex; flex-flow: row wrap; align-items: center; gap: 10px 8px; margin-top: 18px; }
+.orc-envio textarea { flex: 1 1 100%; min-width: 0; min-height: 56px; padding: 13px 16px; border: 1px solid var(--ac); border-radius: 16px; background: var(--cartao); color: var(--t1); font-size: 1.0625rem; line-height: 1.4; resize: vertical; }
 .orc-envio textarea::placeholder { color: var(--t3); opacity: 1; }
-.orc-envio textarea:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; border-color: var(--t1); }
-.orc-envio #o-enviar { grid-column: 2; grid-row: 1; width: auto; min-height: 48px; padding: 12px 18px; }
-.orc-envio .orc-mic, .orc-envio .orc-mic__cancelar { grid-column: 1 / -1; justify-self: start; width: auto; }
+.orc-envio textarea:focus-visible { outline: 2px solid var(--ac); outline-offset: -1px; border-color: var(--ac); }   /* (o foco engrossa a MESMA linha para 2 px, por cima do contorno: um anel afastado seriam duas linhas empilhadas) */
+.orc-envio #o-enviar { flex: none; width: auto; min-height: 48px; margin-left: auto; padding: 12px 22px; }
+.orc-envio .orc-mic, .orc-envio .orc-mic__cancelar { flex: none; width: auto; }
 
 /* ---------- os botões da página: pílulas; o principal escuro (o "Enviar" do desenho), o secundário de contorno ---------- */
 .orc__main .btn, .orc__main .btn--sm { border-radius: 999px; font-family: var(--sans); font-size: 1rem; font-weight: 600; letter-spacing: normal; text-transform: none; }   /* (16 px: a frase do botão como gente fala, docs/e2e-ajustes.mjs) */
-.orc__main .btn--primary { background-color: var(--t1); border-color: var(--t1); color: #FFFFFF; box-shadow: none; }
-.orc__main .btn--primary:hover { background-color: #2B3133; border-color: #2B3133; }
+/* (o principal: no escuro, a cor de ação do site, chapada, com a tinta escura em cima (11:1); no claro, o "Enviar" escuro do desenho) */
+.orc__main .btn--primary { background-color: var(--ac); border-color: var(--ac); color: var(--ac-tinta); box-shadow: none; }
+.orc__main .btn--primary:hover { background-color: var(--ac-2); border-color: var(--ac-2); }
+html[data-tema="claro"] .orc__main .btn--primary { background-color: var(--t1); border-color: var(--t1); color: #FFFFFF; }
+html[data-tema="claro"] .orc__main .btn--primary:hover { background-color: #2B3133; border-color: #2B3133; }
 .orc__main .btn--ghost { background-color: transparent; border-color: var(--t1); color: var(--t1); }
 .orc__main .btn--ghost:hover { background-color: var(--s1); color: var(--t1); }
 .orc__main .btn:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
@@ -254,8 +312,9 @@ html.orc-retomando .orc-vitrine, html.orc-retomando .orc-contadores { display: n
 /* no disco preto o rótulo do miolo não pode passar da borda (no grafite de antes ele sumia no fundo; aqui apareceria cortado): quebra em duas linhas quando falta lugar */
 .rde-miolo__rot { max-width: 50cqi; text-align: center; }
 .rde-nucleo-anel { stroke: rgb(205 212 212 / .22); }
-.rde-guia.is-confirmada { stroke: rgb(11 12 13 / .45); }
-.rde-anel__trilho { stroke: rgb(11 12 13 / .14); }
+/* (no escuro valem os traços claros de css/orcamento-escopo.css; no claro, os escuros) */
+html[data-tema="claro"] .rde-guia.is-confirmada { stroke: rgb(11 12 13 / .45); }
+html[data-tema="claro"] .rde-anel__trilho { stroke: rgb(11 12 13 / .14); }
 /* os cantos do radar quebram entre palavras (o hífen automático partia "Agen-damento" em 360); só uma palavra que não cabe sozinha quebra */
 .rde-canto__valor { hyphens: manual; overflow-wrap: break-word; }
 /* o título do visor da prévia (passo 2): inteiro, nunca com reticências; quebra entre os pedaços (js/orcamento-visor.js, tituloEmPartes) */

@@ -168,13 +168,13 @@ test('palco no HTML: kicker, título, a vitrine com a miniatura e os contadores 
     'a folha do palco vem depois das do orçamento (ganha delas) e antes da passagem (que segue mandando no movimento entre páginas)');
 });
 
-test('palco no CSS: conversa em branco, faixa preta com a luz #49E5DD, logo para fundo claro; sem desfoque, sem brilho, sem sombra suave', () => {
+test('palco no CSS: no claro a conversa em branco e a logo para fundo claro; faixa preta com a luz #49E5DD; sem desfoque, sem brilho, sem sombra suave', () => {
   const css = semComentario(lerTexto('css/orcamento-palco.css'));
-  assert.match(css, /\.orc__main[^{]*\{[^}]*--bg: #FFFFFF/, 'a página do orçamento é branca');
+  assert.match(css, /html\[data-tema="claro"\] \.orc__main[^{]*\{[^}]*--bg: #FFFFFF/, 'no claro a página do orçamento é branca');
   assert.match(css, /\.orc-palco[^{]*\{[^}]*--ac: #49E5DD/, 'no palco a luz é o verde-água da marca');
   assert.match(css, /\.orc-palco \{[^}]*background(-color)?: #000/, 'o palco é preto chapado');
-  assert.match(css, /\.orc \.nav[^{]*\{[^}]*background(-color)?: #FFFFFF/, 'o topo é branco');
-  assert.match(css, /\.marca__nome \{[^}]*fill: #0B0C0D/, 'a logo para fundo claro (o nome em tinta)');
+  assert.match(css, /\.orc \.nav[^{]*\{[^}]*background(-color)?: var\(--bg\)/, 'o topo tem a cor da página (branco no claro, grafite no escuro)');
+  assert.match(css, /html\[data-tema="claro"\] [^{]*\.marca__nome \{[^}]*fill: #0B0C0D/, 'no claro, a logo para fundo claro (o nome em tinta)');
   assert.doesNotMatch(css, /blur|backdrop-filter|drop-shadow|filter\s*:|text-shadow|radial-gradient/i);
   for (const s of css.match(/box-shadow:[^;}]+/g) || []) {
     /* só traço: inset de 1 a 3 px sem desfoque, nunca sombra que espalha luz */
@@ -264,11 +264,152 @@ test('espaçamento sem corte no palco: sem reticências, folga igual, borda da r
 
 /* retorno do dono sobre o palco no celular (24/11): o Chrome do celular escureceu a página sozinho e a logo e o nome mudaram de cor;
    a barra fina repetia o valor por cima do palco; "ZERO" se repetia em cada fala e saía cortado pela régua no topo da conversa */
-test('o tema claro do orçamento é travado: o escurecimento automático do navegador não mexe na logo nem no nome', () => {
+/* O TEMA (dono, 23/11 ~21h, sobre a v2: "Só quero que ele fique com a opção, escuro ativado de inicio, caso o usuario deseje mudar ele
+   clicar em um botão e muda. Mas está muito bom"). O escuro é o padrão de todo visitante; o botão no topo troca para o claro da v2 e
+   volta; a escolha fica no aparelho. Os dois são NOSSOS: o claro segue "only light" (o Chrome do celular escurecia a página sozinho e
+   estragava a logo e o nome, print do dono de 24/11) e o escuro declara "dark" (o navegador não mexe numa página que já é escura) */
+const carregarTema = () => require('../../js/tema.js');
+function armazemDeMentira(inicial, { quebraLer = false, quebraGravar = false } = {}) {
+  const dados = new Map(Object.entries(inicial || {}));
+  return {
+    dados,
+    getItem(k) { if (quebraLer) throw new Error('SecurityError'); return dados.has(k) ? dados.get(k) : null; },
+    setItem(k, v) { if (quebraGravar) throw new Error('QuotaExceededError'); dados.set(k, String(v)); }
+  };
+}
+function docDeMentira({ botoes = 1 } = {}) {
+  const attrs = new Map();
+  const comoElemento = o => Object.assign(o, { setAttribute(k, v) { this[k] = String(v); }, getAttribute(k) { return k in this ? this[k] : null; } });
+  const meta = { 'color-scheme': comoElemento({ content: 'dark' }), 'theme-color': comoElemento({ content: '#131617' }) };
+  const lista = Array.from({ length: botoes }, () => comoElemento({ 'aria-pressed': 'false' }));
+  return {
+    meta, lista,
+    documentElement: { setAttribute: (k, v) => attrs.set(k, String(v)), getAttribute: k => (attrs.has(k) ? attrs.get(k) : null) },
+    querySelector: sel => { const m = /^meta\[name="([^"]+)"\]$/.exec(sel); return m && meta[m[1]] ? meta[m[1]] : null; },
+    querySelectorAll: sel => (sel === '.nav__tema' ? lista : [])
+  };
+}
+const luz = hex => { const n = parseInt(hex.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }).reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0); };
+const contraste = (a, b) => { const [x, y] = [luz(a), luz(b)].sort((p, q) => q - p); return (x + .05) / (y + .05); };
+const blocoDe = (css, seletor) => { const i = css.indexOf('\n' + seletor + ' {'); if (i < 0) return null; const ini = css.indexOf('{', i) + 1; return css.slice(ini, css.indexOf('}', ini)); };
+const tokenDe = (bloco, nome) => { const m = new RegExp('(?:^|[;\\s])' + nome.replace(/-/g, '\\-') + ':\\s*(#[0-9A-Fa-f]{6})').exec(bloco || ''); return m ? m[1] : null; };
+const PAGINA = '.orc__main, .orc .nav, .orc .rde-barra';
+const PAGINA_CLARA = 'html[data-tema="claro"] .orc__main, html[data-tema="claro"] .orc .nav, html[data-tema="claro"] .orc .rde-barra';
+
+test('o orçamento abre no ESCURO: sem nada guardado, com lixo guardado, sem localStorage ou com ele quebrado', () => {
+  const T = carregarTema();
+  assert.equal(T.CHAVE, 'bz-orcamento-tema');
+  assert.equal(T.lerTema(armazemDeMentira()), 'escuro', 'visitante novo');
+  for (const lixo of ['', 'CLARO', 'dark', 'light', '{"tema":"claro"}', 'claro ', 'escuro']) assert.equal(T.lerTema(armazemDeMentira({ 'bz-orcamento-tema': lixo })), 'escuro', JSON.stringify(lixo));
+  assert.equal(T.lerTema(null), 'escuro', 'sem localStorage');
+  assert.equal(T.lerTema(armazemDeMentira({ 'bz-orcamento-tema': 'claro' }, { quebraLer: true })), 'escuro', 'localStorage que lança (Safari privado)');
+  assert.equal(T.lerTema(armazemDeMentira({ 'bz-orcamento-tema': 'claro' })), 'claro', 'só "claro" exato volta ao claro');
+});
+test('aplicar o tema: o atributo do <html>, o color-scheme (claro = only light; escuro = dark), a cor da barra do navegador e o aria-pressed do botão', () => {
+  const T = carregarTema();
+  const d = docDeMentira({ botoes: 2 });
+  assert.equal(T.aplicarTema(d, 'claro'), 'claro');
+  assert.equal(d.documentElement.getAttribute('data-tema'), 'claro');
+  assert.equal(d.meta['color-scheme'].content, 'only light', 'no claro o navegador não escurece a página sozinho');
+  assert.equal(d.meta['theme-color'].content, '#FFFFFF');
+  assert.deepEqual(d.lista.map(b => b['aria-pressed']), ['true', 'true'], 'o botão "Tema claro" fica pressionado');
+  assert.equal(T.aplicarTema(d, 'escuro'), 'escuro');
+  assert.equal(d.documentElement.getAttribute('data-tema'), 'escuro');
+  assert.equal(d.meta['color-scheme'].content, 'dark');
+  assert.equal(d.meta['theme-color'].content, '#131617');
+  assert.deepEqual(d.lista.map(b => b['aria-pressed']), ['false', 'false']);
+  for (const lixo of [undefined, null, 'CLARO', 'azul', 7]) assert.equal(T.aplicarTema(docDeMentira(), lixo), 'escuro', 'valor estranho vira o escuro: ' + String(lixo));
+  assert.doesNotThrow(() => T.aplicarTema({ documentElement: d.documentElement, querySelector: () => null, querySelectorAll: () => [] }, 'claro'), 'sem as metas nem o botão, nada quebra');
+});
+test('o botão alterna e guarda: escuro → claro → escuro; o aparelho lembra; guardar que falha não trava a troca', () => {
+  const T = carregarTema();
+  const d = docDeMentira(), a = armazemDeMentira();
+  T.aplicarTema(d, T.lerTema(a));
+  assert.equal(T.alternar(d, a), 'claro');
+  assert.equal(a.dados.get('bz-orcamento-tema'), 'claro', 'guardado no aparelho');
+  assert.equal(T.lerTema(a), 'claro', 'a próxima visita abre no claro');
+  assert.equal(d.meta['color-scheme'].content, 'only light');
+  assert.equal(T.alternar(d, a), 'escuro');
+  assert.equal(a.dados.get('bz-orcamento-tema'), 'escuro');
+  assert.equal(T.lerTema(a), 'escuro');
+  const quebrado = armazemDeMentira({}, { quebraGravar: true });
+  assert.equal(T.alternar(d, quebrado), 'claro', 'sem poder guardar, a troca vale nesta visita');
+  assert.equal(d.documentElement.getAttribute('data-tema'), 'claro');
+  assert.equal(T.alternar(d, null), 'escuro', 'sem localStorage também');
+});
+test('HTML: o tema decide no <head>, antes de qualquer folha (nada pisca), num script externo (CSP sem inline); o padrão sem JS é o escuro', () => {
   const html = semComentario(lerTexto('orcamento.html'));
-  assert.match(html, /<meta name="color-scheme" content="only light" \/>/, 'a página diz ao navegador que só tem o tema claro');
-  assert.match(semComentario(lerTexto('css/orcamento-palco.css')), /:root \{[^}]*color-scheme: only light/, 'e a folha também');
-  for (const outra of ['index.html', 'sites.html', 'automacao.html']) assert.doesNotMatch(lerTexto(outra), /name="color-scheme"/, 'as outras páginas (escuras) não mudam: ' + outra);
+  const cabeca = html.slice(0, html.indexOf('</head>'));
+  assert.match(cabeca, /<script src="js\/tema\.js"><\/script>/, 'script clássico, sem defer nem async: roda antes da 1ª pintura');
+  assert.ok(cabeca.indexOf('js/tema.js') > cabeca.indexOf('Content-Security-Policy'), 'depois da CSP');
+  assert.ok(cabeca.indexOf('js/tema.js') < cabeca.indexOf('rel="stylesheet"'), 'antes da 1ª folha de estilo');
+  assert.doesNotMatch(cabeca, /<script(?![^>]*\ssrc=)[^>]*>/, 'nenhum script inline');
+  assert.match(cabeca, /<meta name="color-scheme" content="dark" \/>/, 'sem JS (e antes dele) a página é a escura');
+  assert.match(cabeca, /<meta name="theme-color" content="#131617" \/>/);
+  assert.match(html, /<html lang="pt-BR">/, 'o atributo data-tema só nasce pelo script: sem JS, o botão não aparece');
+  const botao = /<button class="nav__tema"[^>]*>/.exec(html);
+  assert.ok(botao, 'o botão do tema na barra do topo');
+  assert.match(botao[0], /type="button"/);
+  assert.match(botao[0], /aria-pressed="false"/);
+  assert.match(botao[0], /aria-label="Tema claro"/);
+  assert.ok(html.indexOf('class="nav__tema"') > html.indexOf('class="nav__logo"') && html.indexOf('class="nav__tema"') < html.indexOf('class="nav__toggle"'), 'entre a logo e o menu');
+  for (const outra of ['index.html', 'sites.html', 'automacao.html']) {
+    assert.doesNotMatch(lerTexto(outra), /name="color-scheme"|js\/tema\.js|nav__tema/, 'as outras páginas (escuras) não mudam: ' + outra);
+  }
+});
+test('CSS: o claro inteiro mora em html[data-tema="claro"] (only light); o escuro é o padrão, com "dark" e a marca nas cores dela', () => {
+  const css = semComentario(lerTexto('css/orcamento-palco.css'));
+  assert.match(css, /html\[data-tema="claro"\] \{[^}]*color-scheme: only light/, 'o claro trava o escurecimento automático');
+  assert.match(css, /\n:root \{[^}]*color-scheme: dark/, 'o escuro diz ao navegador que já é escuro');
+  assert.doesNotMatch(css, /:root \{[^}]*only light/, 'o only light não vale mais para a página inteira');
+  const escuro = blocoDe(css, PAGINA), claro = blocoDe(css, PAGINA_CLARA);
+  assert.ok(escuro && claro, 'um bloco de tokens para cada tema');
+  assert.equal(tokenDe(claro, '--bg'), '#FFFFFF', 'o claro da v2 não muda');
+  assert.equal(tokenDe(claro, '--t1'), '#0B0C0D');
+  assert.doesNotMatch(css.replace(claro, ''), /--bg: #FFFFFF/, 'nenhum fundo branco fora do claro');
+  /* a marca no escuro: os tokens dela não são redefinidos na página (vêm de css/tokens.css, e o ouro continua trocando todos) */
+  for (const nome of ['--ac', '--ac-rgb', '--ac-3', '--t1', '--logo-entrada', '--logo-nucleo']) assert.doesNotMatch(escuro, new RegExp('(^|[;\\s])' + nome + ':'), 'o escuro não mexe em ' + nome);
+  /* a logo do topo: cada pintura especial é do claro; no escuro valem as de css/tokens.css */
+  const regrasMarca = css.match(/[^{}]*\.marca__[a-z-]+[^{}]*\{/g) || [];
+  assert.ok(regrasMarca.length >= 6);
+  for (const r of regrasMarca) assert.match(r.trim(), /^html\[data-tema="claro"\]/, 'pintura da logo fora do claro: ' + r.trim());
+  /* o símbolo do Zero em cada fala: o claro no fundo branco, o escuro (as cores da logo) no fundo escuro */
+  assert.match(css, /\n\.msg--agente::before \{[^}]*zero-simbolo-escuro\.svg/);
+  assert.match(css, /html\[data-tema="claro"\] \.msg--agente::before \{[^}]*zero-simbolo-claro\.svg/);
+  /* o fundo da página e da barra vêm do token, não do branco fixo */
+  assert.match(css, /\n\.orc__main \{[^}]*background-color: var\(--bg\)/);
+  assert.match(css, /\.orc \.nav, \.orc \.nav\.is-stuck, \.orc \.nav\.is-open \{[^}]*background-color: var\(--bg\)/);
+});
+test('o escuro tem contraste AA: texto no fundo da página e no dos cartões; contorno de controle com 3:1', () => {
+  const escuro = blocoDe(semComentario(lerTexto('css/orcamento-palco.css')), PAGINA);
+  const bg = tokenDe(escuro, '--bg'), cartao = tokenDe(escuro, '--cartao'), s1 = tokenDe(escuro, '--s1');
+  for (const f of [bg, cartao, s1]) assert.ok(f, 'fundo definido');
+  assert.notEqual(bg, '#000000', 'a página não é o preto do palco: o palco se destaca dela (dono, 20/11: "muito escura, sem vida")');
+  const t3 = tokenDe(escuro, '--t3'), stroke = tokenDe(escuro, '--stroke');
+  for (const fundo of [bg, cartao, s1]) {
+    for (const [nome, cor] of [['--t1', '#F2F4F4'], ['--t2', '#B2B8B8'], ['--t3', t3]]) assert.ok(contraste(cor, fundo) >= 4.5, nome + ' em ' + fundo + ': ' + contraste(cor, fundo).toFixed(2));
+    assert.ok(contraste(stroke, fundo) >= 3, '--stroke em ' + fundo + ': ' + contraste(stroke, fundo).toFixed(2));
+    assert.ok(contraste('#49E5DD', fundo) >= 4.5, 'o ciano em ' + fundo);
+  }
+});
+test('o símbolo escuro do Zero tem as cores da logo (aro e lente no ciano profundo, a luz que sai no ciano, o núcleo no branco)', () => {
+  assert.ok(fs.existsSync(new URL('../../assets/zero-simbolo-escuro.svg', import.meta.url)), 'o símbolo para fundo escuro');
+  const svg = lerTexto('assets/zero-simbolo-escuro.svg');
+  const claro = lerTexto('assets/zero-simbolo-claro.svg');
+  const cores = s => [...s.matchAll(/fill="(#[0-9A-Fa-f]{6})"/g)].map(m => m[1].toUpperCase());
+  assert.deepEqual(cores(svg), ['#1CB5B9', '#1CB5B9', '#0F6F72', '#49E5DD', '#F2F4F4'], 'aro, lente, entrada, saída, núcleo');
+  const formas = s => [...s.matchAll(/ d="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(formas(svg), formas(claro), 'o mesmo desenho do claro, só a cor muda');
+});
+test('o botão do tema: alvo de 44 px ou mais, escondido sem JS, ícone pelo tema (não pelo clique), e a logo encolhe para caber até 320', () => {
+  const css = semComentario(lerTexto('css/orcamento-palco.css'));
+  const b = blocoDe(css, '.nav__tema');
+  assert.ok(b, 'o estilo do botão');
+  for (const lado of ['width', 'height']) { const m = new RegExp('(?:^|[;\\s])' + lado + ':\\s*(\\d+)px').exec(b); assert.ok(m && Number(m[1]) >= 44, lado + ' ≥ 44'); }
+  assert.match(css, /html:not\(\[data-tema\]\) \.nav__tema \{[^}]*display: none/, 'sem JS o botão não faria nada: não aparece');
+  assert.match(css, /html\[data-tema="claro"\] \.nav__tema__sol/, 'o ícone segue o tema aplicado');
+  assert.match(css, /\.orc \.nav:has\(\.nav__tema\) \.marca--nav \{[^}]*96px/, 'a logo deixa lugar para o tema e o menu (48 + 48)');
+  assert.doesNotMatch(b, /blur|drop-shadow|glow/, 'sem desfoque nem brilho');
 });
 test('a barra fina do radar não repete o valor ao lado do palco: só aparece depois que o palco saiu da tela', () => {
   const barra = semComentario(lerTexto('js/orcamento-escopo-barra.js'));
@@ -283,7 +424,7 @@ test('a barra fina do radar não repete o valor ao lado do palco: só aparece de
 test('uma identificação só do Zero na conversa (o título, com "assistente virtual (IA)"); cada fala fica com o símbolo', () => {
   const css = semComentario(lerTexto('css/orcamento-palco.css'));
   assert.doesNotMatch(css, /content: "Zero"/, 'sem o "ZERO" repetido em cada fala');
-  assert.match(css, /\.msg--agente::before \{[^}]*zero-simbolo-claro\.svg/, 'o símbolo segue marcando quem fala');
+  assert.match(css, /\.msg--agente::before \{[^}]*zero-simbolo-(claro|escuro)\.svg/, 'o símbolo segue marcando quem fala');
   assert.match(semComentario(lerTexto('orcamento.html')), /<h2 id="o-conversa-titulo" class="orc-rotulo">Zero, assistente virtual \(IA\) da Beyon Zero<\/h2>/, 'a identificação de IA continua à vista');
 });
 test('a caixa da conversa para a rolagem no começo de uma fala: nada cortado no topo', () => {
@@ -301,4 +442,42 @@ test('a caixa da conversa para a rolagem no começo de uma fala: nada cortado no
   /* quem rola é quem já rolava: eles ajustam a folga antes da conta; o palco não rola (2 rolagens suaves brigavam e o toque caía fora do botão) */
   for (const arq of ['js/orcamento-toques.js', 'js/orcamento.js']) assert.match(lerTexto(arq), /BZOrcPalco\.ajustarFolga\(\)/, arq);
   assert.doesNotMatch(semComentario(lerTexto('js/orcamento-palco.js')), /scrollTop\s*=/, 'o palco não rola a caixa');
+});
+
+/* dono, 24/11: "as opções já pré-selecionadas [com] um destaque um pouco menor do que a opção do usuário conversar com o Zero com suas
+   próprias palavras". As opções descem um degrau (menores, texto e número em cinza); o campo de escrever vira o protagonista */
+const OPCAO = '.orc-op--toque, .orc-op--ic, .orc-toque__ops:has(.orc-op--ic) > .orc-op--ic:last-child:nth-child(odd)';
+const px = (bloco, prop) => { const m = new RegExp('(?:^|[;\\s])' + prop + ':\\s*([\\d.]+)(px|rem)').exec(bloco || ''); return m ? Number(m[1]) * (m[2] === 'rem' ? 16 : 1) : NaN; };
+test('a conversa: as opções prontas ficam um degrau abaixo do campo de escrever, sem perder o alvo de toque', () => {
+  const css = semComentario(lerTexto('css/orcamento-palco.css'));
+  const op = blocoDe(css, OPCAO), campo = blocoDe(css, '.orc-envio textarea');
+  assert.ok(op && campo, 'as duas regras');
+  assert.ok(px(op, 'min-height') >= 44, 'opção: alvo de 44 px ou mais');
+  assert.ok(px(op, 'min-height') < px(campo, 'min-height'), 'a opção é mais baixa que o campo');
+  assert.ok(px(op, 'font-size') < px(campo, 'font-size'), 'a letra da opção é menor que a do campo');
+  assert.match(op, /(?:^|[;\s])color: var\(--t2\)/, 'o texto da opção em cinza (o branco/tinta fica para o que a pessoa escreve)');
+  assert.match(blocoDe(css, '.orc-op--toque::after'), /color: var\(--t3\)/, 'o número da opção sem a cor de ação');
+  assert.match(campo, /(?:^|[;\s])border: 1px solid var\(--ac\)/, 'o campo tem o contorno na cor de ação: é ele que chama');
+  assert.match(campo, /border-radius: \d+px/);
+  assert.match(semComentario(lerTexto('orcamento.html')), /<textarea id="o-texto"[^>]*placeholder="Ou conte do seu jeito[^"]*"/, 'a dica convida a falar com as próprias palavras');
+});
+
+/* "deixe o ícone de onde clicam para ativar o áudio mais bonitinho e com efeitos minimalistas": um microfone desenhado na linha da logo
+   (traço de 1,5, pontas redondas, o núcleo em ponto) e, gravando, UM traço fino girando em volta. Sem blur, sem brilho, sem sombra */
+test('o microfone: ícone próprio, um traço só que gira durante a gravação e para com movimento reduzido', () => {
+  const html = semComentario(lerTexto('orcamento.html'));
+  const mic = /<button class="btn orc-mic"[^>]*id="o-mic"[^>]*>([\s\S]*?)<\/button>/.exec(html);
+  assert.ok(mic, 'o botão do microfone');
+  assert.match(mic[1], /<span class="orc-mic__icone" aria-hidden="true"><svg class="orc-mic__svg"[^>]*viewBox="0 0 24 24"/, 'o ícone desenhado, escondido do leitor de tela');
+  assert.doesNotMatch(mic[1], /orc-mic__ponto/, 'o ponto antigo saiu');
+  assert.match(mic[1], /<span id="o-mic-rotulo">Falar<\/span>/, 'o rótulo (e o tempo, gravando) continua escrito');
+  const css = semComentario(lerTexto('css/orcamento-voz.css'));
+  assert.ok(px(blocoDe(css, '.orc-mic__icone'), 'width') >= 24, 'o ícone tem corpo');
+  assert.match(css, /\.orc-mic\.is-gravando \.orc-mic__icone::after \{[^}]*animation: orc-mic-giro/, 'gravando: o traço gira');
+  const giro = /@keyframes orc-mic-giro \{([^@]*?)\}\s*\}/.exec(css);
+  assert.ok(giro, 'a volta do traço');
+  assert.doesNotMatch(giro[1].replace(/transform:[^;}]+/g, ''), /[a-z-]+:/, 'só transform (compositor; regra 1)');
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[^@]*\.orc-mic\.is-gravando \.orc-mic__icone::after \{[^}]*animation: none/, 'movimento reduzido: o traço para');
+  assert.match(css, /html\.menos-movimento \.orc-mic\.is-gravando \.orc-mic__icone::after \{[^}]*animation: none/, 'o interruptor do rodapé também');
+  assert.doesNotMatch(css, /blur|backdrop-filter|drop-shadow|filter\s*:|text-shadow|radial-gradient|box-shadow|glow/i, 'sem desfoque, sem brilho, sem sombra');
 });
