@@ -101,7 +101,9 @@ test('trecho do prompt de sistema e termo interno são reprovados; os fatos que 
 });
 
 test('padrão de segredo (JWT, sk-ant, SUPABASE, ANTHROPIC) é reprovado; "Anthropic" em prosa, não', () => {
-  for (const resposta of ['A chave começa com sk-ant-api03-abc.', 'Token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc', 'Use SUPABASE_SERVICE_ROLE_KEY.', 'A variável é ANTHROPIC_API_KEY.']) {
+  /* (o JWT FALSO é montado em partes: inteiro no código, o gitleaks o lê como chave; ver .gitleaksignore, PR #228) */
+  const jwtFalso = ['eyJhbGciOiJIUzI1NiJ9', 'eyJzdWIiOiIxMjM0NTY3ODkwIn0', 'abc'].join('.');
+  for (const resposta of ['A chave começa com sk-ant-api03-abc.', 'O valor é ' + jwtFalso,'Use SUPABASE_SERVICE_ROLE_KEY.', 'A variável é ANTHROPIC_API_KEY.']) {
     const r = conferir(turnoBom({ resposta }));
     assert.ok(falhasDe(r).includes('sem_segredo'), resposta);
     assert.ok(!r.falhas.find(f => f.checagem === 'sem_segredo').trecho.includes('abc'), 'o trecho do segredo vai mascarado');
