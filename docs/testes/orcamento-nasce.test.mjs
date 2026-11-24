@@ -168,13 +168,13 @@ test('palco no HTML: kicker, título, a vitrine com a miniatura e os contadores 
     'a folha do palco vem depois das do orçamento (ganha delas) e antes da passagem (que segue mandando no movimento entre páginas)');
 });
 
-test('palco no CSS: conversa em branco, faixa preta com a luz #49E5DD, logo para fundo claro; sem desfoque, sem brilho, sem sombra suave', () => {
+test('palco no CSS: no claro a conversa em branco e a logo para fundo claro; faixa preta com a luz #49E5DD; sem desfoque, sem brilho, sem sombra suave', () => {
   const css = semComentario(lerTexto('css/orcamento-palco.css'));
-  assert.match(css, /\.orc__main[^{]*\{[^}]*--bg: #FFFFFF/, 'a página do orçamento é branca');
+  assert.match(css, /html\[data-tema="claro"\] \.orc__main[^{]*\{[^}]*--bg: #FFFFFF/, 'no claro a página do orçamento é branca');
   assert.match(css, /\.orc-palco[^{]*\{[^}]*--ac: #49E5DD/, 'no palco a luz é o verde-água da marca');
   assert.match(css, /\.orc-palco \{[^}]*background(-color)?: #000/, 'o palco é preto chapado');
-  assert.match(css, /\.orc \.nav[^{]*\{[^}]*background(-color)?: #FFFFFF/, 'o topo é branco');
-  assert.match(css, /\.marca__nome \{[^}]*fill: #0B0C0D/, 'a logo para fundo claro (o nome em tinta)');
+  assert.match(css, /\.orc \.nav[^{]*\{[^}]*background(-color)?: var\(--bg\)/, 'o topo tem a cor da página (branco no claro, grafite no escuro)');
+  assert.match(css, /html\[data-tema="claro"\] [^{]*\.marca__nome \{[^}]*fill: #0B0C0D/, 'no claro, a logo para fundo claro (o nome em tinta)');
   assert.doesNotMatch(css, /blur|backdrop-filter|drop-shadow|filter\s*:|text-shadow|radial-gradient/i);
   for (const s of css.match(/box-shadow:[^;}]+/g) || []) {
     /* só traço: inset de 1 a 3 px sem desfoque, nunca sombra que espalha luz */

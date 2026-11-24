@@ -55,7 +55,7 @@ async function lerPixels(leitor, png, pontos) {
 async function coresNaTela(page, leitor, escala) {
   const geo = await page.evaluate(({ PONTOS }) => {
     const svg = document.querySelector('.marca--nav'); const r = svg.getBoundingClientRect();
-    const vb = svg.viewBox.baseVal; const palco = document.querySelector('.orc-palco').getBoundingClientRect();
+    const vb = svg.viewBox.baseVal; const p = document.querySelector('.orc-palco'), palco = p ? p.getBoundingClientRect() : { top: 0 };
     const logo = {}; for (const [k, [x, y]] of Object.entries(PONTOS)) logo[k] = [r.left + x / vb.width * r.width, r.top + y / vb.height * r.height];
     return { logo, barra: [4, 4], palco: [4, Math.max(palco.top, 0) + 6] };
   }, { PONTOS });
@@ -124,7 +124,8 @@ try {
         };
       });
       ok(info.tema === tema, rot + ': data-tema = ' + info.tema);
-      ok(info.meta === (tema === 'claro' ? 'only light' : 'dark') && info.esquema === info.meta, rot + ': color-scheme ' + info.meta + ' / ' + info.esquema);
+      const mesmo = (a, b) => String(a).split(' ').sort().join(' ') === String(b).split(' ').sort().join(' ');   /* (o navegador escreve "light only") */
+      ok(info.meta === (tema === 'claro' ? 'only light' : 'dark') && mesmo(info.esquema, info.meta), rot + ': color-scheme ' + info.meta + ' / ' + info.esquema);
       const bx = info.botao && info.botao.caixa;
       ok(info.botao && info.botao.visivel && bx.width >= 44 && bx.height >= 44 && bx.top >= 0 && bx.right <= largura, rot + ': botão à vista no topo, ' + (bx ? Math.round(bx.width) + '×' + Math.round(bx.height) : 'ausente'));
       ok(info.botao && info.botao.pressionado === (tema === 'claro' ? 'true' : 'false') && info.botao.rotulo === 'Tema claro', rot + ': aria-pressed ' + (info.botao && info.botao.pressionado));
@@ -157,11 +158,13 @@ try {
     const estado = () => page.evaluate(k => [document.documentElement.getAttribute('data-tema'), localStorage.getItem(k), document.querySelector('.nav__tema').getAttribute('aria-pressed'), document.querySelector('meta[name="theme-color"]').content], CHAVE);
     ok(JSON.stringify(await estado()) === JSON.stringify(['escuro', null, 'false', '#131617']), 'troca: abre no escuro sem nada guardado');
     await page.locator('.nav__tema').click();
+    await page.waitForTimeout(1200);   /* (a logo e a barra trocam de cor numa transição de até 0,8 s) */
     ok(JSON.stringify(await estado()) === JSON.stringify(['claro', 'claro', 'true', '#FFFFFF']), 'troca: um toque vai ao claro e guarda');
     conferirCores(await coresNaTela(page, leitor, 2), 'claro', 'troca → claro');
     await page.reload({ waitUntil: 'load' });
     ok((await estado())[0] === 'claro', 'troca: recarregando, continua no claro');
     await page.locator('.nav__tema').focus(); await page.keyboard.press('Enter');
+    await page.waitForTimeout(1200);
     ok(JSON.stringify(await estado()) === JSON.stringify(['escuro', 'escuro', 'false', '#131617']), 'troca: pelo teclado (Enter) volta ao escuro e guarda');
     await page.reload({ waitUntil: 'load' });
     ok((await estado())[0] === 'escuro', 'troca: recarregando, continua no escuro');
@@ -171,7 +174,8 @@ try {
 
   /* ---------- 5: não pisca (o claro guardado, o js/tema.js atrasado 800 ms de propósito) ---------- */
   {
-    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce', colorScheme: 'dark' });
+    /* (sistema claro: o about:blank antes da navegação é branco; um quadro escuro só pode ser o tema errado) */
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce', colorScheme: 'light' });
     await autorizarContexto(ctx, BASE);
     await ctx.addInitScript(([k]) => {
       try { localStorage.setItem(k, 'claro'); } catch { /* sem armazenamento */ }
@@ -191,7 +195,7 @@ try {
     ok(sonda[0] === 'claro', 'não pisca: no 1º quadro o tema já é o claro (' + sonda[0] + ', corpo ' + (sonda[1] ? 'existe' : 'ainda não') + ')');
     /* nenhum quadro com a barra do topo escura (o tema errado) */
     let escuros = 0;
-    for (const q of quadros) { const [px] = await lerPixels(leitor, Buffer.from(q, 'base64'), [[4, 4]]); if (px[0] < 128) escuros++; }
+    for (const [i, q] of quadros.entries()) { const [px] = await lerPixels(leitor, Buffer.from(q, 'base64'), [[4, 4]]); if (px[0] < 128) { escuros++; await guardar('pisca-quadro-' + i + '.png', Buffer.from(q, 'base64')); } }
     ok(quadros.length > 0 && escuros === 0, 'não pisca: ' + quadros.length + ' quadros da tela, ' + escuros + ' com a barra escura');
     await ctx.close();
   }
@@ -214,13 +218,22 @@ try {
       const { ctx, page } = await abrir(navEscuro, { largura: 390, altura: 844, tema, colorScheme: sistema });
       const rot = 'forçado, sistema ' + sistema + ', ' + tema;
       const cores = await coresNaTela(page, leitor2, 2);
-      if (sistema === 'light' && tema === 'escuro') {
-        /* sistema claro + escurecimento ligado à força: o Chrome escurece qualquer página que não diga "only light"; o escuro já
-           é escuro, então o que importa é a logo e o nome não mudarem */
-        for (const parte of ['nome', 'aro', 'zero', 'nucleo']) ok(perto(cores[parte], ESPERADO.escuro[parte]), rot + ': ' + parte + ' ' + hex(cores[parte]) + ' (esperado ' + ESPERADO.escuro[parte] + ')');
-        ok(cores.barra[0] < 40, rot + ': a barra continua escura, ' + hex(cores.barra));
-      } else conferirCores(cores, tema, rot);
+      if (sistema === 'dark') conferirCores(cores, tema, rot);
+      else {
+        /* sistema CLARO com o escurecimento ligado à força (a flag do Chrome, não o "escurecer sites" do tema escuro do Android):
+           o Chrome escurece qualquer página, e nenhuma declaração impede (nem o "only light", medido no PR #227). Fica registrado,
+           sem reprovar; a comparação com /sites (escura desde sempre) mostra que é o mesmo no site inteiro */
+        console.log('INFO  ' + rot + ': ' + Object.entries(cores).map(([k, v]) => k + ' ' + hex(v)).join(', '));
+      }
       await guardar('forcado-' + sistema + '-' + tema + '.png', await page.screenshot());
+      await ctx.close();
+    }
+    if (sistema === 'light') {
+      const ctx = await navEscuro.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, reducedMotion: 'reduce', colorScheme: sistema });
+      await autorizarContexto(ctx, BASE);
+      const page = await ctx.newPage(); await page.goto(BASE + '/sites', { waitUntil: 'load', timeout: 90000 }); await page.waitForTimeout(400);
+      const cores = await coresNaTela(page, leitor2, 2);
+      console.log('INFO  forçado, sistema light, /sites (referência): ' + ['barra', 'nome', 'aro', 'zero', 'nucleo'].map(k => k + ' ' + hex(cores[k])).join(', '));
       await ctx.close();
     }
   }
