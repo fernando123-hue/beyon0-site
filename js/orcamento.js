@@ -630,7 +630,7 @@
       mini.appendChild(tela);
       mini.setAttribute('aria-hidden', 'true');
       mini.addEventListener('click', function () { visor.abrir(d.id); });
-      if (recomendadaId() === d.id) { li.classList.add('is-recomendada'); corpo.appendChild(el('p', 'dir__recomendado', 'Recomendado pelo Zero')); }
+      if (recomendadaId() === d.id) { li.classList.add('is-recomendada'); corpo.insertBefore(el('p', 'dir__recomendado', 'Recomendado pelo Zero'), corpo.firstChild); }   /* (em cima do número, na ordem do DOM: a mesma que se vê) */
       corpo.appendChild(el('h3', 'dir__nome', d.conteudo.nome_conceito));
       corpo.appendChild(el('p', 'dir__resumo sr-only', d.conteudo.resumo));   /* (a miniatura é aria-hidden: quem não vê ouve a descrição; na tela, a prévia fala por ela) */
       var acoes = el('div', 'dir__acoes');

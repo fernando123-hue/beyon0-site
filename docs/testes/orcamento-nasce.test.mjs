@@ -730,4 +730,9 @@ test('a seção dos modelos: lead curto, a regra do ajuste dita, sem a descriç�
   assert.match(js, /el\('p', 'dir__resumo sr-only', d\.conteudo\.resumo\)/, 'a descrição do modelo fica para o leitor de tela (a miniatura é aria-hidden); na tela, a prévia fala por ela');
   assert.doesNotMatch(js, /'Abrir o modelo ' \+ r\.numero/, 'a recomendação não repete o botão que o cartão já tem');
   assert.match(js, /'O Zero recomenda'/, 'a recomendação continua dizendo de quem é');
+  /* o selo do recomendado nunca por cima do site (19/11 cobria a marca do negócio; 24/11 cortava o botão da miniatura): ele fica na parte de
+     informação do cartão, no fluxo, e não flutua sobre a miniatura */
+  const selo = /\n\.dir__recomendado \{([^}]*)\}/.exec(semComentario(lerTexto('css/orcamento-modelos.css')));
+  assert.ok(selo, 'a regra do selo');
+  assert.doesNotMatch(selo[1], /position:\s*(absolute|fixed)|transform:|top:/, 'o selo não flutua sobre a prévia');
 });
