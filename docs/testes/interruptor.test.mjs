@@ -12,7 +12,7 @@ import { entregaLigada, FRASE_DESLIGADA } from '../../api/_material/interruptor.
 const ANTIGAS = ['recado', 'sessao', 'retomar', 'renovar', 'mensagem', 'gerar', 'gerar-direcao', 'escolher', 'ajustar', 'desfazer', 'pedido-livre', 'escopo', 'confirmar', 'pagar', 'simular', 'confirmar-pacote', 'detalhes'];
 /* o microfone tem o próprio interruptor: sem transcritor configurado a ação dá 503 (voz-api.test.mjs) */
 const DA_VOZ = ['transcrever'];
-const DA_ENTREGA = ['material-salvar', 'material-reservar', 'material-conferir', 'material-remover', 'material-enviar', 'link-pedido', 'sair-do-aparelho', 'outro-aparelho', 'abrir-pedido', 'previa-ajustes', 'previa-aprovar'];
+const DA_ENTREGA = ['material-salvar', 'material-reservar', 'material-conferir', 'material-remover', 'material-enviar', 'link-pedido', 'sair-do-aparelho', 'outro-aparelho', 'abrir-pedido', 'previa-ajustes', 'previa-aprovar', 'desistir'];
 
 let local, cen;
 before(async () => { local = await montarLocal({ base: BASE }); cen = criarCenario(local); });

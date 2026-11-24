@@ -60,3 +60,18 @@
 
 .orc-passos--curta .orc-passo { grid-template-columns: 2rem minmax(0, 1fr); padding: .6rem 0; }
 .orc-antes-passos { margin: 1rem 0 1.2rem; }
+
+/* DESISTIR DA COMPRA (20/11, js/orcamento-desistencia.js): a opção é DISCRETA de propósito (dono: "não queremos induzir o cliente a pedir reembolso").
+   Um link de texto pequeno, na cor de apoio, embaixo de tudo; o painel só existe depois do toque. Alvo de 44 px no celular. Sem desfoque, sombra nem brilho. */
+.orc-desiste { margin-top: 2rem; padding-top: .4rem; }
+.orc-desiste__abrir { min-height: 44px; padding: 0 .2rem; background: none; border: 0; color: var(--t3); font: inherit; font-size: var(--fs-s); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; cursor: pointer; }
+.orc-desiste__abrir:hover { color: var(--t2); }
+.orc-desiste__abrir:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-desiste__painel { margin-top: .6rem; padding: 1rem; border: 1px solid var(--line-2); border-radius: var(--raio); background: var(--s1); }
+.orc-desiste__titulo { font-size: var(--fs-b); font-weight: 500; color: var(--t1); }
+.orc-desiste__titulo:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-desiste__texto { margin-top: .6rem; font-size: var(--fs-b); line-height: 1.55; color: var(--t2); overflow-wrap: anywhere; }
+.orc-desiste__nota { margin-top: .5rem; font-size: var(--fs-s); line-height: 1.5; color: var(--t3); }
+.orc-desiste__acoes { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
+.orc-desiste__painel .orc-erro { margin-top: .75rem; font-size: var(--fs-b); line-height: 1.5; }
+.orc-desiste__painel .orc-erro:empty { margin: 0; }

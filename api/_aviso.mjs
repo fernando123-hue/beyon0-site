@@ -118,6 +118,10 @@ export function textoDoAvisoDePagamento(alerta) {
   const pedido = codigo ? 'pedido ' + codigo : 'um pedido';
   if (evento === 'restante_pago_bloqueada') return 'URGENTE: ' + pedido + ': o restante foi pago, mas a entrega está bloqueada. O site não vai ao ar até você resolver: veja o Mercado Pago e o painel.';
   if (evento === 'restante_pago') return (codigo ? 'Pedido ' + codigo : 'Um pedido') + ': o restante foi pago. O site já pode ir ao ar: ponha no ar pelo painel e mande o aviso ao cliente.';
+  /* (20/11) a desistência do cliente dentro dos 7 dias: a entrada volta pelo Pix; o pedido é encerrado em seguida (o dono não precisa fazer nada, salvo se o encerramento não sair) */
+  if (evento === 'desistencia') return (codigo ? 'Pedido ' + codigo : 'Um pedido') + ': o cliente desistiu dentro dos 7 dias e a entrada foi devolvida pelo Mercado Pago. O pedido é encerrado em seguida e o material sai no dia seguinte.';
+  if (evento === 'desistencia_falhou') return 'URGENTE: ' + pedido + ': o cliente pediu para desistir dentro dos 7 dias, mas a entrada NÃO foi devolvida (o Mercado Pago não respondeu ou o restante já foi pago). Ele foi orientado a deixar um recado. Veja o Mercado Pago e o painel.';
+  if (evento === 'desistencia_nao_encerrada') return 'URGENTE: ' + pedido + ': a entrada foi devolvida na desistência do cliente, mas o pedido não encerrou sozinho. Encerre pelo painel, com o motivo desistência.';
   if (!Object.hasOwn(ACONTECEU, String(evento))) return null;
   return 'URGENTE: ' + pedido + ': ' + PARCELAS[parcela] + ' ' + ACONTECEU[evento][parcela] + '. A entrega ficou bloqueada: nada avança nem vai ao ar. Veja o Mercado Pago e o painel.';
 }
