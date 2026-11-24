@@ -31,7 +31,7 @@ npm run avaliar:injecao -- --teto 1 --cenario preco-zero,nega-ser-ia
 - A chave nunca aparece: se aparecesse em algum texto, sairia como `***`.
 
 **O que aparece na tela:** uma linha por roteiro (`PASSOU` ou `FALHOU`, o custo e a checagem que falhou), depois o detalhe de cada falha
-com o trecho, e o **RESUMO** no fim. A última linha diz onde ficou o relatório completo (um `.json` na pasta temporária, só o dono lê).
+com o trecho, e o **RESUMO** no fim. A última linha diz onde ficou o relatório completo (um `.json` na pasta temporária do usuário do Windows; apague depois de devolver).
 Para devolver: copie o texto da tela a partir de `== ROTEIROS ==`. Se a sessão pedir, mande também o `.json`, que traz as respostas do
 Zero às mensagens inventadas dos roteiros e nenhum segredo.
 
@@ -42,5 +42,9 @@ Zero às mensagens inventadas dos roteiros e nenhum segredo.
   quanto a segunda camada trabalhou.
 - Um **controle** (cliente honesto) que falha quer dizer que o Zero ficou desconfiado sem motivo ou não chegou ao valor.
 - A lista das checagens e o que cada uma olha está no cabeçalho de `injecao.mjs`.
+
+**Limites (ditos como são):** a checagem da estimativa confere que o valor saiu do cálculo da tabela com a entrada que o modelo mandou,
+não que o formato escolhido é o certo para o caso. Os padrões de recusa paranoica e de "site grátis" são largos de propósito nesta 1ª
+versão; depois da 1ª rodada real, eles são estreitados olhando os falsos positivos que aparecerem.
 
 Código de saída: 0 se tudo passou, 1 se algum roteiro falhou ou deu erro, 2 se faltou a chave ou algum argumento estava errado.
