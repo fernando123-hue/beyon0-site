@@ -4,6 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import vm from 'node:vm';
+import { criarDoc } from './_dom-falso.mjs';
 const require = createRequire(import.meta.url);
 const R = require('../../js/orcamento-rotulos.js');
 const N = require('../../js/orcamento-nasce.js');
@@ -459,7 +461,7 @@ test('a conversa: as opções prontas ficam um degrau abaixo do campo de escreve
   assert.ok(px(op, 'min-height') < px(campo, 'min-height'), 'a opção é mais baixa que o campo');
   assert.ok(px(op, 'font-size') < px(campo, 'font-size'), 'a letra da opção é menor que a do campo');
   assert.match(op, /(?:^|[;\s])color: var\(--t2\)/, 'o texto da opção em cinza (o branco/tinta fica para o que a pessoa escreve)');
-  assert.match(campo, /(?:^|[;\s])border: 1px solid var\(--ac\)/, 'o campo tem o contorno na cor de ação: é ele que chama');
+  assert.match(campo, /(?:^|[;\s])border: 1px solid rgb\(var\(--ac-rgb\)/, 'o campo tem o contorno na cor de ação (e a energia por cima): é ele que chama');
   assert.match(campo, /border-radius: \d+px/);
   assert.match(semComentario(lerTexto('orcamento.html')), /<textarea id="o-texto"[^>]*placeholder="Ou conte do seu jeito[^"]*"/, 'a dica convida a falar com as próprias palavras');
 });
@@ -487,27 +489,115 @@ test('o microfone: ícone próprio, um traço só que gira durante a gravação 
 /* dono, 24/11 (depois): "Dê um pouco mais de detalhes em tudo, com ênfase no campo aonde o usuário escreve e no microfone e seu ícone".
    A variação B de docs/design/orcamento-detalhes-2026-11-24.md: a luz que dá UMA volta pela linha do campo ao entrar nele, o microfone
    num disco chapado (centrado de verdade), o núcleo piscando enquanto grava, o Enviar com a seta */
-test('o campo: ao entrar nele, uma luz curta dá UMA volta pela própria linha da borda; parado e com movimento reduzido, nada a mais', () => {
+/* dono, 24/11 (print do celular): "O campo de por as informações, parece meio bugado, quero tenha uma energia seguindo um fluxo constante
+   minimalista, que fica mais forte conforme a pessoa escreve, e quando ela para, a energia vai diminuindo". A borda ciano inteira e
+   parada do foco saiu; fica UMA linha de 1 px e um traço que percorre a borda sem parar, em 4 degraus de força (js/orcamento-campo.js) */
+const C = require('../../js/orcamento-campo.js');
+test('o campo: uma linha só e o traço de energia em quatro trilhos, escondido do leitor de tela; nada de borda ciano inteira no foco', () => {
   const html = semComentario(lerTexto('orcamento.html'));
-  const campo = /<div class="orc-campo">([\s\S]*?)<\/div>/.exec(html);
-  assert.ok(campo, 'o campo mora na caixa .orc-campo (a luz acompanha o tamanho dele)');
+  const campo = /<div class="orc-campo">([\s\S]*?)\n {10}<\/div>/.exec(html);
+  assert.ok(campo, 'o campo mora na caixa .orc-campo (a energia acompanha o tamanho dele)');
   assert.match(campo[1], /<textarea id="o-texto"/);
-  assert.match(campo[1], /<svg class="orc-campo__luz" aria-hidden="true" focusable="false"><rect pathLength="100"\/><\/svg>/, 'a luz: um traço só, escondido do leitor de tela');
+  assert.doesNotMatch(campo[1], /<svg/, 'a volta única em SVG (stroke-dashoffset, fora do compositor) saiu');
+  const luz = /<span class="orc-campo__luz" aria-hidden="true">([\s\S]*?)<\/span>\s*$/.exec(campo[1]);
+  assert.ok(luz, 'a energia, escondida do leitor de tela');
+  for (const lado of ['cima', 'direita', 'baixo', 'esquerda']) assert.match(luz[1], new RegExp('<span class="orc-campo__lado orc-campo__lado--[hv] orc-campo__lado--' + lado + '"><span class="orc-campo__traco"></span></span>'), lado);
+  assert.match(html, /<script src="js\/orcamento-campo\.js" defer><\/script>/);
   const css = semComentario(lerTexto('css/orcamento-palco.css'));
-  assert.match(css, /\n\.orc-campo__luz \{ display: none; \}/, 'sem movimento (ou sem o @media), a luz nem existe');
+  const borda = blocoDe(css, '.orc-envio textarea');
+  assert.match(borda, /(?:^|[;\s])border: 1px solid rgb\(var\(--ac-rgb\) \/ \.\d+\)/, 'a linha de 1 px na cor de ação, um tom abaixo: o traço aparece por cima dela');
+  assert.match(borda, /caret-color: var\(--ac\)/, 'o cursor na cor de ação');
+  const foco = blocoDe(css, '.orc-envio textarea:focus-visible');
+  assert.ok(foco, 'o foco continua visível');
+  assert.match(foco, /outline: none/, 'sem o anel ciano de 2 px por cima');
+  assert.match(foco, /border-color: rgb\(var\(--ac-rgb\) \/ \.\d+\)/, 'o foco é a MESMA linha um tom mais clara');
+  const tons = [borda, foco].map(b => Number(/rgb\(var\(--ac-rgb\) \/ (\.\d+)\)/.exec(b)[1]));
+  assert.ok(tons[1] >= tons[0] + .25 && tons[1] >= .7, 'no foco a linha clareia de forma que se vê (revisão: um passo pequeno ficava no limite do WCAG 2.4.7): ' + tons);
+  const raio = Number(/border-radius: (\d+)px/.exec(borda)[1]);
+  for (const lado of ['h', 'v']) assert.match(css, new RegExp('\\.orc-campo__lado--' + lado + ' \\{[^}]*(?:left|top): ' + raio + 'px; (?:right|bottom): ' + raio + 'px'), 'os trilhos começam onde o canto do campo acaba (o mesmo raio que o JS lê): ' + lado);
+  const daEnergia = css.split('\n').filter(l => /orc-campo/.test(l)).join('\n');
+  assert.doesNotMatch(daEnergia, /blur|filter\s*:|shadow|glow|radial-gradient/i, 'sem desfoque, sem brilho, sem sombra');
+});
+
+test('o fluxo: @keyframes só de transform, infinito, só com movimento ligado e pausado fora da tela; 4 degraus de força só com transform e opacidade', () => {
+  const css = semComentario(lerTexto('css/orcamento-palco.css'));
+  assert.match(css, /\n\.orc-campo__luz \{ display: none; \}/, 'sem JS, sem medida ou sem movimento, o traço nem existe');
   const mov = /@media \(prefers-reduced-motion: no-preference\) \{([^@]*?\.orc-campo__luz[^@]*?)\n\}/.exec(css);
-  assert.ok(mov, 'a luz só com movimento ligado');
-  assert.match(mov[1], /html:not\(\.menos-movimento\) \.orc-campo__luz \{[^}]*display: block/, 'o interruptor do rodapé também a desliga');
-  const volta = /html:not\(\.menos-movimento\) \.orc-campo:focus-within \.orc-campo__luz rect \{([^}]*)\}/.exec(mov[1]);
-  assert.ok(volta, 'a volta começa quando a pessoa entra no campo');
-  assert.match(volta[1], /animation: orc-campo-volta /);
-  assert.doesNotMatch(volta[1], /infinite/, 'UMA volta: depois o campo fica quieto para a pessoa escrever');
-  const traco = /\.orc-campo__luz rect \{[^}]*stroke-dasharray: (\d+) (\d+)/.exec(mov[1]);
-  assert.ok(traco && Number(traco[1]) + Number(traco[2]) === 100 && Number(traco[1]) <= 12, 'um traço curto (até 12 % da volta), nunca a borda inteira acesa');
-  const kf = /@keyframes orc-campo-volta \{([^\n]*)\}/.exec(css);
-  assert.ok(kf, 'a volta');
-  assert.doesNotMatch(kf[1].replace(/stroke-dashoffset:[^;}]+|opacity:[^;}]+/g, ''), /[a-z-]+:/, 'só o caminho do traço e a opacidade');
-  assert.match(blocoDe(css, '.orc-envio textarea'), /caret-color: var\(--ac\)/, 'o cursor na cor de ação');
+  assert.ok(mov, 'o traço só com movimento ligado');
+  assert.match(mov[1], /html:not\(\.menos-movimento\) \.orc-campo\.is-medido \.orc-campo__luz \{[^}]*display: block/, 'o interruptor do rodapé também o desliga; só depois de medido');
+  for (const eixo of ['x', 'y']) {
+    const kf = new RegExp('@keyframes orc-campo-fluxo-' + eixo + ' \\{([\\s\\S]*?)\\}\\s*\\}').exec(css);
+    assert.ok(kf, 'o fluxo no eixo ' + eixo);
+    assert.doesNotMatch(kf[1].replace(/transform:[^;}]+/g, ''), /[a-z-]+:/, 'só transform (compositor; regra 1)');
+  }
+  assert.match(css, /\.orc-campo__lado--h \.orc-campo__traco \{[^}]*animation: orc-campo-fluxo-x [^;]*linear infinite/, 'constante: linear e sem fim');
+  assert.match(css, /\.orc-campo__lado--v \.orc-campo__traco \{[^}]*animation: orc-campo-fluxo-y [^;]*linear infinite/);
+  assert.match(css, /\.orc-campo\.is-fora \.orc-campo__traco \{[^}]*animation-play-state: paused/, 'fora da tela, pausa');
+  const escalas = [0, 1, 2, 3].map(n => { const m = new RegExp('\\.orc-campo\\[data-energia="' + n + '"\\] \\.orc-campo__lado--h \\.orc-campo__traco::before \\{ transform: scaleX\\(([\\d.]+)\\)').exec(css); return m ? Number(m[1]) : NaN; });
+  const opac = [0, 1, 2, 3].map(n => { const m = new RegExp('\\.orc-campo\\[data-energia="' + n + '"\\] \\.orc-campo__luz \\{ opacity: ([\\d.]+)').exec(css); return m ? Number(m[1]) : NaN; });
+  for (const serie of [escalas, opac]) {
+    assert.ok(serie.every(Number.isFinite), 'um valor por degrau: ' + serie);
+    assert.ok(serie.every((v, i) => i === 0 || v > serie[i - 1]), 'cada degrau mais forte que o anterior: ' + serie);
+    assert.ok(serie[0] > 0 && serie[3] <= 1, 'o degrau 0 ainda flui; o 3 é o traço inteiro');
+  }
+  assert.match(css, /\.orc-campo__traco::before \{[^}]*transition: transform [^;]*, opacity/, 'a troca de degrau é suave (transição de transform)');
+  assert.doesNotMatch(css, /\.orc-campo__traco::before \{[^}]*transition:[^;]*(width|height|background)/, 'nada além de transform/opacidade muda');
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[^@]*\.orc-campo\[data-energia\]:not\(\[data-energia="0"\]\) textarea \{[^}]*border-color: var\(--ac\)/, 'movimento reduzido: escrevendo, a linha parada sobe um tom (sem JS, nada muda)');
+  assert.match(css, /html\.menos-movimento \.orc-campo\[data-energia\]:not\(\[data-energia="0"\]\) textarea \{[^}]*border-color: var\(--ac\)/, 'o interruptor do rodapé também');
+});
+
+test('a força: sobe com as letras, desce um degrau por vez quando a pessoa para (em até 3 s), sem rAF', () => {
+  assert.deepEqual([0, 1, 7, 8, 19, 20, 500].map(C.nivel), [0, 1, 1, 2, 2, 3, 3]);
+  let agora = 0; const fila = [];
+  const relogio = { setTimeout: (f, ms) => { const t = { f, quando: agora + ms }; fila.push(t); return t; }, clearTimeout: t => { const i = fila.indexOf(t); if (i >= 0) fila.splice(i, 1); } };
+  const andar = ms => { const fim = agora + ms; for (;;) { fila.sort((a, b) => a.quando - b.quando); const t = fila[0]; if (!t || t.quando > fim) break; fila.shift(); agora = t.quando; t.f(); } agora = fim; };
+  const vistos = [];
+  const e = C.energia(n => vistos.push(n), relogio);
+  for (let i = 0; i < 25; i++) { e.escreveu(); andar(120); }
+  assert.deepEqual(vistos, [1, 2, 3], 'sobe degrau a degrau e só avisa quando muda');
+  assert.equal(fila.length, 1, 'um temporizador só, refeito a cada letra');
+  andar(C.PAUSA_MS - 121);
+  assert.equal(e.atual(), 3, 'logo depois de parar, ainda forte');
+  andar(1); assert.equal(e.atual(), 2);
+  andar(C.PASSO_MS); assert.equal(e.atual(), 1);
+  andar(C.PASSO_MS); assert.equal(e.atual(), 0);
+  assert.ok(C.PAUSA_MS + 2 * C.PASSO_MS >= 1500 && C.PAUSA_MS + 2 * C.PASSO_MS <= 3000, 'do 3 ao 0 entre 1,5 e 3 s');
+  assert.equal(fila.length, 0, 'no 0 não sobra temporizador');
+  andar(5000); assert.deepEqual(vistos, [1, 2, 3, 2, 1, 0]);
+  e.escreveu(); assert.equal(e.atual(), 1, 'voltou a escrever: acorda de novo');
+  assert.doesNotMatch(semComentario(lerTexto('js/orcamento-campo.js')), /requestAnimationFrame|setInterval/, 'sem laço próprio');
+});
+
+test('a volta: a cabeça do traço anda na mesma velocidade em todos os lados e entra em cada um quando sai do anterior', () => {
+  for (const [w, h] of [[350, 104], [280, 104], [640, 150], [350, 300]]) {
+    const r = 16, L = C.TRACO_PX, v = C.VELOCIDADE, g = C.geometria(w, h, r, L, v);
+    assert.ok(g, w + '×' + h);
+    const c = Math.PI * r / 2;
+    assert.ok(Math.abs(g.perimetro - (2 * (w - 2 * r) + 2 * (h - 2 * r) + 4 * c)) < 1e-6);
+    assert.ok(Math.abs(g.volta - g.perimetro / v) < 1e-9, 'a volta dura o perímetro na velocidade fixa');
+    /* a cabeça (translate + L) de cada lado no tempo t, como o navegador anima: progresso = (t - atraso) / volta, linear, repetindo */
+    const cabeca = (l, t) => { const p = (((t - l.atraso) / g.volta) % 1 + 1) % 1; return l.de + (l.ate - l.de) * p + L; };
+    for (const l of g.lados) {
+      const t0 = l.inicio / v;
+      assert.ok(Math.abs(cabeca(l, t0 + 1e-6) - 1e-6 * v) < 1e-3, 'entra no começo do lado na hora certa (' + w + '×' + h + ')');
+      assert.ok(Math.abs(cabeca(l, t0 + l.comprimento / v) - l.comprimento) < 1e-3, 'chega ao fim do lado na mesma velocidade');
+      const antes = cabeca(l, t0 - 0.01);
+      assert.ok(antes <= 0 || antes > l.comprimento + L - 1e-6, 'antes disso, nada no lado');
+    }
+  }
+  /* o campo cresce no meio da volta (uma linha nova): a cabeça segue na mesma fração do caminho, sem pular */
+  const g1 = C.geometria(350, 104, 16), g2 = C.geometria(350, 128, 16);
+  for (const [t, d0] of [[0, 0], [3.7, 0], [41.2, 1.3], [600, 2.9]]) {
+    const fr = ((C.VELOCIDADE * (t + d0)) % g1.perimetro) / g1.perimetro;
+    const d1 = C.continuar(t, g1, d0, g2);
+    assert.ok(d1 >= 0 && d1 < g2.volta, 'deslocamento dentro da volta (o atraso fica negativo e a animação não espera)');
+    const fr2 = ((C.VELOCIDADE * (t + d1)) % g2.perimetro) / g2.perimetro;
+    assert.ok(Math.abs(fr - fr2) < 1e-6 || Math.abs(Math.abs(fr - fr2) - 1) < 1e-6, 'mesma fração antes e depois: ' + fr + ' × ' + fr2);
+  }
+  assert.equal(C.continuar(-1, g1, 0, g2), 0, 'sem animação rodando ainda: começa do zero');
+  assert.equal(C.continuar(5, null, 0, g2), 0, 'a 1ª medida começa do zero');
+  assert.equal(C.geometria(0, 104, 16), null, 'escondido (sem tamanho): não mede');
+  assert.equal(C.geometria(Number.NaN, 104, 16), null);
 });
 
 test('o microfone: centrado no disco (ganha da regra geral .btn span), o núcleo pisca enquanto grava e para com movimento reduzido', () => {
@@ -534,4 +624,115 @@ test('o Enviar casado com o campo: a palavra e uma seta de traço escondida do l
   const palco = semComentario(lerTexto('css/orcamento-palco.css')), voz = semComentario(lerTexto('css/orcamento-voz.css'));
   assert.equal(px(blocoDe(palco, '.orc-envio #o-enviar'), 'min-height'), px(blocoDe(voz, '.orc-mic'), 'min-height'), 'Enviar e Falar com a mesma altura');
   assert.ok(px(blocoDe(palco, '.orc-envio #o-enviar'), 'min-height') >= 44, 'alvo de toque');
+});
+
+/* ==========================================================================
+   A TRAVA DO TEXTO NAS PRÉVIAS (dono, 24/11, print do celular, e ele já tinha pedido antes: "essa sessão era pra ser unicamente das
+   prévias, é para a pessoa olhar como se estivesse olhando um site de verdade"; depois: "Toda essa parte que envolve as prévias devem
+   ser reformuladas em questão de texto, espaçamento e copy"). Em volta do site, no visor, só os CONTROLES (trocar de modelo,
+   Celular/Computador, fechar, escolher) e um rótulo curto ("Modelo 2"). Nada de parágrafo de descrição nem legenda. Na seção dos
+   modelos, o mínimo para decidir. Estes testes falham se o texto voltar.
+   ========================================================================== */
+const ROTULO_MAX = 12;
+const blocoDoVisor = () => {
+  const html = semComentario(lerTexto('orcamento.html'));
+  const i = html.indexOf('<div class="visor" id="o-visor"');
+  assert.ok(i >= 0, 'o visor existe');
+  const fim = html.indexOf('<footer', i);
+  assert.ok(fim > i, 'o visor termina antes do rodapé da página');
+  return html.slice(i, fim);
+};
+test('o visor no HTML: fora dos botões e do que só o leitor de tela ouve, nenhum texto à mostra; o diálogo continua com nome', () => {
+  const visor = blocoDoVisor();
+  assert.match(visor, /role="dialog" aria-modal="true" aria-label(?:ledby)?="[^"]+"/, 'o diálogo tem nome acessível');
+  const solto = visor.replace(/<button[\s\S]*?<\/button>/g, ' ').replace(/<p class="sr-only"[^>]*>[\s\S]*?<\/p>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  assert.equal(solto, '', 'texto solto em volta da prévia: "' + solto + '"');
+  assert.doesNotMatch(visor, /visor__resumo|visor__aviso/, 'a descrição e a legenda saíram');
+  assert.match(semComentario(lerTexto('css/orcamento.css')), /@media \(max-width: 359px\) \{\s*\.visor \.visor__titulo \{[^}]*position: absolute;[^}]*overflow: hidden;[^}]*clip: rect\(0 0 0 0\)/, 'em 320 o rótulo fica só para o leitor de tela, vencendo a regra que abre o título em css/orcamento-palco.css');
+  for (const f of ['css/orcamento.css', 'css/orcamento-palco.css', 'js/orcamento-visor.js']) assert.doesNotMatch(semComentario(lerTexto(f)), /visor__resumo|visor__aviso|o-visor-resumo/, f + ': nada que volte a desenhar a descrição ou a legenda');
+});
+
+/* o visor de verdade (js/orcamento-visor.js num vm, com o HTML dele): o título fica curto, a descrição e o nome do conceito não aparecem
+   em lugar nenhum fora do site, e sem botão de escolher o rodapé some (nenhuma faixa vazia) */
+function montarVisor() {
+  const doc = criarDoc();
+  const visor = blocoDoVisor();
+  const raiz = doc.createElement('div'); raiz.id = 'o-visor'; raiz.hidden = true;
+  for (const m of visor.matchAll(/<(\w+)([^>]*?)\sid="([^"]+)"([^>]*)>/g)) {
+    if (m[3] === 'o-visor') continue;
+    const e = doc.createElement(m[1]); e.id = m[3];
+    if (/class="sr-only"/.test(m[2] + m[4])) e.className = 'sr-only';
+    raiz.appendChild(e);
+  }
+  for (const larg of ['390', '1280']) { const b = doc.createElement('button'); b.setAttribute('data-aparelho', larg); raiz.appendChild(b); }
+  doc.querySelectorAll = sel => raiz.querySelectorAll(sel);
+  doc.querySelector = sel => (/=/.test(sel) ? null : raiz.querySelector(sel));   /* (o fechar procura o botão que abriu: aqui não há página em volta) */
+  doc.createTextNode = t => { const e = doc.createElement('#texto'); e.textContent = t; return e; };
+  doc.body = { children: [raiz] };
+  doc.documentElement = { classList: { add() {}, remove() {} } };
+  const win = { addEventListener() {}, BZPrevia: { desenhar: () => doc.createElement('div'), encaixar() {} } };
+  win.window = win;
+  vm.runInNewContext(lerTexto('js/orcamento-visor.js'), { window: win, document: doc, setTimeout, clearTimeout, JSON, String, Number });
+  return { doc, raiz, win };
+}
+test('o visor aberto: o rótulo do modelo tem no máximo ' + ROTULO_MAX + ' caracteres e nenhuma descrição aparece fora do site', () => {
+  const { doc, raiz, win } = montarVisor();
+  const resumo = 'Uma direção sóbria e espaçosa que apresenta a Confeitaria como um trabalho de cuidado.';
+  const lista = [
+    { id: 'a', numero: 1, estrategia: 'conversao', conteudo: { nome_conceito: 'Peça em dois toques', resumo } },
+    { id: 'b', numero: 2, estrategia: 'autoridade', conteudo: { nome_conceito: 'Uma fornada de cada vez', resumo } },
+    { id: 'final', numero: 0, estrategia: 'final', conteudo: { nome_conceito: 'Final', resumo } }
+  ];
+  let pode = true;
+  const V = win.BZVisor.criar({ lista: () => lista, podeEscolher: () => pode, escolhida: () => null, aoEscolher() {} });
+  const foraDoSite = () => raiz.todos().filter(e => e.id !== 'o-visor-palco' && !e.classList.contains('sr-only') && !(e.parentNode && e.parentNode.id === 'o-visor-palco'))
+    .map(e => e._texto).join(' ');
+  for (const [id, rotulo] of [['b', 'Modelo 2'], ['a', 'Modelo 1'], ['final', 'Sua versão']]) {
+    V.abrir(id);
+    const t = doc.getElementById('o-visor-titulo').textContent;
+    assert.equal(t, rotulo);
+    assert.ok(t.length <= ROTULO_MAX, 'rótulo longo demais: "' + t + '"');
+    const txt = foraDoSite();
+    for (const proibido of [resumo, 'Uma fornada', 'Peça em dois', 'Para passar confiança', 'Para vender mais', 'colchetes']) assert.ok(!txt.includes(proibido), 'apareceu fora do site: ' + proibido);
+    V.fechar();
+  }
+  V.abrir('final');
+  assert.equal(doc.getElementById('o-visor-escolher').hidden, true);
+  assert.equal(doc.getElementById('o-visor-rodape').hidden, true, 'sem o "Escolher", o rodapé some');
+  V.fechar(); V.abrir('b');
+  assert.equal(doc.getElementById('o-visor-rodape').hidden, false, 'com o "Escolher", o rodapé volta');
+  pode = false; V.fechar(); V.abrir('b');
+  assert.equal(doc.getElementById('o-visor-rodape').hidden, true);
+  const abas = doc.getElementById('o-visor-abas').children;
+  assert.match(abas[1].getAttribute('aria-label'), /^Modelo 2: Para passar confiança$/, 'quem usa leitor de tela ainda ouve o que cada modelo faz, nas abas');
+});
+
+/* a seção dos modelos: o texto que abre é curto e a regra dos ajustes (dinheiro: transparente, sem letra miúda) continua dita */
+const LEAD_MAX_PALAVRAS = 18;
+const contarPalavras = s => s.trim().split(/\s+/).filter(Boolean).length;
+test('a seção dos modelos: lead curto, a regra do ajuste dita, sem a descrição longa à mostra no cartão nem botão repetido', () => {
+  const html = semComentario(lerTexto('orcamento.html'));
+  const lead = /<p class="orc-bloco__lead" id="o-dir-lead">([^<]*)<\/p>/.exec(html);
+  assert.ok(lead, 'o lead da seção');
+  assert.ok(contarPalavras(lead[1]) <= LEAD_MAX_PALAVRAS, 'lead com ' + contarPalavras(lead[1]) + ' palavras: "' + lead[1] + '"');
+  assert.match(lead[1], /Trazer cores ou uma seção de outro modelo conta como um ajuste/, 'a regra do ajuste continua antes de escolher');
+  const js = semComentario(lerTexto('js/orcamento.js'));
+  const textos = /var TEXTOS_MANUAL = \{([\s\S]*?)\};/.exec(js);
+  assert.ok(textos, 'os textos da fila manual');
+  for (const m of textos[1].matchAll(/'([^']+)'/g)) assert.ok(contarPalavras(m[1]) <= LEAD_MAX_PALAVRAS, 'texto da seção longo: "' + m[1] + '"');
+  const regra = /var REGRA_DOS_MODELOS = '([^']+)'/.exec(js);
+  assert.ok(regra && regra[1].replace(/\\n/g, '\n') === lead[1], 'o lead da fila manual (modelos prontos) é o mesmo do HTML');
+  assert.match(lead[1], /^[^\n]+\.\n[^\n]+\.$/, 'uma frase por linha (a quebra pelo sentido)');
+  assert.match(semComentario(lerTexto('css/orcamento-modelos.css')), /#o-direcoes \.orc-bloco__lead \{[^}]*white-space: pre-line/, 'o \\n do texto vira quebra de linha');
+  const gerando = /var TEXTO_GERANDO = '([^']+)'/.exec(js);
+  assert.ok(gerando && contarPalavras(gerando[1]) <= LEAD_MAX_PALAVRAS && /pode sair/i.test(gerando[1]), 'enquanto gera: uma frase só, dita uma vez na seção (não em cada cartão)');
+  assert.doesNotMatch(js, /el\('p', 'dir__resumo', 'Pode sair: ao voltar a esta página, a geração continua\.'\)/, 'o "pode sair" não se repete nos três cartões');
+  assert.match(js, /el\('p', 'dir__resumo sr-only', d\.conteudo\.resumo\)/, 'a descrição do modelo fica para o leitor de tela (a miniatura é aria-hidden); na tela, a prévia fala por ela');
+  assert.doesNotMatch(js, /'Abrir o modelo ' \+ r\.numero/, 'a recomendação não repete o botão que o cartão já tem');
+  assert.match(js, /'O Zero recomenda'/, 'a recomendação continua dizendo de quem é');
+  /* o selo do recomendado nunca por cima do site (19/11 cobria a marca do negócio; 24/11 cortava o botão da miniatura): ele fica na parte de
+     informação do cartão, no fluxo, e não flutua sobre a miniatura */
+  const selo = /\n\.dir__recomendado \{([^}]*)\}/.exec(semComentario(lerTexto('css/orcamento-modelos.css')));
+  assert.ok(selo, 'a regra do selo');
+  assert.doesNotMatch(selo[1], /position:\s*(absolute|fixed)|transform:|top:/, 'o selo não flutua sobre a prévia');
 });

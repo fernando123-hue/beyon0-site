@@ -170,7 +170,7 @@
           <label class="sr-only" for="o-texto">Sua mensagem</label>
           <div class="orc-campo">
             <textarea id="o-texto" rows="3" maxlength="2000" placeholder="Ou conte do seu jeito:&#10;o que você faz&#10;e do que precisa" autocomplete="off"></textarea>
-            <svg class="orc-campo__luz" aria-hidden="true" focusable="false"><rect pathLength="100"/></svg>
+            <span class="orc-campo__luz" aria-hidden="true"><span class="orc-campo__lado orc-campo__lado--h orc-campo__lado--cima"><span class="orc-campo__traco"></span></span><span class="orc-campo__lado orc-campo__lado--v orc-campo__lado--direita"><span class="orc-campo__traco"></span></span><span class="orc-campo__lado orc-campo__lado--h orc-campo__lado--baixo"><span class="orc-campo__traco"></span></span><span class="orc-campo__lado orc-campo__lado--v orc-campo__lado--esquerda"><span class="orc-campo__traco"></span></span></span>
           </div>
           <button class="btn orc-mic" type="button" id="o-mic" hidden aria-pressed="false"><span class="orc-mic__icone" aria-hidden="true"><svg class="orc-mic__svg" viewBox="0 0 24 24" focusable="false"><rect x="9.25" y="2.75" width="5.5" height="11" rx="2.75"/><path d="M6 11.25a6 6 0 0 0 12 0M12 17.25v3.5M9.5 20.75h5"/><circle class="orc-mic__nucleo" cx="12" cy="8.25" r="1.05"/></svg></span><span id="o-mic-rotulo">Falar</span></button>
           <button class="orc-mic__cancelar" type="button" id="o-mic-cancelar" hidden>Descartar gravação</button>
@@ -351,7 +351,8 @@
     <!-- AS TRÊS DIREÇÕES -->
     <section class="orc-bloco" id="o-direcoes" aria-labelledby="o-dir-titulo" hidden>
       <h2 id="o-dir-titulo">Três modelos para o seu site</h2>
-      <p class="orc-bloco__lead" id="o-dir-lead">Abra a prévia e escolha um: os ajustes são feitos dentro dele. Trazer cores ou uma seção de outro modelo conta como um ajuste. Os modelos podem levar alguns minutos; o pedido fica salvo se você sair.</p>
+      <p class="orc-bloco__lead" id="o-dir-lead">Escolha um e ajuste dentro dele.
+Trazer cores ou uma seção de outro modelo conta como um ajuste.</p>
       <div class="orc-preparo" id="o-preparo" hidden></div>
       <div class="orc-recomenda" id="o-recomenda" role="status" hidden></div>
       <ol class="orc-dirs" id="o-dirs" role="list"></ol>
@@ -717,11 +718,9 @@
       </div>
       <button type="button" class="visor__fechar" id="o-visor-fechar" aria-label="Fechar a prévia">×</button>
     </div>
-    <p class="visor__resumo" id="o-visor-resumo"></p>
     <p class="sr-only" id="o-visor-voz" role="status"></p>
     <div class="visor__palco" id="o-visor-palco" tabindex="0" role="region" aria-label="Prévia do site"></div>
-    <div class="visor__rodape">
-      <p class="visor__aviso">Prévia do modelo: textos entre colchetes são espaços para os seus dados reais.</p>
+    <div class="visor__rodape" id="o-visor-rodape">
       <button type="button" class="btn btn--primary" id="o-visor-escolher" data-acao>Escolher este modelo</button>
     </div>
   </div>
@@ -754,6 +753,7 @@
   <script src="js/orcamento-turnstile.js" defer></script>
   <script src="js/orcamento-api.js" defer></script>
   <script src="js/orcamento-voz.js" defer></script>
+  <script src="js/orcamento-campo.js" defer></script>
   <script src="js/orcamento-visor.js" defer></script>
   <script src="js/orcamento-pix.js" defer></script>
   <script src="js/orcamento-pagamento.js" defer></script>
