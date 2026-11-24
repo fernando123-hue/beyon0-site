@@ -6,6 +6,15 @@
    Celular primeiro; do 900 px para cima os três modelos seguem em colunas (css/orcamento.css).
    ========================================================================== */
 
+/* ---------- o ritmo da seção (dono, 24/11: "toda essa parte que envolve as prévias devem ser reformuladas em questão de texto,
+   espaçamento e copy"): título, uma frase, a recomendação em duas linhas e os cartões; o mesmo vão de 1,5 rem entre os blocos e
+   0,5 rem dentro do cartão. A descrição longa de cada modelo saiu da tela (fica para o leitor de tela): a prévia é a estrela ---------- */
+#o-direcoes .orc-bloco__lead { margin: .75rem 0 1.5rem; white-space: pre-line; text-wrap: pretty; }   /* (uma frase por linha: a quebra cai no sentido) */
+#o-direcoes .orc-recomenda { gap: .35rem; margin: 0 0 1.5rem; padding: .25rem 0 .25rem 1rem; }
+#o-direcoes .orc-recomenda__texto { max-width: 60ch; text-wrap: pretty; }
+.dir__corpo { gap: .5rem; padding: 1rem; }
+.dir__corpo .dir__acoes { padding-top: .5rem; }
+
 /* ---------- os modelos: cartões que deslizam, um já espiando o outro ---------- */
 @media (max-width: 899px) {
   .orc-dirs { display: flex; gap: .75rem; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: .15rem; }
@@ -21,11 +30,12 @@
   .orc-dirs::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 4px; }
 }
 .dir { position: relative; }
-.dir { --mini-h: 340px; }   /* a altura da miniatura: o selo do recomendado se ancora nela */
+.dir { --mini-h: 340px; }   /* a altura da miniatura */
 .dir__mini { height: var(--mini-h); }
-/* a recomendação do Zero vira um selo cheio no canto da prévia (antes era uma linha de texto no meio do cartão). No canto de BAIXO da
-   miniatura (que tem 340 px): em cima ele cobria a marca do negócio na barra da prévia (fotos de 19/11) */
-.dir__recomendado { position: absolute; top: var(--mini-h); left: .7rem; transform: translateY(calc(-100% - .7rem)); z-index: 2; padding: .3rem .65rem; border-radius: 999px; background: var(--ac); color: var(--ac-tinta); font-weight: 600; }
+/* a recomendação do Zero: um selo cheio na parte de INFORMAÇÃO do cartão, logo acima do número e do nome. Ele já ficou por cima da
+   miniatura (no topo cobria a marca do negócio, fotos de 19/11; embaixo cortava o botão do site, print de 24/11): nada da
+   recomendação cobre o site (js/orcamento.js o põe antes do número) */
+.dir__recomendado { align-self: flex-start; padding: .3rem .65rem; border-radius: 999px; background: var(--ac); color: var(--ac-tinta); font-weight: 600; }
 .dir__nome { font-size: 1.35rem; font-weight: 300; letter-spacing: -.01em; }
 /* uma ação por linha e a principal em cima, grande (a ordem do DOM já é essa: Tab e leitor de tela seguem o que se vê) */
 .dir__acoes { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: .5rem; }

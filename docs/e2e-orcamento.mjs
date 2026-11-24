@@ -475,17 +475,17 @@ try {
   await foto(page, '2b-direcoes-cartao-cel');
   ok(await page.evaluate(() => { const p = document.getElementById('o-dirs-pontos'); return !p.hidden && p.children.length === 3 && p.children[0].classList.contains('is-atual'); }), 'modelos: os 3 pontos do carrossel aparecem e o 1º está aceso');
   ok(await page.evaluate(() => { const b = document.querySelector('#o-dirs .dir .dir__acoes').children; return b[0].classList.contains('btn--primary') && b[1].hasAttribute('data-abrir'); }), 'modelos: "Escolher este" vem primeiro no DOM (a ordem do Tab é a que se vê)');
-  /* o selo "Recomendado pelo Zero" não cobre a marca do negócio na miniatura (achado das fotos de 19/11: cobria o nome no topo da prévia) */
+  /* o selo "Recomendado pelo Zero" não cobre NADA da miniatura (19/11 cobria a marca do negócio; 24/11 cortava o botão do site): ele mora na
+     parte de informação do cartão, abaixo da prévia */
   ok(await page.evaluate(() => {
-    /* exatamente 1 cartão recomendado (o roteiro do E2E é fixo), com a marca na miniatura: sem eles a asserção passaria sem testar nada */
+    /* exatamente 1 cartão recomendado (o roteiro do E2E é fixo), com a miniatura: sem eles a asserção passaria sem testar nada */
     const d = [...document.querySelectorAll('#o-dirs .dir')].filter(x => x.querySelector('.dir__recomendado'));
     if (d.length !== 1) return false;
-    const s = d[0].querySelector('.dir__recomendado').getBoundingClientRect(), mk = d[0].querySelector('.pv-marca'), mi = d[0].querySelector('.dir__mini');
-    if (!mk || !mi) return false;
-    const r = mk.getBoundingClientRect(), m = mi.getBoundingClientRect();
-    const longeDaMarca = s.right <= r.left || r.right <= s.left || s.bottom <= r.top || r.bottom <= s.top;
-    return longeDaMarca && s.top >= m.top - 1 && s.bottom <= m.bottom + 1;   /* e o selo fica DENTRO da miniatura */
-  }), 'modelos: o selo "Recomendado pelo Zero" fica dentro da miniatura e não cobre a marca do negócio');
+    const s = d[0].querySelector('.dir__recomendado').getBoundingClientRect(), mi = d[0].querySelector('.dir__mini'), cartao = d[0].getBoundingClientRect();
+    if (!mi) return false;
+    const m = mi.getBoundingClientRect();
+    return s.top >= m.bottom - 1 && s.bottom <= cartao.bottom + 1 && s.left >= cartao.left && s.right <= cartao.right;   /* abaixo da prévia, dentro do cartão */
+  }), 'modelos: o selo "Recomendado pelo Zero" fica na parte de informação do cartão, sem cobrir nada da prévia');
   await page.locator('#o-dirs .dir').nth(2).locator('.dir__acoes .btn').first().focus();
   ok(await espera(page, () => document.getElementById('o-dirs').scrollLeft > 20 && document.querySelectorAll('#o-dirs-pontos .is-atual').length === 1 && document.querySelectorAll('#o-dirs-pontos span')[2].classList.contains('is-atual'), 8000), 'modelos: o foco no 3º cartão rola o carrossel até ele e acende o 3º ponto');
   await page.evaluate(() => { document.getElementById('o-dirs').scrollLeft = 0; });

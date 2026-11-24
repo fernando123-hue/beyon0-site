@@ -32,7 +32,7 @@
 
   function criar(o) {
     var estado = { id: null, largura: 390, origem: null, assinatura: '' };
-    var raiz = $('o-visor'), palco = $('o-visor-palco'), abas = $('o-visor-abas'), botaoEscolher = $('o-visor-escolher');
+    var raiz = $('o-visor'), palco = $('o-visor-palco'), abas = $('o-visor-abas'), botaoEscolher = $('o-visor-escolher'), rodape = $('o-visor-rodape');
     var aberto = function () { return !raiz.hidden; };
     var fundo = [], empilhado = false, desempilhando = false, restauracao = null;
 
@@ -98,10 +98,12 @@
       var rolagem = forcar ? 0 : palco.scrollTop;
       estado.assinatura = assinatura;
       var d = a.d;
-      tituloEmPartes(d.id === 'final' ? ['Sua versão, com os ajustes'] : ['Modelo ' + d.numero, NOMES[d.estrategia] || '', d.conteudo.nome_conceito]);
-      $('o-visor-resumo').textContent = d.conteudo.resumo || '';
+      /* (dono, 24/11: em volta do site, só os controles. O rótulo é curto; o que cada modelo faz fica no nome acessível das abas e no
+         cartão da seção; a descrição longa e a legenda dos colchetes saíram. Trava: docs/testes/orcamento-nasce.test.mjs) */
+      tituloEmPartes(d.id === 'final' ? ['Sua versão'] : ['Modelo ' + d.numero]);
       desenharAbas(a.lista, d);
       botaoEscolher.hidden = d.id === 'final' || !o.podeEscolher() || o.escolhida() === d.id;
+      rodape.hidden = botaoEscolher.hidden;   /* (sem o botão, nenhuma faixa vazia embaixo: o site ganha a altura) */
       palco.textContent = '';
       var janela = el('div', 'visor__janela visor__janela--' + estado.largura);
       var tela = el('div', 'pv-tela' + (estado.largura === 1280 ? ' pv-tela--1280' : ''));

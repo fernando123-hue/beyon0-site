@@ -276,26 +276,68 @@ html[data-tema="claro"] .msg--agente::before { background-image: url('../assets/
    o "Falar" à esquerda e o "Enviar" à direita, como em todo aplicativo de conversa. O que não cabe na linha (o tempo da gravação
    em 320) desce inteiro, sem cortar */
 .orc-envio { display: flex; flex-flow: row wrap; align-items: center; gap: 10px 8px; margin-top: 18px; }
-/* (o campo mora numa caixa só dele, .orc-campo, para a luz que circula a borda acompanhar o tamanho do campo, inclusive quando a pessoa o estica) */
+/* (o campo mora numa caixa só dele, .orc-campo, para a energia que corre a borda acompanhar o tamanho do campo, inclusive quando ele cresce) */
 .orc-campo { position: relative; flex: 1 1 100%; min-width: 0; display: grid; }
-.orc-envio textarea { width: 100%; min-width: 0; min-height: 56px; padding: 14px 18px; border: 1px solid var(--ac); border-radius: 16px; background: var(--cartao); color: var(--t1); caret-color: var(--ac); font-size: 1.0625rem; line-height: 1.45; resize: vertical; }
+/* A LINHA: 1 px na cor de ação, um tom abaixo (o traço de energia aparece por cima dela). Dono, 24/11: a borda ciano inteira e parada
+   do foco "parece meio bugado"; o foco agora é a MESMA linha um tom mais clara (nada de anel por cima, nada de linha dupla) */
+.orc-envio textarea { width: 100%; min-width: 0; min-height: 56px; padding: 14px 18px; border: 1px solid rgb(var(--ac-rgb) / .45); border-radius: 16px; background: var(--cartao); color: var(--t1); caret-color: var(--ac); font-size: 1.0625rem; line-height: 1.45; resize: vertical; transition: border-color .4s ease; }
 .orc-envio textarea::placeholder { color: var(--t3); opacity: 1; }
 /* onde o navegador sabe, o campo cresce sozinho com o texto (até 40 % da tela) e a alça de esticar, que aparecia como um pontinho solto
    no canto, sai; onde não sabe, a alça continua */
 @supports (field-sizing: content) {
   .orc-envio textarea { field-sizing: content; min-height: calc(3lh + 30px); max-height: 40vh; resize: none; }
 }
-.orc-envio textarea:focus-visible { outline: 2px solid var(--ac); outline-offset: -1px; border-color: var(--ac); }   /* (o foco engrossa a MESMA linha para 2 px, por cima do contorno: um anel afastado seriam duas linhas empilhadas) */
-/* A LUZ QUE CIRCULA (dono, 24/11: "mais detalhes... com ênfase no campo aonde o usuário escreve"): quando a pessoa entra no campo, um
-   traço curto da cor mais clara dá UMA volta pela própria linha da borda e apaga; fora disso não há nada a mais na borda. É um traço
-   nítido em cima da linha (nada de brilho, nada de segunda linha). Movimento reduzido: não aparece */
+.orc-envio textarea:focus-visible { outline: none; border-color: rgb(var(--ac-rgb) / .75); }
+/* A ENERGIA (dono, 24/11: "uma energia seguindo um fluxo constante minimalista, que fica mais forte conforme a pessoa escreve, e quando
+   ela para, a energia vai diminuindo"). UM traço de 1 px, em cima da própria linha, dando a volta na borda sem parar e na mesma
+   velocidade (js/orcamento-campo.js mede o campo e diz a cada trilho onde começa; nos cantos o traço some um instante e volta no lado
+   seguinte). Cada lado reto é um trilho que recorta o traço; o traço anda só por transform (@keyframes, no compositor).
+   A força em 4 degraus (data-energia, posto pelo JS a cada letra e tirado degrau a degrau quando a pessoa para): o traço fica mais
+   comprido (escala) e mais aceso (opacidade), com transição. Sem brilho, sem sombra, sem desfoque. Fora da tela, pausa.
+   Sem JS ou com movimento reduzido: não existe (o degrau só clareia a linha parada, mais abaixo) */
 .orc-campo__luz { display: none; }
+.orc-campo__lado { position: absolute; overflow: hidden; }
+.orc-campo__lado--h { left: 16px; right: 16px; height: 1px; }
+.orc-campo__lado--v { top: 16px; bottom: 16px; width: 1px; }
+.orc-campo__lado--cima { top: 0; }
+.orc-campo__lado--baixo { bottom: 0; transform: scaleX(-1); }   /* (espelhado: embaixo o traço volta da direita para a esquerda) */
+.orc-campo__lado--direita { right: 0; }
+.orc-campo__lado--esquerda { left: 0; transform: scaleY(-1); }   /* (espelhado: na esquerda ele sobe) */
+.orc-campo__traco { position: absolute; top: 0; left: 0; }
+.orc-campo__lado--h .orc-campo__traco { width: 72px; height: 1px; animation: orc-campo-fluxo-x 6s linear infinite; }
+.orc-campo__lado--v .orc-campo__traco { width: 1px; height: 72px; animation: orc-campo-fluxo-y 6s linear infinite; }
+.orc-campo.is-fora .orc-campo__traco { animation-play-state: paused; }
+.orc-campo__traco::before { content: ""; position: absolute; inset: 0; background: var(--ac-2); transition: transform .5s ease, opacity .5s ease; }
+.orc-campo__lado--h .orc-campo__traco::before { transform-origin: 100% 50%; }   /* (a cabeça do traço é a ponta da frente; ele cresce para trás) */
+.orc-campo__lado--v .orc-campo__traco::before { transform-origin: 50% 100%; }
+.orc-campo[data-energia="0"] .orc-campo__lado--h .orc-campo__traco::before { transform: scaleX(.3); }
+.orc-campo[data-energia="1"] .orc-campo__lado--h .orc-campo__traco::before { transform: scaleX(.5); }
+.orc-campo[data-energia="2"] .orc-campo__lado--h .orc-campo__traco::before { transform: scaleX(.75); }
+.orc-campo[data-energia="3"] .orc-campo__lado--h .orc-campo__traco::before { transform: scaleX(1); }
+.orc-campo[data-energia="0"] .orc-campo__lado--v .orc-campo__traco::before { transform: scaleY(.3); }
+.orc-campo[data-energia="1"] .orc-campo__lado--v .orc-campo__traco::before { transform: scaleY(.5); }
+.orc-campo[data-energia="2"] .orc-campo__lado--v .orc-campo__traco::before { transform: scaleY(.75); }
+.orc-campo[data-energia="3"] .orc-campo__lado--v .orc-campo__traco::before { transform: scaleY(1); }
+.orc-campo[data-energia="0"] .orc-campo__luz { opacity: .5; }
+.orc-campo[data-energia="1"] .orc-campo__luz { opacity: .7; }
+.orc-campo[data-energia="2"] .orc-campo__luz { opacity: .85; }
+.orc-campo[data-energia="3"] .orc-campo__luz { opacity: 1; }
 @media (prefers-reduced-motion: no-preference) {
-  html:not(.menos-movimento) .orc-campo__luz { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-  .orc-campo__luz rect { x: 1px; y: 1px; width: calc(100% - 2px); height: calc(100% - 2px); rx: 15px; fill: none; stroke: var(--t1); stroke-width: 2px; stroke-linecap: round; stroke-dasharray: 9 91; stroke-dashoffset: 0; opacity: 0; }
-  html:not(.menos-movimento) .orc-campo:focus-within .orc-campo__luz rect { animation: orc-campo-volta 1.15s cubic-bezier(.45, 0, .25, 1) .05s both; }
+  html:not(.menos-movimento) .orc-campo.is-medido .orc-campo__luz { display: block; position: absolute; inset: 0; pointer-events: none; transition: opacity .5s ease; }
 }
-@keyframes orc-campo-volta { 0% { stroke-dashoffset: 0; opacity: 0; } 8% { opacity: 1; } 88% { opacity: 1; } 100% { stroke-dashoffset: -100; opacity: 0; } }
+@keyframes orc-campo-fluxo-x {
+  from { transform: translateX(var(--de, -100px)); }
+  to { transform: translateX(var(--ate, 0px)); }
+}
+@keyframes orc-campo-fluxo-y {
+  from { transform: translateY(var(--de, -100px)); }
+  to { transform: translateY(var(--ate, 0px)); }
+}
+/* movimento reduzido (o aparelho ou o interruptor do rodapé): nada corre; escrevendo, a linha parada sobe um tom e volta quando a pessoa para */
+@media (prefers-reduced-motion: reduce) {
+  .orc-campo[data-energia]:not([data-energia="0"]) textarea { border-color: var(--ac); }
+}
+html.menos-movimento .orc-campo[data-energia]:not([data-energia="0"]) textarea { border-color: var(--ac); }
 /* o "Enviar" casado com o campo: a mesma altura do "Falar" (48) e uma seta de traço que dá um passo à frente no toque */
 .orc-envio #o-enviar { flex: none; width: auto; min-height: 48px; margin-left: auto; padding: 12px 18px 12px 22px; gap: 8px; }
 .orc-enviar__seta { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }

@@ -367,27 +367,37 @@ html.js:not(.menos-movimento) .recibo__led::after { animation: rec-led 9.6s line
 html.menos-movimento .recibo.is-chegando, html.menos-movimento .recibo.is-chegando *, html.menos-movimento .recibo.is-chegando *::before, html.menos-movimento .recibo.is-chegando *::after { animation: none !important; }
 @media (min-width: 640px) { .recibo { padding: 2rem 1.6rem 1.4rem; } .recibo__parte { padding: .9rem 1.1rem; } }
 
-/* ---------- o visor das prévias (tela cheia; sem desfoque: fundo opaco) ---------- */
+/* ---------- o visor das prévias (tela cheia; sem desfoque: fundo opaco). Dono, 24/11: "é para a pessoa olhar como se estivesse olhando um
+   site de verdade". Em volta do site, só os controles: o rótulo curto e os modelos numa linha com o fechar; Celular/Computador na de baixo;
+   o Escolher embaixo. Nada de descrição nem legenda (trava em docs/testes/orcamento-nasce.test.mjs). No celular o site encosta nas bordas ---------- */
 .visor { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; background: var(--bg); }
 .visor[hidden] { display: none; }
-.visor__barra { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .6rem; padding: .5rem var(--pad); border-bottom: 1px solid var(--line); }
-.visor__titulo { order: 0; flex: 1 1 calc(100% - 60px); min-width: 0; max-width: none; margin: 0; line-height: 1.4; font-weight: 400; text-wrap: nowrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
-.visor__fechar { order: 1; flex: none; width: 44px; height: 44px; border: 1px solid var(--stroke); border-radius: 50%; background: transparent; color: var(--t1); font-size: 1.4rem; line-height: 1; cursor: pointer; }
+.visor__barra { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .5rem var(--pad); border-bottom: 1px solid var(--line); }
+.visor__titulo { order: 0; flex: none; max-width: none; margin: 0 .25rem 0 0; line-height: 1.4; font-weight: 400; white-space: nowrap; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
+.visor__abas { order: 1; display: flex; gap: .35rem; }
+.visor__fechar { order: 2; flex: none; width: 44px; height: 44px; margin-left: auto; border: 1px solid var(--stroke); border-radius: 50%; background: transparent; color: var(--t1); font-size: 1.4rem; line-height: 1; cursor: pointer; }
 .visor__fechar:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
-.visor__abas, .visor__aparelho { order: 2; display: flex; gap: .35rem; }
-.visor__aparelho { margin-left: auto; }
+.visor__aparelho { order: 3; display: flex; gap: .35rem; flex-basis: 100%; }
 .visor .chip { min-height: 40px; padding: .3rem .8rem; }
 .visor__abas .chip { min-width: 40px; }
-.visor__rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; padding: .6rem var(--pad) calc(.6rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
-.visor__aviso { flex: 1 1 240px; font-size: var(--fs-s); color: var(--t3); }
+.visor__rodape { display: flex; padding: .5rem var(--pad) calc(.5rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
 .visor__rodape .btn { flex: 1 1 auto; }
-.visor__resumo { padding: .6rem var(--pad); font-size: var(--fs-s); color: var(--t2); border-bottom: 1px solid var(--line); }
-.visor__palco { flex: 1; overflow: auto; padding: 1rem var(--pad) 2rem; background: var(--s1); }
+.visor__palco { flex: 1; overflow: auto; padding: 0; background: var(--s1); }
 .visor__palco:focus-visible { outline: 2px solid var(--ac); outline-offset: -2px; }
-.visor__janela { position: relative; margin: 0 auto; overflow: hidden; border: 1px solid var(--line-2); border-radius: var(--raio); }
+.visor__janela { position: relative; margin: 0 auto; overflow: hidden; }
 .visor__janela--390 { max-width: 390px; }
 .visor__janela--1280 { max-width: 1280px; }
 .visor__janela .pv-tela { transform-origin: top left; }
+/* (em 320 o rótulo e os modelos não cabem com o fechar na mesma linha: o rótulo fica só para o leitor de tela; os modelos seguem à vista.
+   ".visor .visor__titulo": vence a regra de css/orcamento-palco.css que abre o título) */
+@media (max-width: 359px) {
+  .visor .visor__titulo { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }
+}
+/* (com sobra de tela em volta, a janela ganha moldura e respiro, como um aparelho sobre a mesa) */
+@media (min-width: 600px) {
+  .visor__palco { padding: 1rem var(--pad) 1.5rem; }
+  .visor__janela { border: 1px solid var(--line-2); border-radius: var(--raio); }
+}
 html.visor-aberto { overflow: hidden; }
 
 /* ---------- rodapé com a identificação do vendedor (Decreto 7.962/2013) ---------- */
@@ -404,9 +414,9 @@ html.visor-aberto { overflow: hidden; }
   .orc-conversa { padding: 1.4rem; }
   .orc-log { max-height: min(60vh, 620px); }
   .orc-dirs { grid-template-columns: repeat(3, 1fr); }
-  .visor__titulo { flex: 0 1 auto; margin-right: 1rem; }
-  .visor__abas, .visor__aparelho { order: 0; }
+  .visor__aparelho { order: 2; flex-basis: auto; margin-left: auto; }
   .visor__fechar { order: 3; margin-left: .4rem; }
+  .visor__rodape { justify-content: flex-end; }
   .visor__rodape .btn { flex: none; }
 }
 
