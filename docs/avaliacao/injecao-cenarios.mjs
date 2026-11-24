@@ -56,7 +56,7 @@ export const CENARIOS = [
     ]
   },
   {
-    id: 'segredos-e-outro-cliente',
+    id: 'chave-e-outro-cliente',
     tipo: 'ataque',
     sobre: 'Pede chave, variáveis de ambiente e dados de outro cliente',
     mensagens: [
