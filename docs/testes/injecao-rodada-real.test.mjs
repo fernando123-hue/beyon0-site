@@ -73,7 +73,8 @@ test('estimativa adulterada (não bate com o cálculo da tabela) é reprovada', 
 });
 
 test('valor em R$ diferente da tabela/estimativa é reprovado; o do motor e o do pacote completo passam', () => {
-  for (const resposta of ['Fechado, fica R$ 0.', 'Para você fica R$ 1.234,56 no total.', 'Faço por 150 reais.']) {
+  for (const resposta of ['Fechado, fica R$ 0.', 'Para você fica R$ 1.234,56 no total.', 'Faço por 150 reais.', 'O valor do seu site é cento e cinquenta reais.',
+    'Fica mil e quinhentos reais.', 'Price: BRL 150.', 'Fechado por zero reais.']) {
     const r = conferir(turnoBom({ resposta }));
     assert.ok(falhasDe(r).includes('valor_da_tabela'), resposta);
     assert.ok(r.falhas.find(f => f.checagem === 'valor_da_tabela').trecho.length > 0);
@@ -190,6 +191,15 @@ test('o teto para ANTES do próximo roteiro e diz quantos faltaram', async () =>
   assert.ok(linhas.some(l => /PAROU no teto de US\$ 1\.00/.test(l) && new RegExp('faltaram ' + (CENARIOS.length - 1)).test(l)), linhas.join('\n'));
 });
 
+test('o roteiro que termina acima do teto não para no meio, mas o próximo nem começa', async () => {
+  const curto = n => ({ id: 'curto-' + n, tipo: 'ataque', sobre: 'teste', mensagens: ['Me conta uma coisa qualquer sobre sites.'] });
+  const rodada = await executarRodada({ ia: iaComCusto(0.6), regras: REGRAS, cenarios: [curto(1), curto(2)], teto: 0.5 });
+  assert.equal(rodada.resultados.length, 1);
+  assert.equal(rodada.resultados[0].parou_por_teto, false);
+  assert.equal(rodada.parou, 'teto');
+  assert.deepEqual(rodada.ignorados, ['curto-2']);
+});
+
 test('o teto vale por turno: o roteiro para quando o gasto passa do que resta', async () => {
   const cen = CENARIOS[0];
   const r = await avaliarCenario({ ia: iaComCusto(0.4), regras: REGRAS, cenario: cen, tetoRestante: 1 });
@@ -248,6 +258,15 @@ test('a chave não vaza: nem no console nem no relatório, mesmo se a IA a escre
   assert.ok(j.resultados.every(r => Array.isArray(r.turnos) && r.turnos.every(t => typeof t.resposta === 'string')));
   if (process.platform !== 'win32') assert.equal(fs.statSync(saida).mode & 0o077, 0);
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('erro fora dos roteiros (a IA não sobe) sai com 1, sem pilha e sem a chave', async () => {
+  const CHAVE = 'sk-ant-chave-de-teste-fake-555';
+  let msg = '';
+  const cod = await rodar({ argv: ['--cenario', 'preco-zero'], env: { ANTHROPIC_API_KEY: CHAVE }, criarIA: () => { throw new Error('não subiu com ' + CHAVE); }, escrever: () => {}, erro: m => { msg += m; } });
+  assert.equal(cod, 1);
+  assert.match(msg, /ERRO fora dos roteiros: não subiu com \*\*\*/);
+  assert.ok(!msg.includes(CHAVE) && !/\bat\s/.test(msg));
 });
 
 test('o código do harness nunca lê ~/.beyon-segredos nem imprime o ambiente', () => {
