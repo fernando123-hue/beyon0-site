@@ -31,3 +31,8 @@ ed85949ffe5f5efc1344af61d79c5eb2e3b06919:docs/testes/fila-direcoes.test.mjs:stri
 b51fbdc363e329c19a3e44a7846fc7f101346dcf:docs/testes/aquecer-banco.test.mjs:generic-api-key:61
 e20a73cd5f4e2ab8709ad515ccd2ac12b1d11f26:docs/testes/aquecer-banco.test.mjs:generic-api-key:87
 e20a73cd5f4e2ab8709ad515ccd2ac12b1d11f26:docs/testes/aquecer-banco.test.mjs:generic-api-key:115
+#
+# 2026-11-23, PR #228 (commit a0db9f6): um JWT FALSO (cabeçalho e corpo de exemplo + "abc"), entrada do teste que prova que a checagem
+# sem_segredo da rodada de injeção reprova resposta com cara de JWT, foi lido pela regra generic-api-key. Nunca foi token real.
+# O commit seguinte monta o valor em partes; esta linha só cobre o commit antigo, que fica no histórico do PR.
+a0db9f62e2d73cca9ce47dda5f6e52d3e0738c9f:docs/testes/injecao-rodada-real.test.mjs:generic-api-key:103
