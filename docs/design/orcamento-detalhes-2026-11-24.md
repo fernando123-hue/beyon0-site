@@ -1,5 +1,7 @@
 # Orçamento: mais detalhes no campo e no microfone (24/11)
 
+**ESCOLHA DO DONO (24/11 tarde):** "Gostei da opção A gravando e símbolo. Gostei, bem minimalista. E o lugar aonde o cliente escreve com a energia passando, pode manter." = **microfone da A** (anel de 1 px; gravando, o traço gira pelo anel) + **campo e Enviar da B** (a luz dá uma volta na borda ao tocar; a seta no Enviar). É o que está no código.
+
 **O pedido do dono (24/11, depois de ver o antes/depois no celular, escuro e claro):** "Dê um pouco mais de detalhes em tudo, com
 ênfase no campo aonde o usuário escreve e no microfone e seu ícone. Tire os numeros ao lados das opções pré selecionadas."
 

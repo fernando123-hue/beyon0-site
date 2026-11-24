@@ -515,7 +515,10 @@ test('o microfone: centrado no disco (ganha da regra geral .btn span), o núcleo
   const icone = blocoDe(css, '.orc-mic .orc-mic__icone');
   assert.ok(icone, 'a regra do ícone tem de vencer ".btn span { display: inline-block }" (css/base.css), que o deixava torto');
   assert.match(icone, /display: inline-grid; place-items: center/);
-  assert.match(icone, /border-radius: 50%; background-color: rgb\(var\(--ac-rgb\) \/ \.\d+\)/, 'o disco chapado da cor de ação, clarinho');
+  // dono, 24/11 tarde: "Gostei da opção A gravando e símbolo. Gostei, bem minimalista" → o anel fino da A, sem disco chapado
+  assert.match(icone, /border-radius: 50%;[^}]*background-color: transparent; border: 1px solid var\(--line-2\)/, 'o anel de 1 px da variação A');
+  assert.doesNotMatch(css, /\.orc-mic:hover \.orc-mic__icone \{[^}]*background-color: rgb\(var\(--ac-rgb\)/, 'no hover o anel não vira disco');
+  assert.match(css, /\.orc-mic__icone::after \{[^}]*inset: -1px;[^}]*border: 1px solid transparent/, 'o traço que gira corre pelo próprio anel');
   assert.match(css, /\.orc-mic\.is-gravando \.orc-mic__nucleo \{[^}]*animation: orc-mic-pisca/, 'gravando: o núcleo pisca');
   const pisca = /@keyframes orc-mic-pisca \{([^@]*?)\}\s*\}/.exec(css);
   assert.ok(pisca, 'a piscada');
