@@ -21,6 +21,7 @@ import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { passoDosAjustes } from './e2e-ajustes.mjs';
+import { cortes } from './cortes.mjs';
 import { passoDoPix } from './e2e-pix.mjs';
 import { passoDaEntrega } from './e2e-entrega.mjs';
 import { passoDaPrevia, passoSemEntrega } from './e2e-previa.mjs';
@@ -47,6 +48,18 @@ const PASTA = new URL('./olhar-orcamento/', import.meta.url);
 await mkdir(PASTA, { recursive: true });
 /* o microfone do Zero: o Chromium com aparelho de áudio de mentira (um bipe) e a licença já dada, para a gravação rodar sem pessoa */
 const nav = await chromium.launch({ executablePath: EXEC, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+/* TEMA=claro: a rodada inteira no tema claro (o escolhido pelo botão do topo e guardado no aparelho, js/tema.js); sem ele, no escuro,
+   o padrão. Todo contexto aberto daqui em diante já nasce com a escolha guardada (o varredor de cortes roda nos DOIS temas) */
+const TEMA = process.env.TEMA === 'claro' ? 'claro' : 'escuro';
+if (TEMA === 'claro') {
+  const novoContexto = nav.newContext.bind(nav);
+  nav.newContext = async (...args) => {
+    const c = await novoContexto(...args);
+    await c.addInitScript(() => { try { localStorage.setItem('bz-orcamento-tema', 'claro'); } catch { /* sem armazenamento */ } });
+    return c;
+  };
+}
+console.log('tema: ' + TEMA);
 let falhou = false;
 /* CONSULTOR=1: o servidor local com a IA simulada mostrando o consultor (sem BZ_SEM_CONSULTOR); as checagens da
    conversa só valem aí. Sem ele, o caminho é só o das perguntas (rodar o servidor com BZ_SEM_CONSULTOR=1) */
@@ -66,7 +79,15 @@ const anotar = (pg, rotulo) => {
   pg.on('requestfinished', async r => { if (!r.url().includes('/api/')) return; const t = r.timing(); const resp = await r.response(); diario.push(`${rotulo}: ${r.method()} ${new URL(r.url()).pathname}${new URL(r.url()).search} → ${resp ? resp.status() : '?'} em ${Math.round(t.responseEnd)} ms`); });
   pg.on('requestfailed', r => { if (r.url().includes('/api/')) diario.push(`${rotulo}: ${r.method()} ${new URL(r.url()).pathname} → falhou: ${r.failure()?.errorText}`); });
 };
-const foto = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + (CONSULTOR ? '-consultor' : '') + '.png', PASTA)) });   /* (pathname deixa %20 no caminho) */
+const fotoSo = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + (CONSULTOR ? '-consultor' : '') + (TEMA === 'claro' ? '-claro' : '') + '.png', PASTA)) });   /* (pathname deixa %20 no caminho) */
+/* CORTES=1: a cada foto, o varredor de texto cortado (docs/cortes.mjs; regra do dono "espaçamento sem corte") passa pela tela e cada achado vira FALHA */
+const CORTES = process.env.CORTES === '1';
+const foto = async (page, nome) => {
+  await fotoSo(page, nome);
+  if (!CORTES) return;
+  const achados = await cortes(page).catch(e => ['o varredor falhou: ' + e.message.split('\n')[0]]);
+  ok(achados.length === 0, 'cortes em ' + nome + (achados.length ? ': ' + achados.join(' · ') : ': nada cortado'));
+};
 
 try {
   const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -94,7 +115,8 @@ try {
   ok(await page.locator('#o-perguntas').count() === 0 && await page.locator('#o-conversar').count() === 0, 'sem tela de perguntas e sem "Prefere conversar?"');
   ok(CONSULTOR ? await page.locator('#o-form').isVisible() : await page.locator('#o-form').isHidden(), CONSULTOR ? 'com consultor: a caixa de texto está à mão' : 'sem consultor: tudo por toques, sem caixa de texto');
   await foto(page, '1a-conversa-cel');
-  /* A CASCA NOVA (remodelação de 18/11, direção B): a miniatura do site espera o 1º toque, cada opção do ramo vem com ícone, a barra diz "1 de 5" */
+  /* A CASCA NOVA (remodelação de 18/11, direção B; visual do palco, direção C de 23/11): a miniatura do site espera o 1º toque, cada opção do ramo
+     vem com ícone (escondido no palco: o número mono à direita faz as vezes dele), os passos são abas e a da conversa está sublinhada */
   ok(await page.locator('#o-nasce').isHidden() && await page.locator('#o-log .orc-toque:not([data-feito]) .orc-op--ic svg').count() === 8, 'casca: a miniatura espera o 1º toque e as 8 opções do ramo vêm com ícone');
   /* a pergunta do Zero aparece INTEIRA na caixa da conversa: com os cartões com ícone, fala + opções passam da altura da caixa, e rolar até o fim
      cortava o começo da pergunta (achado das fotos de 19/11: 51 px cortados na chegada, 46 a cada toque). A fala fica no topo; as opções seguem abaixo */
@@ -110,7 +132,7 @@ try {
     return !!antes && antes.dc >= -1 && (antes.cabe || antes.dc <= 24);
   };
   ok(await falaInteira(), 'casca: na chegada, a 1ª pergunta do Zero aparece inteira na caixa (não começa cortada)');
-  ok(await page.getAttribute('#o-etapas', 'data-n') === '1' && /1 de 5/.test(await page.evaluate(() => getComputedStyle(document.getElementById('o-etapas'), '::after').content)), 'casca: a barra de progresso diz "1 de 5"');
+  ok(await page.getAttribute('#o-etapas', 'data-n') === '1' && await page.evaluate(() => { const li = document.querySelector('#o-etapas li[aria-current="step"]'); return !!li && li.getAttribute('data-passo') === 'conversa' && /inset/.test(getComputedStyle(li).boxShadow) && li.querySelector('.orc-etapas__nome').getClientRects().length > 0; }), 'casca: a aba da conversa é a atual, com o nome à vista e o sublinhado');
   /* O MICROFONE DO ZERO (18/11): o botão Falar grava, o servidor local devolve a frase simulada e ela cai na caixa para a pessoa conferir;
      nada é enviado ao Zero sozinho. Só com o consultor (é a caixa de texto dele) */
   if (CONSULTOR) {

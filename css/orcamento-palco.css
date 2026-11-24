@@ -1,0 +1,370 @@
+/* ==========================================================================
+   O PALCO — a conversa do orçamento na direção C (dono, 20/11: "muito escura, sem vida… profissional e sério, porém deve
+   impressionar quem está vendo, deve ser um espetáculo"; 23/11, entre três desenhos: "C ficou muito bom").
+   Desenho travado: 06 Operação/Remodelação da conversa 2026-11-22/direcoes/C-palco.html (e os prints C-palco-390/320.png).
+
+   A conversa é BRANCA; o espetáculo é o contraste: uma faixa preta de ponta a ponta (o palco) onde o site da pessoa nasce como
+   numa vitrine, com os contadores em verde-água #49E5DD. Passos em abas mono com sublinhado; a fala do Zero com o símbolo
+   claro; a resposta do cliente num balão de contorno escuro; as escolhas em cartões de contorno com o número mono à direita;
+   o campo com sublinhado e o "Enviar" escuro; o topo branco com a logo para fundo claro.
+   A ESTRUTURA é a de 18/11 (a miniatura que cresce a cada resposta, agora no palco; os 5 passos; o radar): muda só o visual.
+
+   Como funciona: os tokens do site moram no <body> e são escuros. Aqui a página do orçamento (o <main> e a barra do topo)
+   recebe os tokens CLAROS; o palco e o miolo do radar recebem de volta os escuros. Assim todo componente que já usa tokens
+   (os passos 2 a 5, os avisos, o radar, os formulários) muda junto, sem regra por componente. O <body> continua preto: a
+   passagem entre páginas (js/passagem.js) chega pelo escuro e a página branca assenta por cima, como antes.
+
+   Regras do dono: nada de desfoque, brilho difuso, sombra suave, vidro ou gradiente de luz; só traço nítido e cor chapada
+   (o "box-shadow" daqui é sempre traço de 1 a 3 px, sem desfoque). Só transform e opacidade se movem; parado, tudo no lugar.
+   Celular primeiro (390, conferido em 320); a faixa de ponta a ponta é PINTURA (border-image com recuo para fora), não caixa:
+   nada fica mais largo que a tela.
+   ========================================================================== */
+
+/* ---------- DOIS TEMAS (dono, 23/11 ~21h: "escuro ativado de inicio, caso o usuario deseje mudar ele clicar em um botão e muda").
+   O ESCURO é o padrão (sem atributo, sem JS ou com o js/tema.js pondo data-tema="escuro"): diz "dark" ao navegador, que não escurece
+   uma página que já é escura. O CLARO (a v2, html[data-tema="claro"]) continua TRAVADO: o Chrome do celular com escurecimento
+   automático invertia o branco e trocava a cor da logo e do nome (print do dono, 24/11); "only light" é o pedido oficial para o
+   navegador não escurecer a página (o palco já é preto de propósito). O botão do topo troca e o aparelho guarda (js/tema.js) ---------- */
+:root { color-scheme: dark; }
+html[data-tema="claro"] { color-scheme: only light; }
+
+/* ---------- os tokens ESCUROS da página e do topo: um grafite um degrau acima do preto, para o palco (o preto puro) se destacar
+   dela como no claro, sem virar uma massa preta (dono, 20/11: "muito escura, sem vida"). Só superfície, traço e o 3º nível do texto:
+   a marca (--ac, --ac-3, --t1, --logo-*) vem de css/tokens.css como no resto do site, e o ouro continua trocando todos.
+   Contraste no --bg / no --cartao: --t1 16,5 / 15,2; --t2 9,0 / 8,4; --t3 6,9 / 6,4; --stroke 3,9 / 3,6; o ciano 11,7 / 10,8 ---------- */
+.orc__main, .orc .nav, .orc .rde-barra {
+  color-scheme: dark;
+  --bg: #131617;
+  --s1: #1A1E1F;
+  --s2: #222728;
+  --cartao: #1A1E1F;   /* (as escolhas da conversa: um degrau acima da página) */
+  --grafite-rgb: 26 30 31;
+  --line: rgb(205 212 212 / .14);
+  --line-2: rgb(205 212 212 / .24);
+  --t3: #9AA1A1;
+  --stroke: #6E7676;
+}
+
+/* ---------- os tokens claros (o tema da v2): a página do orçamento e o topo ---------- */
+html[data-tema="claro"] .orc__main, html[data-tema="claro"] .orc .nav, html[data-tema="claro"] .orc .rde-barra {
+  color-scheme: only light;
+  --bg: #FFFFFF;
+  --s1: #F6F7F7;
+  --s2: #EEF0F0;
+  --cartao: #FFFFFF;
+  --grafite-rgb: 246 247 247;
+  --line: #E3E5E5;
+  --line-2: #CDD2D2;
+  --line-hi: rgb(11 111 130 / .45);
+  --vidro: rgb(11 12 13 / .03);
+  --vidro-2: rgb(11 12 13 / .05);
+  --t1: #0B0C0D;      /* tinta: 19,6:1 no branco */
+  --t2: #42494B;      /* corpo: 9,4:1 */
+  --t3: #656C6E;      /* meta: 5,4:1 (4,9:1 no --s1) */
+  --stroke: #868D8F;  /* contorno de controle: 3,4:1 (WCAG 1.4.11) */
+  --ac: #0B6F82;      /* a ação no claro: 6,0:1; o verde-água #49E5DD fica para o palco (no branco ele some: 1,6:1) */
+  --ac-rgb: 11 111 130;
+  --ac-2: #095A69;
+  --ac-2-rgb: 9 90 105;
+  --ac-tinta: #FFFFFF;
+  --ac-tinta-rgb: 255 255 255;
+  --ac-3: #0B6F72;
+  --ac-3-rgb: 11 111 114;
+  --ac-3-tinta: #FFFFFF;
+  --aviso-rgb: 166 77 0;   /* o aviso no claro: #A64D00, 5,6:1 (o ouro #FFBE3C no branco teria 1,7:1) */
+  --ouro-rgb: 156 98 0;    /* o ouro do radar no claro: #9C6200, 4,9:1 */
+  --logo-entrada: #3FA3A6;
+  --logo-nucleo: #0E8C90;
+}
+/* ---------- os tokens escuros de volta: o palco e o miolo do radar (o investimento aparece no preto, como no palco) ---------- */
+.orc-palco, .rde-miolo {
+  color-scheme: dark;
+  --bg: #000000;
+  --s1: #0B0C0D;
+  --s2: #141617;
+  --line: rgb(205 212 212 / .16);
+  --line-2: rgb(205 212 212 / .22);
+  --line-hi: rgb(73 229 221 / .4);
+  --t1: #F2F4F4;
+  --t2: #B2B8B8;
+  --t3: #9AA1A1;      /* 7,9:1 no preto */
+  --stroke: #656C6C;
+  --ac: #49E5DD;      /* a luz: 13,5:1 no preto */
+  --ac-rgb: 73 229 221;
+  --ac-2: #A6F4EF;
+  --ac-2-rgb: 166 244 239;
+  --ac-tinta: #03201E;
+  --ac-tinta-rgb: 3 32 30;
+  --ac-3: #1CB5B9;
+  --ac-3-rgb: 28 181 185;
+  --aviso-rgb: 255 190 60;
+  --ouro-rgb: 255 190 60;
+}
+
+/* ---------- a página (grafite no escuro, branca no claro): de ponta a ponta também no computador (pintura para fora da coluna, sem alargar nada) ---------- */
+.orc__main {
+  padding-top: var(--nav-h);
+  background-color: var(--bg);
+  border-image: linear-gradient(var(--bg) 0 0) fill 0 / / 0 50vw;
+  color: var(--t1);
+}
+
+/* ---------- o topo da cor da página; a logo do escuro é a do site inteiro (css/tokens.css), a do claro é a versão para fundo claro ---------- */
+.orc .nav, .orc .nav.is-stuck, .orc .nav.is-open { background-color: var(--bg); box-shadow: 0 1px 0 var(--line); }
+.orc .nav__links { box-shadow: 0 1px 0 var(--line); }   /* (o painel do menu no celular: traço, não a sombra que espalha do resto do site) */
+html[data-tema="claro"] .orc .marca--nav .marca__aro { fill: #0B0C0D; }
+html[data-tema="claro"] .orc .marca--nav .marca__lente, html[data-tema="claro"] .orc .marca--nav .marca__saida { fill: #0B6F72; }
+html[data-tema="claro"] .orc .marca--nav .marca__entrada { fill: #3FA3A6; }
+html[data-tema="claro"] .orc .marca--nav .marca__nucleo, html[data-tema="claro"] .orc .marca--nav .marca__zero { fill: #0E8C90; }
+html[data-tema="claro"] .orc .marca--nav .marca__nome { fill: #0B0C0D; }
+html[data-tema="claro"] .orc .marca--nav .marca__pulso-out { fill: #0B0C0D; }
+html[data-tema="claro"] .orc .marca--nav .marca__brilho { fill: #0E8C90; }   /* o reflexo que atravessa o nome: no claro, um traço verde-água (a prata sumia no branco) */
+
+/* ---------- o botão do tema (js/tema.js): no topo, entre a logo e o menu; 48 × 48 como o do som do site, ícone de traço.
+   No escuro mostra o sol (tocar leva ao claro); no claro, a lua. O ícone segue o tema APLICADO (o data-tema do <html>, posto antes
+   da 1ª pintura), não o clique; o aria-pressed diz ao leitor de tela que o "Tema claro" está ligado ou não. Sem JS não aparece ---------- */
+.nav__tema {
+  display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; flex: none; margin-left: auto;
+  padding: 0; background: none; border: 0; border-radius: var(--raio-s); color: var(--t2); cursor: pointer;
+  transition: color var(--t-micro) var(--ease-micro);
+}
+html:not([data-tema]) .nav__tema { display: none; }
+.nav__tema:hover { color: var(--t1); }
+.nav__tema:focus-visible { outline: 2px solid var(--ac); outline-offset: -2px; }
+.nav__tema__icone { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.nav__tema__lua { display: none; }
+html[data-tema="claro"] .nav__tema__sol { display: none; }
+html[data-tema="claro"] .nav__tema__lua { display: inline; }
+/* a logo encolhe para caber ao lado do tema e do menu até 320 (a mesma conta de css/base.css com o som: 48 + 48) */
+@media (max-width: 400px) {
+  .orc .nav:has(.nav__tema) .marca--nav { height: min(40px, calc((100 * 1vw - 2 * var(--pad) - 2rem - 96px) / 5.557)); }   /* (100 × 1vw: é uma ALTURA, e a trava da regra 10 procura largura em vw de 3 dígitos) */
+}
+/* no computador (sem o menu): os links logo depois da logo, o tema no fim da barra */
+@media (min-width: 981px) {
+  .orc .nav:has(.nav__tema) .nav__links { margin-left: auto; }
+  .nav__tema { order: 1; margin-left: 1rem; }
+}
+
+/* ---------- O PALCO: a faixa preta de ponta a ponta ---------- */
+.orc-palco {
+  padding: 22px 0 24px;
+  background-color: #000000;
+  border-image: linear-gradient(#000000 0 0) fill 0 / / 0 50vw;
+  color: var(--t1);
+}
+.orc-palco__topo { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.orc-palco .orc-kicker, .orc-palco__vivo { margin: 0; font-family: var(--mono); font-size: var(--fs-rotulo); font-weight: 400; letter-spacing: .12em; text-transform: uppercase; line-height: 1.4; }
+.orc-palco .orc-kicker { gap: 0; color: var(--t3); }
+.orc-palco .orc-kicker .dot { display: none; }
+.orc-palco__vivo { flex: none; color: var(--ac); font-weight: 500; }
+.orc-palco h1 { max-width: none; margin: 14px 0 18px; font-weight: 300; font-size: clamp(1.875rem, 1.2rem + 2.6vw, 3.25rem); line-height: 1.12; letter-spacing: -.02em; color: var(--t1); }
+.orc-palco h1 em { font-style: normal; font-weight: 600; color: var(--ac); }
+
+/* a vitrine: a moldura de 1 px e, dentro dela, o site da pessoa (claro, quente, como uma página de verdade) */
+.orc-vitrine { padding: 12px; border: 1px solid var(--line); border-radius: 18px; }
+.orc-vitrine .nasce { margin: 0; padding: 16px; border: 0; border-radius: 10px; background: #F7F6F2; color: #101314; }
+.orc-vitrine .nasce__barra { gap: 8px; padding: 0; background: none; color: #5C6466; font-size: var(--fs-rotulo); letter-spacing: .12em; }
+.orc-vitrine .nasce__pontos { width: 14px; height: 14px; border-radius: 4px; background: #0B6F82; }
+.orc-vitrine .nasce__pontos i { display: none; }
+.orc-vitrine .nasce__corpo { padding: 0; }
+.orc-vitrine .nasce__titulo { margin: 12px 0 0; font-weight: 600; font-size: clamp(1.3125rem, 1.1rem + .9vw, 1.75rem); line-height: 1.15; letter-spacing: -.01em; color: #101314; overflow-wrap: break-word; }
+.orc-vitrine .nasce__pecas { gap: 8px; margin-top: 12px; }
+.orc-vitrine .nasce__peca { padding: 8px 14px; border: 0; border-radius: 999px; background: #0B6F82; color: #FFFFFF; font-size: .8125rem; font-weight: 600; line-height: 1.25; }
+/* antes do 1º toque a vitrine mostra só o LUGAR do site (traços, nenhum texto: nada é dito antes de a pessoa responder) */
+.orc-vitrine__lugar { display: none; grid-template-columns: 14px minmax(0, 1fr); gap: 12px 8px; padding: 16px; border-radius: 10px; background: #F7F6F2; }
+.orc-vitrine:has(> .nasce[hidden]) .orc-vitrine__lugar { display: grid; }
+.orc-vitrine__lugar i { display: block; height: 14px; border-radius: 4px; background: #E4E2DC; }
+.orc-vitrine__lugar i:nth-child(1) { background: #0B6F82; }
+.orc-vitrine__lugar i:nth-child(2) { width: 38%; align-self: center; height: 8px; }
+.orc-vitrine__lugar i:nth-child(3) { grid-column: 1 / -1; width: 72%; height: 22px; margin-top: 2px; }
+.orc-vitrine__lugar i:nth-child(4) { grid-column: 1 / -1; width: 48%; height: 34px; border-radius: 999px; }
+
+/* os contadores: três números, o primeiro na luz */
+.orc-contadores { display: grid; grid-template-columns: repeat(3, minmax(min-content, 1fr)); margin-top: 14px; border-top: 1px solid var(--line); }
+/* (a mesma folga dos dois lados de cada régua: 12 px antes e 12 px depois; a coluna cresce para o valor caber inteiro, nunca corta) */
+.orc-contador { min-width: 0; margin: 0; padding: 12px 12px 0 0; }
+.orc-contador:last-child { padding-right: 0; }
+.orc-contador + .orc-contador { padding-left: 12px; border-left: 1px solid var(--line); }
+.orc-contador b { display: block; font: 600 1.375rem/1.1 var(--sans); color: var(--t1); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.orc-contador--luz b { color: var(--ac); }
+.orc-contador span { display: block; margin-top: 4px; font-family: var(--mono); font-size: .625rem; letter-spacing: .12em; text-transform: uppercase; color: var(--t3); white-space: nowrap; }
+
+/* abrindo o pedido pelo link do aviso: a vitrine vazia e os zeros diriam que a pessoa está no começo (css/orcamento.css faz o mesmo com o resto) */
+html.orc-retomando .orc-vitrine, html.orc-retomando .orc-contadores { display: none; }
+
+/* ---------- os passos: abas mono com sublinhado, logo abaixo do palco ---------- */
+.orc-topo .orc-etapas {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 16px; max-width: none; margin: 0; padding: 0; overflow: visible;
+  border: 0; border-image: linear-gradient(to top, var(--line) 1px, transparent 1px) fill 0 / / 0 50vw;
+}
+.orc-topo .orc-etapas::after { content: none; display: none; }
+.orc-topo .orc-etapas li {
+  display: block; height: auto; min-width: 0; padding: 12px 0; border: 0; border-radius: 0; background: none;
+  font-family: var(--mono); font-size: .625rem; letter-spacing: .12em; line-height: 1.5; text-transform: uppercase; color: var(--t3); white-space: nowrap;
+}
+.orc-topo .orc-etapas li { flex: none; }   /* (o sublinhado tem a largura do nome, não da coluna) */
+.orc-topo .orc-etapas li::before { content: none; }
+.orc-topo .orc-etapas li > span { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
+.orc-topo .orc-etapas .orc-etapas__n { display: none; }
+/* (css/orcamento.css esconde o nome das outras etapas abaixo de 600 px; nas abas eles cabem a partir de 360) */
+.orc-topo .orc-etapas li:not([aria-current="step"]) .orc-etapas__nome { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
+.orc-topo .orc-etapas li.is-feita { background: none; color: var(--t2); }
+.orc-topo .orc-etapas li[aria-current="step"] { background: none; color: var(--t1); box-shadow: inset 0 -3px 0 var(--ac); }
+/* 320: só a aba atual com o nome; as outras com o número (o nome segue para o leitor de tela) */
+@media (max-width: 359px) {
+  .orc-topo .orc-etapas li:not([aria-current="step"]) .orc-etapas__n { display: inline; }
+  .orc-topo .orc-etapas li:not([aria-current="step"]) .orc-etapas__nome { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .orc-contador span { letter-spacing: .04em; }
+  .orc-contador b { font-size: 1.25rem; }
+}
+
+/* ---------- a conversa: branca, sem cartão ---------- */
+.orc-mesa { margin-top: 0; }
+.orc-conversa { padding: 22px 0 0; border: 0; border-radius: 0; background: none; }
+.orc-conversa > .orc-rotulo { margin: 0 0 4px; padding-left: 38px; font-weight: 400; letter-spacing: .12em; color: var(--t3); }
+.orc-log__lista { gap: 14px; }
+/* a caixa da conversa ROLA (a estrutura de 18/11): uma régua nítida de 1 px em cima e outra embaixo marcam a borda da rolagem, para a
+   linha que passa por ela ler como "tem mais aqui", não como texto cortado (sem esmaecer: regra do dono) */
+.orc-log { padding-block: 14px; border-block: 1px solid var(--line); scroll-snap-type: y proximity; scroll-padding-block: 12px 14px; }   /* (12 px em cima: a borda do item anterior fica 2 px acima da régua, nunca um fio dela) */
+/* a caixa PARA a rolagem no começo de uma fala (ou de uma resposta) quando a pessoa solta o dedo perto dele ("proximity": o "mandatory"
+   brigava com a rolagem até um botão de um passo aberto e o toque caía fora dele); a fala nova o JS já leva ao topo (js/orcamento-palco.js).
+   Nada fica cortado pela régua de cima (o "ZERO" atravessado no print do
+   dono, 24/11). A última pode encostar embaixo também, para o fim da conversa continuar alcançável; o que é mais alto que a caixa rola livre */
+.orc-log__lista > li { scroll-snap-align: start; }
+.orc-log__lista > li:last-child { scroll-snap-align: start end; }
+
+/* a fala do Zero: o símbolo claro à esquerda, "Zero" em mono e a frase; a fala mais nova em destaque, as antigas mais baixas */
+.msg--agente { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 10px; max-width: 100%; padding-left: 0; border-left: 0; color: var(--t1); }
+.msg--agente::before { content: ""; grid-column: 1; grid-row: 1; width: 28px; height: 28px; background: url('../assets/zero-simbolo-escuro.svg') no-repeat 0 50% / contain; }
+html[data-tema="claro"] .msg--agente::before { background-image: url('../assets/zero-simbolo-claro.svg'); }   /* (o mesmo desenho; no claro, as cores da logo para fundo claro) */
+/* (uma identificação só: o título da conversa diz "Zero, assistente virtual (IA) da Beyon Zero"; o "ZERO" em cada fala repetia isso e saiu
+   a pedido do dono, 24/11: "muita informação nessa página". O símbolo continua marcando cada fala dele) */
+.msg--agente > * { grid-column: 2; }
+.msg--agente p { font-size: 1.0625rem; line-height: 1.45; }
+.msg--agente:has(~ .msg--agente) p { font-size: .9375rem; color: var(--t2); }
+
+/* a resposta do cliente: balão de contorno escuro, encostado à direita */
+.msg--visitante { max-width: 80%; padding: 12px 16px; border: 1px solid var(--t1); border-radius: 16px 16px 4px 16px; background: none; color: var(--t1); font-size: .9375rem; line-height: 1.45; }
+
+/* as escolhas: cartões de contorno, só com o texto (o número mono à direita saiu: dono, 24/11, "tire os numeros ao lados das opções
+   pré selecionadas"). Marcada: contorno duplo e ✓ à direita.
+   Um degrau ABAIXO do campo de escrever (dono, 24/11: as opções prontas com "um destaque um pouco menor" do que conversar com o Zero
+   com as próprias palavras): mais baixas (46 px, alvo de toque mantido), letra de 15 px em cinza.
+   No toque e marcada, a opção volta à tinta cheia; o dedo afunda a opção um tantinho (só transform) */
+.orc-log__lista > .orc-toque { gap: 8px; }
+.orc-toque__ops, .orc-toque__ops:has(.orc-op--ic) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; width: 100%; max-width: none; }
+.orc-op--toque, .orc-op--ic, .orc-toque__ops:has(.orc-op--ic) > .orc-op--ic:last-child:nth-child(odd) {
+  display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 46px; padding: 11px 16px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--cartao); color: var(--t2); font-size: .9375rem; line-height: 1.3; text-align: left;
+  transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro);
+}
+.orc-op--ic .orc-ic { display: none; }
+.orc-op--toque:hover { border-color: var(--t1); color: var(--t1); }
+.orc-op--toque:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-op--toque[aria-pressed="true"], .orc-op--ic[aria-pressed="true"] { border-color: var(--t1); background: var(--cartao); color: var(--t1); box-shadow: inset 0 0 0 1px var(--t1); }
+.orc-op--toque[aria-pressed="true"]::before, .orc-op--ic[aria-pressed="true"]::before { content: none; }
+.orc-op--toque[aria-pressed="true"]::after { content: "✓"; content: "✓" / ""; flex: none; margin-left: auto; color: var(--t1); font-size: .875rem; line-height: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .orc-op--toque { transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro), transform .12s ease-out; }
+  html:not(.menos-movimento) .orc-op--toque:active { transform: scale(.985); }
+}
+.orc-toque__pronto { align-self: start; }
+
+/* o campo: o PROTAGONISTA da conversa (dono, 24/11: escrever com as próprias palavras vale mais que tocar uma opção pronta). Caixa com
+   o contorno de 1 px na cor de ação (uma linha só, sem sombra nem brilho), letra de 17 px como a fala do Zero. Ele ocupa a
+   largura toda (ao lado do "Enviar", no celular de 320 sobravam ~15 letras por linha e a dica quebrava no meio da frase); embaixo,
+   o "Falar" à esquerda e o "Enviar" à direita, como em todo aplicativo de conversa. O que não cabe na linha (o tempo da gravação
+   em 320) desce inteiro, sem cortar */
+.orc-envio { display: flex; flex-flow: row wrap; align-items: center; gap: 10px 8px; margin-top: 18px; }
+/* (o campo mora numa caixa só dele, .orc-campo, para a luz que circula a borda acompanhar o tamanho do campo, inclusive quando a pessoa o estica) */
+.orc-campo { position: relative; flex: 1 1 100%; min-width: 0; display: grid; }
+.orc-envio textarea { width: 100%; min-width: 0; min-height: 56px; padding: 14px 18px; border: 1px solid var(--ac); border-radius: 16px; background: var(--cartao); color: var(--t1); caret-color: var(--ac); font-size: 1.0625rem; line-height: 1.45; resize: vertical; }
+.orc-envio textarea::placeholder { color: var(--t3); opacity: 1; }
+/* onde o navegador sabe, o campo cresce sozinho com o texto (até 40 % da tela) e a alça de esticar, que aparecia como um pontinho solto
+   no canto, sai; onde não sabe, a alça continua */
+@supports (field-sizing: content) {
+  .orc-envio textarea { field-sizing: content; min-height: calc(3lh + 30px); max-height: 40vh; resize: none; }
+}
+.orc-envio textarea:focus-visible { outline: 2px solid var(--ac); outline-offset: -1px; border-color: var(--ac); }   /* (o foco engrossa a MESMA linha para 2 px, por cima do contorno: um anel afastado seriam duas linhas empilhadas) */
+/* A LUZ QUE CIRCULA (dono, 24/11: "mais detalhes... com ênfase no campo aonde o usuário escreve"): quando a pessoa entra no campo, um
+   traço curto da cor mais clara dá UMA volta pela própria linha da borda e apaga; fora disso não há nada a mais na borda. É um traço
+   nítido em cima da linha (nada de brilho, nada de segunda linha). Movimento reduzido: não aparece */
+.orc-campo__luz { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .orc-campo__luz { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .orc-campo__luz rect { x: 1px; y: 1px; width: calc(100% - 2px); height: calc(100% - 2px); rx: 15px; fill: none; stroke: var(--t1); stroke-width: 2px; stroke-linecap: round; stroke-dasharray: 9 91; stroke-dashoffset: 0; opacity: 0; }
+  html:not(.menos-movimento) .orc-campo:focus-within .orc-campo__luz rect { animation: orc-campo-volta 1.15s cubic-bezier(.45, 0, .25, 1) .05s both; }
+}
+@keyframes orc-campo-volta { 0% { stroke-dashoffset: 0; opacity: 0; } 8% { opacity: 1; } 88% { opacity: 1; } 100% { stroke-dashoffset: -100; opacity: 0; } }
+/* o "Enviar" casado com o campo: a mesma altura do "Falar" (48) e uma seta de traço que dá um passo à frente no toque */
+.orc-envio #o-enviar { flex: none; width: auto; min-height: 48px; margin-left: auto; padding: 12px 18px 12px 22px; gap: 8px; }
+.orc-enviar__seta { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+/* (o passo da seta: só com movimento ligado, e nunca enquanto o Zero pensa, quando o botão está travado) */
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .orc-enviar__seta { transition: transform var(--t-micro) var(--ease-micro); }
+  html:not(.menos-movimento) .orc-envio #o-enviar:not([aria-disabled="true"]):is(:hover, :focus-visible, :active) .orc-enviar__seta { transform: translateX(2px); }
+}
+.orc-envio .orc-mic, .orc-envio .orc-mic__cancelar { flex: none; width: auto; }
+
+/* ---------- os botões da página: pílulas; o principal escuro (o "Enviar" do desenho), o secundário de contorno ---------- */
+.orc__main .btn, .orc__main .btn--sm { border-radius: 999px; font-family: var(--sans); font-size: 1rem; font-weight: 600; letter-spacing: normal; text-transform: none; }   /* (16 px: a frase do botão como gente fala, docs/e2e-ajustes.mjs) */
+/* (o principal: no escuro, a cor de ação do site, chapada, com a tinta escura em cima (11:1); no claro, o "Enviar" escuro do desenho) */
+.orc__main .btn--primary { background-color: var(--ac); border-color: var(--ac); color: var(--ac-tinta); box-shadow: none; }
+.orc__main .btn--primary:hover { background-color: var(--ac-2); border-color: var(--ac-2); }
+html[data-tema="claro"] .orc__main .btn--primary { background-color: var(--t1); border-color: var(--t1); color: #FFFFFF; }
+html[data-tema="claro"] .orc__main .btn--primary:hover { background-color: #2B3133; border-color: #2B3133; }
+.orc__main .btn--ghost { background-color: transparent; border-color: var(--t1); color: var(--t1); }
+.orc__main .btn--ghost:hover { background-color: var(--s1); color: var(--t1); }
+.orc__main .btn:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+
+/* ---------- o radar e os cartões ao lado: branco com traço; o núcleo é um pedaço do palco (preto, o valor na luz) ---------- */
+.orc-painel > div, .rde { border-color: var(--line); background: var(--bg); }
+/* a barra fina do radar (celular): o nome do estado inteiro, nunca com reticências. Cabe numa linha até em 320 (o espaçamento e os vãos
+   apertam só ali); com a fonte grande do aparelho ele quebra, e nunca some */
+.rde-barra__estado { overflow: visible; white-space: normal; text-overflow: clip; line-height: 1.25; }
+@media (max-width: 359px) {
+  .rde-barra { gap: 8px; }
+  .rde-barra__estado { letter-spacing: .02em; }
+  .rde-barra__ver { padding: 0 10px; letter-spacing: .06em; }
+}
+/* o investimento em tela estreita: prazo, entrada e restante viram linhas (nome à esquerda, valor à direita), sem palavra partida no meio;
+   as sugestões levam o preço para baixo do texto, que ganha a largura do cartão */
+@media (max-width: 379px) {
+  .orc-est__dados { grid-template-columns: minmax(0, 1fr); }
+  .orc-est__dados div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: .6rem 0; }
+  .orc-est__dados div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+  .orc-est__dados dd { margin: 0; text-align: right; }
+  .orc-reco__item { grid-template-columns: 24px minmax(0, 1fr); align-items: start; }
+  .orc-reco__valor { grid-column: 2; text-align: left; }
+}
+.rde-nucleo { fill: #000000; stroke: #000000; }
+/* no disco preto o rótulo do miolo não pode passar da borda (no grafite de antes ele sumia no fundo; aqui apareceria cortado): quebra em duas linhas quando falta lugar */
+.rde-miolo__rot { max-width: 50cqi; text-align: center; }
+.rde-nucleo-anel { stroke: rgb(205 212 212 / .22); }
+/* (no escuro valem os traços claros de css/orcamento-escopo.css; no claro, os escuros) */
+html[data-tema="claro"] .rde-guia.is-confirmada { stroke: rgb(11 12 13 / .45); }
+html[data-tema="claro"] .rde-anel__trilho { stroke: rgb(11 12 13 / .14); }
+/* os cantos do radar quebram entre palavras (o hífen automático partia "Agen-damento" em 360); só uma palavra que não cabe sozinha quebra */
+.rde-canto__valor { hyphens: manual; overflow-wrap: break-word; }
+/* o título do visor da prévia (passo 2): inteiro, nunca com reticências; quebra entre os pedaços (js/orcamento-visor.js, tituloEmPartes) */
+.visor__titulo { overflow: visible; white-space: normal; text-wrap: wrap; text-overflow: clip; }
+.visor__parte { display: inline-block; max-width: 100%; }
+
+/* ---------- o movimento é acréscimo: o número novo do palco dá o mesmo pulo das peças da miniatura ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .orc-contador b.is-nova { animation: nasce-pulo .5s cubic-bezier(.2, .9, .3, 1.25) both; }
+}
+
+/* ---------- a tela larga: o palco em duas colunas (o título e os contadores; a vitrine à direita) ---------- */
+@media (min-width: 900px) {
+  .orc-palco { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); grid-template-areas: "topo topo" "titulo vitrine" "contadores vitrine"; column-gap: clamp(2.5rem, 5vw, 5rem); align-items: start; padding: 40px 0 44px; }
+  .orc-palco__topo { grid-area: topo; }
+  .orc-palco h1 { grid-area: titulo; margin: 28px 0 0; }
+  .orc-vitrine { grid-area: vitrine; margin-top: 28px; }
+  .orc-contadores { grid-area: contadores; align-self: end; margin-top: 32px; }
+  .orc-contador b { font-size: 1.75rem; }
+  .orc-topo .orc-etapas { justify-content: flex-start; gap: 0 2.5rem; }
+  .orc-conversa { padding: 28px 0 0; }
+  .orc-mesa { gap: clamp(2rem, 4vw, 3.5rem); }
+  .orc-painel { top: calc(var(--nav-h) + 1.75rem); margin-top: 28px; }
+}

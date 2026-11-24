@@ -42,6 +42,7 @@ export const ACOES = {
     'material-remover': 'materialRemover', 'material-enviar': 'materialEnviar',
     'link-pedido': 'linkPedido', 'sair-do-aparelho': 'sairDoAparelho', 'outro-aparelho': 'outroAparelho', 'abrir-pedido': 'abrirPedido',
     'previa-ajustes': 'previaAjustes', 'previa-aprovar': 'previaAprovar',
+    desistir: 'desistir',   /* (20/11) a desistência dentro dos 7 dias: a entrada volta pelo Pix (api/_pagamentos/desistencia.mjs) */
     recado: 'recado',
     transcrever: 'transcrever' }   /* (o microfone do Zero: corpo de ÁUDIO, não JSON; api/_vendas/voz.mjs) */
 };

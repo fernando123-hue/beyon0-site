@@ -105,6 +105,20 @@ test('escopo: páginas extras somam às incluídas, extras que não são integra
   assert.equal(um.dims.integracoes.texto, 'Só as do pacote');
 });
 
+/* o PALCO do orçamento (direção C, 23/11) mostra as integrações como NÚMERO; ele vem daqui, da mesma lista que escreve o texto do canto,
+   para nenhum lado contar diferente do outro (nada de ler o "+1" do texto) */
+test('integrações: a dimensão leva a contagem (n) da mesma lista do texto; pendente não tem número', () => {
+  assert.equal(estadoDoEscopo(null, null, {}).dims.integracoes.n, undefined, 'pendente: sem número (o palco mostra —)');
+  const briefing = estadoDoEscopo(estado({ briefing: { projeto: { formato: 'institucional' }, funcionalidades: ['agendamento', 'whatsapp', 'blog'] } }), null, {});
+  assert.equal(briefing.dims.integracoes.texto, 'Agendamento online +1');
+  assert.equal(briefing.dims.integracoes.n, 2, 'o blog é escopo, não integração');
+  assert.equal(estadoDoEscopo(null, simulado(), {}).dims.integracoes.n, 1);
+  const so = estadoDoEscopo(null, simulado({ estimativa: Object.assign({}, simulado().estimativa, { itens: [{ chave: 'imagens', nome: 'Curadoria de imagens', qtd: 1 }] }) }), {});
+  assert.equal(so.dims.integracoes.texto, 'Só as do pacote');
+  assert.equal(so.dims.integracoes.n, 0);
+  assert.equal(estadoDoEscopo(estado({ etapa: 'pacote' }, { estimativa: salvo() }), null, {}).dims.integracoes.n, 1, 'o pedido salvo também conta');
+});
+
 test('simulação sem valor (o pacote pede conversa): o formato recomendado fica identificado, o resto volta a pendente, nada de valor; o que pede conversa fica "a confirmar"', () => {
   const r = estadoDoEscopo(null, simulado({ estimativa: null, diagnostico: { itens: ['Sistema ou painel para o seu caso'] } }), {});
   assert.equal(r.estado, 'analise');
