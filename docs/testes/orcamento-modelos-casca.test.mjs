@@ -113,7 +113,7 @@ test('o HTML liga os arquivos novos, os pontos são decorativos e a regra dos mo
   assert.match(html, /<link rel="stylesheet" href="css\/orcamento-modelos\.css" \/>/);
   assert.match(html, /<script src="js\/orcamento-carrossel\.js" defer><\/script>/);
   assert.match(html, /<div class="orc-pontos" id="o-dirs-pontos" aria-hidden="true"><\/div>/);
-  assert.match(html, /escolha um: os ajustes são feitos dentro dele\. Trazer cores ou uma seção de outro modelo conta como um ajuste/);
+  assert.match(html, /Escolha um e ajuste dentro dele\.\s+Trazer cores ou uma seção de outro modelo conta como um ajuste/);
   assert.match(html, /<ol class="orc-dirs" id="o-dirs" role="list">/);
   assert.match(ler('js/orcamento.js'), /Trazer cores ou uma seção de outro modelo conta como um ajuste/);
 });

@@ -6,6 +6,15 @@
    Celular primeiro; do 900 px para cima os três modelos seguem em colunas (css/orcamento.css).
    ========================================================================== */
 
+/* ---------- o ritmo da seção (dono, 24/11: "toda essa parte que envolve as prévias devem ser reformuladas em questão de texto,
+   espaçamento e copy"): título, uma frase, a recomendação em duas linhas e os cartões; o mesmo vão de 1,5 rem entre os blocos e
+   0,5 rem dentro do cartão. A descrição longa de cada modelo saiu da tela (fica para o leitor de tela): a prévia é a estrela ---------- */
+#o-direcoes .orc-bloco__lead { margin: .75rem 0 1.5rem; white-space: pre-line; text-wrap: pretty; }   /* (uma frase por linha: a quebra cai no sentido) */
+#o-direcoes .orc-recomenda { gap: .35rem; margin: 0 0 1.5rem; padding: .25rem 0 .25rem 1rem; }
+#o-direcoes .orc-recomenda__texto { max-width: 60ch; text-wrap: pretty; }
+.dir__corpo { gap: .5rem; padding: 1rem; }
+.dir__corpo .dir__acoes { padding-top: .5rem; }
+
 /* ---------- os modelos: cartões que deslizam, um já espiando o outro ---------- */
 @media (max-width: 899px) {
   .orc-dirs { display: flex; gap: .75rem; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: .15rem; }
