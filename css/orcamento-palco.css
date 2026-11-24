@@ -246,23 +246,28 @@ html[data-tema="claro"] .msg--agente::before { background-image: url('../assets/
 /* a resposta do cliente: balão de contorno escuro, encostado à direita */
 .msg--visitante { max-width: 80%; padding: 12px 16px; border: 1px solid var(--t1); border-radius: 16px 16px 4px 16px; background: none; color: var(--t1); font-size: .9375rem; line-height: 1.45; }
 
-/* as escolhas: cartões de contorno, o número mono à direita (contado pelo CSS, o texto da opção não muda). Marcada: contorno duplo e ✓.
+/* as escolhas: cartões de contorno, só com o texto (o número mono à direita saiu: dono, 24/11, "tire os numeros ao lados das opções
+   pré selecionadas"). Marcada: contorno duplo e ✓ à direita.
    Um degrau ABAIXO do campo de escrever (dono, 24/11: as opções prontas com "um destaque um pouco menor" do que conversar com o Zero
-   com as próprias palavras): mais baixas (46 px, alvo de toque mantido), letra de 15 px em cinza e o número sem a cor de ação.
-   No toque e marcada, a opção volta à tinta cheia */
+   com as próprias palavras): mais baixas (46 px, alvo de toque mantido), letra de 15 px em cinza.
+   No toque e marcada, a opção volta à tinta cheia; o dedo afunda a opção um tantinho (só transform) */
 .orc-log__lista > .orc-toque { gap: 8px; }
-.orc-toque__ops { counter-reset: op; }
 .orc-toque__ops, .orc-toque__ops:has(.orc-op--ic) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; width: 100%; max-width: none; }
 .orc-op--toque, .orc-op--ic, .orc-toque__ops:has(.orc-op--ic) > .orc-op--ic:last-child:nth-child(odd) {
-  display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 46px; padding: 11px 14px;
-  border: 1px solid var(--line); border-radius: 12px; background: var(--cartao); color: var(--t2); font-size: .9375rem; line-height: 1.3; text-align: left; counter-increment: op;
+  display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 46px; padding: 11px 16px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--cartao); color: var(--t2); font-size: .9375rem; line-height: 1.3; text-align: left;
+  transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro);
 }
-.orc-op--toque::after { content: counter(op, decimal-leading-zero); content: counter(op, decimal-leading-zero) / ""; flex: none; margin-left: auto; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: .04em; color: var(--t3); }
 .orc-op--ic .orc-ic { display: none; }
 .orc-op--toque:hover { border-color: var(--t1); color: var(--t1); }
+.orc-op--toque:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 .orc-op--toque[aria-pressed="true"], .orc-op--ic[aria-pressed="true"] { border-color: var(--t1); background: var(--cartao); color: var(--t1); box-shadow: inset 0 0 0 1px var(--t1); }
 .orc-op--toque[aria-pressed="true"]::before, .orc-op--ic[aria-pressed="true"]::before { content: none; }
-.orc-op--toque[aria-pressed="true"]::after { content: "✓"; content: "✓" / ""; color: var(--t1); font-size: .875rem; }
+.orc-op--toque[aria-pressed="true"]::after { content: "✓"; content: "✓" / ""; flex: none; margin-left: auto; color: var(--t1); font-size: .875rem; line-height: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .orc-op--toque { transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro), transform .12s ease-out; }
+  html:not(.menos-movimento) .orc-op--toque:active { transform: scale(.985); }
+}
 .orc-toque__pronto { align-self: start; }
 
 /* o campo: o PROTAGONISTA da conversa (dono, 24/11: escrever com as próprias palavras vale mais que tocar uma opção pronta). Caixa com
@@ -271,10 +276,34 @@ html[data-tema="claro"] .msg--agente::before { background-image: url('../assets/
    o "Falar" à esquerda e o "Enviar" à direita, como em todo aplicativo de conversa. O que não cabe na linha (o tempo da gravação
    em 320) desce inteiro, sem cortar */
 .orc-envio { display: flex; flex-flow: row wrap; align-items: center; gap: 10px 8px; margin-top: 18px; }
-.orc-envio textarea { flex: 1 1 100%; min-width: 0; min-height: 56px; padding: 13px 16px; border: 1px solid var(--ac); border-radius: 16px; background: var(--cartao); color: var(--t1); font-size: 1.0625rem; line-height: 1.4; resize: vertical; }
+/* (o campo mora numa caixa só dele, .orc-campo, para a luz que circula a borda acompanhar o tamanho do campo, inclusive quando a pessoa o estica) */
+.orc-campo { position: relative; flex: 1 1 100%; min-width: 0; display: grid; }
+.orc-envio textarea { width: 100%; min-width: 0; min-height: 56px; padding: 14px 18px; border: 1px solid var(--ac); border-radius: 16px; background: var(--cartao); color: var(--t1); caret-color: var(--ac); font-size: 1.0625rem; line-height: 1.45; resize: vertical; }
 .orc-envio textarea::placeholder { color: var(--t3); opacity: 1; }
+/* onde o navegador sabe, o campo cresce sozinho com o texto (até 40 % da tela) e a alça de esticar, que aparecia como um pontinho solto
+   no canto, sai; onde não sabe, a alça continua */
+@supports (field-sizing: content) {
+  .orc-envio textarea { field-sizing: content; min-height: calc(3lh + 30px); max-height: 40vh; resize: none; }
+}
 .orc-envio textarea:focus-visible { outline: 2px solid var(--ac); outline-offset: -1px; border-color: var(--ac); }   /* (o foco engrossa a MESMA linha para 2 px, por cima do contorno: um anel afastado seriam duas linhas empilhadas) */
-.orc-envio #o-enviar { flex: none; width: auto; min-height: 48px; margin-left: auto; padding: 12px 22px; }
+/* A LUZ QUE CIRCULA (dono, 24/11: "mais detalhes... com ênfase no campo aonde o usuário escreve"): quando a pessoa entra no campo, um
+   traço curto da cor mais clara dá UMA volta pela própria linha da borda e apaga; fora disso não há nada a mais na borda. É um traço
+   nítido em cima da linha (nada de brilho, nada de segunda linha). Movimento reduzido: não aparece */
+.orc-campo__luz { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .orc-campo__luz { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .orc-campo__luz rect { x: 1px; y: 1px; width: calc(100% - 2px); height: calc(100% - 2px); rx: 15px; fill: none; stroke: var(--t1); stroke-width: 2px; stroke-linecap: round; stroke-dasharray: 9 91; stroke-dashoffset: 0; opacity: 0; }
+  html:not(.menos-movimento) .orc-campo:focus-within .orc-campo__luz rect { animation: orc-campo-volta 1.15s cubic-bezier(.45, 0, .25, 1) .05s both; }
+}
+@keyframes orc-campo-volta { 0% { stroke-dashoffset: 0; opacity: 0; } 8% { opacity: 1; } 88% { opacity: 1; } 100% { stroke-dashoffset: -100; opacity: 0; } }
+/* o "Enviar" casado com o campo: a mesma altura do "Falar" (48) e uma seta de traço que dá um passo à frente no toque */
+.orc-envio #o-enviar { flex: none; width: auto; min-height: 48px; margin-left: auto; padding: 12px 18px 12px 22px; gap: 8px; }
+.orc-enviar__seta { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+/* (o passo da seta: só com movimento ligado, e nunca enquanto o Zero pensa, quando o botão está travado) */
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .orc-enviar__seta { transition: transform var(--t-micro) var(--ease-micro); }
+  html:not(.menos-movimento) .orc-envio #o-enviar:not([aria-disabled="true"]):is(:hover, :focus-visible, :active) .orc-enviar__seta { transform: translateX(2px); }
+}
 .orc-envio .orc-mic, .orc-envio .orc-mic__cancelar { flex: none; width: auto; }
 
 /* ---------- os botões da página: pílulas; o principal escuro (o "Enviar" do desenho), o secundário de contorno ---------- */
