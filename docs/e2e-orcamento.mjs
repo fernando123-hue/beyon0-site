@@ -48,6 +48,18 @@ const PASTA = new URL('./olhar-orcamento/', import.meta.url);
 await mkdir(PASTA, { recursive: true });
 /* o microfone do Zero: o Chromium com aparelho de áudio de mentira (um bipe) e a licença já dada, para a gravação rodar sem pessoa */
 const nav = await chromium.launch({ executablePath: EXEC, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+/* TEMA=claro: a rodada inteira no tema claro (o escolhido pelo botão do topo e guardado no aparelho, js/tema.js); sem ele, no escuro,
+   o padrão. Todo contexto aberto daqui em diante já nasce com a escolha guardada (o varredor de cortes roda nos DOIS temas) */
+const TEMA = process.env.TEMA === 'claro' ? 'claro' : 'escuro';
+if (TEMA === 'claro') {
+  const novoContexto = nav.newContext.bind(nav);
+  nav.newContext = async (...args) => {
+    const c = await novoContexto(...args);
+    await c.addInitScript(() => { try { localStorage.setItem('bz-orcamento-tema', 'claro'); } catch { /* sem armazenamento */ } });
+    return c;
+  };
+}
+console.log('tema: ' + TEMA);
 let falhou = false;
 /* CONSULTOR=1: o servidor local com a IA simulada mostrando o consultor (sem BZ_SEM_CONSULTOR); as checagens da
    conversa só valem aí. Sem ele, o caminho é só o das perguntas (rodar o servidor com BZ_SEM_CONSULTOR=1) */
@@ -67,7 +79,7 @@ const anotar = (pg, rotulo) => {
   pg.on('requestfinished', async r => { if (!r.url().includes('/api/')) return; const t = r.timing(); const resp = await r.response(); diario.push(`${rotulo}: ${r.method()} ${new URL(r.url()).pathname}${new URL(r.url()).search} → ${resp ? resp.status() : '?'} em ${Math.round(t.responseEnd)} ms`); });
   pg.on('requestfailed', r => { if (r.url().includes('/api/')) diario.push(`${rotulo}: ${r.method()} ${new URL(r.url()).pathname} → falhou: ${r.failure()?.errorText}`); });
 };
-const fotoSo = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + (CONSULTOR ? '-consultor' : '') + '.png', PASTA)) });   /* (pathname deixa %20 no caminho) */
+const fotoSo = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + (CONSULTOR ? '-consultor' : '') + (TEMA === 'claro' ? '-claro' : '') + '.png', PASTA)) });   /* (pathname deixa %20 no caminho) */
 /* CORTES=1: a cada foto, o varredor de texto cortado (docs/cortes.mjs; regra do dono "espaçamento sem corte") passa pela tela e cada achado vira FALHA */
 const CORTES = process.env.CORTES === '1';
 const foto = async (page, nome) => {
