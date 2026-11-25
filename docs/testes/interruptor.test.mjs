@@ -12,6 +12,8 @@ import { entregaLigada, FRASE_DESLIGADA } from '../../api/_material/interruptor.
 const ANTIGAS = ['recado', 'sessao', 'retomar', 'renovar', 'mensagem', 'gerar', 'gerar-direcao', 'escolher', 'ajustar', 'desfazer', 'pedido-livre', 'escopo', 'confirmar', 'pagar', 'simular', 'confirmar-pacote', 'detalhes'];
 /* o microfone tem o próprio interruptor: sem transcritor configurado a ação dá 503 (voz-api.test.mjs) */
 const DA_VOZ = ['transcrever'];
+/* (24/11) os extras na conversa com o Zero: fase do preço, antes do pedido e da entrega (como confirmar-pacote); o banco recusa depois do pedido */
+const DO_PRECO = ['extras-sugeridos', 'alternar-extra'];
 const DA_ENTREGA = ['material-salvar', 'material-reservar', 'material-conferir', 'material-remover', 'material-enviar', 'link-pedido', 'sair-do-aparelho', 'outro-aparelho', 'abrir-pedido', 'previa-ajustes', 'previa-aprovar', 'desistir'];
 
 let local, cen;
@@ -60,7 +62,8 @@ test('ligada: o estado traz a entrega e entrega_ligada true', async () => {
 
 test('toda ação POST de /api/vendas é antiga ou está na lista da entrega (e cada uma da lista dá 503 com a entrega desligada, no teste acima): nenhuma ação nova nasce fora do interruptor', async () => {
   const { ACOES } = await import('../../api/vendas.mjs');
-  const novas = Object.keys(ACOES.POST).filter(a => !ANTIGAS.includes(a)).sort();
+  const novas = Object.keys(ACOES.POST).filter(a => !ANTIGAS.includes(a) && !DO_PRECO.includes(a)).sort();
   assert.deepEqual(novas, [...DA_ENTREGA, ...DA_VOZ].sort(), 'uma ação nova entrou em ACOES.POST: ponha-a atrás do interruptor e em DA_ENTREGA (ou DA_VOZ, com o interruptor do microfone; ou, se é anterior à entrega, em ANTIGAS)');
-  assert.equal(new Set([...ANTIGAS, ...DA_ENTREGA, ...DA_VOZ]).size, ANTIGAS.length + DA_ENTREGA.length + DA_VOZ.length, 'uma ação não pode estar nas duas listas');
+  for (const a of DO_PRECO) assert.ok(a in ACOES.POST, a + ' está em DO_PRECO mas não em ACOES.POST');
+  assert.equal(new Set([...ANTIGAS, ...DO_PRECO, ...DA_ENTREGA, ...DA_VOZ]).size, ANTIGAS.length + DO_PRECO.length + DA_ENTREGA.length + DA_VOZ.length, 'uma ação não pode estar nas duas listas');
 });

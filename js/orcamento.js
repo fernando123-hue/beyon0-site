@@ -100,8 +100,13 @@
       var v = investimento(E.estimativa, true);
       jaVemNoPacote(E.estimativa);
       if (v) anunciar('Investimento estimado: ' + v + '.');
+      extrasNaConversa();
     } else if (ultimaSim && !Toques.comConsultor()) mostrarSim(ultimaSim);
   });
+  /* (dono, 24/11, opção A) com o Zero, logo depois do preço, 2 ou 3 extras como cartões na conversa (js/orcamento-extras-zero.js; sem o módulo a
+     tela segue igual). Um toque que muda o preço relê o estado: o cartão do investimento e o radar acompanham a estimativa regravada */
+  var ganchosExtras = { reler: function () { return recarregar().catch(function () { /* a estimativa já está gravada; a próxima leitura acerta o cartão */ }); } };
+  function extrasNaConversa() { if (window.BZExtrasZero) window.BZExtrasZero.atualizar(E, ganchosExtras); }
   /* a coreografia do turno do valor (spec §2): a fala já entrou; com a planta, o valor espera ela consagrar (js/planta-desenho.js avisa); sem ela, um respiro */
   /* em dois tempos: ESCUTA já (o aviso da planta pode vir durante a releitura do estado) e devolve armar(), que põe o prazo quando o estado novo
      diz se há planta (com ela, até PLANTA_MAX_MS; sem ela, o respiro) */
@@ -924,6 +929,7 @@
     if (window.BZOrcEsboco) window.BZOrcEsboco.atualizar(E);   /* a planta viva v2, o esboço que cresce na conversa (js/orcamento-planta-esboco.js): só age com a flag BZ_PLANTA; sem o módulo a tela segue igual */
     if (window.BZOrcEscopo) window.BZOrcEscopo.atualizar(E);   /* o radar do escopo (js/orcamento-escopo.js): só lê o estado; sem o módulo a tela segue igual */
     if (window.BZPainel) window.BZPainel.atualizar(E.painel);   /* as peças da conversa: notas, ficha e caso (js/orcamento-painel.js); sem o módulo a tela segue igual */
+    extrasNaConversa();
     direcoes();
     mostrar('o-ajustes', (et === 'escolhida' || et === 'alteracoes') && !descartado());
     ajustes.atualizar(E);

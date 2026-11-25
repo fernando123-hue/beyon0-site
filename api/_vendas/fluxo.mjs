@@ -32,6 +32,9 @@ import { regrasAtivas, esquecerRegras } from './regras-ativas.mjs';
 import { criarAcoesDoPedido } from './fluxo-pedido.mjs';
 import { criarAcoesDaRetomada } from './fluxo-retomada.mjs';
 import { criarAcoesDosAjustes } from './fluxo-ajustes.mjs';
+import { criarAcoesDosExtras } from './fluxo-extras.mjs';
+import { mesmoJson } from './json-igual.mjs';
+import { escolhasDe, reaplicarEscolhas } from './escolhas-extras.mjs';
 import { PEDIDOS } from './pedido.mjs';
 import { soltarAbandonadasComFreio } from './abandonadas.mjs';
 import { criarAcoesDoMaterial } from './fluxo-material.mjs';
@@ -108,10 +111,6 @@ const freioConfirmar = criarFreio({ max: 20, janelaMs: 60 * 60e3 });
 const freioCatalogo = criarFreio({ max: 60, janelaMs: 60 * 60e3 });
 const PACOTE_FECHADO = 'O pacote já foi fechado. Para mudar, deixe um recado para a equipe.';
 const TABELA_MUDOU = 'A tabela de valores mudou enquanto você montava o orçamento. Confira o valor novo.';
-/* o mesmo JSON sem depender da ordem das chaves (o jsonb volta do banco com as chaves na ordem dele) */
-const canonico = v => (Array.isArray(v) ? v.map(canonico)
-  : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canonico(v[k])])) : v);
-const mesmoJson = (a, b) => JSON.stringify(canonico(a)) === JSON.stringify(canonico(b));
 const ETAPAS_PACOTE = ['descoberta', 'estimativa'];
 /* (orçamento como conversa, spec 2026-11-13 §6.1) depois da 1ª mensagem do fluxo novo, as respostas que MUDAM o caso (ramo, objetivos, site, material)
    valem no máximo 4 vezes por conversa. O contador mora no briefing (fluxo_mudancas, chave só do código): não depende da janela de mensagens nem do texto */
@@ -414,9 +413,12 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     const comPreco = precoAberto(est.conversa.etapa, est.pedido?.status);
     let estimativa = null;
     if (r.estimativa && !soDuvidas && comPreco) {
-      await banco('vendas_registrar_estimativa', { conversa_id: conversaId, visitante_id: vid, regras_id: regras.id, fatores: r.estimativa.fatores,
-        valor_total: r.estimativa.valor_total, sinal: r.estimativa.sinal, prazo_dias: r.estimativa.prazo_dias, fase: r.estimativa.fase, detalhes: r.estimativa });
-      estimativa = cartao(r.estimativa);
+      /* (cartões de extras) um toque que entrou enquanto o modelo pensava vale: as escolhas de AGORA, relidas do banco, por cima (escolhas-extras.mjs) */
+      const agora = (await estado(vid, conversaId)).estimativa;
+      const e = reaplicarEscolhas(r.estimativa, escolhasDe(est.estimativa, regras.regras), escolhasDe(agora, regras.regras), regras.regras);
+      await banco('vendas_registrar_estimativa', { conversa_id: conversaId, visitante_id: vid, regras_id: regras.id, fatores: e.fatores,
+        valor_total: e.valor_total, sinal: e.sinal, prazo_dias: e.prazo_dias, fase: e.fase, detalhes: e });
+      estimativa = cartao(e);
     }
     const saida = { resposta: r.resposta, estimativa, pedir_contato: !soDuvidas && comPreco && r.pedir_contato, diagnostico: r.diagnostico, sugestoes_ia: r.sugestoes_ia, confianca: r.confianca };
     observarNaSombra({ conversaId, vid, msg, r });
@@ -460,6 +462,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     ...acoesDoPedido,
     ...criarAcoesDaRetomada({ banco, visitantes }),
     ...criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescartado }),
+    ...criarAcoesDosExtras({ banco, visitante, estado, donoDaConversa, cartao }),
     ...criarAcoesDoMaterial({ banco, visitante, estado, armazem, segredoFreio, requestId, env }),
     ...criarAcoesDoLink({ banco, visitante, visitantes, segredoFreio, env }),
     ...criarAcoesDaPrevia({ banco, visitante, estado, env }),
