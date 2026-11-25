@@ -25,7 +25,9 @@ import { comExtra, escolhasDe, comEscolha, comEscolhasGravadas } from './escolha
 export const ETAPAS_EXTRAS = ['descoberta', 'estimativa'];
 /* por conversa, no módulo (o fluxo é criado a cada pedido): quem toca muito não fica sem poder seguir para o pedido */
 const freioListar = criarFreio({ max: 60, janelaMs: 60 * 60e3 });
-const freioAlternar = criarFreio({ max: 30, janelaMs: 60 * 60e3 });
+/* (revisão de segurança M1) cada toque grava uma estimativa e o banco aceita 30 por conversa: 12 por hora deixa folga para o Zero e o pacote */
+export const TOQUES_POR_HORA = 12;
+const freioAlternar = criarFreio({ max: TOQUES_POR_HORA, janelaMs: 60 * 60e3 });
 export const FRASES = Object.freeze({
   conversaInvalida: 'Conversa inválida.',
   semPreco: 'O valor ainda não saiu. Converse com o Zero primeiro.',
@@ -34,7 +36,8 @@ export const FRASES = Object.freeze({
   muitos: 'Muitos toques seguidos. Espere um pouco ou deixe um recado.',
   tabelaMudou: 'A tabela de valores mudou enquanto você montava o orçamento. Confira o valor novo.',
   emAtualizacao: 'A tabela de valores está em atualização. Deixe um recado para a equipe.',
-  fechado: 'O pacote já foi fechado. Para mudar, deixe um recado para a equipe.',
+  depoisDoPedido: 'O pedido já foi feito; os extras ficaram como estavam.',
+  tetoDoBanco: 'Você já mexeu bastante nos extras deste orçamento. Para mudar mais, deixe um recado para a equipe.',
   precisaConversa: 'Esse pacote precisa de uma conversa. Deixe um recado para a equipe.'
 });
 const exigir = (cond, status, msg, extra) => { if (!cond) throw new Recusa(status, msg, extra); };
@@ -62,7 +65,8 @@ export function criarAcoesDosExtras({ banco, visitante, estado, donoDaConversa, 
   async function contexto(request, corpo, freio) {
     const vid = await visitante(request);
     exigir(ehUuid(corpo?.conversa_id), 400, FRASES.conversaInvalida);
-    const dono = await donoDaConversa(vid, corpo.conversa_id, ETAPAS_EXTRAS);
+    /* (fora das etapas do preço = o pedido já foi feito: o recado diz isso, e não que o valor não saiu) */
+    const dono = await donoDaConversa(vid, corpo.conversa_id, ETAPAS_EXTRAS).catch(e => { throw e instanceof Recusa && e.status === 409 ? new Recusa(409, FRASES.depoisDoPedido) : e; });
     exigir(!freio(corpo.conversa_id), 429, FRASES.muitos);
     exigir(dono && dono.estimativa && dono.estimativa.fatores && typeof dono.estimativa.fatores === 'object', 409, FRASES.semPreco);
     const regras = await regrasAtivas(banco, { cache: true });
@@ -107,7 +111,8 @@ export function criarAcoesDosExtras({ banco, visitante, estado, donoDaConversa, 
           await banco('vendas_registrar_estimativa', { conversa_id: corpo.conversa_id, visitante_id: vid, regras_id: regras.id, fatores: e.fatores,
             valor_total: e.valor_total, sinal: e.sinal, prazo_dias: e.prazo_dias, fase: e.fase, detalhes: comEscolhasGravadas(e, escolhas) });
         } catch (x) {
-          if (x instanceof ErroBanco && x.codigo === '55000') throw new Recusa(409, FRASES.fechado);
+          if (x instanceof ErroBanco && x.codigo === '55000') throw new Recusa(409, FRASES.depoisDoPedido);
+          if (x instanceof ErroBanco && x.codigo === '23514') throw new Recusa(409, FRASES.tetoDoBanco, { recado: true });   /* (o teto de 30 estimativas da conversa) */
           throw x;
         }
       }

@@ -187,6 +187,59 @@ test('só com o Zero, com o valor liberado e antes dos detalhes do pedido; depoi
   assert.equal(m.chamadas.listar, 1);
 });
 
+/* (revisão técnica 2) a lista que chega atrasada não desfaz o resultado de um toque que começou depois dela */
+test('uma lista atrasada não sobrescreve o resultado do toque', async () => {
+  let soltarLista = null;
+  const m = montar({ listar: () => (m && m.chamadas.listar > 1 ? new Promise(r => { soltarLista = () => r(LISTA()); }) : Promise.resolve(LISTA())) });
+  m.atualizar(ESTADO());
+  await tique(); await tique();
+  m.atualizar(ESTADO({ estimativa: { valor_total: 7900, fatores: { ...FATORES, urgencia: true } } }));
+  await tique();
+  assert.equal(m.chamadas.listar, 2, 'a lista nova saiu e está em voo');
+  m.cartao('agendamento').clicar();
+  await tique(); await tique();
+  assert.match(m.total(), /8\.350/);
+  soltarLista(); await tique(); await tique();
+  assert.equal(m.cartao('agendamento').getAttribute('aria-pressed'), 'true', 'o cartão segue o toque');
+  assert.match(m.total(), /8\.350/, 'o total segue o toque');
+});
+
+/* (revisão técnica 3) travar é só para o pedido feito; um estado passageiro (sem estimativa por um instante) não trava para sempre */
+test('estado passageiro não trava os cartões; o pedido feito, sim', async () => {
+  const m = montar();
+  m.atualizar(ESTADO());
+  await tique(); await tique();
+  m.atualizar(ESTADO({ estimativa: null }));
+  await tique();
+  assert.ok(m.cartoes().every(b => !b.disabled), 'sem estimativa por um instante: nada travado');
+  m.atualizar(ESTADO());
+  await tique();
+  m.cartao('agendamento').clicar();
+  assert.equal(m.chamadas.alternar.length, 1, 'segue tocável');
+  await tique(); await tique();
+  m.atualizar(ESTADO({ pedido: { status: 'confirmado' } }));
+  await tique();
+  assert.ok(m.cartoes().every(b => b.disabled), 'com o pedido feito: travados');
+});
+
+/* (revisões técnica 1 e de segurança B1, na tela) enquanto o Zero pensa, o toque espera: os cartões ficam aria-disabled e o clique não sai */
+test('enquanto o Zero pensa, os cartões esperam (aria-disabled, sem perder o foco)', async () => {
+  const m = montar();
+  m.atualizar(ESTADO());
+  await tique(); await tique();
+  m.p.doc.dispatchEvent({ type: 'bz:pensando', detail: { ativo: true } });
+  const b = m.cartao('imagens');
+  b.focus();
+  assert.equal(b.getAttribute('aria-disabled'), 'true');
+  assert.equal(b.disabled, false, 'nunca disabled: o foco fica');
+  b.clicar();
+  assert.equal(m.chamadas.alternar.length, 0);
+  m.p.doc.dispatchEvent({ type: 'bz:pensando', detail: { ativo: false } });
+  assert.equal(b.getAttribute('aria-disabled'), null);
+  b.clicar();
+  assert.equal(m.chamadas.alternar.length, 1);
+});
+
 test('a fonte: ES5, todo texto por textContent, sem estilo inline', () => {
   assert.doesNotMatch(FONTE, /=>|\blet\b|\bconst\b|`|class\s+\w+\s*\{/, 'ES5 sintático, como os outros módulos da conversa');
   assert.doesNotMatch(FONTE, /innerHTML|outerHTML|insertAdjacentHTML|\.style\b|setAttribute\(\s*'style'/);

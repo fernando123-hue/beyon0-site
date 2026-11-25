@@ -12,10 +12,13 @@ import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
 
 const R = createRequire(import.meta.url)('../../js/orcamento-rotulos.js');
 let local, deps, ipSeq = 0;
+let duranteOTurno = null;   /* (a corrida: o que acontece enquanto o modelo pensa, no meio do turno do Zero) */
 const BASE = 'http://127.0.0.1:8899';
 before(async () => {
   local = await montarLocal({ base: BASE });
-  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE };
+  const sim = criarSimulada();
+  const ia = { ...sim, mensagem: async p => { if (duranteOTurno) { const f = duranteOTurno; duranteOTurno = null; await f(); } return sim.mensagem(p); } };
+  deps = { banco: local.rpc, visitantes: local.auth, ia, direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE };
 });
 function navegador() {
   const ip = '198.51.100.' + (10 + (++ipSeq));
@@ -161,6 +164,69 @@ test('depois dos detalhes do pedido, o pacote está fechado: os extras não muda
   await detalhesEConfirmar(n.chamar, local.rpc, c, { aceite_versao: R.ACEITE.versao });
   const e = await estadoDe(n, c);
   assert.equal(Number(e.estimativa.valor_total), 8350, 'o pedido foi com o preço dos extras');
-  assert.equal((await alternar(n, c, { chave: 'agendamento', incluir: false, versao })).status, 409);
-  assert.equal((await listar(n, c)).status, 409);
+  const depois = await alternar(n, c, { chave: 'agendamento', incluir: false, versao });
+  assert.equal(depois.status, 409);
+  assert.match(depois.corpo.erro, /pedido já foi feito/i, 'o recado certo: o pedido já foi feito, os extras ficaram como estavam');
+  const lista = await listar(n, c);
+  assert.equal(lista.status, 409);
+  assert.match(lista.corpo.erro, /pedido já foi feito/i);
+});
+
+/* (revisão de segurança M1) cada toque grava uma estimativa e o banco aceita no máximo 30 por conversa: o freio dos toques fica bem abaixo, para
+   sobrar para o Zero e para o pacote, e o teto do banco vira um recado humano */
+test('o freio dos toques: 12 por hora por conversa, abaixo do teto de 30 estimativas do banco', async () => {
+  const n = navegador(), c = await comPrecoDoZero(n);
+  const { versao } = (await listar(n, c)).corpo;
+  for (let i = 0; i < 12; i++) {
+    const r = await alternar(n, c, { chave: 'agendamento', incluir: i % 2 === 0, versao });
+    assert.equal(r.status, 200, 'toque ' + (i + 1) + ': ' + JSON.stringify(r.corpo));
+  }
+  const r13 = await alternar(n, c, { chave: 'agendamento', incluir: true, versao });
+  assert.equal(r13.status, 429);
+  assert.match(r13.corpo.erro, /Muitos toques/);
+  const t = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Fica em Niterói' });
+  assert.equal(t.status, 200, 'o Zero ainda consegue estimar: ' + JSON.stringify(t.corpo));
+  assert.ok(t.corpo.estimativa);
+});
+
+test('o teto de estimativas do banco (30 por conversa) vira um recado curto, não erro genérico', async () => {
+  const n = navegador(), c = await comPrecoDoZero(n);
+  const { versao } = (await listar(n, c)).corpo;
+  await local.db.query(`insert into app.estimativas (org_id, conversa_id, regras_id, fatores, valor_total, sinal, prazo_dias, fase, detalhes)
+    select e.org_id, e.conversa_id, e.regras_id, e.fatores, e.valor_total, e.sinal, e.prazo_dias, e.fase, e.detalhes
+    from app.estimativas e cross join generate_series(1, 29) where e.conversa_id = $1`, [c]);
+  const r = await alternar(n, c, { chave: 'agendamento', incluir: true, versao });
+  assert.equal(r.status, 409, JSON.stringify(r.corpo));
+  assert.match(r.corpo.erro, /recado/i);
+  assert.doesNotMatch(r.corpo.erro, /Limite atingido para esta conversa/);
+  assert.equal(r.corpo.recado, true, 'o botão do recado aparece');
+});
+
+/* (revisões técnica 1 e de segurança B1) o toque que entra ENQUANTO o Zero pensa não se perde: ao gravar a estimativa do turno, o servidor relê as
+   escolhas de agora (não as do começo do turno) */
+test('a corrida: o toque no meio do turno do Zero vale na estimativa que o turno grava', async () => {
+  const n = navegador(), c = await comPrecoDoZero(n);
+  const { versao } = (await listar(n, c)).corpo;
+  duranteOTurno = async () => {
+    const r = await alternar(n, c, { chave: 'agendamento', incluir: true, versao });
+    assert.equal(r.status, 200, 'o toque entrou no meio do turno: ' + JSON.stringify(r.corpo));
+  };
+  const t = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Fica em Niterói' });
+  assert.equal(duranteOTurno, null, 'o toque aconteceu durante o turno');
+  assert.equal(t.status, 200, JSON.stringify(t.corpo));
+  assert.equal(t.corpo.estimativa.valor_total, 8350, 'a estimativa do turno já leva o toque');
+  const e = await estadoDe(n, c);
+  assert.equal(e.estimativa.fatores.adicionais.agendamento, 1, 'o agendamento que ela tocou continua gravado');
+  assert.equal((await listar(n, c)).corpo.extras.find(x => x.chave === 'agendamento').incluido, true);
+});
+
+/* (revisão de segurança B2) o que está em preparo nunca vira sugestão nem passa no alternar, e nada é gravado */
+test('chave em preparo: nem sugestão, nem toque; nada gravado', async () => {
+  const n = navegador(), c = await comPrecoDoZero(n);
+  const { versao, extras } = (await listar(n, c)).corpo;
+  const emPreparo = ['atendente_ia_essencial', 'atendente_ia_profissional', 'atendente_ia_avancado'];
+  assert.ok(extras.every(x => !emPreparo.includes(x.chave)));
+  const antes = (await local.db.query('select count(*)::int n from app.estimativas where conversa_id = $1', [c])).rows[0].n;
+  for (const chave of emPreparo) assert.equal((await alternar(n, c, { chave, incluir: true, versao })).status, 400, chave);
+  assert.equal((await local.db.query('select count(*)::int n from app.estimativas where conversa_id = $1', [c])).rows[0].n, antes);
 });

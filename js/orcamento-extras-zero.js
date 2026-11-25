@@ -21,7 +21,7 @@
   var ETAPAS = ['descoberta', 'estimativa'];   /* (= api/_vendas/fluxo-extras.mjs, ETAPAS_EXTRAS: até os detalhes do pedido) */
   var ERRO_MS = 50;
 
-  var s = { li: null, grupo: null, total: null, erro: null, cartoes: {}, versao: null, assinatura: null, carregando: false, emVoo: false, travado: false };
+  var s = { li: null, grupo: null, total: null, erro: null, cartoes: {}, versao: null, assinatura: null, carregando: false, emVoo: false, travado: false, pensando: false, geracao: 0 };
   var ganchos = { reler: function () { return Promise.resolve(); } };
 
   var dinheiro = function (n) { return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 2 }); };
@@ -88,6 +88,7 @@
     });
     Object.keys(s.cartoes).forEach(function (k) { if (!vistos[k]) { s.cartoes[k].botao.remove(); delete s.cartoes[k]; } });
     s.li.hidden = !extras.length;
+    esperando();   /* (um cartão novo nasce no mesmo estado dos outros) */
     if (r.total != null) mostrarTotal(dinheiro(r.total));
     s.total.hidden = r.total == null;
   }
@@ -108,22 +109,33 @@
   function ocupado(sim) {
     s.emVoo = sim;
     if (sim) s.grupo.setAttribute('aria-busy', 'true'); else s.grupo.removeAttribute('aria-busy');
+    esperando();
+  }
+  /* com um toque em voo ou com o Zero pensando, os cartões esperam: aria-disabled (nunca disabled: o foco fica) */
+  function esperando() {
+    var sim = s.emVoo || s.pensando;
     Object.keys(s.cartoes).forEach(function (k) { if (sim) s.cartoes[k].botao.setAttribute('aria-disabled', 'true'); else s.cartoes[k].botao.removeAttribute('aria-disabled'); });
   }
+  /* (revisões do PR 237) enquanto o Zero pensa, um toque gravaria uma estimativa que o turno dele pode refazer: o toque espera ele responder.
+     (o servidor também relê as escolhas antes de gravar o turno: o toque de outra aba não se perde) */
+  doc.addEventListener('bz:pensando', function (ev) { s.pensando = !!(ev && ev.detail && ev.detail.ativo); if (s.li) esperando(); });
 
   /* ---------- a conversa com o servidor ---------- */
   function carregar() {
     if (s.carregando) return;
     s.carregando = true;
-    API.extrasSugeridos().then(function (r) { s.carregando = false; if (!s.travado) desenhar(r); }, function () {
+    /* (revisão técnica 2) cada pedido tem a sua geração: a lista que volta depois de um toque mais novo é descartada (o toque traz a dele) */
+    var meu = ++s.geracao;
+    API.extrasSugeridos().then(function (r) { s.carregando = false; if (meu === s.geracao && !s.travado) desenhar(r); }, function () {
       /* (os extras são um acréscimo: sem eles, o preço e o "Quero" seguem. A próxima releitura do estado tenta de novo) */
-      s.carregando = false; s.assinatura = null;
+      s.carregando = false; if (meu === s.geracao) s.assinatura = null;
     });
   }
   function alternar(chave) {
     var c = s.cartoes[chave];
-    if (!c || s.emVoo || s.travado) return;
+    if (!c || s.emVoo || s.travado || s.pensando) return;
     var incluir = !c.incluido;
+    s.geracao++;
     s.erro.textContent = '';
     c.botao.setAttribute('aria-pressed', String(incluir));   /* (o toque responde na hora; o preço só muda com a resposta do servidor) */
     ocupado(true);
@@ -139,7 +151,9 @@
       if (e && e.status === 409 && e.dados && e.dados.versao_nova !== undefined) carregar();   /* (a tabela mudou: os preços de agora) */
     });
   }
-  /* depois dos detalhes do pedido (ou sem o consultor, ou fora das etapas do preço): os cartões ficam como registro do que foi incluído */
+  /* depois dos detalhes do pedido: os cartões ficam como registro do que foi incluído. Só com o pedido feito (revisão técnica 3): um estado
+     passageiro (sem estimativa por um instante, valor retido) só não abre, não trava para sempre */
+  function fechado(E) { return !!(E && E.conversa && (E.pedido || E.conversa.tem_contato || ETAPAS.indexOf(E.conversa.etapa) < 0)); }
   function travar() {
     if (s.travado || !s.li) return;
     s.travado = true;
@@ -150,7 +164,8 @@
     /* a página (js/orcamento.js) chama a cada estado novo e quando o valor é liberado. g.reler: relê o estado depois de um toque que mudou o preço */
     atualizar: function (E, g) {
       if (g && typeof g.reler === 'function') ganchos = g;
-      if (!abertos(E)) { if (E && E.conversa) travar(); return; }
+      if (fechado(E)) { travar(); return; }
+      if (!abertos(E)) return;
       if (s.travado) return;
       var a = assinaturaDe(E.estimativa.fatores);
       if (a === s.assinatura || s.emVoo) return;   /* (a mesma estimativa que a tela já mostra; ou um toque em voo, que traz a dele) */

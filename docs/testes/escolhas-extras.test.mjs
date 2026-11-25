@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { escolhasDe, aplicarEscolhas, comEscolha, comEscolhasGravadas, escolhasParaOModelo } from '../../api/_vendas/escolhas-extras.mjs';
 import { estadoParaModelo } from '../../api/_vendas/agente.mjs';
 import { estimar } from '../../api/_vendas/precos.mjs';
+import { sugestoesDaConversa } from '../../api/_vendas/catalogo.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 const chaveEmPreparo = Object.keys(REGRAS.adicionais).find(k => REGRAS.adicionais[k].em_preparo === true);
@@ -58,4 +59,18 @@ test('o modelo lê os nomes da tabela e a regra (no ESTADO), e nada quando ela n
   assert.ok(!comEscolhas.includes('escolhas_cliente'), 'a chave interna não vai ao modelo');
   const sem = estadoParaModelo({ briefing: {}, etapa: 'estimativa', regras: REGRAS, estimativa: { prazo_dias: 13, fase: 'unica', detalhes: { itens: [] } } });
   assert.ok(!sem.includes('extras_escolhidos_na_tela'), 'sem escolha, o ESTADO de hoje');
+});
+
+/* (revisão de segurança B2) o que está em preparo ou fora do automático nunca vira cartão, em nenhum ramo nem formato */
+test('sugestões da conversa: nunca em preparo nem fora do automático', () => {
+  const t = JSON.parse(JSON.stringify(REGRAS));
+  t.adicionais.textos = { ...t.adicionais.textos, em_preparo: true };
+  t.adicionais.agendamento = { ...t.adicionais.agendamento, fora_do_automatico: true };
+  const ruins = new Set(Object.keys(t.adicionais).filter(k => t.adicionais[k].em_preparo === true || t.adicionais[k].fora_do_automatico === true));
+  for (const formato of Object.keys(t.formatos)) for (const ramo of ['saude', 'beleza', 'servicos', 'educacao', 'comercio', 'alimentacao', 'associacao', 'outro']) {
+    const l = sugestoesDaConversa(t, { formato, ramo, material: 'nao' });
+    assert.ok(l.length <= 3 && l.every(x => !ruins.has(x.chave)), formato + '/' + ramo + ': ' + l.map(x => x.chave).join(','));
+  }
+  assert.ok(!sugestoesDaConversa(t, { formato: 'institucional', ramo: 'saude', material: 'nao' }).some(x => x.chave === 'agendamento' || x.chave === 'textos'));
+  assert.deepEqual(escolhasDe({ escolhas_cliente: { textos: true, agendamento: true, imagens: true } }, t), { imagens: true }, 'nem como escolha gravada');
 });

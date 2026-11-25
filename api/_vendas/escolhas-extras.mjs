@@ -7,6 +7,9 @@
    Só chaves da tabela ATIVA que se contratam (nem em preparo, nem fora do automático); o "requer" e os órfãos como em todo cálculo;
    quem calcula é sempre o motor (precos.mjs).
    ========================================================================== */
+import { estimar } from './precos.mjs';
+import { mesmoJson } from './json-igual.mjs';
+
 const POR_PAGINA = /por p[áa]gina/i;
 const MAX_ESCOLHAS = 40;
 const semChave = (o, chave) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== chave));
@@ -53,6 +56,15 @@ export function aplicarEscolhas(entrada, escolhas, tabela) {
 }
 /* a estimativa do motor com as escolhas que seguem com ela (sem escolhas, a MESMA estimativa) */
 export const comEscolhasGravadas = (e, escolhas) => (Object.keys(escolhas || {}).length ? { ...e, escolhas_cliente: escolhas } : e);
+
+/* (revisões do PR 237: técnica 1, segurança B1) um toque entrou ENQUANTO o Zero pensava: o turno calculou com as escolhas do começo dele. Antes de
+   gravar, o servidor relê as de agora e, se mudaram, recalcula pelo motor com elas por cima. Sem mudança (o caso comum), a MESMA estimativa.
+   Se o recálculo não fechar (não deveria: as escolhas já passaram pelo motor no toque), fica a do turno */
+export function reaplicarEscolhas(e, antes, agora, tabela) {
+  if (mesmoJson(antes, agora)) return e;
+  const nova = estimar(aplicarEscolhas(e.fatores, agora, tabela), tabela);
+  return nova.erros || nova.encaminhar_diagnostico ? e : comEscolhasGravadas(nova, agora);
+}
 
 /* para o modelo (ESTADO e resultado do estimar): os nomes da tabela do que ela incluiu e tirou, e a regra */
 export const REGRA_ESCOLHAS = 'Ela escolheu estes extras tocando nos cartões da tela. Valem como ela escolheu: o sistema os mantém em toda estimativa, mesmo que você peça outra coisa. Se ela pedir por escrito para tirar ou pôr um deles, diga em uma frase que é só tocar no cartão do extra, logo abaixo do valor.';

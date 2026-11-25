@@ -34,6 +34,7 @@ import { criarAcoesDaRetomada } from './fluxo-retomada.mjs';
 import { criarAcoesDosAjustes } from './fluxo-ajustes.mjs';
 import { criarAcoesDosExtras } from './fluxo-extras.mjs';
 import { mesmoJson } from './json-igual.mjs';
+import { escolhasDe, reaplicarEscolhas } from './escolhas-extras.mjs';
 import { PEDIDOS } from './pedido.mjs';
 import { soltarAbandonadasComFreio } from './abandonadas.mjs';
 import { criarAcoesDoMaterial } from './fluxo-material.mjs';
@@ -412,9 +413,12 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     const comPreco = precoAberto(est.conversa.etapa, est.pedido?.status);
     let estimativa = null;
     if (r.estimativa && !soDuvidas && comPreco) {
-      await banco('vendas_registrar_estimativa', { conversa_id: conversaId, visitante_id: vid, regras_id: regras.id, fatores: r.estimativa.fatores,
-        valor_total: r.estimativa.valor_total, sinal: r.estimativa.sinal, prazo_dias: r.estimativa.prazo_dias, fase: r.estimativa.fase, detalhes: r.estimativa });
-      estimativa = cartao(r.estimativa);
+      /* (cartões de extras) um toque que entrou enquanto o modelo pensava vale: as escolhas de AGORA, relidas do banco, por cima (escolhas-extras.mjs) */
+      const agora = (await estado(vid, conversaId)).estimativa;
+      const e = reaplicarEscolhas(r.estimativa, escolhasDe(est.estimativa, regras.regras), escolhasDe(agora, regras.regras), regras.regras);
+      await banco('vendas_registrar_estimativa', { conversa_id: conversaId, visitante_id: vid, regras_id: regras.id, fatores: e.fatores,
+        valor_total: e.valor_total, sinal: e.sinal, prazo_dias: e.prazo_dias, fase: e.fase, detalhes: e });
+      estimativa = cartao(e);
     }
     const saida = { resposta: r.resposta, estimativa, pedir_contato: !soDuvidas && comPreco && r.pedir_contato, diagnostico: r.diagnostico, sugestoes_ia: r.sugestoes_ia, confianca: r.confianca };
     observarNaSombra({ conversaId, vid, msg, r });

@@ -134,7 +134,7 @@ export function sugestoesDaConversa(regras, { formato, ramo, material }) {
     .map(x => ({ chave: x.chave, nome: x.curto, frase: x.frase, por_pagina: x.por_pagina, indicado: x.chave === doRamo[0] }));
 }
 
-const OBJETIVO_BRIEFING ={ pedidos_whatsapp: 'gerar_leads', agendamentos: 'agendamentos', vender_online: 'vender', apresentar: 'apresentar_empresa', campanha: 'lancar_produto' };
+const OBJETIVO_BRIEFING = { pedidos_whatsapp: 'gerar_leads', agendamentos: 'agendamentos', vender_online: 'vender', apresentar: 'apresentar_empresa', campanha: 'lancar_produto' };
 export const NOME_RAMO = { servicos: 'serviços', saude: 'saúde', beleza: 'beleza', alimentacao: 'alimentação', comercio: 'comércio', educacao: 'educação', associacao: 'associação', outro: 'outro' };
 const POSSE = { tenho: 'tem', parte: 'parcial', nao: 'nao' };
 
