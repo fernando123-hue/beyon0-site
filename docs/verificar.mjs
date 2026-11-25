@@ -18,6 +18,7 @@
      visibility hidden depois de 3,5s — o GSAP tem que ter revelado);
    · rolagem lateral zero; caixas `.cena` fora do fluxo;
    · nenhum link de WhatsApp da Beyon (o site não tem: Decisões 28/10) e o local de recado montado; sem erro de console; fps > 45.
+   · CELULAR LENTO (alvos *-lento: CPU 4x mais lenta, rede 4G de 1,6 Mbps e 150 ms): fps > 30 e LCP < 4,5 s.
    E a PASSAGEM entre páginas (no fim): chega inteira e sem nada preso, volta
    pelo histórico inteira, desiste em 2 s, fecha o menu do celular na hora e
    chega a uma âncora só aparecendo. E a FONTE GRANDE do aparelho (22 px) a 320 px.
@@ -41,7 +42,9 @@ const ALVOS = [
   ['/automacao.html', 'autom-cel', CELULAR],
   /* CELULAR LENTO (dono, 25/11: "fazemos primeiro para celular" estava valendo só para o desenho; a velocidade era conferida num PC rápido).
      Mesmo celular, com a CPU 4x mais lenta e a rede 4G lenta (1,6 Mbps, 150 ms): um aparelho médio. Teto mais folgado que o do PC, de
-     propósito: pega o que piora de verdade (quedas de fps, LCP passando de 4,5 s, "ruim" no Core Web Vitals), sem falhar por ruído da máquina. */
+     propósito: reprova só abaixo de 30 fps ou acima de 4,5 s de LCP (o "ruim" do Core Web Vitals começa em 4 s; a folga de 0,5 s é para o
+     ruído da máquina). Uma falha isolada com LCP entre 4,5 e 5 s num alvo *-lento: medir de novo sozinho, como no ruído do desktop.
+     Vale contra produção e servidor local; atrás do Access (staging) a rede lenta não vale (o pedido passa pela rota do Playwright). */
   ['/index.html',     'hub-lento',   CELULAR, { lento: true }],
   ['/sites.html',     'sites-lento', CELULAR, { lento: true }],
   ['/automacao.html', 'autom-lento', CELULAR, { lento: true }],
@@ -73,8 +76,9 @@ let falhou = false, primeiro = true;
 
 for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exige3d = false, lento = false } = {}] of ALVOS) {
   const ctx = await navegador.newContext(opcoes);
-  await autorizarContexto(ctx, BASE);   /* staging atras do Access: o token so vai nos pedidos do proprio staging (docs/acesso.mjs) */
+  const viaAccess = await autorizarContexto(ctx, BASE);   /* staging atras do Access: o token so vai nos pedidos do proprio staging (docs/acesso.mjs) */
   const page = await ctx.newPage();
+  if (lento && viaAccess) console.log('     aviso: ' + nome + ' com a rota do Access: só a CPU lenta vale, a rede lenta não (rode contra produção ou servidor local)');
   if (lento) {
     const cdp = await ctx.newCDPSession(page);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
@@ -139,7 +143,7 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   const ok = (semNucleo || d.boot) && d.barraOk && d.overflowX === 0 && d.navFora.length === 0 &&
     d.waBeyon === 0 && (d.recado > 0 || d.isolada) && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 && campo !== 0 &&
     (exige3d ? nucleo : (!nucleo && fps > (lento ? 30 : 45))) &&
-    /* LCP com orçamento (2,5s é o "bom" do Core Web Vitals; no celular lento o teto é 4,5 s, acima do "ruim" (4 s) com folga para ruído); o primeiro alvo da rodada é artefato do headless */
+    /* LCP com orçamento (2,5s é o "bom" do Core Web Vitals; no celular lento o teto é 4,5 s: o "ruim" começa em 4 s e a folga de 0,5 s é para ruído); o primeiro alvo da rodada é artefato do headless */
     (primeiro || lcp < (lento ? 4500 : 2500));
   primeiro = false;
   if (!ok) falhou = true;
