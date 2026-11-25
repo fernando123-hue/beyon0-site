@@ -7,7 +7,8 @@
    • alternar-extra: { chave, incluir, versao }. A chave tem de estar nas sugestões que o servidor monta agora para esta conversa (nunca
      uma chave qualquer do corpo); incluir é sim ou não; a versão é a da tabela que a tela mostrou. O código parte dos fatores GRAVADOS
      (o formato, as páginas, a urgência e os outros extras do Zero ficam), põe ou tira só aquele extra (e o que dependia dele), estima e
-     regrava a estimativa: é ela que os detalhes do pedido e o escopo usam. Nenhum número vem do navegador.
+     regrava a estimativa: é ela que os detalhes do pedido e o escopo usam. Nenhum número vem do navegador. A escolha dela vai junto da
+     estimativa (detalhes.escolhas_cliente): quando o Zero estima de novo, o código a aplica por cima (api/_vendas/escolhas-extras.mjs).
    Etapas: só até os detalhes do pedido (descoberta e estimativa, as mesmas do confirmar-pacote); o banco também recusa depois (55000).
    Freios por conversa, como os do preço ao vivo; o freio geral por IP de api/vendas.mjs vale antes de tudo.
    ========================================================================== */
@@ -19,9 +20,9 @@ import { sugestoesDaConversa } from './catalogo.mjs';
 import { regrasAtivas } from './regras-ativas.mjs';
 import { criarFreio } from '../_freio.mjs';
 import { mesmoJson } from './json-igual.mjs';
+import { comExtra, escolhasDe, comEscolha, comEscolhasGravadas } from './escolhas-extras.mjs';
 
 export const ETAPAS_EXTRAS = ['descoberta', 'estimativa'];
-const POR_PAGINA = /por p[áa]gina/i;
 /* por conversa, no módulo (o fluxo é criado a cada pedido): quem toca muito não fica sem poder seguir para o pedido */
 const freioListar = criarFreio({ max: 60, janelaMs: 60 * 60e3 });
 const freioAlternar = criarFreio({ max: 30, janelaMs: 60 * 60e3 });
@@ -37,30 +38,8 @@ export const FRASES = Object.freeze({
   precisaConversa: 'Esse pacote precisa de uma conversa. Deixe um recado para a equipe.'
 });
 const exigir = (cond, status, msg, extra) => { if (!cond) throw new Recusa(status, msg, extra); };
-const semChave = (o, chave) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== chave));
 const valida = e => !!e && !e.erros && !e.encaminhar_diagnostico;
 
-/* tira o extra cujo "requer" ficou sem base (nem o formato nem outro extra pedido); repete até assentar (dependente de dependente) */
-function semOrfaos(adicionais, formato, tabela) {
-  let atual = adicionais, mexeu = true;
-  while (mexeu) {
-    mexeu = false;
-    for (const k of Object.keys(atual)) {
-      const req = tabela.adicionais[k]?.requer;
-      if (req && !req.some(r => r === formato || atual[r] > 0)) { atual = semChave(atual, k); mexeu = true; }
-    }
-  }
-  return atual;
-}
-/* os fatores gravados com um extra a mais ou a menos. A quantidade do extra por página é o total de páginas do pacote (os textos do site
-   inteiro, que é o que o nome promete); dos outros, 1. O motor ainda limita ao máximo da tabela */
-function comExtra(fatores, chave, incluir, tabela) {
-  const ad = fatores.adicionais && typeof fatores.adicionais === 'object' ? fatores.adicionais : {};
-  if (!incluir) return { ...fatores, adicionais: semOrfaos(semChave(ad, chave), fatores.formato, tabela) };
-  const fmt = tabela.formatos[fatores.formato];
-  const qtd = POR_PAGINA.test(tabela.adicionais[chave]?.nome || '') ? (fatores.paginas || fmt?.paginas_incluidas || 1) : 1;
-  return { ...fatores, adicionais: { ...ad, [chave]: Math.max(Number(ad[chave]) || 0, qtd) } };
-}
 /* as sugestões com o peso de cada uma no total (incluído: quanto sai se tirar; fora: quanto entra). Fica de fora a que não fecha pelo motor
    (pede conversa, joga parte para uma fase seguinte que hoje não existe) ou não muda o valor */
 function sugestoes(regras, fatores, toques) {
@@ -90,7 +69,7 @@ export function criarAcoesDosExtras({ banco, visitante, estado, donoDaConversa, 
     exigir(regras, 503, FRASES.emAtualizacao);
     const est = await estado(vid, corpo.conversa_id);
     const t = est?.conversa?.briefing?.fluxo_toques;
-    return { vid, dono, regras, toques: t && typeof t === 'object' ? t : {} };
+    return { vid, dono, regras, toques: t && typeof t === 'object' ? t : {}, estimativa: est?.estimativa || null };
   }
   const resposta = (regras, fatores, toques) => ({ versao: regras.id, fatores, ...sugestoes(regras, fatores, toques) });
 
@@ -106,7 +85,7 @@ export function criarAcoesDosExtras({ banco, visitante, estado, donoDaConversa, 
       const chave = corpo?.chave, incluir = corpo?.incluir;
       exigir(typeof incluir === 'boolean', 400, FRASES.incluirInvalido);
       exigir(typeof chave === 'string' && chave.length <= 41, 400, FRASES.extraInvalido);
-      let { vid, dono, regras, toques } = await contexto(request, corpo, freioAlternar);
+      let { vid, dono, regras, toques, estimativa } = await contexto(request, corpo, freioAlternar);
       if (corpo.versao !== regras.id) {
         /* a tabela guardada pode ter até 30 s: confere no banco antes de dizer que mudou (como o confirmar-pacote) */
         regras = await regrasAtivas(banco);
@@ -120,11 +99,13 @@ export function criarAcoesDosExtras({ banco, visitante, estado, donoDaConversa, 
       const e = estimar(comExtra(fatores, chave, incluir, regras.regras), regras.regras);
       exigir(!e.erros, 400, FRASES.extraInvalido);
       exigir(!e.encaminhar_diagnostico, 409, FRASES.precisaConversa);
-      /* o mesmo pacote de novo (duplo toque, outra aba): nada a gravar */
-      if (!mesmoJson(fatores, e.fatores)) {
+      /* a escolha dela segue gravada com a estimativa (api/_vendas/escolhas-extras.mjs): uma estimativa nova do Zero não a desfaz */
+      const antes = escolhasDe(estimativa, regras.regras), escolhas = comEscolha(antes, chave, incluir);
+      /* o mesmo pacote e a mesma escolha de novo (duplo toque, outra aba): nada a gravar */
+      if (!mesmoJson(fatores, e.fatores) || !mesmoJson(antes, escolhas)) {
         try {
           await banco('vendas_registrar_estimativa', { conversa_id: corpo.conversa_id, visitante_id: vid, regras_id: regras.id, fatores: e.fatores,
-            valor_total: e.valor_total, sinal: e.sinal, prazo_dias: e.prazo_dias, fase: e.fase, detalhes: e });
+            valor_total: e.valor_total, sinal: e.sinal, prazo_dias: e.prazo_dias, fase: e.fase, detalhes: comEscolhasGravadas(e, escolhas) });
         } catch (x) {
           if (x instanceof ErroBanco && x.codigo === '55000') throw new Recusa(409, FRASES.fechado);
           throw x;

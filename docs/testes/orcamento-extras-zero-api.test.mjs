@@ -126,6 +126,34 @@ test('sem o preço do Zero ainda, ou na conversa de outro visitante: nada', asyn
   assert.equal((await alternar(outro, cDono, { chave: 'agendamento', incluir: true, versao: 1 })).status, 404);
 });
 
+/* (dinheiro transparente) o que ELA escolheu pelos cartões vale até ela tocar de novo: uma estimativa nova do Zero (outra mensagem) não tira o
+   extra que ela incluiu nem põe de volta o que ela tirou. O valor que o Zero escreve (os marcadores) já sai com a escolha dela */
+test('o extra que ela incluiu pelos cartões não some quando o Zero estima de novo', async () => {
+  const n = navegador(), c = await comPrecoDoZero(n);
+  const { versao } = (await listar(n, c)).corpo;
+  assert.equal((await alternar(n, c, { chave: 'agendamento', incluir: true, versao })).corpo.estimativa.valor_total, 8350);
+  const t = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Fica em Niterói' });
+  assert.equal(t.status, 200, JSON.stringify(t.corpo));
+  assert.ok(t.corpo.estimativa, 'o Zero simulado estimou de novo (sem o agendamento, pelo que ele leu)');
+  assert.equal(t.corpo.estimativa.valor_total, 8350, 'o agendamento que ela incluiu continua');
+  const e = await estadoDe(n, c);
+  assert.equal(e.estimativa.fatores.adicionais.agendamento, 1);
+  assert.equal((await listar(n, c)).corpo.extras.find(x => x.chave === 'agendamento').incluido, true, 'o cartão segue marcado');
+});
+
+test('o extra que ela tirou pelos cartões não volta quando o Zero estima de novo com ele', async () => {
+  const n = navegador(), c = await comPrecoDoZero(n);
+  /* (o Zero simulado põe o agendamento quando a conversa fala dele) */
+  const t1 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Preciso de agendamento online pelo site' });
+  assert.equal(t1.corpo.estimativa.valor_total, 8350, 'o Zero incluiu o agendamento');
+  const { versao } = (await listar(n, c)).corpo;
+  assert.equal((await alternar(n, c, { chave: 'agendamento', incluir: false, versao })).corpo.estimativa.valor_total, 7900);
+  const t2 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Fica em Niterói' });
+  assert.equal(t2.status, 200, JSON.stringify(t2.corpo));
+  assert.equal(t2.corpo.estimativa.valor_total, 7900, 'o agendamento que ela tirou não volta');
+  assert.equal((await estadoDe(n, c)).estimativa.fatores.adicionais.agendamento, undefined);
+});
+
 test('depois dos detalhes do pedido, o pacote está fechado: os extras não mudam mais o preço', async () => {
   const n = navegador(), c = await comPrecoDoZero(n);
   const { versao } = (await listar(n, c)).corpo;
