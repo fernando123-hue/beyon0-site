@@ -17,7 +17,8 @@ test('o item do material existe uma vez, com a âncora #material, e o #orcamento
 
 test('o item diz: quem lê (inclusive a Anthropic), onde fica, os prazos, o hash do link', () => {
   for (const frase of ['Supabase', 'Anthropic', 'Quem lê o material: a Beyon Zero', 'Estados Unidos', 'hash', 'não os aceita',
-    '7 dias depois de ir para a produção', '30 dias depois do fim do pedido', 'no dia seguinte, se você desistir', '24 horas']) assert.ok(ITEM.includes(frase), frase);
+    '7 dias depois de ir para a produção', '30 dias depois do fim do pedido', 'no dia seguinte, se o pedido for encerrado por desistência', 'estornada (inteira ou em parte)', 'contestada', 'projeto ficar pausado', 'guardado por 60 dias e depois é apagado', '24 horas']) assert.ok(ITEM.includes(frase), frase);
+  assert.ok(!/no dia seguinte, se você desistir/.test(ITEM), 'a frase antiga se contradizia com a dos 60 dias (a desistência dos 7 dias já é um estorno da entrada)');
   assert.ok(!/\bCPF\b[^.]*guardamos/i.test(ITEM), 'não promete guardar CPF');
 });
 

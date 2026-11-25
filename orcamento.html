@@ -23,12 +23,18 @@
   <meta name="twitter:image:alt" content="Beyon Zero: “Do problema ao sistema no ar.” Sites · Automação · IA" />
 
   <meta name="robots" content="index, follow, max-image-preview:large" />
-  <meta name="theme-color" content="#000000" />
+  <meta name="theme-color" content="#131617" />
+  <!-- dois temas (dono, 23/11: "escuro ativado de início", e um botão para quem quiser o claro): nasce escuro; o js/tema.js, logo abaixo da CSP,
+       troca as duas metas no claro ("only light": o escurecimento automático do Chrome do celular invertia a logo e o nome, dono, 24/11).
+       As outras páginas são escuras e não levam isto -->
+  <meta name="color-scheme" content="dark" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" href="/favicon.ico" sizes="48x48" />
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://sdk.mercadopago.com; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.mercadopago.com https://secure-fields.mercadopago.com https://*.supabase.co/storage/v1/object/upload/sign/; frame-src https://challenges.cloudflare.com https://secure-fields.mercadopago.com; object-src 'none'; base-uri 'self'; form-action 'none'" />
+  <!-- o tema guardado no aparelho (js/tema.js): sem defer e antes das folhas, para o data-tema estar no <html> antes da 1ª pintura (nada pisca) -->
+  <script src="js/tema.js"></script>
   <script src="js/ancoras.js" data-orcamento></script>
   <link rel="preload" href="assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
@@ -43,6 +49,8 @@
   <link rel="stylesheet" href="css/orcamento-escopo.css" />
   <link rel="stylesheet" href="css/orcamento-previa.css" />
   <link rel="stylesheet" href="css/previa.css" />
+  <link rel="stylesheet" href="css/orcamento-palco.css" />
+  <link rel="stylesheet" href="css/orcamento-extras-zero.css" />
   <link rel="stylesheet" href="css/passagem.css" />
   <link rel="stylesheet" href="css/passagem-destinos.css" />
   <noscript><link rel="stylesheet" href="css/orcamento-semjs.css" /></noscript>
@@ -57,6 +65,10 @@
     <a href="/" class="nav__logo" aria-label="Beyon Zero — início">
       <svg xmlns="http://www.w3.org/2000/svg" class="marca marca--nav" aria-hidden="true" focusable="false" viewBox="0 0 944.7 170"><defs><linearGradient id="marca-prata-nav" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="100"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".48" stop-color="#FFFFFF"/><stop offset=".52" stop-color="#C3CBCE"/><stop offset="1" stop-color="#DCE2E4"/></linearGradient><linearGradient id="marca-prata-inversa-nav" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="100"><stop offset="0" stop-color="#DCE2E4"/><stop offset=".48" stop-color="#C3CBCE"/><stop offset=".52" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient><clipPath id="marca-brilho-nav"><path transform="translate(0 0)" d="M0 0h13v100h-13ZM0 0h40v12h-40ZM0 41h44v12h-44ZM0 88h44v12h-44ZM40 0A26.5 26.5 0 0 1 40 53L39 41A14.5 14.5 0 0 0 39 12ZM44 41A29.5 29.5 0 0 1 44 100L43 88A17.5 17.5 0 0 0 43 53Z"/><path transform="translate(79.5 0)" d="M69.976 82.75A37.5 37.5 0 1 1 75 64L61.4 64A23.9 23.9 0 1 0 52.321 82.75ZM13.1 58h61.9v12h-61.9Z"/><path transform="translate(157.5 0)" d="M0.574 28L14.426 28L40.926 100L27.074 100ZM53.574 28L67.426 28L32.093 124L18.24 124Z"/><path transform="translate(227.5 0)" d="M0 64a37.5 37.5 0 1 0 75 0a37.5 37.5 0 1 0 -75 0ZM13.6 64a23.9 23.9 0 1 1 47.8 0a23.9 23.9 0 1 1 -47.8 0Z"/><path transform="translate(309.5 0)" d="M0 28h13v72h-13ZM0 59A31 31 0 0 1 62 59L49 59A18 18 0 0 0 13 59ZM49.5 59h12.5v41h-12.5Z"/></clipPath></defs><g transform="scale(1.7)"><path class="marca__aro" d="M6.93 41A44 44 0 0 1 93.07 41L84.857 41A36 36 0 0 0 15.143 41ZM6.93 59A44 44 0 0 0 93.07 59L84.857 59A36 36 0 0 1 15.143 59Z"/><path class="marca__lente" d="M56.6 25.369A25.5 25.5 0 0 1 73.859 41L67.861 41A20 20 0 0 0 55.176 30.681ZM26.141 41A25.5 25.5 0 0 1 43.4 25.369L44.824 30.681A20 20 0 0 0 32.139 41ZM43.4 74.631A25.5 25.5 0 0 1 26.141 59L32.139 59A20 20 0 0 0 44.824 69.319ZM73.859 59A25.5 25.5 0 0 1 56.6 74.631L55.176 69.319A20 20 0 0 0 67.861 59Z"/><path class="marca__entrada" d="M14 48.4h26v3.2h-26Z"/><path class="marca__saida" d="M50 47h66v6h-66Z"/><clipPath id="marca-pulso"><rect x="14" y="40" width="102" height="20"/></clipPath><g clip-path="url(#marca-pulso)"><rect class="marca__pulso-in" x="4" y="48.4" width="8" height="3.2"/><rect class="marca__pulso-out" x="46" y="47" width="16" height="6"/></g><path class="marca__nucleo" d="M39.5 50a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0Z"/></g><g transform="translate(235.2 21)"><g class="marca__nome"><path transform="translate(0 0)" d="M0 0h13v100h-13ZM0 0h40v12h-40ZM0 41h44v12h-44ZM0 88h44v12h-44ZM40 0A26.5 26.5 0 0 1 40 53L39 41A14.5 14.5 0 0 0 39 12ZM44 41A29.5 29.5 0 0 1 44 100L43 88A17.5 17.5 0 0 0 43 53Z"/><path transform="translate(79.5 0)" d="M69.976 82.75A37.5 37.5 0 1 1 75 64L61.4 64A23.9 23.9 0 1 0 52.321 82.75ZM13.1 58h61.9v12h-61.9Z"/><path transform="translate(157.5 0)" d="M0.574 28L14.426 28L40.926 100L27.074 100ZM53.574 28L67.426 28L32.093 124L18.24 124Z"/><path transform="translate(227.5 0)" d="M0 64a37.5 37.5 0 1 0 75 0a37.5 37.5 0 1 0 -75 0ZM13.6 64a23.9 23.9 0 1 1 47.8 0a23.9 23.9 0 1 1 -47.8 0Z"/><path transform="translate(309.5 0)" d="M0 28h13v72h-13ZM0 59A31 31 0 0 1 62 59L49 59A18 18 0 0 0 13 59ZM49.5 59h12.5v41h-12.5Z"/></g><g clip-path="url(#marca-brilho-nav)"><rect class="marca__brilho" x="-48" y="-10" width="22" height="140"/></g><g class="marca__zero"><path transform="translate(411.5 0)" d="M2 0h66v12h-66ZM0 88h70v12h-70ZM52.226 12L68 12L15.774 88L0 88Z"/><path transform="translate(485.5 0)" d="M69.976 82.75A37.5 37.5 0 1 1 75 64L61.4 64A23.9 23.9 0 1 0 52.321 82.75ZM13.1 58h61.9v12h-61.9Z"/><path transform="translate(568.5 0)" d="M0 28h13v72h-13ZM0 56A28 28 0 0 1 39.833 30.623L34.339 42.405A15 15 0 0 0 13 56Z"/><g transform="translate(618.5 0)"><path class="marca__zero" d="M0.863 56A37.5 37.5 0 0 1 74.137 56L60.021 56A23.9 23.9 0 0 0 14.979 56ZM0.863 72A37.5 37.5 0 0 0 74.137 72L60.021 72A23.9 23.9 0 0 1 14.979 72Z"/><path class="marca__saida" d="M61.4 61.5h29.6v5h-29.6Z"/></g></g></g></svg>
     </a>
+    <!-- o tema (js/tema.js): escuro de início; pressionado = o claro. Sem JS ele não faria nada e não aparece (css/orcamento-palco.css) -->
+    <button class="nav__tema" type="button" aria-pressed="false" aria-label="Tema claro" title="Tema claro">
+      <svg class="nav__tema__icone" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g class="nav__tema__sol"><circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></g><path class="nav__tema__lua" d="M19.5 14.6A7.5 7.5 0 0 1 9.4 4.5a7.5 7.5 0 1 0 10.1 10.1Z"/></svg>
+    </button>
     <button class="nav__toggle" type="button" hidden aria-expanded="false" aria-controls="nav-links" aria-label="Menu">
       <span class="nav__toggle-bar" aria-hidden="true"></span>
       <span class="nav__toggle-bar" aria-hidden="true"></span>
@@ -71,9 +83,34 @@
 
   <main id="conteudo" tabindex="-1" class="orc__main">
     <section class="orc-topo" aria-labelledby="orc-titulo">
-      <p class="orc-kicker"><span class="dot" aria-hidden="true"></span>Monte seu orçamento</p>
-      <h1 id="orc-titulo">Veja o seu site <em>antes</em> de fechar.</h1>
-      <p class="orc-lead sr-only">Conte do seu negócio para o Zero: ele desenha o site que trabalha por você e mostra quanto custa, sem cadastro. Depois nós fazemos três modelos e você só paga se escolher um.</p>
+      <!-- O PALCO (direção C, dono 23/11; css/orcamento-palco.css): a faixa preta de ponta a ponta onde o site dela nasce, como vitrine,
+           com os contadores do que já entrou (js/orcamento-palco.js). A vitrine e os contadores são desenho (aria-hidden): o caminho de quem usa
+           leitor de tela é a conversa, e os números de verdade estão no radar -->
+      <div class="orc-palco">
+        <div class="orc-palco__topo">
+          <p class="orc-kicker"><span class="dot" aria-hidden="true"></span>Monte seu orçamento</p>
+          <p class="orc-palco__vivo" aria-hidden="true">Ao vivo</p>
+        </div>
+        <h1 id="orc-titulo">Veja o seu site<br> <em>antes</em> de fechar.</h1>
+        <p class="orc-lead sr-only">Conte do seu negócio para o Zero: ele desenha o site que trabalha por você e mostra quanto custa, sem cadastro. Depois nós fazemos três modelos e você só paga se escolher um.</p>
+        <!-- O SITE NASCE (js/orcamento-nasce.js): a miniatura do site dela, que ganha uma peça a cada toque; escondida até o 1º toque, quando a vitrine
+             mostra só o lugar dela (traços, nenhum texto) -->
+        <div class="orc-vitrine" aria-hidden="true">
+          <div class="nasce" id="o-nasce" aria-hidden="true" hidden>
+            <div class="nasce__barra"><span class="nasce__pontos"><i></i><i></i><i></i></span><span class="nasce__nome" id="o-nasce-nome">Seu site</span></div>
+            <div class="nasce__corpo">
+              <p class="nasce__titulo" id="o-nasce-titulo"></p>
+              <ul class="nasce__pecas" id="o-nasce-pecas"></ul>
+            </div>
+          </div>
+          <div class="orc-vitrine__lugar"><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="orc-contadores" aria-hidden="true">
+          <p class="orc-contador orc-contador--luz"><b id="o-palco-partes">0</b><span>Partes</span></p>
+          <p class="orc-contador"><b id="o-palco-integracoes">—</b><span>Integração</span></p>
+          <p class="orc-contador"><b id="o-palco-valor">—</b><span>Valor</span></p>
+        </div>
+      </div>
       <ol class="orc-etapas" id="o-etapas" aria-label="Etapas" data-n="1" data-nome="Conversa">
         <li data-passo="conversa" aria-current="step"><span class="orc-etapas__n">01</span><span class="orc-etapas__nome">Conversa</span></li>
         <li data-passo="direcoes"><span class="orc-etapas__n">02</span><span class="orc-etapas__nome">Modelos</span></li>
@@ -119,14 +156,6 @@
       <!-- A CONVERSA é a página (spec 2026-11-13): as perguntas fixas são falas do Zero com opções para tocar (js/orcamento-toques.js) -->
       <section class="orc-conversa" id="o-conversa" data-origem="orcamento-conversa" aria-labelledby="o-conversa-titulo">
         <h2 id="o-conversa-titulo" class="orc-rotulo">Zero, assistente virtual (IA) da Beyon Zero</h2>
-        <!-- O SITE NASCE (js/orcamento-nasce.js): a miniatura do site dela, que ganha uma peça a cada toque. Decorativa (a conversa é o caminho de quem usa leitor de tela); escondida até o 1º toque -->
-        <div class="nasce" id="o-nasce" aria-hidden="true" hidden>
-          <div class="nasce__barra"><span class="nasce__pontos"><i></i><i></i><i></i></span><span class="nasce__nome" id="o-nasce-nome">Seu site</span></div>
-          <div class="nasce__corpo">
-            <p class="nasce__titulo" id="o-nasce-titulo"></p>
-            <ul class="nasce__pecas" id="o-nasce-pecas"></ul>
-          </div>
-        </div>
         <div class="orc-log" id="o-log-caixa" tabindex="0" role="region" aria-label="Conversa">
           <ol class="orc-log__lista" id="o-log">
             <li class="msg msg--agente"><p>Oi, eu sou o Zero, a IA da Beyon Zero. Vou entender o seu negócio e desenhar o site que trabalha por você. Que tipo de negócio é o seu?</p></li>
@@ -140,10 +169,13 @@
         </div>
         <form class="orc-envio" id="o-form" novalidate>
           <label class="sr-only" for="o-texto">Sua mensagem</label>
-          <textarea id="o-texto" rows="3" maxlength="2000" placeholder="Ex.: tenho uma clínica em Niterói e quero mais agendamentos" autocomplete="off"></textarea>
-          <button class="btn orc-mic" type="button" id="o-mic" hidden aria-pressed="false"><span class="orc-mic__ponto" aria-hidden="true"></span><span id="o-mic-rotulo">Falar</span></button>
+          <div class="orc-campo">
+            <textarea id="o-texto" rows="3" maxlength="2000" placeholder="Ou conte do seu jeito:&#10;o que você faz&#10;e do que precisa" autocomplete="off"></textarea>
+            <span class="orc-campo__luz" aria-hidden="true"><span class="orc-campo__lado orc-campo__lado--h orc-campo__lado--cima"><span class="orc-campo__traco"></span></span><span class="orc-campo__lado orc-campo__lado--v orc-campo__lado--direita"><span class="orc-campo__traco"></span></span><span class="orc-campo__lado orc-campo__lado--h orc-campo__lado--baixo"><span class="orc-campo__traco"></span></span><span class="orc-campo__lado orc-campo__lado--v orc-campo__lado--esquerda"><span class="orc-campo__traco"></span></span></span>
+          </div>
+          <button class="btn orc-mic" type="button" id="o-mic" hidden aria-pressed="false"><span class="orc-mic__icone" aria-hidden="true"><svg class="orc-mic__svg" viewBox="0 0 24 24" focusable="false"><rect x="9.25" y="2.75" width="5.5" height="11" rx="2.75"/><path d="M6 11.25a6 6 0 0 0 12 0M12 17.25v3.5M9.5 20.75h5"/><circle class="orc-mic__nucleo" cx="12" cy="8.25" r="1.05"/></svg></span><span id="o-mic-rotulo">Falar</span></button>
           <button class="orc-mic__cancelar" type="button" id="o-mic-cancelar" hidden>Descartar gravação</button>
-          <button class="btn btn--primary" type="submit" id="o-enviar">Enviar</button>
+          <button class="btn btn--primary orc-enviar" type="submit" id="o-enviar">Enviar<svg class="orc-enviar__seta" aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M3 8h9.5M8.75 4.25 12.5 8l-3.75 3.75"/></svg></button>
         </form>
         <p class="orc-nota orc-voz" id="o-mic-aviso" hidden></p>
         <p class="orc-nota" id="o-conversa-fechada" hidden>A conversa com o Zero ficou registrada acima. Daqui em diante, o seu orçamento segue pelas etapas abaixo.</p>
@@ -320,7 +352,8 @@
     <!-- AS TRÊS DIREÇÕES -->
     <section class="orc-bloco" id="o-direcoes" aria-labelledby="o-dir-titulo" hidden>
       <h2 id="o-dir-titulo">Três modelos para o seu site</h2>
-      <p class="orc-bloco__lead" id="o-dir-lead">Abra a prévia e escolha um: os ajustes são feitos dentro dele. Trazer cores ou uma seção de outro modelo conta como um ajuste. Os modelos podem levar alguns minutos; o pedido fica salvo se você sair.</p>
+      <p class="orc-bloco__lead" id="o-dir-lead">Escolha um e ajuste dentro dele.
+Trazer cores ou uma seção de outro modelo conta como um ajuste.</p>
       <div class="orc-preparo" id="o-preparo" hidden></div>
       <div class="orc-recomenda" id="o-recomenda" role="status" hidden></div>
       <ol class="orc-dirs" id="o-dirs" role="list"></ol>
@@ -436,7 +469,7 @@
           <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">1</span><span class="orc-passo__nome">Entrada por Pix <span id="o-ap-entrada"></span></span></li>
           <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">2</span><span class="orc-passo__nome">Você manda o seu material, aqui mesmo</span></li>
           <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">3</span><span class="orc-passo__nome">Prévia do site, para aprovar</span></li>
-          <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">4</span><span class="orc-passo__nome">Site no ar e o restante <span id="o-ap-resto"></span></span></li>
+          <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">4</span><span class="orc-passo__nome">Site pronto: o restante e o ar <span id="o-ap-resto"></span></span></li>
         </ol>
       </div>
 
@@ -492,12 +525,12 @@
       <h2 id="o-antes-titulo">Perguntas antes de pagar</h2>
       <details class="orc-det orc-antes__item">
         <summary>Posso desistir?</summary>
-        <p class="orc-antes__resposta">Até 7 dias depois de aceitar (confirmar o resumo), por qualquer motivo, você recebe a entrada de volta (Código de Defesa do Consumidor, art. 49). Depois dos 7 dias, a entrada fica com a Beyon Zero. Se a Beyon Zero não entregar no prazo combinado, você recebe a entrada inteira de volta, mesmo depois dos 7 dias. Para desistir, <a href="#recado" data-recado-abrir data-recado-origem="orcamento">deixe um recado para a equipe</a>.</p>
+        <p class="orc-antes__resposta">Até 7 dias depois de aceitar (confirmar o resumo), por qualquer motivo, você recebe a entrada de volta (Código de Defesa do Consumidor, art. 49). Depois dos 7 dias, a entrada fica com a Beyon Zero. Para desistir, <a href="#recado" data-recado-abrir data-recado-origem="orcamento">deixe um recado para a equipe</a>.</p>
       </details>
-      <!-- D4 (21/10): as regras do lançamento valem para o orçamento; este texto é o de /condicoes (o teste de coerência confere) -->
+      <!-- D4 (21/10): as regras de /condicoes valem para o orçamento; este texto é o de /condicoes (o teste de coerência confere) -->
       <details class="orc-det orc-antes__item">
         <summary>Quando fica pronto?</summary>
-        <p class="orc-antes__resposta">O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto esperamos a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, nós avisamos que estamos aguardando e o projeto fica parado.</p>
+        <p class="orc-antes__resposta">O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto esperamos a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, nós avisamos que estamos aguardando e o projeto fica parado. Ele para de vez quando você aprova a prévia: depois disso, o site vai ao ar assim que o restante for pago.</p>
       </details>
       <!-- D2 (21/10): 2 listas de ajuste; o que passar disso é orçado à parte (revê a decisão de 11/10, Decisões.md) -->
       <details class="orc-det orc-antes__item">
@@ -508,7 +541,7 @@
       <!-- 22/10: o restante (D4; a porcentagem vem da proposta, js/orcamento-entrega.js). Promete a tela do restante: nasce escondido, como as outras promessas da entrega -->
       <details class="orc-det orc-antes__item" id="o-faq-restante" hidden>
         <summary>Quando pago o restante?</summary>
-        <p class="orc-antes__resposta">Quando o site estiver no ar: os outros <span id="o-ap-resto-pct"></span>% do total, por Pix, nesta mesma página. Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso nós lembramos duas vezes, no segundo e no terceiro dia.</p>
+        <p class="orc-antes__resposta">Quando o site estiver pronto: você vê tudo na prévia e, ao aprovar, paga os outros <span id="o-ap-resto-pct"></span>% do total, por Pix, nesta mesma página. Com o restante pago, o site vai ao ar e passa para uma conta no seu nome.</p>
       </details>
       <details class="orc-det orc-antes__item" id="o-faq-fotos" hidden>
         <summary>Como mando fotos e textos?</summary>
@@ -546,7 +579,7 @@
           </div>
           <div class="recibo__parte recibo__parte--entrega" id="o-rec-entrega">
             <i class="recibo__luz" aria-hidden="true"><b></b></i>
-            <p class="recibo__parte-rot"><span aria-hidden="true">↓</span> Quando o site estiver no ar</p>
+            <p class="recibo__parte-rot"><span aria-hidden="true">↓</span> Quando o site estiver pronto</p>
             <div class="recibo__linha">
               <span class="recibo__chip recibo__chip--resto" id="o-rec-pct-resto"></span>
               <div class="recibo__dados"><p class="recibo__valor" id="o-rec-resto"></p><p class="recibo__meio" id="o-rec-prazo"></p></div>
@@ -632,18 +665,18 @@
       <p class="orc-nota" id="o-prv-duvida" hidden><span id="o-prv-duvida-lead">Outra dúvida? </span><a id="o-prv-duvida-wa" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a></p>
       <dialog class="orc-dialogo" id="o-prv-dialogo" aria-labelledby="o-prv-dialogo-titulo">
         <h3 id="o-prv-dialogo-titulo">Aprovar a prévia?</h3>
-        <p>Depois de aprovar, o próximo passo é pôr o site no ar.</p>
+        <p>Depois de aprovar, falta só o restante: com ele pago, o site vai ao ar.</p>
         <div class="orc-previa__acoes"><button class="btn btn--primary" type="button" id="o-prv-confirmar">Aprovar</button><button class="btn btn--ghost" type="button" id="o-prv-voltar">Voltar</button></div>
       </dialog>
     </section>
-    <!-- O SITE NO AR (PR 3b-3, js/orcamento-restante.js): passo 4. O #o-pagamento (o Pix, o mesmo componente da entrada) muda para logo depois desta seção -->
+    <!-- O SITE PRONTO E O RESTANTE (PR 3b-3; ordem nova de 19/11, js/orcamento-restante.js): passo 4. O restante abre com a prévia aprovada e o site só vai ao ar com ele pago. O #o-pagamento (o Pix, o mesmo componente da entrada) muda para logo depois desta seção -->
     <section class="orc-bloco orc-noar" id="o-noar" aria-labelledby="o-noar-titulo" hidden>
-      <p class="orc-previa__rotulo">Passo 4 de 4 · No ar e o restante</p>
+      <p class="orc-previa__rotulo">Passo 4 de 4 · O restante e o ar</p>
       <h2 id="o-noar-titulo" tabindex="-1"></h2>
       <p class="orc-noar__endereco" id="o-noar-endereco"></p>
       <div class="orc-previa__acoes"><a class="btn btn--primary" id="o-noar-abrir" target="_blank" rel="noopener noreferrer" href="#" hidden>Abrir o site<span class="sr-only"> (abre em nova aba)</span></a></div>
       <p class="orc-bloco__lead" id="o-noar-aviso" hidden></p>
-      <p class="orc-nota">Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, o site sai do ar até o pagamento.</p>
+      <p class="orc-nota" id="o-noar-nota">Com o restante pago, o site vai ao ar e passa para uma conta no seu nome.</p>
     </section>
     <!-- O FIM (PR 3b-3): pedido concluído (as duas partes pagas) ou encerrado -->
     <section class="orc-bloco orc-fim" id="o-fim" hidden>
@@ -662,9 +695,12 @@
       </div>
       <div id="o-fim-encerrado" role="group" aria-labelledby="o-fim-encerrado-titulo" hidden>
         <h2 id="o-fim-encerrado-titulo" tabindex="-1">Este pedido foi encerrado</h2>
+        <p class="orc-bloco__lead" id="o-fim-desistiu" hidden></p>
         <p class="orc-bloco__lead">Outra dúvida? <a href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a></p>
       </div>
     </section>
+    <!-- DESISTIR (20/11, js/orcamento-desistencia.js): só um lugar vazio, embaixo de tudo (depois do fim do pedido); o link "Preciso desistir da compra" e o painel nascem por JS, e só quando o servidor diz que a opção existe -->
+    <div id="o-desiste" class="orc-bloco orc-desiste" hidden></div>
     <!-- A PLANTA DO SITE (planta viva, PR 2c; js/orcamento-planta.js). DEPOIS do formulário e de todo o fluxo (decisão do dono, 05/11: a faixa não fica entre a conversa e o
          botão "Quero os três modelos"): a última seção do <main>. Só existe com a flag BZ_PLANTA ligada no servidor e uma planta no estado; escondida até lá. Sai de hidden
          onde termina o último bloco visível antes dela, abaixo da dobra, ou num gesto da pessoa (spec §4.4); o botão "Ver a planta do seu site", na fala do Zero, rola até aqui.
@@ -683,11 +719,9 @@
       </div>
       <button type="button" class="visor__fechar" id="o-visor-fechar" aria-label="Fechar a prévia">×</button>
     </div>
-    <p class="visor__resumo" id="o-visor-resumo"></p>
     <p class="sr-only" id="o-visor-voz" role="status"></p>
     <div class="visor__palco" id="o-visor-palco" tabindex="0" role="region" aria-label="Prévia do site"></div>
-    <div class="visor__rodape">
-      <p class="visor__aviso">Prévia do modelo: textos entre colchetes são espaços para os seus dados reais.</p>
+    <div class="visor__rodape" id="o-visor-rodape">
       <button type="button" class="btn btn--primary" id="o-visor-escolher" data-acao>Escolher este modelo</button>
     </div>
   </div>
@@ -720,6 +754,7 @@
   <script src="js/orcamento-turnstile.js" defer></script>
   <script src="js/orcamento-api.js" defer></script>
   <script src="js/orcamento-voz.js" defer></script>
+  <script src="js/orcamento-campo.js" defer></script>
   <script src="js/orcamento-visor.js" defer></script>
   <script src="js/orcamento-pix.js" defer></script>
   <script src="js/orcamento-pagamento.js" defer></script>
@@ -730,6 +765,7 @@
   <script src="js/orcamento-toques.js" defer></script>
   <script src="js/orcamento-perguntas.js" defer></script>
   <script src="js/orcamento-pedido.js" defer></script>
+  <script src="js/orcamento-extras-zero.js" defer></script>
   <script src="js/orcamento-painel.js" defer></script>
   <script src="js/orcamento-detalhes.js" defer></script>
   <script src="js/orcamento-espera.js" defer></script>
@@ -742,9 +778,11 @@
   <script src="js/orcamento-material.js" defer></script>
   <script src="js/orcamento-previa.js" defer></script>
   <script src="js/orcamento-restante.js" defer></script>
+  <script src="js/orcamento-desistencia.js" defer></script>
   <script src="js/orcamento-entrega.js" defer></script>
   <script src="js/orcamento-planta.js" defer></script>
   <script src="js/orcamento-planta-esboco.js" defer></script>
+  <script src="js/orcamento-palco.js" defer></script>
   <script src="js/orcamento-escopo-estado.js" defer></script>
   <script src="js/orcamento-escopo-desenho.js" defer></script>
   <script src="js/orcamento-escopo-barra.js" defer></script>

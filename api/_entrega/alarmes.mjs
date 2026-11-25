@@ -11,10 +11,14 @@
    ========================================================================== */
 import { prazoVencido, diasCorridosDesde } from '../_material/prazo.mjs';
 
-export const LIMITES = Object.freeze({ material_dias: 30, restante_dias: 3, lembretes_restante: Object.freeze([2, 3]), max_rodadas: 2 });
+/* site_parado_dias (20/11): o restante pago e o site ainda fora do ar depois deste número de dias corridos (o dia do pagamento é o dia 0) vira alarme; é o pago_sem_ar_dias
+   da captação (teste de igualdade em captacao-igual.test.mjs).
+   restante_dias e lembretes_restante (22/10) são SÓ do site, da entrega antiga que foi ao ar antes da ordem nova de 19/11 (passo no_ar): a captação saiu dessa ordem em
+   21/11 (7bdb9e9) e conta o restante em horas da cobrança com o site pronto (24 h, lembretes às 8 h e 20 h), o que o passo aprovada do site ainda não conta */
+export const LIMITES = Object.freeze({ material_dias: 30, restante_dias: 3, site_parado_dias: 2, lembretes_restante: Object.freeze([2, 3]), max_rodadas: 2 });
 
 export function contarAlarmes(itens, agora = new Date()) {
-  const r = { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0, ilegiveis: 0 };
+  const r = { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0, material_bloqueado: 0, site_parado: 0, ilegiveis: 0 };
   for (const it of itens || []) {
     /* B1: um item torto (data ilegível, prazo_dias fora de 1..60, lixo na lista) vira contagem de "ilegiveis"; não derruba os alarmes do dia */
     try { contarUm(it, agora, r); } catch (e) { if (!(e instanceof RangeError)) throw e; r.ilegiveis++; }   /* (só o dado torto: RangeError; um TypeError é bug de programação e sobe) */
@@ -24,10 +28,15 @@ export function contarAlarmes(itens, agora = new Date()) {
 
 function contarUm(it, agora, r) {
   if (!it || typeof it !== 'object') throw new RangeError('item ilegível');
+  /* (20/11, dono) a entrega bloqueada guarda o material por 60 dias; na última semana o banco marca o item e aqui só se conta (o aviso ao dono, antes de apagar) */
+  if (it.material_bloqueado_apagar === true) r.material_bloqueado++;
   if (it.passo === 'material') {
     if (it.entrada_em && !it.aviso_material_em && diasCorridosDesde(it.entrada_em, agora) >= LIMITES.material_dias) r.material_30++;
     if (it.apagar_material_devido === true) r.material_apagar++;   /* o banco decide (as datas de Campo Grande, o que há para apagar, a autorização): aqui só se conta */
   }
-  else if (it.passo === 'producao' || it.passo === 'ajustes' || it.passo === 'aprovada') { if (prazoVencido(it.prazo, { prazoDias: it.prazo_dias }, agora)) r.prazo_vencido++; }
+  /* (20/11, dono) o prazo PARA quando o cliente aprova a prévia: aprovada não conta prazo vencido, mesmo a de antes da regra com a pausa fechada */
+  else if (it.passo === 'producao' || it.passo === 'ajustes') { if (prazoVencido(it.prazo, { prazoDias: it.prazo_dias }, agora)) r.prazo_vencido++; }
+  /* (20/11) o prazo da Beyon parou na aprovação, então o que alarma aqui é o site que ficou fora do ar com o restante já pago */
+  else if (it.passo === 'aprovada') { if (it.restante_pago_em && diasCorridosDesde(it.restante_pago_em, agora) > LIMITES.site_parado_dias) r.site_parado++; }
   else if (it.passo === 'no_ar') { if (it.aviso_no_ar_feito_em && diasCorridosDesde(it.aviso_no_ar_feito_em, agora) > LIMITES.restante_dias) r.restante_vencido++; }
 }

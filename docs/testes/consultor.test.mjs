@@ -54,7 +54,7 @@ test('instruções: a etapa de ajustes descreve o fluxo sem IA (opções prontas
 test('instruções: tamanho que cabe e que entra em cache (Haiku 5.5: mínimo de 512 tokens)', () => {
   const s = montarSistema(REGRAS);
   assert.ok(s.length > 4000, 'contexto de verdade, não um parágrafo: ' + s.length);
-  assert.ok(s.length < 27500, 'sem inchar o turno: ' + s.length);   /* 27000 -> 27500 em 17/11: a linha do Perfil no Google (adicional novo); 26000 -> 27000 em 01/11: fatos e negociação pedidos pelo dono; o enxugamento do texto é a tarefa seguinte */
+  assert.ok(s.length < 27700, 'sem inchar o turno: ' + s.length);   /* 27500 -> 27700 em 20/11: a frase de que o prazo para na aprovação da prévia (decisão do dono); 27000 -> 27500 em 17/11: a linha do Perfil no Google (adicional novo); 26000 -> 27000 em 01/11: fatos e negociação pedidos pelo dono; o enxugamento do texto é a tarefa seguinte */
 });
 
 test('instruções: regras que valem a conversa inteira, transparência de ser IA, e nada de pedir contato no texto', () => {
@@ -322,7 +322,7 @@ test('vendedor: o prompt traz a persona, as objeções e o que nunca dizer', () 
   assert.ok(s.includes('o atendente de IA é um chat dentro do site do cliente') && s.includes('ainda não está pronto: sem prazo, valor, preço nem teste grátis'), 'o atendente existe e não promete');
   assert.doesNotMatch(s, /teste grátis de 10 dias|atendente de IA no WhatsApp/, 'sem teste grátis nem WhatsApp no atendente');
   assert.match(s, /sem prazo, valor, preço nem teste grátis/);
-  assert.match(s, /Todo o resto você não confirma: contrato, CNPJ, garantia, qualquer preço do atendente de IA/, 'o que o Zero não confirma (31/10; o código é do cliente desde 14/11)');
+  assert.match(s, /Todo o resto você não confirma: contrato, CNPJ, outra garantia, qualquer preço do atendente de IA/, 'o que o Zero não confirma (31/10; o código é do cliente desde 14/11)');
 });
 
 test('vendedor: a dor vem antes do formato, a recomendação vem com o preço, e quem quer fechar fecha', () => {

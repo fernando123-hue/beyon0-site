@@ -3,6 +3,7 @@
    (vendas_entrega_info), CONFERE com a mensagem certa para o dono (o banco confere de novo, como rede), calcula o prazo no servidor (a regra da captação) e chama
    a função do banco. O endereço gravado é sempre a ORIGEM do que o dono digitou (sem barra final, sem caminho). Nada aqui grava texto do cliente no log.
    D5: não existe aqui nada que aprove, publique ou encerre "por silêncio": pôr no ar exige a aprovação do cliente, e o motivo de encerrar é de lista fechada.
+   (19/11) Pôr no ar exige também o RESTANTE pago (a ordem nova: ele é cobrado com o site pronto, na aprovação) e a entrega sem bloqueio (estorno, contestação).
    ========================================================================== */
 import { criarTransporte } from '../_vendas/transporte.mjs';
 import { ORG } from '../_vendas/org.mjs';
@@ -47,8 +48,14 @@ const MOTIVO_RECUSA = {
   sem_aviso: 'O aviso "seu site está no ar" ainda não foi registrado: os 3 dias do restante só contam a partir dele (aviso BZ-… no-ar).',
   fora_do_ar: 'O site não está no ar: o lembrete do restante só existe com o site no ar.',
   dispensar: 'O número já está autorizado: o caminho é dispensar o material (dispensar BZ-…), não o aviso de material parado.',
-  ja: 'Isso já foi registrado.'
+  ja: 'Isso já foi registrado.',
+  restante_pago: 'O restante deste pedido já foi pago: estorne o restante no Mercado Pago antes de encerrar (o pedido não fecha com o valor inteiro recebido e sem entrega).',
+  sem_restante: 'O restante ainda não foi pago: o site só vai ao ar com ele pago (nem na conta da Beyon). A cobrança abriu quando o cliente aprovou a prévia.'
 };
+/* (19/11) "bloquear automaticamente a nossa entrega quando o cliente pedir reembolso": com a entrada estornada (inteira ou em parte), contestada ou com o projeto
+   pausado, o banco recusa toda ação que anda com a entrega (55000). O painel lê `bloqueada` antes e diz o porquê; o banco é a trava de verdade */
+const BLOQUEADA = 'Entrega BLOQUEADA: o pagamento deste pedido foi estornado, contestado ou está em disputa no Mercado Pago (o projeto está pausado). Nada avança nem vai ao ar. Confira no Mercado Pago; se houver devolução, encerre o pedido (encerrar BZ-… desistencia).';
+const barrarBloqueada = info => (info && info.bloqueada ? json({ erro: BLOQUEADA }, 409) : null);
 const RECUSA_GENERICA = 'O banco recusou esta ação: confira o passo da entrega na lista e tente de novo.';
 /* a recusa de regra do banco ({ ok:false, motivo }) vira 409 com a frase em português; só o endereço fora do padrão é 422. `frases` troca a frase de um motivo para esta ação */
 function recusar(r, frases = {}) {
@@ -71,7 +78,7 @@ const FRASES_APAGAR = Object.freeze({
   ja: 'O aviso prévio do apagamento já foi registrado.'
 });
 
-/* M1 (a regra única da captação, clientes/entrega.mjs:162 e :232): o prazo corre até PUBLICAR. Com ele vencido, nem a prévia nem o site saem: antes disso, a devolução por atraso */
+/* M1 (clientes/entrega.mjs:162): o prazo corre até a PRÉVIA sair; vencido, ela não sai: o dono combina a nova data com o cliente, ou devolve a entrada se ele cancelar (21/11, dono). Desde 20/11 (dono) ele PARA na aprovação da prévia: depois dela o site só espera o restante e não há mais prazo nosso a vencer */
 const instanteOk = v => typeof v === 'string' && Number.isFinite(Date.parse(v));
 /* o prazo guardado tem de ter datas que se leem: a conta (Intl) lança com data torta e o dono veria 500 */
 function prazoLegivel(prazo) {
@@ -88,7 +95,7 @@ function barrarPeloPrazo(info, agora, oQue) {
     return prazoVencido(info.prazo, { prazoDias: info.prazo_dias }, agora) ? json({ erro: fraseDoAtraso(info, oQue) }, 409) : null;
   } catch (e) { if (e instanceof RangeError) return PRAZO_TORTO(); throw e; }
 }
-const fraseDoAtraso = (info, oQue) => 'O prazo combinado (' + info.entrega_ate + ') venceu: ' + oQue + ' agora esconderia o atraso. O caminho é a devolução por atraso (D4: a entrada volta, mesmo depois dos 7 dias): estorne no Mercado Pago, rode "encerrar BZ-… atraso" e registre a devolução na captação. Se o cliente quiser seguir: o site ainda não recebe a nova data (é pendência), e é preciso registrar a nova data antes de publicar.';
+const fraseDoAtraso = (info, oQue) => 'O prazo combinado (' + info.entrega_ate + ') venceu: ' + oQue + ' agora esconderia o atraso. Avise o cliente e pergunte se ele segue (21/11, dono: o atraso não devolve a entrada por regra). Se ele pedir para cancelar, é a devolução por atraso: devolva a entrada, rode "encerrar BZ-… atraso" e registre a devolução na captação. Se o cliente quiser seguir: o site ainda não recebe a nova data (é pendência), e é preciso registrar a nova data antes de publicar.';
 
 export function criarAcoesDoDono(env) {
   const rpc = criarTransporte(env);
@@ -100,10 +107,11 @@ export function criarAcoesDoDono(env) {
       if (!rpc) return FALHA();
       const { info, resposta } = await lerInfo(rpc, codigo); if (resposta) return resposta;
       if (!['producao', 'ajustes'].includes(info.passo)) return json({ erro: 'A entrega está em "' + info.passo + '": só se publica prévia quando ela está em produção ou em ajustes.' }, 409);
+      const bloqueada = barrarBloqueada(info); if (bloqueada) return bloqueada;
       const problema = problemaDaPrevia(bruto.url, info.cliente_captacao);
       if (problema) return json({ erro: problema }, 422);
       const t = agoraDe();
-      const atrasoPrevia = barrarPeloPrazo(info, t.agora, 'mostrar a prévia'); if (atrasoPrevia) return atrasoPrevia;   /* (M1) o prazo atual, ANTES de abrir a pausa */
+      const atrasoPrevia = barrarPeloPrazo(info, t.agora, 'mostrar a prévia'); if (atrasoPrevia) return atrasoPrevia;   /* (M1) o prazo atual, ANTES de abrir a pausa (até a prévia sair o prazo corre; depois da aprovação, para) */
       try {
         const r = await rpc('vendas_previa_publicar', { ...base(codigo), url: new URL(bruto.url).origin, agora: t.iso, versao: info.versao, prazo: abrirPausa(info.prazo, t.fuso) });
         return r && r.ok ? json({ ok: true }) : recusar(r);
@@ -118,10 +126,12 @@ export function criarAcoesDoDono(env) {
           ? 'O cliente ainda não aprovou a prévia: o projeto para até ele responder (D5). Nada é publicado antes.'
           : 'A entrega está em "' + info.passo + '": só se põe no ar depois da aprovação.' }, 409);
       }
+      const bloqueada = barrarBloqueada(info); if (bloqueada) return bloqueada;
+      if (info.restante_pago !== true) return json({ erro: MOTIVO_RECUSA.sem_restante }, 409);   /* (19/11) o site só vai ao ar com o restante pago */
       const problema = problemaDoSite(bruto.url);
       if (problema) return json({ erro: problema }, 422);
       const t = agoraDe();
-      const atrasoSite = barrarPeloPrazo(info, t.agora, 'publicar o site'); if (atrasoSite) return atrasoSite;   /* (M1) a pausa fechou quando o cliente aprovou: o prazo voltou a correr */
+      /* (20/11, dono) sem conta de prazo aqui: o relógio do nosso prazo parou quando o cliente aprovou a prévia; a única condição para ir ao ar é o restante pago e limpo */
       try {
         const r = await rpc('vendas_no_ar', { ...base(codigo), url: origemDoSite(bruto.url), agora: t.iso, versao: info.versao });
         return r && r.ok ? json({ ok: true }) : recusar(r);
@@ -154,6 +164,7 @@ export function criarAcoesDoDono(env) {
       if (!rpc) return FALHA();
       const { info, resposta } = await lerInfo(rpc, codigo); if (resposta) return resposta;
       if (info.passo !== 'material') return json({ erro: 'A entrega está em "' + info.passo + '": só se dispensa o material de quem ainda não o enviou.' }, 409);
+      const bloqueada = barrarBloqueada(info); if (bloqueada) return bloqueada;
       if (!instanteOk(info.entrada_em)) return json({ erro: 'A entrada desta entrega não tem data legível: confira na lista de entregas antes de dispensar o material.' }, 409);
       const dias = diasCorridosDesde(info.entrada_em);
       if (dias < LIMITES.material_dias) return json({ erro: fraseDoDia30(dias) }, 409);

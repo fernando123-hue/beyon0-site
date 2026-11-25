@@ -21,6 +21,7 @@ import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { passoDosAjustes } from './e2e-ajustes.mjs';
+import { cortes } from './cortes.mjs';
 import { passoDoPix } from './e2e-pix.mjs';
 import { passoDaEntrega } from './e2e-entrega.mjs';
 import { passoDaPrevia, passoSemEntrega } from './e2e-previa.mjs';
@@ -47,6 +48,18 @@ const PASTA = new URL('./olhar-orcamento/', import.meta.url);
 await mkdir(PASTA, { recursive: true });
 /* o microfone do Zero: o Chromium com aparelho de áudio de mentira (um bipe) e a licença já dada, para a gravação rodar sem pessoa */
 const nav = await chromium.launch({ executablePath: EXEC, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+/* TEMA=claro: a rodada inteira no tema claro (o escolhido pelo botão do topo e guardado no aparelho, js/tema.js); sem ele, no escuro,
+   o padrão. Todo contexto aberto daqui em diante já nasce com a escolha guardada (o varredor de cortes roda nos DOIS temas) */
+const TEMA = process.env.TEMA === 'claro' ? 'claro' : 'escuro';
+if (TEMA === 'claro') {
+  const novoContexto = nav.newContext.bind(nav);
+  nav.newContext = async (...args) => {
+    const c = await novoContexto(...args);
+    await c.addInitScript(() => { try { localStorage.setItem('bz-orcamento-tema', 'claro'); } catch { /* sem armazenamento */ } });
+    return c;
+  };
+}
+console.log('tema: ' + TEMA);
 let falhou = false;
 /* CONSULTOR=1: o servidor local com a IA simulada mostrando o consultor (sem BZ_SEM_CONSULTOR); as checagens da
    conversa só valem aí. Sem ele, o caminho é só o das perguntas (rodar o servidor com BZ_SEM_CONSULTOR=1) */
@@ -66,7 +79,15 @@ const anotar = (pg, rotulo) => {
   pg.on('requestfinished', async r => { if (!r.url().includes('/api/')) return; const t = r.timing(); const resp = await r.response(); diario.push(`${rotulo}: ${r.method()} ${new URL(r.url()).pathname}${new URL(r.url()).search} → ${resp ? resp.status() : '?'} em ${Math.round(t.responseEnd)} ms`); });
   pg.on('requestfailed', r => { if (r.url().includes('/api/')) diario.push(`${rotulo}: ${r.method()} ${new URL(r.url()).pathname} → falhou: ${r.failure()?.errorText}`); });
 };
-const foto = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + (CONSULTOR ? '-consultor' : '') + '.png', PASTA)) });   /* (pathname deixa %20 no caminho) */
+const fotoSo = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + (CONSULTOR ? '-consultor' : '') + (TEMA === 'claro' ? '-claro' : '') + '.png', PASTA)) });   /* (pathname deixa %20 no caminho) */
+/* CORTES=1: a cada foto, o varredor de texto cortado (docs/cortes.mjs; regra do dono "espaçamento sem corte") passa pela tela e cada achado vira FALHA */
+const CORTES = process.env.CORTES === '1';
+const foto = async (page, nome) => {
+  await fotoSo(page, nome);
+  if (!CORTES) return;
+  const achados = await cortes(page).catch(e => ['o varredor falhou: ' + e.message.split('\n')[0]]);
+  ok(achados.length === 0, 'cortes em ' + nome + (achados.length ? ': ' + achados.join(' · ') : ': nada cortado'));
+};
 
 try {
   const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -94,7 +115,8 @@ try {
   ok(await page.locator('#o-perguntas').count() === 0 && await page.locator('#o-conversar').count() === 0, 'sem tela de perguntas e sem "Prefere conversar?"');
   ok(CONSULTOR ? await page.locator('#o-form').isVisible() : await page.locator('#o-form').isHidden(), CONSULTOR ? 'com consultor: a caixa de texto está à mão' : 'sem consultor: tudo por toques, sem caixa de texto');
   await foto(page, '1a-conversa-cel');
-  /* A CASCA NOVA (remodelação de 18/11, direção B): a miniatura do site espera o 1º toque, cada opção do ramo vem com ícone, a barra diz "1 de 5" */
+  /* A CASCA NOVA (remodelação de 18/11, direção B; visual do palco, direção C de 23/11): a miniatura do site espera o 1º toque, cada opção do ramo
+     vem com ícone (escondido no palco: o número mono à direita faz as vezes dele), os passos são abas e a da conversa está sublinhada */
   ok(await page.locator('#o-nasce').isHidden() && await page.locator('#o-log .orc-toque:not([data-feito]) .orc-op--ic svg').count() === 8, 'casca: a miniatura espera o 1º toque e as 8 opções do ramo vêm com ícone');
   /* a pergunta do Zero aparece INTEIRA na caixa da conversa: com os cartões com ícone, fala + opções passam da altura da caixa, e rolar até o fim
      cortava o começo da pergunta (achado das fotos de 19/11: 51 px cortados na chegada, 46 a cada toque). A fala fica no topo; as opções seguem abaixo */
@@ -110,7 +132,7 @@ try {
     return !!antes && antes.dc >= -1 && (antes.cabe || antes.dc <= 24);
   };
   ok(await falaInteira(), 'casca: na chegada, a 1ª pergunta do Zero aparece inteira na caixa (não começa cortada)');
-  ok(await page.getAttribute('#o-etapas', 'data-n') === '1' && /1 de 5/.test(await page.evaluate(() => getComputedStyle(document.getElementById('o-etapas'), '::after').content)), 'casca: a barra de progresso diz "1 de 5"');
+  ok(await page.getAttribute('#o-etapas', 'data-n') === '1' && await page.evaluate(() => { const li = document.querySelector('#o-etapas li[aria-current="step"]'); return !!li && li.getAttribute('data-passo') === 'conversa' && /inset/.test(getComputedStyle(li).boxShadow) && li.querySelector('.orc-etapas__nome').getClientRects().length > 0; }), 'casca: a aba da conversa é a atual, com o nome à vista e o sublinhado');
   /* O MICROFONE DO ZERO (18/11): o botão Falar grava, o servidor local devolve a frase simulada e ela cai na caixa para a pessoa conferir;
      nada é enviado ao Zero sozinho. Só com o consultor (é a caixa de texto dele) */
   if (CONSULTOR) {
@@ -177,6 +199,38 @@ try {
   } else {
     ok(/R\$/.test(await page.textContent('#o-est-valor')), 'com consultor: o valor é o da estimativa que o Zero gravou');
     ok(await page.locator('#o-vizinhos').isHidden() && await page.locator('#o-ajustar-abrir').isHidden(), 'com consultor: os extras e os formatos ao lado ficam na conversa (sem outra conta na tela)');
+    /* OS EXTRAS NA CONVERSA (dono, 24/11, opção A; js/orcamento-extras-zero.js): logo depois do preço do Zero, 2 ou 3 cartões DENTRO da conversa;
+       um toque inclui, outro tira, e o preço que vale (o cartão do investimento e o total do bloco) é o que o servidor recalculou e regravou */
+    const XZ = '#o-log .orc-xz .orc-xz__op';
+    const valorChega = v => page.waitForFunction(x => document.getElementById('o-est-valor').textContent.replace(/\D/g, '') === String(x), v, { timeout: 15000 }).then(() => true, () => false);
+    ok(await page.waitForFunction(s => document.querySelectorAll(s).length >= 2, XZ, { timeout: 15000 }).then(() => true, () => false), 'extras na conversa: os cartões aparecem logo depois do preço');
+    const chavesXz = await page.$$eval(XZ, l => l.map(b => b.dataset.extra));
+    ok(chavesXz.length >= 2 && chavesXz.length <= 3 && JSON.stringify(chavesXz) === '["agendamento","imagens"]', 'extras na conversa: serviços com logo e textos prontos → agendamento e imagens (sem "textos"): ' + JSON.stringify(chavesXz));
+    ok(await page.$$eval(XZ, l => l.every(b => b.getAttribute('aria-pressed') === 'false' && /^\+ R\$\s?[\d.]+$/.test(b.querySelector('.orc-xz__valor').textContent))), 'extras na conversa: botões com aria-pressed e o preço "+ R$ X" à vista');
+    const reais = t => Number(String(t).replace(/[^\d,]/g, '').replace(',', '.'));
+    const valorTela = async () => reais(await page.textContent('#o-est-valor'));
+    const totalXz = async () => reais(await page.textContent('#o-log .orc-xz__total-valor'));
+    const base = await valorTela();
+    ok(base > 0 && await totalXz() === base, 'extras na conversa: o total do bloco é o mesmo do cartão do investimento (' + base + ')');
+    ok(await semRolagemLateral(page), 'extras na conversa: celular sem rolagem lateral');
+    await page.setViewportSize({ width: 320, height: 700 });
+    ok(await semRolagemLateral(page), 'extras na conversa: 320 px sem rolagem lateral');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('#o-log .orc-xz [data-extra="agendamento"]').scrollIntoViewIfNeeded();
+    await foto(page, '1b-extras-zero-cel');
+    const agendamento = page.locator('#o-log .orc-xz [data-extra="agendamento"]');
+    await agendamento.click();
+    ok(await valorChega(base + 450), 'extras na conversa: um toque inclui o agendamento e o preço (do servidor) vai a ' + (base + 450));
+    ok(await agendamento.getAttribute('aria-pressed') === 'true' && await totalXz() === base + 450, 'extras na conversa: o cartão fica marcado e o total do bloco acompanha');
+    await foto(page, '1b-extras-zero-incluido-cel');
+    /* pelo teclado: o foco fica no cartão, e o Enter tira */
+    await agendamento.focus();
+    await page.keyboard.press('Enter');
+    ok(await valorChega(base), 'extras na conversa: outro toque (Enter) tira e o preço volta a ' + base);
+    ok(await agendamento.getAttribute('aria-pressed') === 'false' && await page.evaluate(() => document.activeElement && document.activeElement.dataset.extra === 'agendamento'), 'extras na conversa: desmarcado, e o foco não se perdeu');
+    /* fica com as imagens: o pedido segue com o preço novo (o "Quero" não grava outro pacote; vale a estimativa regravada) */
+    await page.locator('#o-log .orc-xz [data-extra="imagens"]').click();
+    ok(await valorChega(base + 250), 'extras na conversa: as imagens entram (' + (base + 250) + ')');
   }
   ok(/não paga nada/i.test(await page.textContent('#o-est-sem-risco')), 'sem risco até confirmar');
   ok(await semRolagemLateral(page), 'celular no preço: sem rolagem lateral');
@@ -186,6 +240,7 @@ try {
   /* AS SUGESTÕES (dono, 2026-11-10, opção A): os cartões antes do "Quero", pelo ramo (saúde: agendamento, textos, imagens), o da
      recomendação já marcado; um toque no cartão soma no preço e a lista completa acompanha */
   ok(await page.locator('#o-reco').isVisible() && await page.isChecked('#o-r-agendamento'), 'sugestões: os cartões à vista, com o agendamento da recomendação já marcado');
+  ok(await page.locator('#o-log .orc-xz').count() === 0, 'sem consultor: nenhum cartão de extra dentro da conversa (os extras de sempre, fora dela)');
   ok(JSON.stringify(await page.$$eval('#o-reco-lista [data-extra]', l => l.map(c => c.dataset.extra))) === '["agendamento","textos","imagens"]', 'sugestões de saúde: agendamento, textos e imagens');
   await page.locator('label[for="o-r-imagens"]').click({ position: { x: 120, y: 20 } });
   await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('8.600'));
@@ -453,17 +508,17 @@ try {
   await foto(page, '2b-direcoes-cartao-cel');
   ok(await page.evaluate(() => { const p = document.getElementById('o-dirs-pontos'); return !p.hidden && p.children.length === 3 && p.children[0].classList.contains('is-atual'); }), 'modelos: os 3 pontos do carrossel aparecem e o 1º está aceso');
   ok(await page.evaluate(() => { const b = document.querySelector('#o-dirs .dir .dir__acoes').children; return b[0].classList.contains('btn--primary') && b[1].hasAttribute('data-abrir'); }), 'modelos: "Escolher este" vem primeiro no DOM (a ordem do Tab é a que se vê)');
-  /* o selo "Recomendado pelo Zero" não cobre a marca do negócio na miniatura (achado das fotos de 19/11: cobria o nome no topo da prévia) */
+  /* o selo "Recomendado pelo Zero" não cobre NADA da miniatura (19/11 cobria a marca do negócio; 24/11 cortava o botão do site): ele mora na
+     parte de informação do cartão, abaixo da prévia */
   ok(await page.evaluate(() => {
-    /* exatamente 1 cartão recomendado (o roteiro do E2E é fixo), com a marca na miniatura: sem eles a asserção passaria sem testar nada */
+    /* exatamente 1 cartão recomendado (o roteiro do E2E é fixo), com a miniatura: sem eles a asserção passaria sem testar nada */
     const d = [...document.querySelectorAll('#o-dirs .dir')].filter(x => x.querySelector('.dir__recomendado'));
     if (d.length !== 1) return false;
-    const s = d[0].querySelector('.dir__recomendado').getBoundingClientRect(), mk = d[0].querySelector('.pv-marca'), mi = d[0].querySelector('.dir__mini');
-    if (!mk || !mi) return false;
-    const r = mk.getBoundingClientRect(), m = mi.getBoundingClientRect();
-    const longeDaMarca = s.right <= r.left || r.right <= s.left || s.bottom <= r.top || r.bottom <= s.top;
-    return longeDaMarca && s.top >= m.top - 1 && s.bottom <= m.bottom + 1;   /* e o selo fica DENTRO da miniatura */
-  }), 'modelos: o selo "Recomendado pelo Zero" fica dentro da miniatura e não cobre a marca do negócio');
+    const s = d[0].querySelector('.dir__recomendado').getBoundingClientRect(), mi = d[0].querySelector('.dir__mini'), cartao = d[0].getBoundingClientRect();
+    if (!mi) return false;
+    const m = mi.getBoundingClientRect();
+    return s.top >= m.bottom - 1 && s.bottom <= cartao.bottom + 1 && s.left >= cartao.left && s.right <= cartao.right;   /* abaixo da prévia, dentro do cartão */
+  }), 'modelos: o selo "Recomendado pelo Zero" fica na parte de informação do cartão, sem cobrir nada da prévia');
   await page.locator('#o-dirs .dir').nth(2).locator('.dir__acoes .btn').first().focus();
   ok(await espera(page, () => document.getElementById('o-dirs').scrollLeft > 20 && document.querySelectorAll('#o-dirs-pontos .is-atual').length === 1 && document.querySelectorAll('#o-dirs-pontos span')[2].classList.contains('is-atual'), 8000), 'modelos: o foco no 3º cartão rola o carrossel até ele e acende o 3º ponto');
   await page.evaluate(() => { document.getElementById('o-dirs').scrollLeft = 0; });
@@ -524,7 +579,7 @@ try {
   const mensagemZap = await caixaZap.inputValue();
   const CODIGO_NO_TEXTO = /\/orcamento#retomar=([A-Za-z0-9_-]{32})$/;
   ok(linksPedidos === 1 && hrefZap === 'https://wa.me/55' + TELEFONE.replace(/\D/g, ''), 'painel: um toque pede um link só e o botão abre o WhatsApp do cliente só com o número (sem ?text=, sem nada depois dos dígitos)');
-  ok(CODIGO_NO_TEXTO.test(mensagemZap) && /^Oi! Aqui é o Fernando, da Beyon Zero\. Os três modelos do seu site ficaram prontos/.test(mensagemZap), 'painel: a mensagem (na caixa de leitura) leva o link de retomada (32 caracteres) e fala em modelos prontos');
+  ok(CODIGO_NO_TEXTO.test(mensagemZap) && /^Oi! Aqui é a Beyon Zero\. Os três modelos do seu site ficaram prontos/.test(mensagemZap), 'painel: a mensagem (na caixa de leitura) leva o link de retomada (32 caracteres) e fala em modelos prontos');
   ok(await caixaZap.evaluate(c => c.readOnly) && await avisoNaFila.getByRole('button', { name: /Copiar a mensagem/ }).count() === 1, 'painel: a caixa é só de leitura e há o botão "Copiar a mensagem"');
   ok(!/mesmo navegador/.test(mensagemZap), 'painel: a mensagem não manda mais voltar "no mesmo navegador"');
   ok(await abrirZap.getAttribute('target') === '_blank' && /noopener/.test(await abrirZap.getAttribute('rel')), 'painel: o WhatsApp abre em outra aba, sem passar a página de origem');
@@ -707,7 +762,7 @@ try {
   await zapLembrete.waitFor({ timeout: 15000 });
   ok(/^https:\/\/wa\.me\/\d+$/.test(await zapLembrete.getAttribute('href')), 'lembretes: o WhatsApp também abre só com o número');
   const msgLembrete = await cartaoLembrete.getByRole('textbox', { name: /Mensagem pronta/ }).inputValue();
-  ok(/^Oi, Ana! Aqui é o Fernando, da Beyon Zero\. Passando para lembrar/.test(msgLembrete) && CODIGO_NO_TEXTO.test(msgLembrete) && msgLembrete.match(CODIGO_NO_TEXTO)[1] !== codigoDoLink, 'lembretes: a mensagem chama pelo primeiro nome e leva um link NOVO (não o do aviso)');
+  ok(/^Oi, Ana! Aqui é a Beyon Zero\. Passando para lembrar/.test(msgLembrete) && CODIGO_NO_TEXTO.test(msgLembrete) && msgLembrete.match(CODIGO_NO_TEXTO)[1] !== codigoDoLink, 'lembretes: a mensagem chama pelo primeiro nome e leva um link NOVO (não o do aviso)');
   ok(!(await painel2.evaluate(() => JSON.stringify({ l: Object.entries(localStorage), s: Object.entries(sessionStorage) }) + location.href + document.cookie)).includes(msgLembrete.match(CODIGO_NO_TEXTO)[1]) && !falaDoPainel.some(l => l.includes(msgLembrete.match(CODIGO_NO_TEXTO)[1])), 'lembretes: o código do link novo também fica fora do endereço, do armazenamento e do console');
   await foto(painel2, '5f-painel-lembrete-pronto-cel');
   /* (M5 da correção da Task 5) o mesmo cartão, já com o link pronto, no desktop: não pode ficar esticado nem cortado */

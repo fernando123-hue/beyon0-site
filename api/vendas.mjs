@@ -3,7 +3,7 @@
    passo do fluxo, em api/_vendas/fluxo.mjs).
      GET  estado, pagamento, pagamento-config, sessao-config, catalogo
      POST sessao, retomar, renovar, mensagem, gerar, gerar-direcao, escolher,
-          ajustar, desfazer, pedido-livre, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes,
+          ajustar, desfazer, pedido-livre, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes, extras-sugeridos, alternar-extra,
           material-salvar, material-reservar, material-conferir, material-remover, material-enviar (PR 3b-2: o material da entrega;
           só com BZ_ENTREGA=ligada), link-pedido, sair-do-aparelho, outro-aparelho, abrir-pedido (PR 3b-2: o link do pedido),
           previa-ajustes, previa-aprovar (PR 3b-3: a lista de ajustes e a aprovação da prévia; só com BZ_ENTREGA=ligada),
@@ -20,6 +20,7 @@ import { aquecerBanco, avisarFalha } from './_vendas/aquecer-banco.mjs';
 import { criarVisitantes } from './_vendas/visitante.mjs';
 import { configPagamentos, configPublica } from './_pagamentos/config.mjs';
 import { criarServicoPagamentos } from './_pagamentos/servico.mjs';
+import { avisarDonoPagamento } from './_aviso.mjs';
 import { confirmacaoDoAmbiente } from './_pagamentos/confirmacao.mjs';
 import { criarIA } from './_ia/provedor.mjs';
 import { modoDirecoes } from './_ia/config.mjs';
@@ -37,10 +38,12 @@ export const ACOES = {
     escolher: 'escolher',
     ajustar: 'ajustar', desfazer: 'desfazer', 'pedido-livre': 'pedidoLivre', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar',
     simular: 'simular', 'confirmar-pacote': 'confirmarPacote', detalhes: 'detalhes',
+    'extras-sugeridos': 'extrasSugeridos', 'alternar-extra': 'alternarExtra',   /* (24/11) os extras na conversa com o Zero: api/_vendas/fluxo-extras.mjs */
     'material-salvar': 'materialSalvar', 'material-reservar': 'materialReservar', 'material-conferir': 'materialConferir',
     'material-remover': 'materialRemover', 'material-enviar': 'materialEnviar',
     'link-pedido': 'linkPedido', 'sair-do-aparelho': 'sairDoAparelho', 'outro-aparelho': 'outroAparelho', 'abrir-pedido': 'abrirPedido',
     'previa-ajustes': 'previaAjustes', 'previa-aprovar': 'previaAprovar',
+    desistir: 'desistir',   /* (20/11) a desistência dentro dos 7 dias: a entrada volta pelo Pix (api/_pagamentos/desistencia.mjs) */
     recado: 'recado',
     transcrever: 'transcrever' }   /* (o microfone do Zero: corpo de ÁUDIO, não JSON; api/_vendas/voz.mjs) */
 };
@@ -103,7 +106,7 @@ export async function atender(request, env, metodo, deps, ctx) {
   const d = deps || { banco: criarTransporte(env), visitantes: criarVisitantes(env, { ip }), ia: await criarIA(env), segredoFreio: env.FREIO_SEGREDO || env.SUPABASE_CHAVE_SECRETA, armazem: criarArmazem(env) };
   if (!deps && d.banco) {
     const cfg = configPagamentos(env);
-    if (cfg.ativo) d.pagamentos = criarServicoPagamentos({ banco: d.banco, cfg, confirmacao: confirmacaoDoAmbiente(env) });
+    if (cfg.ativo) d.pagamentos = criarServicoPagamentos({ banco: d.banco, cfg, confirmacao: confirmacaoDoAmbiente(env), avisar: alerta => avisarDonoPagamento(env, alerta) });
     else if (cfg.motivo) log('erro', { request_id: requestId, evento: 'pagamentos desligados', motivo: cfg.motivo });
   }
   /* (F3 do JEV) o modo sombra, só no turno do Zero e só com JEV_SOMBRA=1 e a chave: senão null, zero chamadas */

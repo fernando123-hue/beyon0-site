@@ -23,7 +23,7 @@
      POST {importado: <BZ-código>, cliente: <c-xxxxxx>}  a importação da captação passou: marca importado (começa a guarda de 7 dias)
    A ENTREGA PELO DONO (PR 3b-3; api/_entrega/painel-entrega.mjs). Só aqui, só com a chave: nada disso é alcançável pelo cliente nem pela rotina:
      POST {previa: <BZ-código>, url}          publica a prévia (https://vN.bz-<cliente>.pages.dev, do projeto desta entrega); abre a pausa do prazo
-     POST {no_ar: <BZ-código>, url}           põe o site no ar, SÓ depois de o cliente aprovar (D5); com o prazo vencido, 409 com o caminho da devolução
+     POST {no_ar: <BZ-código>, url}           põe o site no ar, SÓ depois de o cliente aprovar (D5) e com o restante pago e a entrega sem bloqueio (19/11); com o prazo vencido, 409 com o caminho (nova data com o cliente; devolução só se ele cancelar, 21/11)
      POST {suspender: <BZ-código>}            suspende o site (3 dias depois do aviso "no ar"; 22/10)
      POST {encerrar: <BZ-código>, motivo}     motivo de lista fechada: desistencia, atraso, producao_manual, outro (nunca silêncio nem falta de material)
      POST {material_dispensar: <BZ-código>}   dia 30, só com o número AUTORIZADO: segue sem o resto do material
@@ -35,6 +35,10 @@
      GET  ?fila=recados[&nao_lidos=1]       os recados, do mais novo ao mais velho, com o e-mail de resposta, o código do pedido (se houver) e o selo "suspeito" (texto que tenta dar ordem a uma IA)
      POST {recado_lido: <id>[, lido: false]}  marca como lido (ou desfaz); apagados sozinhos 60 dias depois de criados (rotina diária)
    A fila traz "alarme": a fila no teto (o orçamento oferece o recado). O pedido entra na fila sozinho, sem confirmação (30/10).
+   O TESTE DO PIX DE R$ 0,01 (api/_pagamentos/teste-pix.mjs; só com BZ_TESTE_PIX=1; o valor é fixo no código, nunca vem do pedido):
+     POST {teste_pix: {nome, sobrenome, email, documento_tipo, documento}}  cria o Pix de R$ 0,01 (order TESTE-, vale 10 min; no máx. 5 por hora)
+     GET  ?teste_pix=<order_id>             o estado da order do teste (só order TESTE- de R$ 0,01)
+     POST {teste_pix_reembolsar: <order_id>}  devolve o centavo (só order TESTE- de R$ 0,01 já paga)
    A resposta do GET traz também "saude": alertas abertos e a data da última rotina diária.
    ========================================================================== */
 import { createHash, timingSafeEqual } from 'node:crypto';
@@ -57,6 +61,7 @@ import { criarAcoesAtendente } from './_atendente/painel.mjs';
 import { ambienteDe } from './_ambiente.mjs';
 import { nichoReguladoDaSessao } from './_vendas/agente.mjs';
 import { CONSELHOS, registroDoNicho } from './_vendas/regras-conselhos.mjs';
+import { testePix, ehPedidoDeTestePix } from './_pagamentos/teste-pix.mjs';
 
 const CHAVE_MINIMA = 32;
 export const CORPO_MAX = 200000;          /* caracteres do POST do painel */
@@ -99,12 +104,14 @@ async function saudeDoSistema(env) {
 
 export const GET = request => ler(request, process.env);
 export const POST = request => mudar(request, process.env);
-export async function ler(request, env) {
+export async function ler(request, env, deps = {}) {
   const negado = await autorizar(request, env);
   if (negado) return negado;
+  const q = new URL(request.url).searchParams;
+  /* o teste do Pix de R$ 0,01 (api/_pagamentos/teste-pix.mjs): só aqui, só com a chave e só com BZ_TESTE_PIX=1; não usa o banco */
+  if (q.get('teste_pix') !== null) return (deps.testePix || testePix).ler(q.get('teste_pix'), env);
   const db = banco(env);
   if (!db.ligado) return json({ erro: 'Banco não configurado: faltam SUPABASE_URL e SUPABASE_CHAVE_SECRETA no servidor.' }, 503);   /* (só depois da chave certa) */
-  const q = new URL(request.url).searchParams;
   if (q.get('fila') === 'direcoes') return filaDirecoes(env);
   if (q.get('fila') === 'lembretes') return filaLembretes(env);
   if (q.get('fila') === 'ajustes') return filaAjustes(env);
@@ -139,15 +146,17 @@ export async function ler(request, env) {
   }
 }
 
-export async function mudar(request, env) {
+export async function mudar(request, env, deps = {}) {
   const negado = await autorizar(request, env);
   if (negado) return negado;
-  const db = banco(env);
-  if (!db.ligado) return json({ erro: 'Banco não configurado.' }, 503);
   let bruto;
   const texto = await request.text();
   if (texto.length > CORPO_MAX) return json({ erro: 'Pedido grande demais.' }, 413);   /* (uma direção higienizada cabe com folga) */
   try { bruto = JSON.parse(texto); } catch { bruto = null; }
+  /* o teste do Pix de R$ 0,01: antes do banco de propósito (não grava nada; testar a cadeia de pagamento não depende dele) */
+  if (ehPedidoDeTestePix(bruto)) return (deps.testePix || testePix).mudar(bruto, env);
+  const db = banco(env);
+  if (!db.ligado) return json({ erro: 'Banco não configurado.' }, 503);
   if (bruto && typeof bruto.entregar_direcao === 'string') return entregarDirecao(bruto, env);
   if (bruto && typeof bruto.avisado === 'string') return marcarAvisado(bruto, env);
   if (bruto && typeof bruto.link_retomada === 'string') return linkDeRetomada(bruto.link_retomada, env);
@@ -341,8 +350,8 @@ const ACOES_PEDIDO = { descartar_pedido: 'descartar', arquivar_pedido: 'arquivar
    limite por rota do Worker conferem esta lista contra o código. `excluir` e `mudar_contato` são os dois POST sem chave
    própria no despacho de `mudar` (apagar contato; status/valor/nota por `codigo`) */
 export const ACOES_PAINEL = Object.freeze({
-  GET: ['resumo', 'csv-ads', 'fila-direcoes', 'fila-lembretes', 'fila-ajustes', 'fila-entregas', 'material', 'fila-avisos', 'ajustes-previa', 'fila-recados', 'fila-atendente', 'atendente', 'atendente-conversas'],
-  POST: ['entregar_direcao', 'avisado', 'link_retomada', 'lembrado', 'ajuste_feito', 'ajuste_recusado', 'resolver_alerta', 'excluir', 'mudar_contato', 'importado', 'recado_lido', 'atendente_salvar',
+  GET: ['resumo', 'csv-ads', 'fila-direcoes', 'fila-lembretes', 'fila-ajustes', 'fila-entregas', 'material', 'fila-avisos', 'ajustes-previa', 'fila-recados', 'fila-atendente', 'atendente', 'atendente-conversas', 'teste_pix'],
+  POST: ['entregar_direcao', 'avisado', 'link_retomada', 'lembrado', 'ajuste_feito', 'ajuste_recusado', 'resolver_alerta', 'excluir', 'mudar_contato', 'importado', 'recado_lido', 'atendente_salvar', 'teste_pix', 'teste_pix_reembolsar',
     ...Object.keys(ACOES_ENTREGA), ...Object.keys(ACOES_PEDIDO)]
 });
 const CODIGO_PEDIDO = /^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/;

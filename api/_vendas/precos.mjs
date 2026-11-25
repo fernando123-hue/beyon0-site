@@ -239,6 +239,22 @@ export function estimar(fatoresBrutos, regras) {
   };
 }
 
+/* ---------- o pacote completo (revisão de preços, dono 2026-11-21: "Aprovo a proposta inteira") ----------
+   A referência que o Zero cita antes do valor do caso: o institucional com tudo o que é obra de arte (visual desenhado do zero,
+   animações, uma interação de assinatura e os textos das 5 páginas). Sai do motor e da tabela ATIVA, nunca de um número escrito:
+   se a tabela for inválida, faltar um dos itens, ele estiver em preparo ou fora do automático, ou o motor não fechar numa fase só,
+   não há referência (null) e o Zero não cita */
+export const PACOTE_COMPLETO = Object.freeze({ formato: 'institucional', adicionais: Object.freeze({ visual_exclusivo: 1, interacao_leve: 1, interacao_assinatura: 1, textos: 5 }) });
+export function valorDoPacoteCompleto(regras) {
+  if (!validarRegras(regras).ok) return null;
+  const chaves = Object.keys(PACOTE_COMPLETO.adicionais);
+  const vendavel = k => Object.hasOwn(regras.adicionais, k) && objeto(regras.adicionais[k]) && !regras.adicionais[k].fora_do_automatico && regras.adicionais[k].em_preparo !== true;
+  if (!chaves.every(vendavel)) return null;
+  const e = estimar({ formato: PACOTE_COMPLETO.formato, adicionais: { ...PACOTE_COMPLETO.adicionais } }, regras);
+  if (e.erros || e.encaminhar_diagnostico || e.fase !== 'unica' || e.itens.length !== chaves.length) return null;
+  return e.valor_total;
+}
+
 /* ---------- o maior prazo que o motor pode somar (o consultor só fala de fase se ela ainda pode existir) ----------
    Todos os adicionais automáticos que o formato alcança (requer), cada um no máximo, sem urgência. As páginas extras
    vão até PAGINAS_MAX pelo total de páginas (que passa do max do adicional), e na landing até LANDING_MAX_PAGINAS. */

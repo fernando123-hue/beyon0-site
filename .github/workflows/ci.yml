@@ -8,7 +8,7 @@ name: CI
 # Repositório PRIVADO desde 14/11/2026 (dono): ~2.000 min/mês no plano gratuito. Para caber (Decisões 14/11):
 # - o push só roda na main e nos ramos de promoção parcial (producao-*); ramo de trabalho roda pelo PR, uma vez
 #   só (antes o mesmo commit rodava duas vezes: pelo push e pelo PR);
-# - a mutação (o passo mais longo, ~35 min) roda só na main e à mão; o PR roda a suíte inteira sem ela.
+# - a mutação roda só na main e à mão, em fatias paralelas; o PR roda a suíte inteira sem ela.
 on:
   push:
     branches: [main, 'producao-*']
@@ -25,10 +25,13 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  testes:
-    name: Testes (banco real, IA e pagamento simulados) e mutação
+  # ---- "Testes (banco real, IA e pagamento simulados) e mutação" ----
+  # O guarda e o gate de promoção leem este check POR NOME. Ele continua sendo UM check só, agora um AGREGADO (o job "testes",
+  # mais abaixo) que espera a suíte e as fatias da mutação, que correm em paralelo, cada uma numa máquina (docs/PROCESSO.md).
+  suite:
+    name: Suíte de testes (npm run testar)
     runs-on: ubuntu-latest
-    timeout-minutes: 75   # 257 sabotagens em 11/11: o job levou 44m45s (#128) e foi cancelado aos 45 min (#129); folga para a mutação crescer
+    timeout-minutes: 20   # ~6 min medidos (PR #204: 5m49s); a mutação saiu daqui e foi para as fatias
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -39,9 +42,70 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run testar
-      # mutação só na main e à mão (cota do repositório privado); se ficar vermelha na main, o próximo PR corrige
-      - if: github.ref == 'refs/heads/main'
-        run: npm run testar:mutacao
+
+  # a mutação: as sabotagens repartidas em N=8 fatias por revezamento de índice (MUTACAO_FATIA=i/N, docs/testes/mutacao.mjs).
+  # Só na main e à mão (cota do repositório privado). Para mudar N: troque a lista abaixo E MUTACAO_FATIAS no agregado
+  # (docs/testes/ci-paralela.test.mjs confere que as duas batem e que a lista é 1/N..N/N).
+  mutacao:
+    name: Mutação (fatia ${{ matrix.fatia }})
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false   # uma fatia vermelha não cancela as outras: o relatório sai completo
+      matrix:
+        fatia: ['1/8', '2/8', '3/8', '4/8', '5/8', '6/8', '7/8', '8/8']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run testar:mutacao
+        env:
+          MUTACAO_FATIA: ${{ matrix.fatia }}
+
+  testes:
+    name: Testes (banco real, IA e pagamento simulados) e mutação
+    # AGREGADO: roda sempre (if: always()), mesmo com a suíte ou uma fatia vermelha, cancelada ou pulada, e só passa se TUDO o que era
+    # esperado deu success. Duas camadas: o resultado agregado de cada job e a contagem de cada fatia pelo nome (conferir-jobs.mjs),
+    # porque o resultado agregado de uma matriz não conta quantas fatias existiram.
+    needs: [suite, mutacao]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read   # só para ler os jobs desta execução (API do GitHub)
+    env:
+      SUITE: ${{ needs.suite.result }}
+      MUTACAO: ${{ needs.mutacao.result }}
+      MUTACAO_ESPERADA: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+      MUTACAO_FATIAS: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Conferir que tudo o que era esperado passou
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          falhou=0
+          [ "$SUITE" = success ] || { echo "REPROVADO: a suíte terminou como '$SUITE', não success"; falhou=1; }
+          if [ "$MUTACAO_ESPERADA" = true ]; then
+            [ "$MUTACAO" = success ] || { echo "REPROVADO: a mutação terminou como '$MUTACAO', não success (fatia vermelha, cancelada ou pulada)"; falhou=1; }
+            node scripts/ci/conferir-jobs.mjs --fatias "$MUTACAO_FATIAS" || falhou=1
+          else
+            # PR e push em ramo de promoção: a mutação não roda (cota); se rodou, tem de ter passado
+            [ "$MUTACAO" = skipped ] || [ "$MUTACAO" = success ] || { echo "REPROVADO: a mutação terminou como '$MUTACAO'"; falhou=1; }
+          fi
+          exit $falhou
 
   segredos:
     name: Segredos no código (gitleaks)
@@ -73,12 +137,23 @@ jobs:
           node-version: 24
       - run: npm audit --omit=dev --audit-level=high
 
-  e2e:
-    name: E2E do orçamento (Chromium, do 1º texto ao projeto pago)
+  # ---- "E2E do orçamento (Chromium, do 1º texto ao projeto pago)" ----
+  # Antes: as duas rodadas em série num job só (~19 min). Agora: uma máquina por rodada, em paralelo. Cada máquina tem o seu IP e o seu
+  # servidor local, então o freio local de sessões por IP não passa de uma rodada para a outra (era o motivo do servidor novo entre elas).
+  e2e-rodada:
+    name: E2E do orçamento – ${{ matrix.modo }}
     # (pesado: só no PR para a main e à mão — o push comum roda os testes acima)
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 30   # 11/11: levou 17 min no #131 e foi cancelado aos 20 no #130 com todos os passos OK (parado na espera de 61 s do freio por IP)
+    timeout-minutes: 25   # 11/11: a rodada serial levou 17 min (#131) e foi cancelada aos 20 (#130, parada na espera de 61 s do freio por IP); cada rodada agora roda sozinha
+    strategy:
+      fail-fast: false   # uma rodada vermelha não cancela a outra
+      matrix:
+        include:
+          - modo: sem consultor
+            consultor: '0'
+          - modo: com consultor
+            consultor: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -96,28 +171,48 @@ jobs:
           CHAVE="$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")"
           echo "::add-mask::$CHAVE"
           echo "PAINEL_CHAVE=$CHAVE" >> "$GITHUB_ENV"
-      # o orçamento sem IA (o modo de venda hoje): a página abre sem o consultor (BZ_SEM_CONSULTOR só vale com BZ_LOCAL)
-      - name: Servidor local sem consultor (banco PGlite, IA e Mercado Pago simulados)
+      # sem consultor (o modo de venda hoje): a página abre sem o consultor (BZ_SEM_CONSULTOR só vale com BZ_LOCAL);
+      # com consultor (IA simulada): a conversa, o HTML que vira texto e as dúvidas no resumo e no sinal
+      - name: Servidor local (banco PGlite, IA e Mercado Pago simulados)
+        env:
+          RODADA_COM_CONSULTOR: ${{ matrix.consultor }}
         run: |
-          BZ_SEM_CONSULTOR=1 node docs/servidor.mjs . 8899 > servidor.log 2>&1 &
-          echo $! > servidor.pid
+          if [ "$RODADA_COM_CONSULTOR" = 0 ]; then export BZ_SEM_CONSULTOR=1; fi
+          node docs/servidor.mjs . 8899 > servidor.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://127.0.0.1:8899/orcamento > /dev/null && exit 0; sleep 1; done
           cat servidor.log; exit 1
       - run: npm run e2e:orcamento
         env:
           BASE: http://127.0.0.1:8899
-      # com o consultor ligado (IA simulada): a conversa, o HTML que vira texto e as dúvidas no resumo e no sinal.
-      # Servidor novo: o freio local de sessões por IP não passa de uma rodada para a outra
-      - name: Servidor local com consultor
-        run: |
-          kill "$(cat servidor.pid)"; sleep 1
-          node docs/servidor.mjs . 8899 > servidor-consultor.log 2>&1 &
-          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8899/orcamento > /dev/null && exit 0; sleep 1; done
-          cat servidor-consultor.log; exit 1
-      - run: npm run e2e:orcamento
+          CONSULTOR: ${{ matrix.consultor }}
+
+  e2e:
+    name: E2E do orçamento (Chromium, do 1º texto ao projeto pago)
+    # AGREGADO das duas rodadas: só passa se as DUAS deram success (e existiram); SKIPPED no push comum, como sempre foi.
+    needs: [e2e-rodada]
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read   # só para ler os jobs desta execução (API do GitHub)
+    env:
+      RODADAS: ${{ needs.e2e-rodada.result }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Conferir que as duas rodadas passaram
         env:
-          BASE: http://127.0.0.1:8899
-          CONSULTOR: '1'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          falhou=0
+          [ "$RODADAS" = success ] || { echo "REPROVADO: as rodadas do E2E terminaram como '$RODADAS', não success"; falhou=1; }
+          node scripts/ci/conferir-jobs.mjs "E2E do orçamento – sem consultor" "E2E do orçamento – com consultor" || falhou=1
+          exit $falhou
 
   worker:
     name: Worker (workerd de verdade, sem publicar)

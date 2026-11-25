@@ -200,6 +200,31 @@
           <div id="at-conversas"></div>
         </section>
 
+        <!-- o TESTE DO PIX DE R$ 0,01 (js/painel-teste-pix.js): prova a cadeia de pagamento com dinheiro real e valor mínimo. Só funciona com BZ_TESTE_PIX=1 no servidor. Dado de quem paga: só na tela, nunca guardado -->
+        <section class="pn__bloco" aria-labelledby="t-teste-pix" id="teste-pix">
+          <h3 id="t-teste-pix">Teste do Pix (R$ 0,01)</h3>
+          <p class="pn__ajuda">Prova, com dinheiro de verdade e o menor valor possível, que o caminho do pagamento funciona: Mercado Pago, QR do Pix, o seu banco e a confirmação. Não cria pedido e não avisa ninguém. Não prova a ligação com um pedido real; essa parte os testes automáticos já cobrem.</p>
+          <p class="pn__ajuda" id="tp-desligado" hidden>O teste está desligado. Peça para ligar o interruptor do teste e tente de novo.</p>
+          <div id="tp-form">
+            <div class="pn__campos">
+              <div><label for="tp-nome">Nome</label><input id="tp-nome" type="text" maxlength="60" autocomplete="off" /></div>
+              <div><label for="tp-sobrenome">Sobrenome</label><input id="tp-sobrenome" type="text" maxlength="60" autocomplete="off" /></div>
+              <div class="pn__nota"><label for="tp-email">E-mail</label><input id="tp-email" type="text" inputmode="email" maxlength="120" autocomplete="off" /></div>
+              <div><label for="tp-doc-tipo">Documento</label><select id="tp-doc-tipo"><option value="CPF">CPF</option><option value="CNPJ">CNPJ</option></select></div>
+              <div><label for="tp-doc">Número</label><input id="tp-doc" type="text" inputmode="numeric" maxlength="20" autocomplete="off" /></div>
+            </div>
+            <button class="pn__btn" type="button" id="tp-gerar">Gerar Pix de R$ 0,01</button>
+          </div>
+          <p class="pn__estado" id="tp-estado" role="status"></p>
+          <div id="tp-pix" hidden>
+            <p class="pn__ajuda">Pague pelo app do seu banco, lendo o QR ou colando o código. Ao abrir, confira duas coisas: o valor é R$ 0,01 e o nome que aparece para quem recebe é o da conta do Mercado Pago da empresa. O QR vale 10 minutos.</p>
+            <img class="pn__qr" id="tp-qr" alt="QR do Pix de R$ 0,01" width="220" height="220" hidden />
+            <p class="pn__dado pn__copia" id="tp-copia"></p>
+            <button class="pn__btn pn__btn--fino" type="button" id="tp-copiar">Copiar o código do Pix</button>
+          </div>
+          <button class="pn__btn pn__btn--fino" type="button" id="tp-devolver" hidden>Devolver o centavo</button>
+        </section>
+
         <section class="pn__bloco" aria-labelledby="t-ads">
           <h3 id="t-ads">Mandar os clientes para o Google Ads</h3>
           <p class="pn__ajuda">Baixa os clientes que vieram de clique em anúncio (últimos 90 dias), no formato de "importar conversões off-line". Com isso o Google aprende quais buscas viram cliente, não só clique.</p>
@@ -220,6 +245,7 @@
   <script src="js/painel-entregas.js" defer></script>
   <script src="js/painel-recados.js" defer></script>
   <script src="js/painel-atendente.js" defer></script>
+  <script src="js/painel-teste-pix.js" defer></script>
   <script src="js/painel-inicio.js" defer></script>
 </body>
 </html>

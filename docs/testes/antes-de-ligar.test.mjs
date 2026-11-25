@@ -1,5 +1,5 @@
 /* O VERIFICADOR "ANTES DE LIGAR" (PR 3b-3; spec §13, "Mesclar não é ir ao ar"): só deixa liberar o BZ_ENTREGA quando as CSPs de /orcamento (vercel.json, a <meta> e o
-   _headers da Cloudflare) trazem o endereço EXATO do Supabase e o blob:, a captação (condicoes_versao, 3 dias e lembretes 2 e 3) fala o que o site promete, a privacidade
+   _headers da Cloudflare) trazem o endereço EXATO do Supabase e o blob:, a captação (condicoes_versao, as 24 h do restante com os lembretes de 8 h e 20 h, e os 2 dias do site pago fora do ar) fala o que o site promete, a privacidade
    do 3b-2 está mesclada, as 11 migrations estão no repositório e nenhum arquivo de deploy liga a entrega. O que um arquivo não prova vira CONFIRMAR para o dono.  node --test */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +10,7 @@ const EXATO = 'https://abcdefghijklmnopqrst.supabase.co/storage/v1/object/upload
 const CURINGA = 'https://*.supabase.co/storage/v1/object/upload/sign/';
 const csp = ({ supabase = EXATO, blob = true } = {}) => "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:" + (blob ? ' blob:' : '') + "; connect-src 'self' https://api.mercadopago.com " + supabase + "; object-src 'none'";
 const headersCom = cspDoOrcamento => '/*\n  X-Frame-Options: DENY\n\n/orcamento\n  ! Content-Security-Policy\n  Content-Security-Policy: ' + cspDoOrcamento + '\n\n/painel\n  X: y\n';
-const CAPTACAO_OK = { condicoes_versao: '2026-10-22', restante_fora_do_ar_dias: 3, lembretes_restante: [2, 3] };
+const CAPTACAO_OK = { condicoes_versao: '2026-10-22', lembretes_restante_horas: [8, 20], restante_encerrar_horas: 24, pago_sem_ar_dias: 2 };
 
 function mundo({ cspVercel = csp(), cspMeta = csp(), cspHeaders = csp(), vercel = true, headers = true, privacidade = true, versaoPagina = '2026-10-22',
   captacao = CAPTACAO_OK, migrations = MIGRATIONS, extra = {}, falham = [], base = 'https://beyonzero.com.br' } = {}) {
@@ -39,8 +39,8 @@ test('tudo pronto nos arquivos: nenhum FALTA; o que não é arquivo vira CONFIRM
   const r = verificar(mundo());
   assert.equal(temFalta(r), false, falta(r).join(' | '));
   const conf = confirmar(r);
-  for (const palavra of [/aplicadas no Supabase/, /balde/, /tabela ativa/, /valores da tabela normal/, /ensaio/, /material parado/, /3 dias/, /staging/, /beyon0-site\.vercel\.app/]) assert.match(conf, palavra);
-  assert.match(ok(r), /19 migrations/);
+  for (const palavra of [/aplicadas no Supabase/, /balde/, /tabela ativa/, /valores da tabela normal/, /ensaio/, /material parado/, /3 dias/, /24 h/, /domínio/, /staging/, /beyon0-site\.vercel\.app/]) assert.match(conf, palavra);
+  assert.match(ok(r), /21 migrations/);
 });
 
 test('o curinga do Supabase na CSP (em qualquer um dos três lugares) é FALTA; o endereço exato passa; sem blob: (miniaturas) também é FALTA', () => {
@@ -70,15 +70,23 @@ test('o teste de paridade dos cabeçalhos (cabecalhos.test.mjs) é rodado: se fa
   assert.ok(sem.some(i => i.estado === 'CONFIRMAR' && /_headers/.test(i.texto) && /cabecalhos\.test\.mjs/.test(i.texto)));
 });
 
-test('a captação ao lado é CONFERIDA: condicoes_versao igual à data da página, 3 dias para o restante e lembretes no 2º e 3º dia; qualquer diferença é FALTA', () => {
+/* 21/11 (D2 do dono, captação 7bdb9e9): o restante vale 24 h da cobrança, com 2 lembretes dentro delas (8 h e 20 h); pago e fora do ar há mais de 2 dias é alarme (o
+   site_parado_dias do site). Os 3 dias do aviso "no ar" e os lembretes do 2º e 3º dia saíram da captação: a chave antiga de volta é FALTA (a ordem velha voltou) */
+test('a captação ao lado é CONFERIDA: condicoes_versao igual à data da página, 24 h para o restante, lembretes às 8 h e 20 h e 2 dias do site pago fora do ar; qualquer diferença é FALTA', () => {
   const certa = verificar(mundo());
+  assert.equal(temFalta(certa), false, falta(certa).join(' | '));
   assert.match(ok(certa), /condicoes_versao da captação = 2026-10-22/);
-  assert.match(ok(certa), /3 dias/);
-  assert.match(ok(certa), /\[2, 3\]/);
+  assert.match(ok(certa), /restante_encerrar_horas da captação = 24/);
+  assert.match(ok(certa), /lembretes_restante_horas da captação = \[8, 20\]/);
+  assert.match(ok(certa), /pago_sem_ar_dias da captação = 2/);
   assert.ok(falta(verificar(mundo({ captacao: { ...CAPTACAO_OK, condicoes_versao: '2026-10-21' } }))).some(t => /condicoes_versao/.test(t) && /2026-10-22/.test(t)));
-  assert.ok(falta(verificar(mundo({ captacao: { ...CAPTACAO_OK, restante_fora_do_ar_dias: 10 } }))).some(t => /restante_fora_do_ar_dias/.test(t) && /10/.test(t)));
-  assert.ok(falta(verificar(mundo({ captacao: { ...CAPTACAO_OK, lembretes_restante: [3, 7] } }))).some(t => /lembretes_restante/.test(t) && /\[3, 7\]/.test(t)));
-  assert.ok(falta(verificar(mundo({ captacao: { condicoes_versao: '2026-10-22' } }))).some(t => /restante_fora_do_ar_dias/.test(t)), 'campo que não existe é FALTA, não passa calado');
+  assert.ok(falta(verificar(mundo({ captacao: { ...CAPTACAO_OK, restante_encerrar_horas: 48 } }))).some(t => /restante_encerrar_horas/.test(t) && /48/.test(t)));
+  assert.ok(falta(verificar(mundo({ captacao: { ...CAPTACAO_OK, lembretes_restante_horas: [2, 3] } }))).some(t => /lembretes_restante_horas/.test(t) && /\[2, 3\]/.test(t)));
+  assert.ok(falta(verificar(mundo({ captacao: { ...CAPTACAO_OK, pago_sem_ar_dias: 5 } }))).some(t => /pago_sem_ar_dias/.test(t) && /5/.test(t)));
+  assert.ok(falta(verificar(mundo({ captacao: { condicoes_versao: '2026-10-22' } }))).some(t => /restante_encerrar_horas/.test(t)), 'campo que não existe é FALTA, não passa calado');
+  for (const velha of ['restante_fora_do_ar_dias', 'lembretes_restante']) {
+    assert.ok(falta(verificar(mundo({ captacao: { ...CAPTACAO_OK, [velha]: 3 } }))).some(t => t.includes(velha)), velha + ' de volta na captação é FALTA');
+  }
   assert.ok(falta(verificar(mundo({ captacao: '{ isto não é json' }))).some(t => /entrega\.json/.test(t)));
 });
 
@@ -87,15 +95,15 @@ test('sem a captação ao lado, nada é FALTA: os três valores viram CONFIRMAR'
   assert.equal(temFalta(sem), false);
   const conf = confirmar(sem);
   assert.match(conf, /condicoes_versao/);
-  assert.match(conf, /restante_fora_do_ar_dias/);
-  assert.match(conf, /lembretes_restante/);
+  for (const chave of ['restante_encerrar_horas', 'lembretes_restante_horas', 'pago_sem_ar_dias']) assert.match(conf, new RegExp(chave));
+  assert.doesNotMatch(conf, /restante_fora_do_ar_dias|lembretes_restante[^_]/, 'a chave antiga não é mais pedida');
 });
 
 test('a privacidade do 3b-2 mesclada (o teste dela existe e passa) e as 11 migrations do 3b no repositório; faltando, FALTA', () => {
   assert.ok(falta(verificar(mundo({ privacidade: false }))).some(t => /privacidade/.test(t)));
   assert.ok(falta(verificar(mundo({ falham: ['docs/testes/privacidade-material.test.mjs'] }))).some(t => /privacidade/.test(t)));
   assert.ok(falta(verificar(mundo({ migrations: MIGRATIONS.slice(0, 5) }))).some(t => /migrations/.test(t) && /pr3b3_esquema/.test(t) && /pr3b3_lista/.test(t)));
-  assert.equal(MIGRATIONS.length, 19);
+  assert.equal(MIGRATIONS.length, 21);
   assert.deepEqual([...MIGRATIONS].sort(), [...MIGRATIONS], 'a ordem de aplicação é a do nome');
 });
 

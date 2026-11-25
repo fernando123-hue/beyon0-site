@@ -123,6 +123,8 @@
       li.querySelector('.sr-only').textContent = feito ? MARCO_SR.feito : agora ? MARCO_SR.agora : '';
     });
     detalhes(st);
+    /* o palco do orçamento (js/orcamento-palco.js) repete o número de integrações e o valor que o radar mostra; enfeite: se falhar, o radar segue */
+    try { doc.dispatchEvent(new CustomEvent('bz:radar', { detail: { integracoes: st.dims.integracoes.n, valor: st.valor } })); } catch (e) { /* sem o palco, nada muda */ }
   }
   function lista(ul, itens, desenhar) {
     ul.textContent = '';

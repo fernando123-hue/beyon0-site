@@ -5,7 +5,7 @@ import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { novoBanco, erroDe } from './_banco.mjs';
 import { rpcDe, prepararOrg } from './_entrega.mjs';
-import { entregaEm, forcarEntrega, codigoDe, versaoDe, CLIENTE, PREVIA, SITE } from './_previa.mjs';
+import { entregaEm, forcarEntrega, codigoDe, versaoDe, iniciarRestante, aprovarRestante, CLIENTE, PREVIA, SITE } from './_previa.mjs';
 
 let db, rpc;
 const um = async (sql, p) => (await db.query(sql, p)).rows[0];
@@ -57,11 +57,14 @@ test('pôr no ar: SÓ depois de o cliente aprovar (D5: o dono não publica uma p
   const previa = await entregaEm(db, 'previa');
   assert.equal((await erroDe(comVersao('vendas_no_ar', previa, { url: SITE }))).codigo, '55000', 'prévia sem resposta: o projeto para, não publica');
   const c = await entregaEm(db, 'aprovada');
+  /* 19/11 (a ordem nova): o site só vai ao ar com o restante PAGO; com ele pago, pôr no ar conclui o pedido */
+  assert.deepEqual(await comVersao('vendas_no_ar', c, { url: SITE }), { ok: false, motivo: 'sem_restante' });
+  await aprovarRestante(db, await iniciarRestante(db, c));
   assert.deepEqual(await comVersao('vendas_no_ar', c, { url: 'https://evil.com/caminho?x=1' }), { ok: false, motivo: 'endereco' });
   for (const ruim of ['https://localhost', 'https://127.0.0.1', 'https://10.0.0.5/', 'https://intranet', 'https://clinicasol.1']) assert.deepEqual(await comVersao('vendas_no_ar', c, { url: ruim }), { ok: false, motivo: 'endereco' }, 'B4: ' + ruim);
   assert.deepEqual(await comVersao('vendas_no_ar', c, { url: SITE }), { ok: true });
   const e = await um('select * from app.entregas where conversa_id = $1', [c.conversa_id]);
-  assert.deepEqual([e.passo, e.site_url], ['no_ar', SITE]); assert.ok(e.no_ar_em && e.aviso_no_ar_desde);
+  assert.deepEqual([e.passo, e.site_url], ['concluida', SITE]); assert.ok(e.no_ar_em && e.aviso_no_ar_desde && e.concluida_em);
   assert.equal((await um("select count(*)::int n from app.eventos_funil where conversa_id = $1 and tipo = 'site_no_ar'", [c.conversa_id])).n, 1);
 });
 
@@ -198,18 +201,20 @@ test('22/10: o aviso "no ar" registrado dá a data de partida dos 3 dias; os 2 l
   assert.deepEqual(await dono('vendas_aviso_feito', prev, { momento: 'restante_lembrete_1' }), { ok: false, motivo: 'fora_do_ar' });
 });
 
-test('28/10: a fila de avisos traz o passo da entrega, e o aviso "no ar" só vale com o site no ar (suspensa, encerrada e concluída não oferecem "O seu site está no ar!")', async () => {
+test('28/10: a fila de avisos traz o passo da entrega, e o aviso "no ar" só vale com o site no ar (suspensa, encerrada e a concluída que religa não oferecem "O seu site está no ar!"; 19/11: a concluída da ordem nova, sim)', async () => {
   const fila = async c => (await rpc('vendas_avisos_lista', { org_slug: 'beyon-zero' })).itens.filter(i => i.conversa_id === c.conversa_id);
   const c = await entregaEm(db, 'no_ar');
   await forcarEntrega(db, c, { aviso_no_ar_desde: new Date().toISOString() });
   const [item] = await fila(c);
   assert.deepEqual([item.momento, item.passo], ['no_ar', 'no_ar'], 'no ar de verdade: o aviso vale e a fila diz o passo');
-  for (const passo of ['suspensa', 'encerrada', 'concluida']) {
-    await forcarEntrega(db, c, { passo });
+  for (const [passo, extra] of [['suspensa', {}], ['encerrada', {}], ['concluida', { religar_pendente: true }]]) {
+    await forcarEntrega(db, c, { passo, ...extra });
     assert.deepEqual(await fila(c), [], 'passo ' + passo + ' com o aviso pendente: o site NÃO está no ar, a mensagem "no ar" não pode ser oferecida');
   }
-  await forcarEntrega(db, c, { passo: 'no_ar' });
+  await forcarEntrega(db, c, { passo: 'no_ar', religar_pendente: false });
   assert.equal((await fila(c)).length, 1, 'de volta ao ar, o aviso pendente volta à fila');
+  await forcarEntrega(db, c, { passo: 'concluida' });
+  assert.deepEqual((await fila(c)).map(i => [i.momento, i.passo]), [['no_ar', 'concluida']], '19/11: pôr no ar (com o restante pago) conclui o pedido e o aviso "no ar" continua devido');
   const previa = await entregaEm(db, 'previa');
   await forcarEntrega(db, previa, { aviso_previa_desde: new Date().toISOString() });
   assert.deepEqual((await fila(previa)).map(i => [i.momento, i.passo]), [['previa', 'previa']]);

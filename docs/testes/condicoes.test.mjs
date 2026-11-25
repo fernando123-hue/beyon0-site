@@ -1,7 +1,7 @@
 /* A PÁGINA DE CONDIÇÕES DO LANÇAMENTO (/condicoes): texto aprovado pelo dono em 2026-10-12 (03 Projetos/captacao/docs/
    parte6/condicoes-lancamento.md), ajustado pelo coordenador em 2026-10-14. Este teste prende o que não pode derivar sem
-   ninguém ver: marcador do texto aprovado que sobrou na página, valor que não fecha (R$ 1.500 = 600 + 900; 40% + 60%), a
-   vigência (31/12/2026 ou 10º cliente), "Beyon Zero" no lugar do nome do vendedor, estilo embutido (a CSP bloqueia), a
+   ninguém ver: marcador do texto aprovado que sobrou na página, a divisão 40% + 60% (21/11: sem a oferta de lançamento, o
+   preço é o do orçamento), a garantia, "Beyon Zero" no lugar do nome do vendedor, estilo embutido (a CSP bloqueia), a
    página no rodapé ou no sitemap (ela é só para quem recebe o link, com noindex), e a privacidade dizendo o que a captação
    faz (o que o código de 03 Projetos/captacao/negocios faz).  npm run testar */
 import { test } from 'node:test';
@@ -32,8 +32,30 @@ test('privacidade (C4): a hospedagem do site é a Cloudflare, em nenhum lugar a 
   assert.equal((priv.match(/, Cloudflare \(/g) || []).length, 1, 'a Cloudflare entra uma vez só na lista de terceiros, com todos os papéis');
 });
 
-test('condições: vigência até 31/12/2026 ou o 10º cliente', () => {
-  assert.match(texto, /Valem até 31\/12\/2026, ou até fechar o 10º cliente, o que vier primeiro\./);
+/* 21/11 (proposta ao dono, último commit do ramo condicoes-2111, para poder sair sozinho): a oferta de lançamento (R$ 1.500 para os 10 primeiros, o institucional
+   por R$ 4.500 nas mesmas condições, a vigência de 31/12/2026) sai da página e das metas; o preço é o do orçamento (regra do site: sem preço nas páginas) e a
+   divisão 40% + 60% continua */
+test('condições sem a oferta: nenhum preço fixo, nem "10 primeiros", nem a vigência, na página e nas metas; o preço é o do orçamento', () => {
+  const metas = [...html.matchAll(/<meta (?:name|property)="(?:description|og:[a-z:]+|twitter:[a-z:]+)" content="([^"]*)"/g)].map(m => m[1]).join(' | ');
+  for (const [onde, t] of [['página', texto], ['metas', metas]]) {
+    assert.doesNotMatch(t, /R\$/, onde + ': preço fixo');
+    assert.doesNotMatch(t, /10 primeiros|10º cliente|10 vagas|31\/12\/2026|mesmas condições|oferta de lançamento|preço de lançamento/i, onde + ': a oferta de lançamento');
+  }
+  assert.match(html, /<p>O preço é o do seu <a href="\/orcamento">orçamento<\/a>, sem mensalidade\.<\/p>/);
+  assert.ok(!/<dl class="priv__valores">/.test(html), 'o painel de valores (preço, entrada, restante em reais) saiu com a oferta');
+  assert.doesNotMatch(priv, /lançamento/i, 'a /privacidade também não fala mais da oferta');
+  /* (revisão de segurança do #221) a garantia pública consta do contrato que o cliente confirma em "Li e confirmo" */
+  assert.match(ler('api/_vendas/escopo.mjs'), /GARANTIA: você vê o site pronto antes de pagar o restante\. Se não gostar, não paga o restante, e o site não vai ao ar\./);
+  assert.match(ler('api/_vendas/consultor.mjs'), /Só isso: a entrada volta só nos 7 dias; sem garantia de prazo nem de resultado\./);
+});
+
+/* a garantia, com o texto da proposta ao dono (21/11: aguardando o sim dele; as palavras não mudam sem ele) */
+test('condições: o bloco "Nossa garantia" com as duas frases (sem o atraso, 21/11 dono), logo depois do preço do orçamento', () => {
+  const i = html.indexOf('<h2>Nossa garantia</h2>');
+  assert.ok(i > 0, 'o bloco Nossa garantia');
+  const bloco = limpo(html.slice(i, html.indexOf('<h2>', i + 1)));
+  assert.equal(bloco.trim(), 'Nossa garantia Você vê o site pronto antes de pagar o restante. Se não gostar, não paga o restante, e o site não vai ao ar. Até 7 dias depois de aceitar, você pode desistir por qualquer motivo e recebe a entrada de volta.');
+  assert.ok(html.indexOf('O preço é o do seu orçamento') < i && i < html.indexOf('<h2>Pagamento</h2>'), 'a garantia vem antes do pagamento');
 });
 
 test('condições: o vendedor é pendência do dono, escondida como no orçamento; "Beyon Zero" não ocupa o lugar do nome', () => {
@@ -50,36 +72,15 @@ test('condições: CSP sem inline e página de texto sem script próprio', () =>
   assert.ok(!/<script(?![^>]*\bsrc=)/.test(html), 'script embutido (a CSP bloqueia)');
 });
 
-test('condições: preço, entrada e restante fecham, e a entrada é 40%', () => {
-  const [, preco, entrada, restante] = (texto.match(/R\$ ([\d.]+) por site.*?R\$ ([\d.]+) \(40%\) para começar.*?R\$ ([\d.]+) \(60%\) quando o site estiver no ar/) || []).map(v => v && v.replace('.', ''));
-  assert.ok(preco, 'não achei preço, entrada (40%) e restante (60%) no texto');
-  assert.equal(Number(entrada) + Number(restante), Number(preco), 'entrada + restante diferem do preço');
-  assert.equal(Number(entrada) / Number(preco), 0.4);
-  const painel = [...html.matchAll(/<dd>R\$&nbsp;([\d.]+)/g)].map(m => Number(m[1].replace('.', '')));
-  assert.deepEqual(painel, [Number(preco), Number(entrada), Number(restante)], 'o painel de valores diverge do texto');
-});
-
-/* fundador: landing R$ 1.500 e institucional R$ 4.500 (o piso da tabela), nada nos outros formatos (dono 2026-10-14; valores subidos em 2026-11-02, escolha delegada pelo dono) */
-test('condições: o institucional de fundador custa R$ 4.500 e também fecha em 40% + 60%', () => {
-  const [, preco, entrada, restante] = texto.match(/site institucional, de até 5 páginas, por R\$ ([\d.]+), nas mesmas condições: dentro das 10 vagas e até 31\/12\/2026\..*?No institucional: R\$ ([\d.]+) \(40%\) para começar e R\$ ([\d.]+) \(60%\) com o site no ar\./) || [];
-  assert.ok(preco, 'não achei o institucional (nas mesmas condições) com entrada e restante');
-  const n = v => Number(v.replace('.', ''));
-  assert.deepEqual([n(preco), n(entrada), n(restante)], [4500, 1800, 2700]);
-  assert.ok(!/R\$ (4\.800|8\.900)/.test(texto), 'o preço de fundador não vale para loja nem experiência digital');
-});
-
-/* com o institucional na página, "R$ 1.500 por site" sozinho diria que todo site sai por 1.500 (revisão do PR #41) */
-test('condições: os R$ 1.500 são sempre "por site de uma página", inclusive na descrição e no OG', () => {
-  const todas = [...limpo(visivel.replace(/<p[^>]*\shidden[^>]*>[^]*?<\/p>/g, '')).matchAll(/por site(?! de uma página)/g)].length
-    + [...html.matchAll(/content="[^"]*por site(?! de uma página)/g)].length;
-  assert.equal(todas, 0, '"por site" sem "de uma página"');
-  assert.ok((html.match(/por site de uma página/g) || []).length >= 5, 'meta, OG, Twitter, painel de valores e texto');
+/* sem a oferta, o pagamento fica em porcentagem (o valor em reais é o do orçamento): 40% para começar e 60% com o site pronto, antes de ir ao ar */
+test('condições: a entrada é 40% e o restante 60%, com o site pronto, antes de ir ao ar', () => {
+  assert.match(texto, /40% para começar\. 60% quando o site estiver pronto, antes de ir ao ar\./);
 });
 
 test('condições: meta, canonical e OG apontam para /condicoes no domínio vigente (decisão do dono, 2026-10-14; domínio próprio em 2026-10-21)', () => {
   const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   for (const re of [new RegExp('rel="canonical" href="' + esc(DOMINIO + '/condicoes') + '"'), new RegExp('property="og:url" content="' + esc(DOMINIO + '/condicoes') + '"'),
-    /property="og:title"/, new RegExp('property="og:image" content="' + esc(DOMINIO + '/assets/og-cover.jpg') + '"'), /name="description"/, /<h1>Condições do lançamento<\/h1>/]) {
+    /property="og:title"/, new RegExp('property="og:image" content="' + esc(DOMINIO + '/assets/og-cover.jpg') + '"'), /name="description"/, /<h1>Condições<\/h1>/, /<title>Condições — Beyon Zero<\/title>/]) {
     assert.match(html, re);
   }
   const externos = [...visivel.replace(/http-equiv[^>]*>/, '').matchAll(/https?:\/\/([^\/\s"'<>]+)/g)].map(m => m[1]).filter(h => h !== HOST_DO_DOMINIO && h !== 'wa.me' && h !== 'www.w3.org');
@@ -104,12 +105,25 @@ test('condições: desistência diz os 7 dias (CDC art. 49), a devolução intei
   /* depois dos 7 dias a entrada fica, comece ou não o trabalho (dono, 2026-10-14: "Caso ela cancele após o primeiro pagamento, ficará comigo") */
   assert.match(texto, /Depois dos 7 dias, a entrada paga o trabalho reservado para você e não é devolvida\. Se você desistir, não paga o restante, e o site não vai ao ar\./);
   assert.ok(!/se eu ainda não comecei|se eu já comecei/.test(texto), 'a regra antiga (depende de ter começado) sobrou');
-  /* atraso da Beyon Zero devolve a entrada, mesmo depois dos 7 dias (dono, 2026-10-14; CDC arts. 51 e 53) */
-  assert.match(texto, /Se nós não entregarmos no prazo combinado, devolvemos a entrada inteira, mesmo depois dos 7 dias\./);
+  /* (dono, 21/11, revê a de 14/10) o atraso não devolve a entrada por regra, só se o cliente quiser cancelar, e a página não promete
+     nem anuncia isso: nenhuma frase liga atraso a devolução */
+  assert.doesNotMatch(texto, /atras\w*|não entregarmos no prazo|mesmo depois dos 7 dias/i, 'a página fala de atraso ou de devolução depois dos 7 dias');
   assert.match(html, /Para desistir, escreva para <a href="mailto:contato.beyon.zero@gmail.com">/);
   /* (a devolução imediata é só a dos 7 dias: depois deles a entrada não volta, e o texto não pode prometer o contrário) */
   assert.match(texto, /Dentro dos 7 dias, a devolução é imediata, pelo mesmo meio do pagamento \(o Pix\), com o valor corrigido/);
-  assert.match(texto, /orçamento automático do site segue a tabela normal/);
+});
+
+/* 21/11 (dono, D1 a D3 da captação, spec captacao/docs/specs/2026-11-21-restante-antes-do-ar.md): 24 horas para o restante depois do Pix do site pronto (sem ele, o
+   projeto encerra), o restante pago volta se o cliente desistir antes de o site ir ao ar, e o domínio só é registrado com o restante pago. Cada regra de dinheiro fica
+   na seção em que o cliente decide (dono, 21/11: curta e à vista, nada em letra miúda) */
+test('condições (21/11): 24 horas para o restante, o encerramento sem ele, o restante devolvido antes do ar e o domínio depois do restante', () => {
+  const secao = nome => { const i = html.indexOf('<h2>' + nome + '</h2>'); assert.ok(i >= 0, nome); return limpo(html.slice(i, html.indexOf('<h2>', i + 1))); };
+  assert.match(secao('Pagamento'), /O site só vai ao ar com o restante pago\. Quando o site fica pronto, mandamos o Pix do restante\. Você tem 24 horas para pagar\. Sem o pagamento nesse prazo, encerramos o projeto\. A entrada segue a regra da desistência, mais abaixo\./);
+  assert.match(secao('Desistência'), /Se você desistir depois de pagar o restante, mas antes de o site ir ao ar, devolvemos o restante pelo Pix, para a mesma conta que pagou\./);
+  assert.match(secao('O que está incluso'), /1 ano de domínio grátis, registrado no seu nome \(no seu CPF ou CNPJ\) depois que o restante é pago\./);
+  /* 23/11 (dono): nós registramos o domínio no nome do cliente; ele manda os dados e confirma 2 e-mails do Registro.br; o aceite autoriza */
+  assert.match(secao('O que está incluso'), /Nós fazemos o registro: você manda o nome, o CPF e a data de nascimento de quem vai ser o dono \(ou o CNPJ\) e um e-mail, e confirma 2 e-mails do Registro\.br\. Aceitar estas condições autoriza o registro no seu nome\./);
+  assert.ok(!/(?:3|três) dias[^.]{0,60}restante|restante[^.]{0,60}(?:3|três) dias|sai do ar/.test(texto), 'a regra antiga (o site no ar antes do restante, 3 dias e a saída do ar) não volta');
 });
 
 /* o Banco Central proibiu o nome "Pix Parcelado" (dez/2025); o pagamento à Beyon Zero continua só Pix (dono, 2026-10-14) */
@@ -135,8 +149,10 @@ test('privacidade: diz que um segundo modelo pode ler a conversa só para medir 
     'dessa leitura ficam guardados só números e rótulos, nunca o texto']) assert.ok(priv.includes(trecho), 'privacidade sem: ' + trecho);
 });
 
-test('condições: a vaga é confirmada na conversa, antes do "ok"', () => {
-  assert.match(texto, /A vaga é confirmada na conversa, antes do seu “ok”\./);
+/* (21/11, dono) sem a oferta de lançamento não há vaga: aceitar é responder "ok"; nada de "lançamento" nem "vaga" na página */
+test('condições: aceitar é responder "ok" na conversa, sem vaga nem lançamento', () => {
+  assert.match(texto, /Como aceitar Responda “ok” na conversa\./);
+  assert.doesNotMatch(html, /lançamento|vaga/i);
 });
 
 test('condições: diz, sem tom de aviso, que por enquanto não há nota fiscal (decisão do dono, 2026-10-11)', () => {
@@ -150,7 +166,7 @@ test('privacidade: cobre o primeiro contato, a busca na web com a Anthropic, o P
     'legítimo interesse (artigo 7º, inciso IX', 'responda “não”', '90 dias depois do último envio', 'Pix direto', 'Depoimento e portfólio', 'com a sua autorização por escrito',
     'a Beyon Zero manda o nome, o tipo, a cidade, o estado (UF) e o celular do negócio à Anthropic', 'conta de assinatura da Beyon Zero no Claude',
     'buscador usado pela Anthropic', 'anthropic.com/legal/privacy', 'A Anthropic guarda os dados conforme a política de privacidade dela',
-    'o Registro.br exige o seu CPF ou CNPJ', 'a hospedagem do site dos clientes da oferta de lançamento: na conta da Beyon Zero até o restante ser pago, depois numa conta no nome do próprio cliente',
+    'o Registro.br exige o seu CPF ou CNPJ', 'pedimos esses dados pela nossa conversa por WhatsApp ou e-mail (não pela tela do orçamento), depois do restante pago, e usamos só para fazer o registro', 'a data de nascimento, se for CPF, e o e-mail do titular', 'a hospedagem do site dos clientes: na conta da Beyon Zero até o restante ser pago, depois numa conta no nome do próprio cliente',
     'obrigação legal (artigo 7º, inciso II', 'a ponderação do artigo 10', 'dados mínimos', 'envio um a um', 'oposição imediata',
     'A avaliação fica registrada por escrito pela Beyon Zero (este texto e as decisões internas) e é enviada a pedido',
     'De todo contato apagado, fica por 12 meses um código embaralhado do contato usado no envio', 'a data da publicação mais recente',
@@ -164,7 +180,7 @@ test('privacidade: cobre o primeiro contato, a busca na web com a Anthropic, o P
   assert.equal(priv.split(retencao).length - 1, 1, 'a guarda do Pix direto, sem número de anos');
   assert.ok(priv.includes('Depoimento e portfólio: o seu consentimento (artigo 7º, inciso I)'), 'a base legal do depoimento e do portfólio');
   assert.ok(!/Quem indica um negócio|chave Pix que você informar|recompensa/.test(priv), 'a indicação paga saiu (dono, 2026-10-14): nada de guardar o Pix de quem indica');
-  assert.match(priv, /Registro\.br \(o registro do domínio[^)]*CPF ou CNPJ do titular\)/, 'o Registro.br em "Com quem os dados são tratados"');
+  assert.match(priv, /Registro\.br \(o registro do domínio[^)]*CPF ou CNPJ[^)]*do titular\)/, 'o Registro.br em "Com quem os dados são tratados"');
   assert.match(ler('privacidade.html'), /<a href="https:\/\/www\.anthropic\.com\/legal\/privacy"[^>]*>anthropic\.com\/legal\/privacy<\/a>/);
 });
 
@@ -177,20 +193,6 @@ test('privacidade: não afirma o que o código não faz nem o que o dono ainda n
     [/dois códigos embaralhados|um do número e outro do e-mail/, 'o código guarda um só resumo, do contato usado no envio'],
     [/trein/i, 'a opção de treino da Anthropic o dono ainda vai confirmar'],
     [/[0-9]+ anos/, 'o prazo legal de guarda de comprovantes não leva número de anos']]) assert.ok(!re.test(priv), 'privacidade ainda diz algo falso: ' + porque);
-});
-
-/* o preço de fundador nunca fica abaixo do piso que a própria tabela ativa aceita (decisão de 2026-11-02): a oferta de 10 vagas troca
-   desconto por depoimento e portfólio, mas não vende abaixo do que o sistema venderia para o último cliente */
-test('condições: o preço de fundador é o piso da tabela, nem abaixo dele nem acima do preço-base', () => {
-  const regras = JSON.parse(readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
-  const num = m => Number(((m || [])[1] || '').replace('.', ''));
-  const landing = num(texto.match(/R\$ ([\d.]+) por site de uma página, só para os 10 primeiros/));
-  const inst = num(texto.match(/site institucional, de até 5 páginas, por R\$ ([\d.]+)/));
-  assert.ok(landing && inst, 'não achei os preços de fundador');
-  for (const [nome, valor, f] of [['landing', landing, regras.formatos.landing_page], ['institucional', inst, regras.formatos.institucional]]) {
-    assert.ok(valor >= f.piso, nome + ': R$ ' + valor + ' abaixo do piso da tabela (R$ ' + f.piso + ')');
-    assert.ok(valor < f.base, nome + ': o preço de fundador tem de ser menor que o preço-base');
-  }
 });
 
 /* dono, 03/11 (opção A): as páginas e o contrato falam em "nós", nunca no "eu" de uma pessoa só.
@@ -226,7 +228,6 @@ test('voz da empresa: o contrato e /condicoes usam a mesma voz no plural', () =>
   const condicoes = readFileSync(new URL('../../condicoes.html', import.meta.url), 'utf8');
   for (const t of [escopo, condicoes]) {
     assert.match(t, /nós avisamos que estamos aguardando/);
-    assert.match(t, /nós lembramos duas vezes/);
-    assert.match(t, /devolvemos a entrada inteira/);
+    assert.match(t, /O site só vai ao ar com o restante pago\./);   /* (19/11, a ordem nova: os 3 dias e os lembretes saíram junto com o site no ar antes do restante) */
   }
 });

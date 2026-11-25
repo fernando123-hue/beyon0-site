@@ -13,7 +13,8 @@ import path from 'node:path';
 import { tipoPorBytes } from '../api/_material/bytes.mjs';
 import { estruturaCompleta } from './imagem-estrutura.mjs';
 import { validarBase, pedirConfirmacao, codigoAleatorio, paraTerminal } from './direcoes.mjs';
-import { diaNoFuso, prazoVencido } from '../api/_material/prazo.mjs';
+import { diaNoFuso, prazoVencido, diasCorridosDesde } from '../api/_material/prazo.mjs';
+import { LIMITES } from '../api/_entrega/alarmes.mjs';
 import { briefingDelimitado, REGRA_BRIEFING } from '../api/_vendas/gerador.mjs';
 import { pareceInjecao } from '../api/_vendas/seguranca.mjs';
 import ESQ from '../js/orcamento-material-esquema.js';   /* a mesma regra do telefone e do e-mail do site (M3) */
@@ -54,7 +55,16 @@ const EXPLICACAO_DO_AVISO = { 'material-apagar': 'Aviso registrado. O material s
 const validarCodigo = codigo => { if (!CODIGO.test(String(codigo))) throw new Error('Código inválido: BZ- e mais 5 letras ou números.'); };
 const acao = (buscar, origem, chave, corpo) => painel(buscar, origem, chave, '/api/painel', { method: 'POST', body: JSON.stringify(corpo) });
 
+/* (20/11, dono) o material de uma entrega bloqueada é guardado por 60 dias contados do bloqueio e depois apagado pela limpeza: a data, quando a lista a traz */
+const materialBloqueado = it => {
+  if (!it.bloqueada_desde || !Number.isFinite(Date.parse(it.bloqueada_desde))) return '';
+  const ate = new Date(diaNoFuso(it.bloqueada_desde) + 'T12:00:00Z'); ate.setUTCDate(ate.getUTCDate() + 60);
+  return '. O material do cliente é guardado por 60 dias contados do bloqueio e depois apagado: apagado a partir de ' + ate.toISOString().slice(0, 10) + ' (reativar o projeto antes cancela)';
+};
 export function alertasDe(it, agora = new Date()) {
+  /* (19/11) reembolso bloqueia a entrega: nada avança nem vai ao ar (o banco recusa). Uma linha só: as outras sugeririam ações que o banco recusa */
+  if (it.bloqueada && it.passo === 'concluida') return ['BLOQUEADA: o site já está no ar e o pagamento foi estornado, contestado ou está em disputa no Mercado Pago. Confira no Mercado Pago antes de passar o site para a conta do cliente; se houver devolução, tire o site do ar pela captação'];
+  if (it.bloqueada) return ['BLOQUEADA: o pagamento foi estornado, contestado ou está em disputa no Mercado Pago (projeto pausado). Nada avança nem vai ao ar; confira no Mercado Pago e, se houver devolução, encerre (encerrar ' + it.codigo + ' desistencia; com o restante pago, estorne o restante antes)' + materialBloqueado(it)];
   const a = [];
   const diasDeEntrada = it.dias_desde_entrada;
   if (it.passo === 'material' && diasDeEntrada >= 30) {
@@ -69,16 +79,20 @@ export function alertasDe(it, agora = new Date()) {
     else if (it.apagar_material_devido) a.push('avisar o cliente antes de apagar o material: o projeto está parado há 5 meses ou mais. Mande a mensagem (o material só é apagado depois de 6 meses parado e 30 dias depois deste aviso) e registre (aviso ' + it.codigo + ' material-apagar)');
     else if (it.aviso_apagar_material_em) a.push('aviso prévio do apagamento registrado em ' + diaDe(it.aviso_apagar_material_em) + ': o material só é apagado quando o projeto completar 6 meses parado e 30 dias do aviso, e se o cliente não mexer nele (se mexer, a contagem recomeça)');
   }
-  /* (M1) o prazo corre até PUBLICAR, como na captação: aprovada também conta. Sem prazo_dias inteiro não se inventa vencimento; data torta vira aviso, não exceção */
-  if ((it.passo === 'producao' || it.passo === 'ajustes' || it.passo === 'aprovada') && it.prazo && Number.isInteger(it.prazo_dias)) {
+  /* (M1) o prazo corre até a prévia sair e (20/11, dono) PARA na aprovação: aprovada não tem prazo nosso a vencer. Sem prazo_dias inteiro não se inventa vencimento; data torta vira aviso, não exceção */
+  if ((it.passo === 'producao' || it.passo === 'ajustes') && it.prazo && Number.isInteger(it.prazo_dias)) {
     let vencido = false, legivel = prazoLegivel(it.prazo);
     if (legivel) { try { vencido = prazoVencido(it.prazo, { prazoDias: it.prazo_dias }, agora); } catch (e) { if (!(e instanceof RangeError || e instanceof TypeError)) throw e; legivel = false; } }
     if (!legivel) a.push('o prazo desta entrega tem uma data que não dá para ler: confira no banco antes de publicar a prévia ou o site');
     else if (vencido) {
-      a.push('prazo vencido (era até ' + it.entrega_ate + '): a regra da D4 devolve a entrada se a Beyon atrasar (estorno no Mercado Pago; depois "encerrar ' + it.codigo + ' atraso" e a devolução na captação)'
-        + (it.passo === 'aprovada' ? '. Com o prazo vencido o site NÃO vai ao ar: registre a devolução antes (a captação recusa publicar)' : ''));
+      a.push('prazo vencido (era até ' + it.entrega_ate + '): avise o cliente e pergunte se ele segue; se ele pedir para cancelar, devolva a entrada (depois "encerrar ' + it.codigo + ' atraso" e a devolução na captação)');
     }
   }
+  /* (19/11) a ordem nova: o restante é cobrado com a prévia aprovada; o site só vai ao ar com ele pago */
+  if (it.passo === 'aprovada' && it.restante_pago && !it.bloqueada && it.restante_pago_em && Number.isFinite(Date.parse(it.restante_pago_em)) && diasCorridosDesde(it.restante_pago_em, agora) > LIMITES.site_parado_dias) {
+    a.push('o site está parado há ' + diasCorridosDesde(it.restante_pago_em, agora) + ' dia(s) com o restante pago (o aviso único do pagamento pode ter falhado): ponha no ar (no-ar ' + it.codigo + ' <endereço>)');
+  }
+  else if (it.passo === 'aprovada') a.push(it.restante_pago ? 'o restante foi pago: ponha o site no ar (no-ar ' + it.codigo + ' <endereço>)' : 'esperando o cliente pagar o restante (a cobrança abriu quando ele aprovou a prévia): o site só vai ao ar com ele pago');
   if (it.passo === 'previa') a.push('esperando o cliente há ' + (it.dias_na_previa == null ? '?' : paraTerminal(it.dias_na_previa, 10)) + ' dia(s): o projeto para até ele responder (D5). Nada a fazer; não aprova nem encerra por silêncio');
   if (it.aviso_previa_pendente) a.push('avisar o cliente: prévia pronta (painel, Avisos, com o link de uso único)');
   if (it.aviso_no_ar_pendente && it.passo === 'no_ar') a.push('avisar o cliente: site no ar (painel, Avisos, com o link de uso único). Os 3 dias do restante só começam a contar quando você registrar este aviso');
@@ -95,19 +109,22 @@ export function alertasDe(it, agora = new Date()) {
   }
   if (it.passo === 'suspensa') a.push('site suspenso: quando o restante cair, religar pela captação e marcar (religado ' + it.codigo + ')');
   if (it.passo === 'concluida' && it.religar_pendente) a.push('o restante caiu com o site suspenso: religar o site pela captação e marcar (religado ' + it.codigo + ')');
+  /* (revisão B) o site já está no ar e o restante foi pago, mas a passagem para a conta do cliente é manual e não tem marca no banco: o item fica na lista por 30 dias depois de concluído */
+  if (it.passo === 'concluida' && !it.religar_pendente) a.push('o site está no ar: passe o site para a conta no nome do cliente e mande o passo a passo (o item sai desta lista 30 dias depois de concluído)');
   return a;
 }
 
 export function proximoComando(it, raiz) {
+  if (it.bloqueada) return null;   /* (19/11) bloqueada: nada avança; o dono confere no Mercado Pago (encerrar é decisão dele, não sugestão automática) */
   const sh = c => `node "${path.join(raiz, 'scripts', 'entregas.mjs')}" ${c}`;
   if (it.passo === 'material' && it.apagar_material_devido && !it.material_apagado_em) return sh(`aviso ${it.codigo} material-apagar`);
   if (it.passo === 'producao' && it.material_status === 'enviado') return sh(`baixar ${it.codigo} --destino "<pasta do cliente>/${it.codigo}"`);
   if (it.passo === 'producao' && it.cliente_captacao) return 'na captação: montar, checklist, enviar-versao e a revisão; depois: ' + sh(`previa ${it.codigo} <endereço da prévia>`);
   if (it.passo === 'ajustes') return sh(`ajustes ${it.codigo} --destino "<pasta>/${it.codigo}-ajustes"`) + '; refeita a versão e revisada: ' + sh(`previa ${it.codigo} <endereço da prévia>`);
-  if (it.passo === 'aprovada') return sh(`no-ar ${it.codigo} <endereço do site>`);
+  if (it.passo === 'aprovada') return it.restante_pago ? sh(`no-ar ${it.codigo} <endereço do site>`) : null;   /* (19/11) sem o restante pago o site não vai ao ar */
   if (it.passo === 'no_ar' && it.dias_do_aviso > 3) return sh(`suspender ${it.codigo}`);   /* passou da 00:00 depois do 3º dia do aviso "no ar" */
   if (it.passo === 'concluida' && it.religar_pendente) return sh(`religado ${it.codigo}`);
-  return null;   /* esperando o cliente (material, prévia) ou o restante (no ar); ou já importado */
+  return null;   /* esperando o cliente (material, prévia, o restante); ou já importado */
 }
 
 export async function listar({ base, chave, buscar = fetch, raiz = process.cwd() }) {
@@ -174,14 +191,14 @@ export async function publicarPrevia({ base, chave, buscar = fetch, codigo, url 
   await acao(buscar, origem, chave, { previa: codigo, url });
   return 'Prévia registrada. O cliente a vê na página dele; o aviso de "prévia pronta" está no painel (Avisos).';
 }
-/* pôr o site no ar abre a cobrança do restante: pede o código sorteado (NO-AR-XXXX), como o ENTREGAR-XXXX das direções */
+/* pôr o site no ar (19/11: só com o restante pago) conclui o pedido: pede o código sorteado (NO-AR-XXXX), como o ENTREGAR-XXXX das direções */
 export async function colocarNoAr({ base, chave, buscar = fetch, codigo, url, perguntar, gerar = () => codigoAleatorio('NO-AR-'), saida = console.log }) {
   const { origem } = ambiente(base, chave); validarCodigo(codigo);
   if (!/^https:\/\//.test(String(url))) throw new Error('Diga o endereço do site (https://…).');
   saida(codigo + ' -> ' + paraTerminal(url, 300));   /* o dono lê o pedido e o endereço ANTES de digitar o código (o texto "acima" da pergunta) */
-  if (!(await pedirConfirmacao(perguntar, gerar, 'pôr o site no ar e abrir a cobrança do restante'))) throw new Error('Não confirmado: nada foi feito.');
+  if (!(await pedirConfirmacao(perguntar, gerar, 'pôr o site no ar e concluir o pedido'))) throw new Error('Não confirmado: nada foi feito.');
   await acao(buscar, origem, chave, { no_ar: codigo, url });
-  return 'No ar. O aviso de "site no ar" está no painel (Avisos); o cliente já vê o Pix do restante na página dele.';
+  return 'No ar e pedido concluído. O aviso de "site no ar" está no painel (Avisos); depois, passe o site para a conta no nome do cliente.';
 }
 export async function suspender({ base, chave, buscar = fetch, codigo }) { const { origem } = ambiente(base, chave); validarCodigo(codigo); const r = await acao(buscar, origem, chave, { suspender: codigo }); return (r && r.aviso && paraTerminal(r.aviso, 400)) || 'Suspenso no site. Tire o site do ar pela captação (suspender).'; }
 /* (B3) encerrar e dispensar não têm volta para o cliente: como o no-ar, o dono lê o pedido e a ação ANTES e digita o código sorteado (ENCERRAR-XXXX / DISPENSAR-XXXX). Resposta errada,

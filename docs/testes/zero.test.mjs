@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { executarTurno } from '../../api/_vendas/agente.mjs';
+import { executarTurno, estadoParaModelo, referenciaDoCompleto } from '../../api/_vendas/agente.mjs';
 import { montarSistema, ferramentas, IDENTIDADE } from '../../api/_vendas/consultor.mjs';
 import { PAPEIS, TETOS, custoUsd, RESERVA_USD } from '../../api/_ia/config.mjs';
 import { MAX_VERSOES } from '../../api/_vendas/planta.mjs';
@@ -352,6 +352,46 @@ test('turno: depois de estimar, o texto sai com o valor do motor; o R$ que o mod
   assert.match(resultado.valor, /\[\[total\]\]/);
 });
 
+/* o pacote completo como referência (revisão de preços, dono 2026-11-21) */
+test('marcadores: [[completo]] vira o valor do pacote completo; sem ele, a frase que o cita sai inteira, sem buraco', () => {
+  const e = { valor_total: 2900, sinal: 1160 };
+  const t = 'O site mais completo que a gente faz fica [[completo]]. Pro seu caso, uma página resolve: [[total]]. Quer ver três modelos?';
+  assert.equal(comMarcadores(t, e, { completo: 17950 }).texto, 'O site mais completo que a gente faz fica R$ 17.950. Pro seu caso, uma página resolve: R$ 2.900. Quer ver três modelos?');
+  assert.equal(comMarcadores('O completo sai [[pacote completo]].', e, { completo: 17950 }).texto, 'O completo sai R$ 17.950.');
+  for (const completo of [null, undefined, 0, -1, NaN, '17950']) {
+    assert.equal(comMarcadores(t, e, { completo }).texto, 'Pro seu caso, uma página resolve: R$ 2.900. Quer ver três modelos?', String(completo));
+  }
+  assert.equal(comMarcadores(t, e).texto, 'Pro seu caso, uma página resolve: R$ 2.900. Quer ver três modelos?', 'sem a opção, também sai');
+  assert.equal(comMarcadores('Fica [[total]].', e, { completo: 17950 }).texto, 'Fica R$ 2.900.', 'sem o marcador, nada muda');
+});
+
+test('marcadores: o [[completo]] só vale uma vez, sozinho na frase e antes do valor do caso; o valor dela nunca some (revisões do PR)', () => {
+  const e = { valor_total: 2900, sinal: 1160 };
+  const ok = { completo: 17950 }, nao = { completo: null };
+  assert.equal(comMarcadores('O completo fica [[completo]] e o seu caso [[total]]. Quer ver?', e, nao).texto, 'O completo fica e o seu caso R$ 2.900. Quer ver?', 'sem a referência, o total fica');
+  assert.equal(comMarcadores('O completo fica [[completo]] e o seu caso [[total]]. Quer ver?', e, ok).texto, 'O completo fica e o seu caso R$ 2.900. Quer ver?', 'na mesma frase do total, o pacote não sai como se fosse o preço dela');
+  assert.equal(comMarcadores('Completo [[completo]]. Repito: [[completo]]. Seu: [[total]].', e, ok).texto, 'Completo R$ 17.950. Seu: R$ 2.900.', 'uma vez só');
+  assert.equal(comMarcadores('O seu fica [[total]]. O completo, [[completo]].', e, ok).texto, 'O seu fica R$ 2.900.', 'depois do valor do caso, não vale');
+  assert.equal(comMarcadores('O seu fica [[completo]].', e, ok).texto.includes('17.950'), true, 'sozinho e primeiro: vale (a instrução manda escrever antes)');
+  assert.equal(comMarcadores('O completo fica [[completo]].', e, nao).texto, 'Pro seu caso, fica R$ 2.900.', 'nunca uma resposta vazia');
+  const sem = comMarcadores('O completo fica [[completo]]. O seu, [[total]]. Quer ver?', null, ok);
+  assert.doesNotMatch(sem.texto, /\[\[|\d/); assert.equal(sem.semEstimativa, true);
+});
+
+test('turno: o Zero cita o pacote completo só no primeiro valor da conversa, e nunca a quem já orçou o próprio pacote', async () => {
+  const frase = 'O mais completo que a gente faz fica [[completo]]. Pro seu caso, [[total]]. Quer ver três modelos?';
+  const briefing = { negocio: { segmento: 'padaria' }, objetivos: ['vender'], projeto: { formato: 'landing_page' } };
+  const primeira = await executarTurno({ ia: roteiro(comFerr({ id: 'e1', nome: 'estimar', entrada: { formato: 'landing_page' } }), fim(frase)), regras: REGRAS, conversa: nova({ briefing }), mensagem: 'quanto custa?' });
+  assert.match(primeira.resposta, /O mais completo que a gente faz fica R\$ 17\.950\. Pro seu caso, R\$ 2\.900\./);
+  const jaDisse = nova({ briefing, mensagens: [{ papel: 'agente', conteudo: 'Uma página fica R$ 2.900.' }] });
+  const segunda = await executarTurno({ ia: roteiro(comFerr({ id: 'e1', nome: 'estimar', entrada: { formato: 'landing_page' } }), fim(frase)), regras: REGRAS, conversa: jaDisse, mensagem: 'e com mais uma página?' });
+  assert.doesNotMatch(segunda.resposta, /completo|17\.950|\[\[/);
+  assert.match(segunda.resposta, /Pro seu caso, R\$ 2\.900\./);
+  const tudo = { formato: 'institucional', adicionais: { visual_exclusivo: 1, interacao_leve: 1, interacao_assinatura: 2, textos: 5 } };
+  const grande = await executarTurno({ ia: roteiro(comFerr({ id: 'e1', nome: 'estimar', entrada: tudo }), fim(frase)), regras: REGRAS, conversa: nova({ briefing: { ...briefing, projeto: { formato: 'institucional' } } }), mensagem: 'quero tudo' });
+  assert.doesNotMatch(grande.resposta, /completo|17\.950/, 'o caso dela já passa do pacote: a referência não aparece');
+});
+
 test('turno: o marcador em conversa sem estimativa nunca chega cru à tela', async () => {
   const ia = roteiro(fim('Fica [[total]], com sinal de [[sinal]].'));
   const r = await executarTurno({ ia, regras: REGRAS, conversa: nova(), mensagem: 'e o preço?' });
@@ -427,7 +467,7 @@ test('valor pedido: sem R$ na resposta e com estimativa válida, o código acres
   const e = { valor_total: '2900.00', sinal: '1160.00' };
   const r = garantirValor('Pra oficina, uma página só resolve.', { mensagem: 'só fala o valor', estimativa: e });
   assert.equal(r.acrescentou, true);
-  assert.equal(r.texto, 'Pra oficina, uma página só resolve.\n\nEm resumo, o site fica R$ 2.900, com entrada de R$ 1.160 no Pix e R$ 1.740 quando o site entrar no ar.');
+  assert.equal(r.texto, 'Pra oficina, uma página só resolve.\n\nEm resumo, o site fica R$ 2.900, com entrada de R$ 1.160 no Pix e R$ 1.740 quando o site estiver pronto.');
   assert.equal(garantirValor('A landing fica R$ 2.900.', { mensagem: 'quanto fica', estimativa: e }).acrescentou, false, 'já tem número');
   assert.equal(garantirValor('Uma página só.', { mensagem: 'oi', estimativa: e }).acrescentou, false, 'ninguém pediu o valor');
   assert.equal(garantirValor('Uma página só.', { mensagem: 'quanto fica', estimativa: null }).acrescentou, false, 'sem estimativa não inventa número');
@@ -571,7 +611,7 @@ test('tela: a página de orçamento mostra o Zero como IA (etiqueta e primeira f
 
 test('prompt: fatos decididos pelo dono em 01/11 (domínio, hospedagem, nota) e a negociação sem desconto', () => {
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
-  for (const trecho of ['fica no nome do cliente', 'hospedado de graça no plano gratuito da Cloudflare: vai ao ar na conta da Beyon e, com o restante pago, passa para uma conta no nome do cliente', 'Nota fiscal: ainda não há', 'negocie sem baixar o valor', 'o resto entra depois, item a item, pela tabela'])
+  for (const trecho of ['fica no nome do cliente', 'hospedado de graça no plano gratuito da Cloudflare: fica pronto na conta da Beyon e, com o restante pago, vai ao ar e passa para uma conta no nome do cliente', 'Nota fiscal: ainda não há', 'negocie sem baixar o valor', 'o resto entra depois, item a item, pela tabela'])
     assert.ok(s.includes(trecho), 'falta no prompt: ' + trecho);
   assert.doesNotMatch(s, /mensalidade, hospedagem e de quem é/, 'mensalidade e hospedagem saíram da lista do que não se confirma');
   assert.doesNotMatch(s, /R\$ ?(800|1\.900)/, 'a oferta de lançamento não entra no texto do Zero');
@@ -698,7 +738,7 @@ test('prompt do Zero: as palavras-bordão que o modelo copiava (rodada 4) não e
   assert.match(s, /Quando ela conta uma dor concreta/, 'responder primeiro à dor');
   assert.match(s, /Curiosidade sobre o funcionamento interno/, 'recado não é para curiosidade sobre o funcionamento interno');
   assert.match(s, /o valor é o mesmo com o dono/, 'com o dono o valor é o mesmo');
-  assert.ok(s.length <= 27500, 'o prompt segue dentro do limite: ' + s.length);
+  assert.ok(s.length <= 27700, 'o prompt segue dentro do limite: ' + s.length);
 });
 
 /* ---------- peças da conversa, fatia 1: o painel derivado do briefing (api/_vendas/painel.mjs) ---------- */
@@ -860,7 +900,7 @@ test('passo seguinte e prompt: o valor já dito não se repete nem se reestima s
   const REGRAS = JSON.parse(fs.readFileSync(new URL('../../docs/fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
   assert.match(s, /nem finja conversa anterior/, 'o prompt proíbe fingir conversa anterior');
-  assert.ok(s.length <= 27500, 'o prompt segue dentro do limite: ' + s.length);
+  assert.ok(s.length <= 27700, 'o prompt segue dentro do limite: ' + s.length);
 });
 
 /* ---------- a pergunta que voltava com as mesmas palavras (teste com o modelo real, 03/11) ---------- */
@@ -945,7 +985,7 @@ test('prompt do Zero: quem faz o trabalho é a Beyon ("a gente", nunca "eu monto
     assert.match(s, /\n3\. Modelos: /, direcoes + ': o passo 3 do processo se chama "Modelos"');
     assert.ok(!/direç(?:ão|ões)(?! visual)/i.test(s), direcoes + ': "direções" (os modelos) é jargão que o modelo repetia e não aparece no prompt; "direção visual" da tabela de preços é outra coisa e fica');
     assert.ok(!/falando como "a gente" ou "eu"/.test(s), direcoes + ': a recusa em saúde fala como "a gente", sem "ou eu"');
-    assert.ok(s.length <= 27500, direcoes + ': o prompt segue dentro do limite: ' + s.length);
+    assert.ok(s.length <= 27700, direcoes + ': o prompt segue dentro do limite: ' + s.length);
   }
 });
 
@@ -1040,9 +1080,12 @@ test('travas de resultado e garantia: o texto fixo não dispara a si mesmo nem a
   assert.equal(semGarantia('Damos garantia de 12 meses.').texto, GARANTIA_FIXO);
   assert.match(RESULTADO_FIXO, /não dá para garantir/, 'o texto de resultado nega a garantia de resultado');
   assert.doesNotMatch(RESULTADO_FIXO, /primeiro lugar/i, 'o texto fixo não promete nada');
-  /* (o texto fixo de garantia só repete o que está em condicoes.html: 7 dias para desistir e a entrada de volta; devolução se a Beyon atrasar) */
+  /* (o texto fixo de garantia só repete o que está em condicoes.html: 7 dias para desistir e a entrada de volta; desde 21/11, dono, sem
+     a devolução no atraso) */
   assert.match(GARANTIA_FIXO, /7 dias para desistir/);
-  assert.match(GARANTIA_FIXO, /atrasar a entrega, a gente devolve a entrada/);
+  /* (21/11) o texto fixo É a garantia publicada em /condicoes */
+  assert.match(GARANTIA_FIXO, /você vê o site pronto antes de pagar o restante\. Se não gostar, não paga o restante, e o site não vai ao ar\./);
+  assert.doesNotMatch(GARANTIA_FIXO, /atras/i);
   assert.equal(semPromessaDeResultado('').trocou, false);
   assert.equal(semGarantia(null).texto, '');
 });
@@ -1250,19 +1293,38 @@ test('público: o prompt do Zero e as respostas fixas não dizem "operação peq
 test('hospedagem e código: o Zero diz conta no nome do cliente e código do cliente; páginas sem "conta da Beyon"', async () => {
   const { montarPromptEfetivo } = await import('../zero/gerar.mjs');
   const p = montarPromptEfetivo();
-  assert.match(p, /vai ao ar na conta da Beyon e, com o restante pago, passa para uma conta no nome do cliente/);
+  assert.match(p, /fica pronto na conta da Beyon e, com o restante pago, vai ao ar e passa para uma conta no nome do cliente/);   /* (19/11: o ar só com o restante pago) */
   assert.match(p, /O código também é do cliente/);
   assert.doesNotMatch(p, /não confirma: de quem fica o código/);
   for (const pag of ['../../condicoes.html', '../../sites.html', '../../index.html', '../../privacidade.html']) {
     const html = fs.readFileSync(new URL(pag, import.meta.url), 'utf8');
     assert.doesNotMatch(html, /hospedado na conta da Beyon|Cloudflare, na conta da Beyon|numa conta no seu nome(:| que nós ajudamos a criar na entrega)|valor por mês escrito na proposta/, pag);
   }
-  /* decisão do dono 14/11 noite: ao ar na conta da Beyon até o restante; depois, conta do cliente */
+  /* decisão do dono 14/11 noite: a conta passa ao cliente com o restante pago. 19/11 (a ordem nova): o site NÃO vai ao ar antes do restante, nem na conta da Beyon */
   for (const pag of ['../../condicoes.html', '../../sites.html', '../../privacidade.html']) {
     const html = fs.readFileSync(new URL(pag, import.meta.url), 'utf8');
-    assert.match(html, /vai ao ar (primeiro )?na (conta da Beyon|nossa conta)/, pag + ': diz que o site vai ao ar primeiro na conta da Beyon');
-    assert.match(html, /com o restante pago|até o restante ser pago/, pag + ': diz que a conta passa ao cliente com o restante pago');
+    assert.doesNotMatch(html, /vai ao ar (primeiro )?na (conta da Beyon|nossa conta)/, pag + ': o site não vai ao ar na conta da Beyon antes do restante');
+    assert.match(html, /com o restante pago, (ele|o site) vai ao ar e passa para uma conta (da Cloudflare )?no seu nome/i, pag + ': com o restante pago, o site vai ao ar e passa ao cliente');
   }
+});
+
+
+test('ESTADO: a instrução do pacote completo vai só no turno em que vale, sem número, e o prompt fixo não muda', () => {
+  const estado = o => JSON.parse(estadoParaModelo({ briefing: {}, estimativa: null, etapa: 'descoberta', regras: REGRAS, ...o }).split('\n')[1]);
+  const com = estado({});
+  assert.match(com.pacote_completo, /\[\[completo\]\] \(este marcador vale só aqui\)/);
+  assert.match(com.pacote_completo, /É referência, não oferta: não recomende o completo por isso/);
+  assert.doesNotMatch(com.pacote_completo, /\d/, 'sem número: o valor é do motor');
+  assert.equal(estado({ jaDitoNaConversa: ['valor_dito'] }).pacote_completo, undefined, 'já disse um valor');
+  assert.equal(estado({ liberado: false }).pacote_completo, undefined, 'o valor ainda espera');
+  assert.equal(estado({ etapa: 'escopo' }).pacote_completo, undefined, 'no escopo só dúvidas');
+  assert.equal(estado({ etapa: 'descoberta', pedidoStatus: 'confirmado' }).pacote_completo, undefined, 'pacote fechado');
+  assert.equal(estado({ estimativa: { valor_total: 17950, sinal: 7180 } }).pacote_completo, undefined, 'o caso dela já é o pacote');
+  const sem = JSON.parse(JSON.stringify(REGRAS)); delete sem.adicionais.visual_exclusivo;
+  assert.equal(estado({ regras: sem }).pacote_completo, undefined, 'a tabela não fecha o pacote');
+  assert.equal(referenciaDoCompleto({ regras: REGRAS, etapa: 'descoberta' }), 17950);
+  assert.equal(referenciaDoCompleto({ regras: REGRAS, etapa: 'descoberta', estimativa: { valor_total: 2900 } }), 17950);
+  assert.doesNotMatch(montarSistema(REGRAS), /completo\]\]/, 'o prompt fixo (com cache) não ganha nada');
 });
 
 import './planta-todos.test.mjs';

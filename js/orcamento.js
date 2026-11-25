@@ -100,8 +100,13 @@
       var v = investimento(E.estimativa, true);
       jaVemNoPacote(E.estimativa);
       if (v) anunciar('Investimento estimado: ' + v + '.');
+      extrasNaConversa();
     } else if (ultimaSim && !Toques.comConsultor()) mostrarSim(ultimaSim);
   });
+  /* (dono, 24/11, opção A) com o Zero, logo depois do preço, 2 ou 3 extras como cartões na conversa (js/orcamento-extras-zero.js; sem o módulo a
+     tela segue igual). Um toque que muda o preço relê o estado: o cartão do investimento e o radar acompanham a estimativa regravada */
+  var ganchosExtras = { reler: function () { return recarregar().catch(function () { /* a estimativa já está gravada; a próxima leitura acerta o cartão */ }); } };
+  function extrasNaConversa() { if (window.BZExtrasZero) window.BZExtrasZero.atualizar(E, ganchosExtras); }
   /* a coreografia do turno do valor (spec §2): a fala já entrou; com a planta, o valor espera ela consagrar (js/planta-desenho.js avisa); sem ela, um respiro */
   /* em dois tempos: ESCUTA já (o aviso da planta pode vir durante a releitura do estado) e devolve armar(), que põe o prazo quando o estado novo
      diz se há planta (com ela, até PLANTA_MAX_MS; sem ela, o respiro) */
@@ -290,6 +295,7 @@
      inteiros: 472 px contra 526 em 390x844, medido em 12/11) a fala nova fica no topo da caixa e o cartão logo abaixo dela */
   function rolarConversa(li) {
     var caixa = $('o-log-caixa');
+    if (window.BZOrcPalco && window.BZOrcPalco.ajustarFolga) window.BZOrcPalco.ajustarFolga();   /* (a folga embaixo da lista antes da conta: a fala alcança o topo, js/orcamento-palco.js) */
     if (!li || !ficaNoFim()) {
       /* sem o cartão: até o fim, mas a fala do Zero maior que a caixa começa no topo dela, nunca cortada em cima (achado da revisão de 19/11) */
       if (li && li.classList.contains('msg--agente')) caixa.scrollTop = Math.max(0, Math.min(caixa.scrollHeight - caixa.clientHeight, caixa.scrollTop + li.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA_FALA));
@@ -594,10 +600,14 @@
   /* FILA MANUAL (decisão do dono, 2026-10-08): as direções são feitas pela Beyon Zero em até 24 horas úteis e o aviso
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
-  /* (dono, 15/11) a regra dos ajustes, clara antes de escolher: um modelo só, e trazer algo de outro conta como um ajuste */
-  var REGRA_DOS_MODELOS = 'Abra a prévia e escolha um: os ajustes são feitos dentro dele. Trazer cores ou uma seção de outro modelo conta como um ajuste.';
+  /* (dono, 15/11) a regra dos ajustes, clara antes de escolher: um modelo só, e trazer algo de outro conta como um ajuste.
+     (dono, 24/11: "toda essa parte que envolve as prévias devem ser reformuladas em questão de texto, espaçamento e copy") A seção diz
+     cada coisa UMA vez e curta, uma frase por linha (o "\n" vira quebra pelo sentido: white-space: pre-line em css/orcamento-modelos.css);
+     a prévia é a estrela. Teto de palavras e a regra presas em docs/testes/orcamento-nasce.test.mjs */
+  var REGRA_DOS_MODELOS = 'Escolha um e ajuste dentro dele.\nTrazer cores ou uma seção de outro modelo conta como um ajuste.';
+  var TEXTO_GERANDO = 'Ficam prontos em alguns minutos.\nPode sair: o pedido fica salvo.';
   var TEXTOS_MANUAL = {
-    direcoes: 'Prontos em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página.',
+    direcoes: 'Prontos em até 24 horas úteis.\nO pedido fica salvo neste aparelho.',
     prontas: REGRA_DOS_MODELOS
   };
   /* (PR 2a) descartado pelo dono: o pedido acabou e o servidor recusa escolher, ajustar e seguir (api/_vendas/fluxo.mjs) */
@@ -625,9 +635,9 @@
       mini.appendChild(tela);
       mini.setAttribute('aria-hidden', 'true');
       mini.addEventListener('click', function () { visor.abrir(d.id); });
-      if (recomendadaId() === d.id) { li.classList.add('is-recomendada'); corpo.appendChild(el('p', 'dir__recomendado', 'Recomendado pelo Zero')); }
+      if (recomendadaId() === d.id) { li.classList.add('is-recomendada'); corpo.insertBefore(el('p', 'dir__recomendado', 'Recomendado pelo Zero'), corpo.firstChild); }   /* (em cima do número, na ordem do DOM: a mesma que se vê) */
       corpo.appendChild(el('h3', 'dir__nome', d.conteudo.nome_conceito));
-      corpo.appendChild(el('p', 'dir__resumo', d.conteudo.resumo));
+      corpo.appendChild(el('p', 'dir__resumo sr-only', d.conteudo.resumo));   /* (a miniatura é aria-hidden: quem não vê ouve a descrição; na tela, a prévia fala por ela) */
       var acoes = el('div', 'dir__acoes');
       var abrir = botao('btn btn--sm', 'Abrir prévia', function () { visor.abrir(d.id); });
       abrir.setAttribute('data-abrir', d.id);
@@ -638,9 +648,8 @@
       corpo.appendChild(acoes);
     } else if (manual()) {
       var f = el('div', 'dir__progresso');
-      f.appendChild(el('p', '', 'Na fila: o modelo ' + d.numero + ' (' + (NOMES[d.estrategia] || '').toLowerCase() + ') fica pronto em até 24 horas úteis.'));
+      f.appendChild(el('p', '', 'Na fila'));   /* (o prazo e o "fica salvo" estão uma vez só, no texto da seção) */
       mini.appendChild(f);
-      corpo.appendChild(el('p', 'dir__resumo', 'Você pode voltar a esta página neste aparelho quando quiser: o pedido fica salvo aqui.'));
       var conf = botao('btn btn--sm', 'Conferir agora', function () { conferir(conf); });   /* (sem consulta automática: a pessoa confere quando quiser) */
       conf.setAttribute('data-conferir', '');
       corpo.appendChild(conf);
@@ -651,8 +660,7 @@
       var t = el('p', 'dir__tempo', tempo(d.id));
       t.setAttribute('data-tempo', d.id);
       g.appendChild(t);
-      mini.appendChild(g);
-      corpo.appendChild(el('p', 'dir__resumo', 'Pode sair: ao voltar a esta página, a geração continua.'));
+      mini.appendChild(g);   /* (o "pode sair" está uma vez só, no texto da seção: TEXTO_GERANDO) */
     }
     li.appendChild(mini);
     li.appendChild(corpo);
@@ -778,7 +786,7 @@
       mostrar('o-pag-indisponivel', true);
       return;
     }
-    $('o-pag-lead').textContent = lead + ' Para destravar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante só quando o site estiver no ar.';
+    $('o-pag-lead').textContent = lead + ' Para destravar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante só quando o site estiver pronto, antes de ir ao ar.';
     if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada, {});   /* ({}: solta o "só Pix" que o restante tenha pedido) */
   }
 
@@ -848,7 +856,9 @@
       regerouSozinho = true;
       gerarTodas().then(function () { regeracaoTerminou = true; direcoes(); });
     }
-    if (manual()) $('o-dir-lead').textContent = E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
+    var gerandoAlgum = E.direcoes.some(function (d) { return d.status === 'gerando'; });
+    if (manual()) $('o-dir-lead').textContent = gerandoAlgum || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
+    else $('o-dir-lead').textContent = gerandoAlgum ? TEXTO_GERANDO : REGRA_DOS_MODELOS;
     if (window.BZPreparo) window.BZPreparo.atualizar(E);   /* a espera útil: o prazo e o que separar (js/orcamento-preparo.js); sem o módulo, o resto da tela segue */
     var emGeracao = manual() ? [] : E.direcoes.filter(function (d) { return d.status === 'gerando'; });   /* (fila manual: nada a pedir) */
     relogioDosCartoes(emGeracao.length > 0);
@@ -865,8 +875,7 @@
     caixa.hidden = !mostra;
     if (!mostra) return;
     caixa.appendChild(el('p', 'orc-recomenda__quem', 'O Zero recomenda'));
-    caixa.appendChild(el('p', 'orc-recomenda__texto', r.texto));
-    caixa.appendChild(botao('btn btn--sm', 'Abrir o modelo ' + r.numero, function () { visor.abrir(r.direcao_id); }));
+    caixa.appendChild(el('p', 'orc-recomenda__texto', r.texto));   /* (sem botão: o cartão do modelo, logo abaixo, já abre a prévia e leva o selo) */
   }
   /* o foco estava num botão da lista que vai ser refeita: guarda qual (cartão + texto) para devolver depois */
   function focoNaLista(ul) {
@@ -920,6 +929,7 @@
     if (window.BZOrcEsboco) window.BZOrcEsboco.atualizar(E);   /* a planta viva v2, o esboço que cresce na conversa (js/orcamento-planta-esboco.js): só age com a flag BZ_PLANTA; sem o módulo a tela segue igual */
     if (window.BZOrcEscopo) window.BZOrcEscopo.atualizar(E);   /* o radar do escopo (js/orcamento-escopo.js): só lê o estado; sem o módulo a tela segue igual */
     if (window.BZPainel) window.BZPainel.atualizar(E.painel);   /* as peças da conversa: notas, ficha e caso (js/orcamento-painel.js); sem o módulo a tela segue igual */
+    extrasNaConversa();
     direcoes();
     mostrar('o-ajustes', (et === 'escolhida' || et === 'alteracoes') && !descartado());
     ajustes.atualizar(E);

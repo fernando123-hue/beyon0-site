@@ -42,6 +42,7 @@
   function rolar() {
     var c = $('o-log-caixa'), falas, f = null, i;
     if (!c) return;
+    if (window.BZOrcPalco && window.BZOrcPalco.ajustarFolga) window.BZOrcPalco.ajustarFolga();   /* (a folga embaixo da lista antes da conta: a fala alcança o topo, js/orcamento-palco.js) */
     falas = c.querySelectorAll('.msg--agente');
     for (i = falas.length - 1; i >= 0 && !f; i--) if (falas[i].getClientRects().length) f = falas[i];   /* (a fala escondida, num cartão já feito, não conta) */
     if (!f) { c.scrollTop = c.scrollHeight; return; }

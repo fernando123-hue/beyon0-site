@@ -254,7 +254,27 @@ export function avisoRegulado(nicho, { pediuAgora = false } = {}) {
 /* o modelo às vezes escreve [[valor]], [[ entrada ]] ou [total]: sinônimos viram o número certo; qualquer outro marcador some e nunca vaza cru */
 const MARCADOR = /\[\[\s*([^\[\]\n]{1,30}?)\s*\]\]|\[\s*(total|sinal|restante)\s*\]/gi;
 const TEM_MARCADOR = /\[\[\s*[^\[\]\n]{1,30}?\s*\]\]|\[\s*(?:total|sinal|restante)\s*\]/i;
-const CAMPO = { total: 'total', valor: 'total', 'valor total': 'total', preco: 'total', 'preço': 'total', sinal: 'sinal', entrada: 'sinal', restante: 'restante', resto: 'restante' };
+const CAMPO = { total: 'total', valor: 'total', 'valor total': 'total', preco: 'total', 'preço': 'total', sinal: 'sinal', entrada: 'sinal', restante: 'restante', resto: 'restante',
+  completo: 'completo', 'pacote completo': 'completo' };
+const MARCADOR_COMPLETO = /\[\[\s*(?:pacote\s+)?completo\s*\]\]/i;
+const MARCADORES_COMPLETO = /\[\[\s*(?:pacote\s+)?completo\s*\]\]/gi;
+const VALOR_DO_CASO_FIXO = 'Pro seu caso, fica [[total]].';
+/* (revisões do PR) o [[completo]] só vale na PRIMEIRA frase que o cita, sozinho (sem outro valor na frase) e antes de qualquer valor do
+   caso: "o seu fica [[completo]] e o total [[total]]" nunca mostra o pacote como se fosse o preço dela, e a referência não se repete.
+   Qualquer outra citação sai: a frase inteira, ou só o marcador quando a frase também traz o valor do caso (o valor dela nunca some).
+   Sem a referência valendo, toda citação sai; se não sobrar nada, fica o valor do caso numa frase */
+function arrumarCompleto(texto, vale) {
+  let usado = false, valorAntes = false;
+  const saida = [];
+  for (const f of frasesDe(texto)) {
+    const semCompleto = f.replace(MARCADORES_COMPLETO, '');
+    const outroValor = TEM_MARCADOR.test(semCompleto);
+    if (!MARCADOR_COMPLETO.test(f)) { saida.push(f); valorAntes ||= outroValor; continue; }
+    if (vale && !usado && !outroValor && !valorAntes) { usado = true; saida.push(f); continue; }
+    if (outroValor) { saida.push(semCompleto); valorAntes = true; }
+  }
+  return saida.join('').trim() || VALOR_DO_CASO_FIXO;
+}
 const dinheiro = n => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 }).replace(/\s/g, ' ');
 function valoresDe(e) {
   const total = Number(e?.valor_total), sinal = Number(e?.sinal);
@@ -288,11 +308,18 @@ export function semNotacaoInterna(texto) {
 
 /* e: a estimativa do motor (ou a linha do banco): valor_total e sinal. Sem estimativa válida, a frase com marcador sai e entra
    "esse valor eu ainda não tenho" com o recado; nunca um número, nunca o marcador cru */
-export function comMarcadores(texto, e) {
+/* completo: o valor do pacote completo (precos.mjs → valorDoPacoteCompleto), só no turno em que o Zero ainda não disse valor nenhum.
+   Sem ele, a frase que cita [[completo]] sai inteira: nunca um buraco no lugar do número, nunca a referência repetida */
+export function comMarcadores(texto, e, { completo = null } = {}) {
   const original = String(texto);
   if (!TEM_MARCADOR.test(original)) return { texto: original, semEstimativa: false };
   const v = valoresDe(e);
-  if (v) return { texto: original.replace(MARCADOR, (_, a, b) => { const campo = CAMPO[String(a || b).toLowerCase()]; return campo ? dinheiro(v[campo]) : ''; }).replace(/ {2,}/g, ' '), semEstimativa: false };
+  if (v) {
+    const temCompleto = Number.isFinite(completo) && completo > 0;
+    const base = MARCADOR_COMPLETO.test(original) ? arrumarCompleto(original, temCompleto) : original;
+    const valores = { ...v, completo: temCompleto ? completo : null };
+    return { texto: base.replace(MARCADOR, (_, a, b) => { const campo = CAMPO[String(a || b).toLowerCase()]; return campo && valores[campo] !== null ? dinheiro(valores[campo]) : ''; }).replace(/ {2,}/g, ' '), semEstimativa: false };
+  }
   let jaAvisou = false;
   const saida = [];
   for (const f of frasesDe(original)) {
@@ -321,7 +348,7 @@ export function garantirValor(texto, { mensagem, estimativa } = {}) {
   const original = String(texto);
   const v = valoresDe(estimativa);
   if (!v || /R\$/.test(original) || !pedeValor(mensagem)) return { texto: original, acrescentou: false };
-  const linha = `Em resumo, o site fica ${dinheiro(v.total)}, com entrada de ${dinheiro(v.sinal)} no Pix e ${dinheiro(v.restante)} quando o site entrar no ar.`;
+  const linha = `Em resumo, o site fica ${dinheiro(v.total)}, com entrada de ${dinheiro(v.sinal)} no Pix e ${dinheiro(v.restante)} quando o site estiver pronto.`;
   return { texto: (original.trim() ? original.trimEnd() + '\n\n' : '') + linha, acrescentou: true };
 }
 

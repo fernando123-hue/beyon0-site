@@ -12,7 +12,7 @@
      a Beyon ainda não tem casos publicados) sai com um texto fixo PRÓPRIO (DADO_FIXO), que não inventa nada além de "não há casos".
    • semGarantia: "garantia de N meses", "satisfação garantida", "garantimos que você vai gostar", "dinheiro de volta", "não gostou,
      não paga". NÃO corta o que está em condicoes.html e no prompt, e só nestas duas formas exatas: "7 dias para desistir" com a
-     entrada de volta (CDC art. 49) e devolver a entrada se a Beyon atrasar a entrega. Qualquer outro prazo ("30 dias para
+     entrada de volta (CDC art. 49). Desde 21/11 (dono) devolver a entrada no atraso também CORTA: não se promete. Qualquer outro prazo ("30 dias para
      desistir"), "a qualquer momento", "quando quiser", "depois dos 7 dias ... devolvemos" ou "não gostou ... devolvemos" CORTA.
      Também não corta a garantia do negócio do CLIENTE (lista fechada: loja, empresa, produto, serviço...; o resto é nosso e corta).
 
@@ -56,7 +56,7 @@ import { PONTUACAO, CONTRASTE, limpa } from './travas-promessa.mjs';
 
 export const DADO_FIXO = 'Ainda não tenho casos publicados para mostrar.';
 export const RESULTADO_FIXO = 'Resultado, como mais clientes, mais vendas ou posição no Google, não dá para garantir, e a gente não promete isso. O que a gente faz é um site claro, para a pessoa encontrar você, entender o que você faz e decidir com tranquilidade.';
-export const GARANTIA_FIXO = 'Garantia eu não consigo confirmar. O que existe está nas condições: depois de aceitar, você tem 7 dias para desistir e receber a entrada de volta. Se a gente atrasar a entrega, a gente devolve a entrada.';
+export const GARANTIA_FIXO = 'A garantia é a das condições: você vê o site pronto antes de pagar o restante. Se não gostar, não paga o restante, e o site não vai ao ar. E, depois de aceitar, você tem 7 dias para desistir e receber a entrada de volta.';
 
 /* ---------- apoio: texto, orações e variantes ---------- */
 const rx = (partes, ...vs) => new RegExp(String.raw(partes, ...vs), 'g');
@@ -442,18 +442,14 @@ const PROMESSAS_DE_GARANTIA = [
   rx`\b(?:entrega|prazo)\s+(?:\w+\s+){0,1}garantid[oa]s?\b`,
   rx`\b(?:ou|senao)\s+(?:o )?(?:site|servico|trabalho)\s+(?:sai|e|fica)\s+(?:de graca|gratis|gratuito)\b`
 ];
-/* devolver o dinheiro: só vale a forma exata da empresa (7 dias para desistir; devolução se a Beyon atrasar), tirada antes por mascarar() */
+/* devolver o dinheiro: só vale a forma exata da empresa (7 dias para desistir), tirada antes por mascarar(); a devolução no atraso saiu em 21/11 (dono) */
 const ENTRADA = '(?:(?:devolv\\w+|restitu\\w+|reembols\\w+|devolucao d[ao])\\s+(?:(?:o |a )?(?:valor|dinheiro) d[ae]\\s+)?(?:a |o |sua |seu |toda a |todo o )?(?:entrada|sinal)(?: inteir[ao]| toda| total| integral)?(?:\\s+e\\s+(?:o |a )?(?:entrada|sinal))?|(?:recebe\\w*|receber|ter|tem|tera|recuper\\w+|reav\\w+)\\s+(?:de volta\\s+)?(?:(?:o |a )?(?:valor|dinheiro) d[ae]\\s+)?(?:a |sua |toda a )?entrada(?: inteir[ao]| toda)?(?: de volta)?|(?:a |sua |toda a |o )?(?:entrada|sinal)(?: de \\d+ ?%)?(?: inteir[ao])? (?:volta|retorna|e devolvid[ao]|sera devolvid[ao]|devolvid[ao]|e restituid[ao]|sera restituid[ao]|restituid[ao]|de volta)(?: inteir[ao])?)';
 const TUDO_DE_VOLTA = '(?:devolv\\w+\\s+(?:o |todo o |tudo o |toda a )?(?:tudo|dinheiro|valor|que voce pagou)|recebe\\w*\\s+(?:de volta\\s+)?(?:tudo|todo o (?:valor|dinheiro)|o dinheiro|o valor)(?: de volta)?)';
 const DES7 = '(?:(?:voce )?(?:tem|tera|pode|podera|possui) )?(?:(?:ate|em ate|dentro d[eo]s?) )?(?:7|sete) dias(?: de garantia(?: legal)?)? (?:para|pra) (?:voce |vc )?(?:desistir|se arrepender)|desist\\w+ (?:' + W + ' ){0,4}?(?:em ate|em|dentro d[eo]s?|ate) (?:7|sete) dias';
-const ATRASO = '(?:atras\\w+|nao entreg\\w+|nao cumpr\\w+)(?: a entrega| o prazo| no prazo(?: combinado)?| do prazo)?';
 const FOLGA = '(?:(?!(?:devolv|reembols|dinheiro|tudo|todo|gost|satisf|qualquer|quiser|momento|depois|mesmo|alem|apos|\\d{2,}))' + W + ' ){0,8}';
-const FOLGA_A = '(?:(?!(?:devolv|reembols|dinheiro|tudo|todo|gost|satisf|qualquer|quiser|momento|\\d{2,}))' + W + ' ){0,8}';
 const MASCARAS = [
   rx`\b(?:${DES7}) ${FOLGA}(?:${ENTRADA}|${TUDO_DE_VOLTA})`,
   rx`\b(?:${ENTRADA}|${TUDO_DE_VOLTA}) ${FOLGA}(?:${DES7})`,
-  rx`\b(?:se |caso |quando )?(?:a gente |nos |a beyon |eu )?${ATRASO} ${FOLGA_A}${ENTRADA}`,
-  rx`\b${ENTRADA} ${FOLGA_A}(?:se |caso |quando )?(?:a gente |nos |a beyon |eu )?${ATRASO}`,
   /* por último: dizer só que há 7 dias para desistir é a verdade (o que vem junto e não é a entrada de volta continua sendo olhado) */
   rx`\b(?:${DES7})`
 ];
@@ -482,6 +478,17 @@ const PROMESSAS_DE_REEMBOLSO = [
    olhadas na frase inteira, sem o filtro de negação (o \"não\" faz parte da promessa). \"não gostar dos modelos\" é antes de pagar: verdade */
 const SEM_PAGAR = '(?:nao paga\\w*|nao precisa pagar|nao cobramos|nao cobra|nao ha custo|nao tem custo|nao devolve nada|(?:a gente |nos )?(?:refaz\\w*|refazemos|refaco|refazer|devolv\\w+|devolve|restitu\\w+)|sem custo|de graca)';
 const PROMESSAS_CONDICIONAIS = [
+  /* (revisão de segurança do #221) ajuste sem limite, "paga só o que gostar" e "o risco é nosso" prometem o que a empresa não faz */
+  rx`\bquant[oa]s\s+(?:mudancas|ajustes|alteracoes|revisoes|vezes|correcoes)\s+(?:voce\s+|vc\s+)?quiser\b`,
+  rx`\bpaga\w*\s+(?:so|somente|apenas)\s+(?:o\s+|pelo\s+)?que\s+(?:voce\s+)?gost\w*`,
+  rx`\b(?:o\s+)?risco\s+(?:e|fica|eh)\s+(?:todo\s+|so\s+)?(?:nosso|da beyon|meu)\b`,
+  /* (revisão de segurança do #221) prazo garantido dito de outro jeito ("entregamos em 5 dias garantido", "fica pronto, garantido") */
+  rx`\b(?:entreg\w+|pronto|no ar)\b(?:\W+${W}){0,5}?\W+garantid\w*`,
+  /* (revisão técnica do #221) "vê o site pronto antes de pagar" só vale para o RESTANTE (antes do sinal são os modelos) */
+  rx`\bve\w* o site pronto antes de (?:pagar|fechar|contratar|aceitar)\b(?! o restante\b)`,
+  /* (21/11, dono; revisão de segurança do #220) atraso ligado a devolver, mesmo sem dizer o quê ("se atrasar, devolvemos") */
+  rx`\b(?:atras\w*|nao entreg\w*|nao cumpr\w*)\b(?:\W+${W}){0,6}?\W+devolv\w*`,
+  rx`\bdevolv\w*(?:\W+${W}){0,6}?\W+(?:atras\w*|nao entreg\w*|nao cumpr\w*)\b`,
   rx`\b(?:se|caso)\s+(?:${W}\s+){0,3}?${NAO_GOSTAR}\b(?!\s+(?:${W}\s+){0,3}?(?:modelos?|previas?|propostas?|opcoes?|rascunhos?|layouts?))(?:\s+${W}){0,4}?\s+(?:voce\s+)?${SEM_PAGAR}\b`,
   rx`\b(?:${SEM_PAGAR})\s+(?:nada\s+)?(?:${W}\s+){0,2}?(?:se|caso)\s+(?:${W}\s+){0,3}?${NAO_GOSTAR}\b(?!\s+(?:${W}\s+){0,3}?(?:modelos?|previas?|propostas?|opcoes?|rascunhos?|layouts?))`
 ];
@@ -551,8 +558,18 @@ function frasePrometeGarantia(crua) {
   });
 }
 /* a pergunta com garantia só promete se a frase seguinte confirma ("Tem garantia? Tem sim.") ou se for retórica ("Sabia que temos garantia?") */
+/* (21/11, dono; revisão de segurança do #221) a garantia publicada em /condicoes passa SÓ como frase inteira igual à da página:
+   qualquer coisa colada nela ("…, a qualquer momento", "nem a entrada", "garantido") volta a ser olhada pelas outras regras */
+const GARANTIA_EXATA = new Set([
+  'voce ve o site pronto antes de pagar o restante',
+  'voce ve o site pronto na previa antes de pagar o restante',
+  'se nao gostar nao paga o restante e o site nao vai ao ar',
+  'se voce nao gostar nao paga o restante e o site nao vai ao ar'
+]);
+const ehGarantiaExata = f => GARANTIA_EXATA.has(paraBusca(f).replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim());
 function decidirGarantia(frases, i) {
   const f = frases[i];
+  if (ehGarantiaExata(f)) return null;
   if (!ehPergunta(f) || eRetorica(f)) return frasePrometeGarantia(f) ? { n: 1, fixo: GARANTIA_FIXO } : null;
   const q = paraBusca(f);
   if (i + 1 >= frases.length || !/\bgarantia\b/.test(q) || doCliente(q)) return null;
