@@ -23,7 +23,7 @@
   var ROTULO_BOTAO = 'Ver a planta do seu site';
   var ESPERA_ROLAGEM = 150, FALA_MAX = 120, NOME_MAX = 40;
   /* a planta viva v2 (decisões do dono de 12/11): abaixo de 960 px a planta consagra NO CARTÃO da conversa (js/orcamento-planta-esboco.js) e a faixa
-     não é usada; a caixa da conversa (nunca a página) rola até o cartão, ESPERA_CARTAO depois da fala aparecer, se a pessoa não rolou a caixa à mão
+     não é usada; a conversa rola (a caixa no computador, a página no celular, js/orcamento-rolagem.js) até o cartão, ESPERA_CARTAO depois da fala aparecer, se a pessoa não rolou a caixa à mão
      nos últimos MAO_NA_CAIXA ms; a fala fica a FOLGA px do topo */
   var COMPUTADOR = '(min-width: 960px)', ESPERA_CARTAO = 1200, MAO_NA_CAIXA = 3000, FOLGA = 8;
 
@@ -158,15 +158,17 @@
     function rolarCaixaAoCartao() {
       var caixa = $('o-log-caixa'), raiz = st.raiz;
       if (!caixa || !raiz) return;
+      if (win.BZOrcRolagem && win.BZOrcRolagem.levar(raiz, raiz)) return;   /* (celular: a caixa não rola, quem se move é a página, js/orcamento-rolagem.js) */
       caixa.scrollTop = Math.max(0, caixa.scrollTop + raiz.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA);
     }
     /* (teste com a IA real, 15/11) mapa pronto: num mapa mais alto que a caixa, a pergunta "Ficou certo?" ficava abaixo, fora da vista. A caixa desce
-       só o que falta para ela aparecer (nunca a página; a mesma regra da mão: quem mexeu na caixa nos últimos 3 s não é puxado) */
+       só o que falta para ela aparecer (no computador a caixa, no celular a página; a mesma regra da mão: quem mexeu na caixa nos últimos 3 s não é puxado) */
     function rolarCaixaAPergunta() {
       var caixa = $('o-log-caixa'), a = st.raiz && st.raiz.querySelector('.mpc-acoes');
       /* (revisão) uma vez por versão do mapa: refazer ao girar a tela não puxa de novo quem subiu a caixa para reler */
       if (!caixa || !a || st.lugar !== 'cartao' || st.perguntaVista === st.versao || Date.now() - st.maoNaCaixa < MAO_NA_CAIXA) return;
       st.perguntaVista = st.versao;
+      if (win.BZOrcRolagem && win.BZOrcRolagem.descerAte(a)) return;   /* (celular: desce a página só o que falta, js/orcamento-rolagem.js) */
       var falta = a.getBoundingClientRect().bottom - caixa.getBoundingClientRect().bottom + FOLGA;
       if (falta > 0) caixa.scrollTop += falta;
     }

@@ -39,19 +39,21 @@
   /* rola a caixa até o fim, mas NUNCA além do começo da última fala do Zero: com os cartões com ícone, fala + opções passam da altura da caixa,
      e o fim puro cortava o começo da pergunta (achado das fotos de 19/11). A pergunta fica inteira no topo; as opções seguem abaixo dela */
   var FOLGA_FALA = 8;   /* (a mesma folga de js/orcamento.js e do esboço da planta) */
-  function rolar() {
+  function rolar(inserido) {
     var c = $('o-log-caixa'), falas, f = null, i;
     if (!c) return;
     if (window.BZOrcPalco && window.BZOrcPalco.ajustarFolga) window.BZOrcPalco.ajustarFolga();   /* (a folga embaixo da lista antes da conta: a fala alcança o topo, js/orcamento-palco.js) */
     falas = c.querySelectorAll('.msg--agente');
     for (i = falas.length - 1; i >= 0 && !f; i--) if (falas[i].getClientRects().length) f = falas[i];   /* (a fala escondida, num cartão já feito, não conta) */
+    /* no celular quem se move é a PÁGINA, não a caixa (js/orcamento-rolagem.js, dono 25/11); no computador segue a caixa, como antes */
+    if (f && window.BZOrcRolagem && window.BZOrcRolagem.levar(f, inserido || f)) return;
     if (!f) { c.scrollTop = c.scrollHeight; return; }
     var topoDaFala = c.scrollTop + f.getBoundingClientRect().top - c.getBoundingClientRect().top - FOLGA_FALA;
     c.scrollTop = Math.max(0, Math.min(c.scrollHeight - c.clientHeight, topoDaFala));
   }
 
   /* (o que nasce DEPOIS de a conversa ir ao servidor é tardio: a página o recoloca depois das falas do servidor, js/orcamento.js conversa()) */
-  function inserir(li) { li.setAttribute('data-toque', ''); if (s.entregue) li.setAttribute('data-toque-tardio', ''); $('o-log').insertBefore(li, ficaNoFim()); rolar(); return li; }
+  function inserir(li) { li.setAttribute('data-toque', ''); if (s.entregue) li.setAttribute('data-toque-tardio', ''); $('o-log').insertBefore(li, ficaNoFim()); rolar(li); return li; }
   function anunciar(texto) { var c = window.BZOrcConversa; if (c && typeof c.anunciar === 'function') c.anunciar(texto); }
   /* semVoz: o foco vai direto a um campo rotulado por esta fala (o leitor a lê pelo foco; anunciar de novo a repetiria) */
   function fala(texto, semVoz) {
