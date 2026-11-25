@@ -39,6 +39,12 @@ const ALVOS = [
   ['/index.html',     'hub-cel',   CELULAR],
   ['/sites.html',     'sites-cel', CELULAR],
   ['/automacao.html', 'autom-cel', CELULAR],
+  /* CELULAR LENTO (dono, 25/11: "fazemos primeiro para celular" estava valendo só para o desenho; a velocidade era conferida num PC rápido).
+     Mesmo celular, com a CPU 4x mais lenta e a rede 4G lenta (1,6 Mbps, 150 ms): um aparelho médio. Teto mais folgado que o do PC, de
+     propósito: pega o que piora de verdade (quedas de fps, LCP passando de 4,5 s, "ruim" no Core Web Vitals), sem falhar por ruído da máquina. */
+  ['/index.html',     'hub-lento',   CELULAR, { lento: true }],
+  ['/sites.html',     'sites-lento', CELULAR, { lento: true }],
+  ['/automacao.html', 'autom-lento', CELULAR, { lento: true }],
   /* URLs limpas (cleanUrls na Vercel; o servidor local resolve .html) e 320px */
   ['/',               'hub-320',   ESTREITO],
   ['/sites',          'sites-320', ESTREITO],
@@ -65,10 +71,16 @@ const medirFps = (page, seg = 3) => page.evaluate(s => new Promise(ok => {
 const navegador = await chromium.launch({ executablePath: EXEC, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 let falhou = false, primeiro = true;
 
-for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exige3d = false } = {}] of ALVOS) {
+for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exige3d = false, lento = false } = {}] of ALVOS) {
   const ctx = await navegador.newContext(opcoes);
   await autorizarContexto(ctx, BASE);   /* staging atras do Access: o token so vai nos pedidos do proprio staging (docs/acesso.mjs) */
   const page = await ctx.newPage();
+  if (lento) {
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    await cdp.send('Network.enable');
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, downloadThroughput: 1.6 * 1024 * 1024 / 8, uploadThroughput: 750 * 1024 / 8, latency: 150 });
+  }
   const erros = [];
   page.on('pageerror', e => erros.push('pageerror: ' + e.message));
   /* um subsistema que caiu do laço (core.js avisa com "[beyon]") é falha:
@@ -80,7 +92,7 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   /* o interruptor "Reduzir movimento" acionado no MEIO do boot: nada pode
      ficar preso (SplitText no meio do caminho, opacidade zerada) */
   if (reduzirNoBoot) { await page.waitForTimeout(500); await page.evaluate(() => window.BEYON && window.BEYON.reduzir(true)); }
-  await page.waitForTimeout(exige3d ? 9000 : 3500);
+  await page.waitForTimeout(exige3d ? 9000 : lento ? 6000 : 3500);
 
   const d = await page.evaluate(() => {
     const B = window.BEYON;
@@ -126,9 +138,9 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   const reais = erros.filter(e => !/ERR_CERT|GPU stall|swiftshader/i.test(e));
   const ok = (semNucleo || d.boot) && d.barraOk && d.overflowX === 0 && d.navFora.length === 0 &&
     d.waBeyon === 0 && (d.recado > 0 || d.isolada) && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 && campo !== 0 &&
-    (exige3d ? nucleo : (!nucleo && fps > 45)) &&
-    /* LCP com orçamento (2,5s é o "bom" do Core Web Vitals); o primeiro alvo da rodada é artefato do headless */
-    (primeiro || lcp < 2500);
+    (exige3d ? nucleo : (!nucleo && fps > (lento ? 30 : 45))) &&
+    /* LCP com orçamento (2,5s é o "bom" do Core Web Vitals; no celular lento o teto é 4,5 s, acima do "ruim" (4 s) com folga para ruído); o primeiro alvo da rodada é artefato do headless */
+    (primeiro || lcp < (lento ? 4500 : 2500));
   primeiro = false;
   if (!ok) falhou = true;
 
