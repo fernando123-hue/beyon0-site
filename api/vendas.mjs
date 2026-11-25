@@ -3,7 +3,7 @@
    passo do fluxo, em api/_vendas/fluxo.mjs).
      GET  estado, pagamento, pagamento-config, sessao-config, catalogo
      POST sessao, retomar, renovar, mensagem, gerar, gerar-direcao, escolher,
-          ajustar, desfazer, pedido-livre, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes,
+          ajustar, desfazer, pedido-livre, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes, extras-sugeridos, alternar-extra,
           material-salvar, material-reservar, material-conferir, material-remover, material-enviar (PR 3b-2: o material da entrega;
           só com BZ_ENTREGA=ligada), link-pedido, sair-do-aparelho, outro-aparelho, abrir-pedido (PR 3b-2: o link do pedido),
           previa-ajustes, previa-aprovar (PR 3b-3: a lista de ajustes e a aprovação da prévia; só com BZ_ENTREGA=ligada),
@@ -38,6 +38,7 @@ export const ACOES = {
     escolher: 'escolher',
     ajustar: 'ajustar', desfazer: 'desfazer', 'pedido-livre': 'pedidoLivre', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar',
     simular: 'simular', 'confirmar-pacote': 'confirmarPacote', detalhes: 'detalhes',
+    'extras-sugeridos': 'extrasSugeridos', 'alternar-extra': 'alternarExtra',   /* (24/11) os extras na conversa com o Zero: api/_vendas/fluxo-extras.mjs */
     'material-salvar': 'materialSalvar', 'material-reservar': 'materialReservar', 'material-conferir': 'materialConferir',
     'material-remover': 'materialRemover', 'material-enviar': 'materialEnviar',
     'link-pedido': 'linkPedido', 'sair-do-aparelho': 'sairDoAparelho', 'outro-aparelho': 'outroAparelho', 'abrir-pedido': 'abrirPedido',

@@ -263,6 +263,10 @@
     },
     abrirRecado: function (opcoes) { return carregarRecado().then(function (R) { return R.abrir(Object.assign({ origem: 'orcamento' }, opcoes)); }); },
     simular: async function (dados) { await garantirSessao(); return chamar('POST', 'simular', comConversa(dados), undefined, ESTADO_MS); },
-    confirmarPacote: function (dados) { return chamar('POST', 'confirmar-pacote', comConversa(dados), undefined, ESTADO_MS); }
+    confirmarPacote: function (dados) { return chamar('POST', 'confirmar-pacote', comConversa(dados), undefined, ESTADO_MS); },
+    /* (24/11) os extras na conversa com o Zero (js/orcamento-extras-zero.js): as sugestões com o peso de cada uma, e incluir ou tirar uma
+       (só a chave, o sim ou não e a versão da tabela; o servidor recalcula e regrava a estimativa) */
+    extrasSugeridos: function () { return chamar('POST', 'extras-sugeridos', comConversa({}), undefined, ESTADO_MS); },
+    alternarExtra: function (dados) { return chamar('POST', 'alternar-extra', comConversa(dados), undefined, ESTADO_MS); }
   };
 })();

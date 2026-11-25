@@ -124,7 +124,17 @@ export function catalogoPublico(regras, { formato, ramo }) {
   return { formatos, extras: { principais, mais }, recomendados: sugestoes(formato, ramo, principais), urgencia: u ?{ acrescimo_percentual: Math.round((u.fator - 1) * 100), prazo_fator: u.prazo_fator } : null };
 }
 
-const OBJETIVO_BRIEFING = { pedidos_whatsapp: 'gerar_leads', agendamentos: 'agendamentos', vender_online: 'vender', apresentar: 'apresentar_empresa', campanha: 'lancar_produto' };
+/* (dono, 24/11, opção A) as sugestões DENTRO da conversa com o Zero, logo depois do preço: as mesmas do painel (sugestoes, no máximo 3), sem os
+   textos para quem disse que já os tem. A 1ª do ramo (ou da loja) vem indicada. Só nome curto e frase (a frase vai só ao leitor de tela) */
+export function sugestoesDaConversa(regras, { formato, ramo, material }) {
+  const cat = catalogoPublico(regras, { formato, ramo });
+  const doRamo = formato === 'loja_plataforma' ? SUGESTAO_LOJA : (typeof ramo === 'string' && Object.hasOwn(SUGESTAO_RAMO, ramo) ? SUGESTAO_RAMO[ramo] : []);
+  const porChave = new Map(cat.extras.principais.map(x => [x.chave, x]));
+  return cat.recomendados.filter(k => !(k === 'textos' && material === 'tenho')).map(k => porChave.get(k)).filter(Boolean)
+    .map(x => ({ chave: x.chave, nome: x.curto, frase: x.frase, por_pagina: x.por_pagina, indicado: x.chave === doRamo[0] }));
+}
+
+const OBJETIVO_BRIEFING ={ pedidos_whatsapp: 'gerar_leads', agendamentos: 'agendamentos', vender_online: 'vender', apresentar: 'apresentar_empresa', campanha: 'lancar_produto' };
 export const NOME_RAMO = { servicos: 'serviços', saude: 'saúde', beleza: 'beleza', alimentacao: 'alimentação', comercio: 'comércio', educacao: 'educação', associacao: 'associação', outro: 'outro' };
 const POSSE = { tenho: 'tem', parte: 'parcial', nao: 'nao' };
 

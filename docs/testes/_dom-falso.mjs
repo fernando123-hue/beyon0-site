@@ -43,7 +43,8 @@ function elemento(tag, doc, porId) {
     setAttribute(k, v) { attrs[k] = String(v); if (k === 'id') e.id = v; }, getAttribute: k => (k in attrs ? attrs[k] : null), hasAttribute: k => k in attrs, removeAttribute(k) { delete attrs[k]; },
     get lastElementChild() { return e.children[e.children.length - 1] || null; },
     appendChild(c) { return e.insertBefore(c, null); },
-    insertBefore(c, ref) { if (c.parentNode) c.remove(); const i = ref ? e.children.indexOf(ref) : -1; if (i >= 0) e.children.splice(i, 0, c); else e.children.push(c); c.parentNode = e; return c; },
+    /* (como no navegador: mover um nó que tem o foco, ou que o contém, tira o foco dele) */
+    insertBefore(c, ref) { if (c.parentNode) { if (doc.activeElement && c.contains(doc.activeElement)) doc.activeElement = null; c.remove(); } const i = ref ? e.children.indexOf(ref) : -1; if (i >= 0) e.children.splice(i, 0, c); else e.children.push(c); c.parentNode = e; return c; },
     remove() { if (e.parentNode) { e.parentNode.children = e.parentNode.children.filter(x => x !== e); e.parentNode = null; } },
     contains(o) { return o === e || e.children.some(c => c.contains(o)); },
     todos() { return e.children.flatMap(c => [c, ...c.todos()]); },
@@ -61,7 +62,7 @@ function elemento(tag, doc, porId) {
 
 /* a página: a caixa, a lista com a abertura fixa, a caixa de texto, o aviso de fila cheia; os módulos rodam por cima (rótulos e toques sempre;
    `modulos` a mais, como o pedido). detalhes: a resposta do API.detalhes de mentira */
-export function montarConversa({ ponteiroFino = false, enviar = async () => true, modulos = [], detalhes = async () => ({ codigo: 'BZ-K7M3Q', status: 'confirmado' }) } = {}) {
+export function montarConversa({ ponteiroFino = false, enviar = async () => true, modulos = [], detalhes = async () => ({ codigo: 'BZ-K7M3Q', status: 'confirmado' }), api = {} } = {}) {
   const doc = criarDoc();
   const caixa = doc.createElement('div'); caixa.id = 'o-log-caixa';
   const log = doc.createElement('ol'); log.id = 'o-log';
@@ -77,7 +78,7 @@ export function montarConversa({ ponteiroFino = false, enviar = async () => true
     matchMedia: () => ({ matches: ponteiroFino }),
     BZPerguntas: { definir: r => { definidos.push(JSON.parse(JSON.stringify(r))); } },
     BZOrcConversa: { anunciar: t => anuncios.push(t), enviar: t => { enviados.push(t); return enviar(t); } },
-    BZOrcamento: { detalhes: d => { pedidos.push(JSON.parse(JSON.stringify(d))); return detalhes(d); } }
+    BZOrcamento: { ...api, detalhes: d => { pedidos.push(JSON.parse(JSON.stringify(d))); return detalhes(d); } }   /* (api: outras chamadas de mentira, como as dos extras) */
   };
   ['bz:valor-liberado', 'bz:detalhes-enviados'].forEach(t => doc.addEventListener(t, ev => eventos.push(t + (ev && ev.detail && ev.detail.codigo ? ':' + ev.detail.codigo : ''))));
   const ctx = { window: win, document: doc, setTimeout, clearTimeout, Promise, JSON, String, Object, CustomEvent: function (t, o) { this.type = t; this.detail = o && o.detail; } };

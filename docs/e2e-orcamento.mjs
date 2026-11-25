@@ -199,6 +199,38 @@ try {
   } else {
     ok(/R\$/.test(await page.textContent('#o-est-valor')), 'com consultor: o valor é o da estimativa que o Zero gravou');
     ok(await page.locator('#o-vizinhos').isHidden() && await page.locator('#o-ajustar-abrir').isHidden(), 'com consultor: os extras e os formatos ao lado ficam na conversa (sem outra conta na tela)');
+    /* OS EXTRAS NA CONVERSA (dono, 24/11, opção A; js/orcamento-extras-zero.js): logo depois do preço do Zero, 2 ou 3 cartões DENTRO da conversa;
+       um toque inclui, outro tira, e o preço que vale (o cartão do investimento e o total do bloco) é o que o servidor recalculou e regravou */
+    const XZ = '#o-log .orc-xz .orc-xz__op';
+    const valorChega = v => page.waitForFunction(x => document.getElementById('o-est-valor').textContent.replace(/\D/g, '') === String(x), v, { timeout: 15000 }).then(() => true, () => false);
+    ok(await page.waitForFunction(s => document.querySelectorAll(s).length >= 2, XZ, { timeout: 15000 }).then(() => true, () => false), 'extras na conversa: os cartões aparecem logo depois do preço');
+    const chavesXz = await page.$$eval(XZ, l => l.map(b => b.dataset.extra));
+    ok(chavesXz.length >= 2 && chavesXz.length <= 3 && JSON.stringify(chavesXz) === '["agendamento","imagens"]', 'extras na conversa: serviços com logo e textos prontos → agendamento e imagens (sem "textos"): ' + JSON.stringify(chavesXz));
+    ok(await page.$$eval(XZ, l => l.every(b => b.getAttribute('aria-pressed') === 'false' && /^\+ R\$\s?[\d.]+$/.test(b.querySelector('.orc-xz__valor').textContent))), 'extras na conversa: botões com aria-pressed e o preço "+ R$ X" à vista');
+    const reais = t => Number(String(t).replace(/[^\d,]/g, '').replace(',', '.'));
+    const valorTela = async () => reais(await page.textContent('#o-est-valor'));
+    const totalXz = async () => reais(await page.textContent('#o-log .orc-xz__total-valor'));
+    const base = await valorTela();
+    ok(base > 0 && await totalXz() === base, 'extras na conversa: o total do bloco é o mesmo do cartão do investimento (' + base + ')');
+    ok(await semRolagemLateral(page), 'extras na conversa: celular sem rolagem lateral');
+    await page.setViewportSize({ width: 320, height: 700 });
+    ok(await semRolagemLateral(page), 'extras na conversa: 320 px sem rolagem lateral');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('#o-log .orc-xz [data-extra="agendamento"]').scrollIntoViewIfNeeded();
+    await foto(page, '1b-extras-zero-cel');
+    const agendamento = page.locator('#o-log .orc-xz [data-extra="agendamento"]');
+    await agendamento.click();
+    ok(await valorChega(base + 450), 'extras na conversa: um toque inclui o agendamento e o preço (do servidor) vai a ' + (base + 450));
+    ok(await agendamento.getAttribute('aria-pressed') === 'true' && await totalXz() === base + 450, 'extras na conversa: o cartão fica marcado e o total do bloco acompanha');
+    await foto(page, '1b-extras-zero-incluido-cel');
+    /* pelo teclado: o foco fica no cartão, e o Enter tira */
+    await agendamento.focus();
+    await page.keyboard.press('Enter');
+    ok(await valorChega(base), 'extras na conversa: outro toque (Enter) tira e o preço volta a ' + base);
+    ok(await agendamento.getAttribute('aria-pressed') === 'false' && await page.evaluate(() => document.activeElement && document.activeElement.dataset.extra === 'agendamento'), 'extras na conversa: desmarcado, e o foco não se perdeu');
+    /* fica com as imagens: o pedido segue com o preço novo (o "Quero" não grava outro pacote; vale a estimativa regravada) */
+    await page.locator('#o-log .orc-xz [data-extra="imagens"]').click();
+    ok(await valorChega(base + 250), 'extras na conversa: as imagens entram (' + (base + 250) + ')');
   }
   ok(/não paga nada/i.test(await page.textContent('#o-est-sem-risco')), 'sem risco até confirmar');
   ok(await semRolagemLateral(page), 'celular no preço: sem rolagem lateral');
@@ -208,6 +240,7 @@ try {
   /* AS SUGESTÕES (dono, 2026-11-10, opção A): os cartões antes do "Quero", pelo ramo (saúde: agendamento, textos, imagens), o da
      recomendação já marcado; um toque no cartão soma no preço e a lista completa acompanha */
   ok(await page.locator('#o-reco').isVisible() && await page.isChecked('#o-r-agendamento'), 'sugestões: os cartões à vista, com o agendamento da recomendação já marcado');
+  ok(await page.locator('#o-log .orc-xz').count() === 0, 'sem consultor: nenhum cartão de extra dentro da conversa (os extras de sempre, fora dela)');
   ok(JSON.stringify(await page.$$eval('#o-reco-lista [data-extra]', l => l.map(c => c.dataset.extra))) === '["agendamento","textos","imagens"]', 'sugestões de saúde: agendamento, textos e imagens');
   await page.locator('label[for="o-r-imagens"]').click({ position: { x: 120, y: 20 } });
   await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('8.600'));
