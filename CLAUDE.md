@@ -116,13 +116,18 @@ refresh); âncoras usam só `scroll-padding-top`.
    segurança em `js/pagina.js`; `npm run acessibilidade` confere.
 5. **Medir, não deduzir.** A/B na mesma sessão. O projeto já piorou o site três
    vezes otimizando por palpite.
-6. **Produção é do dono; a `main` é do processo.** A `main` não publica produção: ela só atualiza o staging (Worker de
+6. **Produção e `main` só mudam pelo agente, depois do processo.** A `main` não publica produção: ela só atualiza o staging (Worker de
    prévias, `beyon-zero-site-previa`). Produção é o Worker `beyon-zero-site` (`beyonzero.com.br`), que só constrói a
    branch `producao`, na mesma conta Cloudflare (uma conta, dois Workers; risco aceito até a 1ª venda, ver
    `docs/PROCESSO.md`). O agente trabalha em branch, abre PR com a evidência de `docs/PROCESSO.md`, lê os checks um a um
    e, com tudo verde e revisado, **mescla ele mesmo na `main`** (dono, 2026-10-07: "desde que você sempre siga o
-   processo de verificação e revisão, você pode mexer na main"). Promover é do dono: o agente abre o PR "Promover para
-   produção: `<sha>`" (`main` → `producao`, merge commit) e **só o dono clica Merge**. O guarda (`~/.claude/guarda/`)
+   processo de verificação e revisão, você pode mexer na main"). Promover também é do agente (dono, 2026-11-09, 2026-11-12 e 2026-11-18;
+   confirmado em 2026-11-25): com a `main` verde e o processo cumprido, o agente abre o PR "Promover para produção: `<sha>`"
+   (`main` → `producao`, merge commit), lê os checks desse PR um a um, e só com tudo verde mescla com
+   `gh pr merge <n> -R fernando123-hue/beyon0-site --merge --match-head-commit <sha completo>`, sempre o MESMO sha da `main` que
+   ficou verde (se a `main` andar, recomeça a verificação), sem `--admin` e sem push direto na `producao`; depois confere
+   a produção no ar. Ao dono vai só o que é só dele (gastar dinheiro, conta, apagar dados e o "sim" nos arquivos de
+   Cloudflare, workflows e `package*.json`, descrito abaixo). O guarda (`~/.claude/guarda/`)
    hoje nega push na `main`, o merge sem processo (`--admin`) e `vercel`. **As travas novas da Cloudflare (negar push na
    `producao`, `wrangler deploy` sem `--dry-run`, `wrangler versions/secret/login`, e o "sim" do dono no push que mude
    `.github/workflows/**`, `cloudflare/**`, `wrangler.jsonc` ou `package*.json`) só existem depois que o dono aplicar o

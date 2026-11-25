@@ -96,10 +96,12 @@ desta seção).
    críticos/altos corrigidos. Qualquer check vermelho ou achado sem destino: não mescla. **A `main` não publica
    produção**: ela só atualiza o staging. (Dono, 2026-10-07: "desde que você sempre siga o processo de verificação e
    revisão, você pode mexer na main".)
-4. **O dono** promove para produção, e só ele: o agente confere o staging, abre o PR **"Promover para produção:
-   `<sha>`"** de `main` para `producao`, pedindo **"Create a merge commit"** (nunca squash nem rebase), e o dono abre
-   no celular e clica **Merge**. Em seguida o agente confere a produção e que `git diff origin/main origin/producao`
-   sai vazio. A conferência de produção: `BASE=https://beyonzero.com.br npm run verificar` (só abre as páginas, não o
+4. **O agente promove para produção, depois do processo** (dono, 2026-11-09, 2026-11-12 e 2026-11-18; confirmado em
+   2026-11-25): o agente confere o staging, abre o PR **"Promover para produção: `<sha>`"** de `main` para `producao`,
+   lê os checks um a um e, com tudo verde, mescla com **merge commit** (nunca squash nem rebase):
+   `gh pr merge <n> -R fernando123-hue/beyon0-site --merge --match-head-commit <sha completo>`, com o MESMO sha da
+   `main` que ficou verde (se a `main` andar, recomeça a verificação). Em seguida o agente confere a produção e que
+   `git diff origin/main origin/producao` sai vazio. A conferência de produção: `BASE=https://beyonzero.com.br npm run verificar` (só abre as páginas, não o
    `/orcamento`); `https://www.beyonzero.com.br/sites?x=1` responde 301 para `https://beyonzero.com.br/sites?x=1`;
    `/docs/PROCESSO.md`, `/api/_freio`, `/.env`, `/CLAUDE.md`, `/wrangler.jsonc` e `/_headers` respondem 404; o
    `workers.dev` da produção não responde (desligado). O dono abre o site e o `/orcamento` no celular **sem digitar
@@ -130,7 +132,8 @@ agente enganado, a trava é a mesma confirmação no push.
 O que impede o agente de pular isso (mecanismo, não texto): o guarda do Claude Code (`~/.claude/guarda/`, configuração
 do dono). **Hoje** ele nega push direto na `main`, merge com `--admin`/`--auto` e `vercel`. **Depois do passo P2 do plano
 (§ 5.5), que só o dono aplica e ainda não foi aplicado**, passa a negar também push direto na `main`, na `producao` ou forçado, merge com `--admin`/`--auto`,
-`gh pr merge` de PR com base `producao`, `wrangler deploy` sem `--dry-run`, `wrangler versions`/`secret`/`login`,
+`gh pr merge` de PR com base `producao` (exceto a forma exata do passo 4, com `--merge --match-head-commit <sha completo>`,
+liberada pelo dono em 2026-11-09), `wrangler deploy` sem `--dry-run`, `wrangler versions`/`secret`/`login`,
 `gh workflow run` nos projetos da Beyon, `gh api` de escrita em `/contents`, `/git/` e `/merges`, `supabase db push` e
 a leitura de `.env`/`.dev.vars`; e as regras `permissions.deny` do `~/.claude/settings.json` repetem os principais. O
 agente nunca altera o próprio guarda. O agente também nunca tem token da Cloudflare.
@@ -141,8 +144,8 @@ para `beyonzero.com.br`. Nada novo é promovido na Vercel.
 
 ## Sempre pedir o dono
 
-Apagar dado, trocar segredo, publicar ao vivo (o Merge do PR "Promover para produção" na `producao`), migration no banco
-real, decisão de negócio, e mexer em qualquer ajuste de domínio, zona ou produção da Cloudflare (e da Vercel, enquanto ela existir).
+Apagar dado, trocar segredo, publicar ao vivo por qualquer caminho que não seja o PR "Promover para produção" do passo 4,
+migration no banco real, decisão de negócio, e mexer em qualquer ajuste de domínio, zona ou produção da Cloudflare (e da Vercel, enquanto ela existir).
 
 ## Limites (ditos como são)
 
