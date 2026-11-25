@@ -317,7 +317,7 @@ test('FAQ: só o modo cartões mexe no item; em faixa de cor o item vira cartão
 
 test('o número grande e o índice das linhas leem a cor de leitura do destaque (com o destaque como padrão)', () => {
   assert.ok(/\.pv-numero\s*\{[^}]*color:\s*var\(--pv-dest-leitura, var\(--pv-dest\)\)/.test(semComentarios));
-  assert.ok(/\.pv-linha__i\s*\{[^}]*color:\s*var\(--pv-dest-leitura, var\(--pv-dest\)\)/.test(semComentarios));
+  assert.ok(/\.pv-linha__i\s*\{[^}]*color:\s*var\(--pv-dest-leitura-fina, var\(--pv-dest-leitura, var\(--pv-dest\)\)\)/.test(semComentarios), 'o índice pequeno lê pela cor FINA, que cai na de leitura e depois no destaque');
 });
 
 test('destaque claro demais sobre o fundo (amarelo sobre branco) cai para a cor do texto; destaque legível fica como está', () => {
@@ -349,4 +349,139 @@ test('desktop: a galeria não deixa vão nem órfão (1/4/7 fotos abrem com faix
     const linha = semComentarios.split('\n').find(l => l.startsWith(s + ' {')) || '';
     assert.ok(/overflow-wrap:\s*anywhere/.test(linha), s + ' quebra palavra longa');
   }
+});
+
+/* ---- PR (c): ícones por item, ritmo (blocos iguais seguidos, no máximo 3 botões) e as pendências da revisão do PR (b) ---- */
+import { ICONES } from '../../api/_vendas/direcao.mjs';
+const NOMES = ICONES.filter(n => n !== 'nenhum');
+const ico = raiz => comClasse(raiz, 'pv-icone');
+const itensCom = icone => [{ titulo: 'Um', texto: 'Texto um.', ...(icone ? { icone } : {}) }, { titulo: 'Dois', texto: 'Texto dois.' }];
+
+test('ícone: cada nome da lista fechada tem desenho próprio (svg com formas, aria-hidden, só classe, sem style nem filtro)', () => {
+  for (const nome of NOMES) {
+    const raiz = desenharCom(secao('servicos', 'cartoes', itensCom(nome)));
+    const i = ico(raiz);
+    assert.equal(i.length, 1, nome + ': um ícone no item que pediu');
+    assert.equal(i[0].tag, 'svg');
+    assert.equal(i[0].attrs['aria-hidden'], 'true');
+    assert.equal(i[0].attrs.viewBox, '0 0 24 24');
+    assert.ok(todos(i[0]).length > 1, nome + ' desenha formas');
+    assert.ok(todos(i[0]).every(f => !f.attrs.style && !f.attrs.filter), nome + ' sem style nem filtro');
+  }
+});
+
+test('ícone: nome fora da lista, "nenhum", objeto ou ausente não desenha nada; o ícone entra só em cartões e linhas', () => {
+  for (const ruim of ['foguete', 'nenhum', '<svg>', { a: 1 }, 7, '']) assert.equal(ico(desenharCom(secao('servicos', 'cartoes', itensCom(ruim)))).length, 0, JSON.stringify(ruim));
+  assert.equal(ico(desenharCom(secao('servicos', 'cartoes', itensCom()))).length, 0);
+  assert.equal(ico(desenharCom(secao('diferenciais', 'lista', itensCom('raio')))).length, 1, 'linhas editoriais também');
+  for (const [tipo, variante] of [['galeria', 'grade'], ['numeros', 'grade'], ['depoimentos', 'grade'], ['processo', 'lista'], ['servicos', 'linha_do_tempo']]) {
+    assert.equal(ico(desenharCom(secao(tipo, variante, itensCom('raio')))).length, 0, tipo + ' não tem ícone');
+  }
+});
+
+test('ícone: no cartão vem antes do título; nas linhas ocupa o lugar do índice numérico', () => {
+  const c = comClasse(desenharCom(secao('servicos', 'cartoes', itensCom('bolo'))), 'pv-item')[0];
+  assert.ok(c.filhos[0]._classe.split(' ').includes('pv-icone'), 'primeiro filho do cartão');
+  const l = comClasse(desenharCom(secao('servicos', 'lista', itensCom('bolo'))), 'pv-linha');
+  assert.ok(l[0].filhos[0]._classe.split(' ').includes('pv-icone'));
+  assert.equal(comClasse(l[0], 'pv-linha__i').length, 0, 'com ícone, sem índice no mesmo item');
+  assert.equal(comClasse(l[1], 'pv-linha__i').length, 1, 'o item sem ícone segue com o índice');
+});
+
+test('CSS do ícone: traço na cor de leitura do destaque, sem preenchimento; em faixa e fecho (modo sem cartão) na cor do texto do destaque', () => {
+  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const linha = css.split('\n').find(l => l.startsWith('.pv-icone {')) || '';
+  assert.ok(/fill:\s*none/.test(linha) && /stroke:\s*var\(--pv-dest-leitura, var\(--pv-dest\)\)/.test(linha) && /stroke-linecap:\s*round/.test(linha), linha);
+  assert.ok(!/filter|blur|shadow/.test(linha));
+  assert.ok(/:is\(\.pv-v--faixa, \.pv-sec--fecho\) \.pv-itens:not\(\.pv-itens--cartoes\) \.pv-icone\s*\{[^}]*stroke:\s*var\(--pv-dest-texto\)/.test(css));
+});
+
+const lista3 = tipo => secao(tipo, 'cartoes', I3);
+const modos = raiz => comClasse(raiz, 'pv-itens').map(u => u._classe.split(' ').find(c => c.startsWith('pv-itens--')));
+
+test('ritmo: dois blocos de itens iguais em sequência não saem; o segundo muda de composição, e o terceiro volta ao primeiro', () => {
+  assert.deepEqual(modos(desenharCom(lista3('servicos'), lista3('diferenciais'))), ['pv-itens--cartoes', 'pv-itens--linhas']);
+  assert.deepEqual(modos(desenharCom(lista3('servicos'), lista3('diferenciais'), lista3('equipe'))), ['pv-itens--cartoes', 'pv-itens--linhas', 'pv-itens--cartoes']);
+  assert.deepEqual(modos(desenharCom(secao('servicos', 'lista', I3), secao('diferenciais', 'lista', I3))), ['pv-itens--linhas', 'pv-itens--cartoes']);
+  const trocada = desenharCom(lista3('servicos'), lista3('diferenciais'));
+  assert.equal(comClasse(trocada, 'pv-v--lista').length, 0, 'a seção segue com a SUA variante (cabeçalho e layout largo); só os itens trocam de desenho');
+  assert.equal(comClasse(trocada, 'pv-v--cartoes').length, 2);
+  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const largo = css.slice(css.indexOf('@container'));
+  assert.ok(/\.pv-sec \.pv-itens\.pv-itens--linhas\s*\{[^}]*grid-template-columns:\s*1fr[^}]*max-width:\s*760px/.test(largo), 'linhas numa seção que não é de lista: 1 coluna de 760 px');
+  assert.ok(/\.pv-v--centro \.pv-itens--linhas\s*\{[^}]*margin-inline:\s*auto/.test(largo), 'sob cabeçalho centralizado a lista centraliza');
+  assert.ok(/\.pv-v--lista \.pv-itens\.pv-itens--cartoes\s*\{[^}]*repeat\(3, 1fr\)/.test(largo), 'cartões numa seção de lista: 3 colunas, não a coluna de 760 px');
+  assert.ok(/\.pv-itens--numeros \.pv-num:last-child:nth-child\(odd\)\s*\{[^}]*grid-column:\s*1 \/ -1/.test(css), 'no celular o último número ímpar ocupa a linha');
+  assert.ok(/\.pv-sec \.pv-itens--numeros \.pv-num:last-child:nth-child\(odd\)\s*\{[^}]*grid-column:\s*auto/.test(largo), 'e no desktop volta ao normal');
+});
+
+test('ritmo: cartões com cabeçalhos diferentes (centro, grade, split) são o mesmo bloco no celular: a troca conta só o MODO; a faixa de cor não se confunde nem troca', () => {
+  assert.deepEqual(modos(desenharCom(secao('servicos', 'centro', I3), secao('diferenciais', 'grade', I3))), ['pv-itens--cartoes', 'pv-itens--linhas']);
+  assert.deepEqual(modos(desenharCom(secao('servicos', 'split', I3), secao('diferenciais', 'centro', I3), secao('equipe', 'grade', I3))), ['pv-itens--cartoes', 'pv-itens--linhas', 'pv-itens--cartoes']);
+  assert.deepEqual(modos(desenharCom(secao('servicos', 'cartoes', I3), secao('diferenciais', 'faixa', I3))), ['pv-itens--cartoes', 'pv-itens--cartoes'], 'a faixa é um bloco próprio');
+  assert.deepEqual(modos(desenharCom(secao('servicos', 'faixa', I3), secao('diferenciais', 'faixa', I3))), ['pv-itens--cartoes', 'pv-itens--cartoes'], 'duas faixas seguidas não trocam');
+  const split = desenharCom(secao('servicos', 'split', I3), secao('diferenciais', 'split', I3));
+  assert.equal(comClasse(split, 'pv-v--split').length, 3, 'o topo (também split) e as duas seções: o split da segunda fica (2 colunas no layout largo)');
+});
+
+test('ritmo: seção sem lista no meio, composições diferentes e tipos de desenho próprio (galeria, números) não são trocados', () => {
+  assert.deepEqual(modos(desenharCom(lista3('servicos'), secao('sobre', 'split', []), lista3('diferenciais'))), ['pv-itens--cartoes', 'pv-itens--cartoes']);
+  assert.deepEqual(modos(desenharCom(lista3('servicos'), secao('diferenciais', 'lista', I3))), ['pv-itens--cartoes', 'pv-itens--linhas']);
+  assert.deepEqual(modos(desenharCom(secao('galeria', 'grade', I3), secao('galeria', 'grade', I3))), ['pv-itens--galeria', 'pv-itens--galeria']);
+  assert.deepEqual(modos(desenharCom(secao('processo', 'cartoes', I3), secao('diferenciais', 'linha_do_tempo', I3))), ['pv-itens--passos', 'pv-itens--passos'], 'passos não têm par');
+});
+
+const botoes = raiz => comClasse(raiz, 'pv-btn').filter(b => !b._classe.includes('pv-btn--nav'));
+test('ritmo: no máximo 3 botões de seção na página: ficam o do topo, o do fecho e o primeiro dos demais', () => {
+  const d = carregar().desenhar(direcao({ secoes: [
+    { ...direcao().secoes[0], cta: 'Topo' }, secao('servicos', 'cartoes', I3, { cta: 'Serviços' }), secao('sobre', 'split', [], { cta: 'Sobre' }),
+    secao('diferenciais', 'lista', I3, { cta: 'Dif' }), secao('cta', 'centro', [], { cta: 'Fecho' })] }));
+  assert.deepEqual(botoes(d).map(b => b.textContent), ['Topo', 'Serviços', 'Fecho']);
+  const poucas = carregar().desenhar(direcao({ secoes: [{ ...direcao().secoes[0], cta: 'Topo' }, secao('servicos', 'cartoes', I3, { cta: 'S' }), secao('contato', 'centro', [], { cta: 'C' })] }));
+  assert.equal(botoes(poucas).length, 3, 'até 3 passam todos');
+  const semTopo = carregar().desenhar(direcao({ secoes: [{ ...direcao().secoes[0], cta: '' }, secao('servicos', 'cartoes', I3, { cta: 'A' }), secao('sobre', 'split', [], { cta: 'B' }), secao('diferenciais', 'lista', I3, { cta: 'C' }), secao('contato', 'centro', [], { cta: 'F' })] }));
+  assert.deepEqual(botoes(semTopo).map(b => b.textContent), ['A', 'B', 'F'], 'sem botão no topo, o fecho e os dois primeiros');
+  assert.equal(comClasse(d, 'pv-btn--nav').length, 1, 'o botão da barra não conta nem some');
+  const semFecho = carregar().desenhar(direcao({ secoes: [{ ...direcao().secoes[0], cta: 'Topo' }, secao('servicos', 'cartoes', I3, { cta: 'A' }), secao('sobre', 'split', [], { cta: 'B' }), secao('diferenciais', 'lista', I3, { cta: 'C' }), secao('contato', 'centro', [], { cta: '' })] }));
+  assert.deepEqual(botoes(semFecho).map(b => b.textContent), ['Topo', 'A', 'C'], 'sem botão no cta/contato, fica o ÚLTIMO botão da página: a página não termina sem chamada');
+});
+
+test('ícone em FAQ e equipe (cartões) desenha sem quebrar; em linhas dentro de faixa o ícone vem no lugar do índice', () => {
+  for (const tipo of ['faq', 'equipe']) assert.equal(ico(desenharCom(secao(tipo, 'cartoes', itensCom('check')))).length, 1, tipo);
+  const faixa = desenharCom(secao('diferenciais', 'faixa', itensCom('check')));
+  assert.equal(ico(faixa).length, 1);
+});
+
+test('números: a lista leva a contagem (pv-n3 a pv-n8) para o CSS escolher as colunas sem deixar item solto', () => {
+  const classes = k => comClasse(desenharCom(secao('numeros', 'grade', Array.from({ length: k }, (_, i) => ({ titulo: String(i + 1), texto: 'x' })))), 'pv-itens')[0]._classe.split(' ');
+  for (const k of [3, 6, 8]) assert.ok(classes(k).includes('pv-n' + k), 'pv-n' + k);
+  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const largo = css.slice(css.indexOf('@container'));
+  const regra = n => largo.split('\n').find(l => l.includes('.pv-itens--numeros.pv-n' + n)) || '';
+  for (const k of [5, 6]) assert.ok(/repeat\(3, 1fr\)/.test(regra(k)), k + ' números em 3 colunas');
+  for (const k of [7, 8]) assert.ok(/repeat\(4, 1fr\)/.test(regra(k)), k + ' números em 4 colunas');
+});
+
+test('cor de leitura FINA: o índice "01" (15 px) pede 4,5:1; o destaque entre 3:1 e 4,5:1 serve ao número grande mas não ao índice', () => {
+  const cinza = { identidade: { ...direcao().identidade, paleta: { ...direcao().identidade.paleta, destaque: '#8A8A8A', fundo: '#FFFFFF', superficie: '#FFFFFF' } } };
+  const r = carregar().desenhar(direcao(cinza));
+  assert.equal(r.estilo['--pv-dest-leitura'], undefined, '3,45:1 ainda serve ao número grande');
+  assert.equal(r.estilo['--pv-dest-leitura-fina'], '#3A2420', 'mas o índice pequeno cai para o texto');
+  const escuro = { identidade: { ...direcao().identidade, paleta: { ...direcao().identidade.paleta, destaque: '#7A1F3D' } } };
+  const bom = carregar().desenhar(direcao(escuro));
+  assert.equal(bom.estilo['--pv-dest-leitura-fina'], undefined, 'destaque com 4,5:1 ou mais fica como está');
+  assert.equal(bom.estilo['--pv-dest-leitura'], undefined);
+  assert.ok(/\.pv-linha__i\s*\{[^}]*color:\s*var\(--pv-dest-leitura-fina, var\(--pv-dest-leitura, var\(--pv-dest\)\)\)/.test(CSS));
+});
+
+test('cor de leitura: paleta sem fundo/superfície confere contra os padrões do CSS (#FFFFFF, #F4F4F4), não passa em branco', () => {
+  const amarelo = { identidade: { ...direcao().identidade, paleta: { texto: '#3A2420', destaque: '#FFE66D', destaque_texto: '#000000' } } };
+  const r = carregar().desenhar(direcao(amarelo));
+  assert.equal(r.estilo['--pv-dest-leitura'], '#3A2420');
+});
+
+test('régua do topo com itens: o ul do topo usa margem (a régua vai de borda a borda do conteúdo), e o container largo zera', () => {
+  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(/\.pv-sec--hero \.pv-itens\s*\{[^}]*margin:\s*0 20px[^}]*\}/.test(css) && !/\.pv-sec--hero \.pv-itens\s*\{[^}]*padding:\s*0 20px/.test(css));
+  assert.ok(/@container[\s\S]*\.pv-sec--hero \.pv-itens\s*\{[^}]*margin:\s*0/.test(css));
 });
