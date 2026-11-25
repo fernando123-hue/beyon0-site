@@ -230,6 +230,13 @@ html.orc-retomando .orc-vitrine, html.orc-retomando .orc-contadores { display: n
    brigava com a rolagem até um botão de um passo aberto e o toque caía fora dele); a fala nova o JS já leva ao topo (js/orcamento-palco.js).
    Nada fica cortado pela régua de cima (o "ZERO" atravessado no print do
    dono, 24/11). A última pode encostar embaixo também, para o fim da conversa continuar alcançável; o que é mais alto que a caixa rola livre */
+/* CELULAR (dono, 25/11, opção A): a conversa não é caixa com rolagem própria, cresce junto com a página. O dedo rola UMA coisa só; antes a caixa
+   (56vh, overscroll contain) prendia o dedo e brigava com a página. Quem leva a fala nova ao topo é a página (js/orcamento-rolagem.js lê este
+   overflow para saber). No computador (>= 900 px) a caixa segue como era, ao lado do painel do preço */
+@media (max-width: 899px) {
+  .orc-conversa .orc-log { max-height: none; overflow: visible; overscroll-behavior: auto; scroll-behavior: auto; scroll-snap-type: none; }
+  .orc-conversa .orc-log { overflow-x: clip; }   /* (a caixa antiga cortava o que fosse mais largo; a página não pode alargar, regra 10 do CLAUDE.md; o overflow-y segue visible) */
+}
 .orc-log__lista > li { scroll-snap-align: start; }
 .orc-log__lista > li:last-child { scroll-snap-align: start end; }
 
@@ -410,3 +417,10 @@ html[data-tema="claro"] .rde-anel__trilho { stroke: rgb(11 12 13 / .14); }
   .orc-mesa { gap: clamp(2rem, 4vw, 3.5rem); }
   .orc-painel { top: calc(var(--nav-h) + 1.75rem); margin-top: 28px; }
 }
+
+/* O BOTÃO "ZERO RESPONDEU" (celular; js/orcamento-rolagem.js): aparece só quando o Zero fala e a pessoa estava em outro ponto da página (foi ver o
+   preço, ou subiu para reler). Um toque leva até a fala. Traço nítido e fundo cheio, sem sombra nem desfoque (regra do dono); alvo de toque de 46 px */
+.orc-voltar { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 44; display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 20px; border: 1px solid var(--line-hi); border-radius: 999px; background: var(--s1); color: var(--t1); font: 500 .8125rem/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
+.orc-voltar[hidden] { display: none; }
+.orc-voltar:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+@media (min-width: 900px) { .orc-voltar { display: none; } }
