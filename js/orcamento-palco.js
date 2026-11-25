@@ -83,7 +83,8 @@
     function medirEAjustar() {
       var fala = ultimaFala(), fim = ultimoItem(), cs = win.getComputedStyle(caixa);
       var util = caixa.clientHeight - (parseFloat(cs.paddingBottom) || 0);   /* (a fala sobe até a régua de cima; a folga a mais são poucos px em branco) */
-      var folga = fala && fim ? folgaNecessaria(util, fim.getBoundingClientRect().bottom - fala.getBoundingClientRect().top) : 0;
+      var porDentro = !win.BZOrcRolagem || win.BZOrcRolagem.porDentro();   /* (no celular a caixa não rola: a folga embaixo só abriria um vão na página) */
+      var folga = fala && fim && porDentro ? folgaNecessaria(util, fim.getBoundingClientRect().bottom - fala.getBoundingClientRect().top) : 0;
       var atual = lista.style.paddingBottom;
       if (atual !== folga + 'px') lista.style.paddingBottom = folga + 'px';
     }

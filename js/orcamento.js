@@ -293,9 +293,11 @@
   }
   /* quem rola é a caixa da conversa, não a lista. Sem o cartão, até o fim, como sempre. Com ele (a caixa não comporta a fala e o cartão
      inteiros: 472 px contra 526 em 390x844, medido em 12/11) a fala nova fica no topo da caixa e o cartão logo abaixo dela */
-  function rolarConversa(li) {
+  function rolarConversa(li, quieto) {
     var caixa = $('o-log-caixa');
     if (window.BZOrcPalco && window.BZOrcPalco.ajustarFolga) window.BZOrcPalco.ajustarFolga();   /* (a folga embaixo da lista antes da conta: a fala alcança o topo, js/orcamento-palco.js) */
+    /* no celular a conversa não é uma caixa com rolagem própria (css/orcamento.css, dono 25/11): quem se move é a PÁGINA (js/orcamento-rolagem.js) */
+    if (window.BZOrcRolagem && window.BZOrcRolagem.levar(li, li, quieto)) return;
     if (!li || !ficaNoFim()) {
       /* sem o cartão: até o fim, mas a fala do Zero maior que a caixa começa no topo dela, nunca cortada em cima (achado da revisão de 19/11) */
       if (li && li.classList.contains('msg--agente')) caixa.scrollTop = Math.max(0, Math.min(caixa.scrollHeight - caixa.clientHeight, caixa.scrollTop + li.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA_FALA));
@@ -827,7 +829,7 @@
     [].slice.call(log.children).forEach(function (c, i) { if (i > 0 && c !== fica && (!c.hasAttribute('data-toque') || c.hasAttribute('data-toque-tardio'))) log.removeChild(c); });
     E.mensagens.forEach(function (m) { ultima = msg(m.papel === 'agente' ? 'agente' : 'visitante', m.conteudo, true); });
     tardios.forEach(function (c) { log.insertBefore(c, ficaNoFim()); });
-    rolarConversa(ultima);
+    rolarConversa(ultima, true);   /* (a conversa refeita não move a página: a fala nova do envio já a levou; chegar com a conversa salva é com retomar()) */
     if (E.mensagens.length > 0) esconderAtalhos(); else $('o-atalhos').hidden = Toques.ativo();
   }
   function direcoes() {

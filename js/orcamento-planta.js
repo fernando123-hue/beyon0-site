@@ -158,6 +158,7 @@
     function rolarCaixaAoCartao() {
       var caixa = $('o-log-caixa'), raiz = st.raiz;
       if (!caixa || !raiz) return;
+      if (win.BZOrcRolagem && win.BZOrcRolagem.levar(raiz, raiz)) return;   /* (celular: a caixa não rola, quem se move é a página, js/orcamento-rolagem.js) */
       caixa.scrollTop = Math.max(0, caixa.scrollTop + raiz.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA);
     }
     /* (teste com a IA real, 15/11) mapa pronto: num mapa mais alto que a caixa, a pergunta "Ficou certo?" ficava abaixo, fora da vista. A caixa desce
@@ -167,6 +168,7 @@
       /* (revisão) uma vez por versão do mapa: refazer ao girar a tela não puxa de novo quem subiu a caixa para reler */
       if (!caixa || !a || st.lugar !== 'cartao' || st.perguntaVista === st.versao || Date.now() - st.maoNaCaixa < MAO_NA_CAIXA) return;
       st.perguntaVista = st.versao;
+      if (win.BZOrcRolagem && win.BZOrcRolagem.descerAte(a)) return;   /* (celular: desce a página só o que falta, js/orcamento-rolagem.js) */
       var falta = a.getBoundingClientRect().bottom - caixa.getBoundingClientRect().bottom + FOLGA;
       if (falta > 0) caixa.scrollTop += falta;
     }

@@ -99,6 +99,7 @@
     function alinharUltimaFala() {
       var caixa = $('o-log-caixa'), fala = st.item ? st.item.previousElementSibling : null;
       if (!caixa || !fala) return;
+      if (win.BZOrcRolagem && win.BZOrcRolagem.levar(fala, fala)) return;   /* (celular: a caixa não rola, quem se move é a página, js/orcamento-rolagem.js) */
       caixa.scrollTop = Math.max(0, caixa.scrollTop + fala.getBoundingClientRect().top - caixa.getBoundingClientRect().top - FOLGA_FALA);
     }
     function tirar() {
