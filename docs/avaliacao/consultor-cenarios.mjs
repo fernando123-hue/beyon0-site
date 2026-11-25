@@ -54,13 +54,13 @@ export const CENARIOS = [
   },
   {
     id: 'loja-do-zero',
-    sobre: 'Fora do automático: loja feita do zero, em código próprio, vai para o diagnóstico, sem valor',
+    sobre: 'A tabela ativa não faz loja do zero: o Zero diz que não faz, sem diagnóstico nem pedido (roteiro atualizado em 25/11)',
     mensagens: [
       'Tenho uma marca de cosméticos e já vendo em marketplace.',
       'Quero uma loja virtual feita do zero, em código próprio, nada de Nuvemshop ou Shopify.'
     ],
     espera: [
-      { tipo: 'diagnostico' },
+      { tipo: 'nunca', nome: 'encaminhar_diagnostico' },
       { tipo: 'nunca', nome: 'pedir_contato' }
     ]
   },
@@ -126,13 +126,15 @@ export const CENARIOS = [
   },
   {
     id: 'urgencia',
-    sobre: 'Urgência pedida pela pessoa entra na estimativa',
+    sobre: 'Urgência: sem data, pergunta a data; com a data e o prazo normal não cobrindo, entra na estimativa (roteiro atualizado em 25/11)',
     mensagens: [
       'Vou lançar um curso online de fotografia e preciso de uma landing page para vender as inscrições.',
-      'Preciso que fique pronto bem rápido, antes do prazo normal, o lançamento é logo.'
+      'Preciso que fique pronto bem rápido, antes do prazo normal, o lançamento é logo.',
+      'O lançamento é daqui a 5 dias úteis.'
     ],
     espera: [
-      { tipo: 'ferramenta_ate', nome: 'estimar', turno: 2 },
+      { tipo: 'ferramenta_ate', nome: 'estimar', turno: 3 },
+      { tipo: 'sem_urgencia_ate', turno: 2 },
       { tipo: 'formato', valor: 'landing_page' },
       { tipo: 'urgencia' }
     ]
@@ -146,7 +148,7 @@ export const CENARIOS = [
       'Quero ter mais agendamentos.'
     ],
     espera: [
-      { tipo: 'resposta', turno: 2, padrao: /como (as pessoas|os clientes|os pacientes|seus|os seus|os novos)[^?]*(chegam|encontram|procuram)[^?]*\?/i }
+      { tipo: 'resposta', turno: 1, padrao: /como [^?]{0,40}(chega|chegam|encontra|encontram|procura|procuram|acha|acham)[^?]*\?/i }
     ]
   },
   {
@@ -164,25 +166,25 @@ export const CENARIOS = [
   },
   {
     id: 'objecao-pensar',
-    sobre: '"Vou pensar": ajuda a pensar (pergunta ou direções sem compromisso), não só "fica salvo"',
+    sobre: '"Vou pensar": não pressiona; a resposta basta, sem pergunta de venda (o prompt manda assim desde 03/11; roteiro atualizado em 25/11)',
     mensagens: [
       'Tenho uma loja de móveis planejados em Belo Horizonte e quero uma landing page para os anúncios do Instagram.',
       'Vou pensar.'
     ],
     espera: [
-      { tipo: 'resposta', turno: 2, padrao: /\?|direç/i }
+      { tipo: 'resposta_nao', turno: 2, padrao: /\?/ }
     ]
   },
   {
     id: 'objecao-socio',
-    sobre: '"Preciso falar com o sócio": não manda para o WhatsApp; sugere decidir olhando as direções',
+    sobre: '"Preciso falar com o sócio": a decisão é deles; sem empurrar, sem pergunta de venda e sem mandar para o WhatsApp (roteiro atualizado em 25/11)',
     mensagens: [
       'Tenho uma escola de idiomas em Recife e quero um site institucional para captar alunos.',
       'Preciso falar com o meu sócio antes de decidir.'
     ],
     espera: [
       { tipo: 'nunca', nome: 'encaminhar_diagnostico' },
-      { tipo: 'resposta', turno: 2, padrao: /\?|direç/i }
+      { tipo: 'resposta_nao', turno: 2, padrao: /\?/ }
     ]
   },
   {
@@ -219,6 +221,58 @@ export const CENARIOS = [
     ],
     espera: [
       { tipo: 'ferramenta_ate', nome: 'pedir_contato', turno: 2 }
+    ]
+  },
+  /* ---------- lapidação 25/11 (auditoria com a IA real e a conversa real gravada) ---------- */
+  {
+    id: 'registro-nao-pede',
+    sobre: 'Saúde: o Zero não pede o número do conselho na conversa (a conversa real pediu o CREFITO cedo e duas vezes)',
+    mensagens: [
+      'Tenho uma clínica de fisioterapia em Niterói e quero um site.',
+      'Quero que os pacientes marquem horário pelo site.',
+      'Hoje eles chegam por indicação e pelo Instagram, e eu perco horário porque respondo tudo na mão.',
+      'Quanto fica?'
+    ],
+    espera: [1, 2, 3, 4].map(turno => ({ tipo: 'resposta_nao', turno, padrao: /(?:CREFITO|registro)[^.!?]{0,60}\?|(?:qual|me passa|tem)[^.!?]{0,30}(?:CREFITO|registro)/i }))
+  },
+  {
+    id: 'agendamento-landing',
+    sobre: 'Quem quer que o cliente marque horário pelo site leva o agendamento (a auditoria viu o mesmo pedido sair com dois preços)',
+    mensagens: [
+      'Tenho uma barbearia em Santos e quero uma página só, para os clientes marcarem horário pelo site.',
+      'Os clientes chegam pelo Instagram e hoje me chamam no WhatsApp para marcar.',
+      'Quanto fica?'
+    ],
+    espera: [
+      { tipo: 'ferramenta_ate', nome: 'estimar', turno: 3 },
+      { tipo: 'adicional', nome: 'agendamento' }
+    ]
+  },
+  {
+    id: 'urgencia-sem-data',
+    sobre: 'Pressa sem data: pergunta a data antes de somar a urgência (a auditoria viu +30% antes de saber a data)',
+    mensagens: [
+      'Tenho uma loja de roupas em Curitiba e preciso urgente de um site de uma página para mostrar as coleções.',
+      'Os clientes vêm do Instagram e eu não tenho onde mostrar tudo junto.'
+    ],
+    espera: [
+      { tipo: 'sem_urgencia_ate', turno: 2 }
+    ]
+  },
+  {
+    id: 'pedido-aberto',
+    sobre: 'Depois de abrir os passos do pedido, o Zero responde sem pergunta própria e não abre o pedido de novo (duas vozes na conversa real)',
+    mensagens: [
+      'Tenho uma clínica de estética em Campinas e quero um site de uma página para mostrar os tratamentos.',
+      'Hoje as clientes chegam pelo Instagram e eu respondo tudo na mão.',
+      'Gostei, quero ver os três modelos.',
+      'E quanto tempo leva para ficar pronto?',
+      'Aceita cartão?'
+    ],
+    espera: [
+      { tipo: 'ferramenta_ate', nome: 'pedir_contato', turno: 3 },
+      { tipo: 'pedir_contato_no_maximo', vezes: 1 },
+      { tipo: 'sem_pergunta_depois_do_pedido' }
     ]
   }
 ];

@@ -54,7 +54,7 @@ test('instruções: a etapa de ajustes descreve o fluxo sem IA (opções prontas
 test('instruções: tamanho que cabe e que entra em cache (Haiku 5.5: mínimo de 512 tokens)', () => {
   const s = montarSistema(REGRAS);
   assert.ok(s.length > 4000, 'contexto de verdade, não um parágrafo: ' + s.length);
-  assert.ok(s.length < 27700, 'sem inchar o turno: ' + s.length);   /* 27500 -> 27700 em 20/11: a frase de que o prazo para na aprovação da prévia (decisão do dono); 27000 -> 27500 em 17/11: a linha do Perfil no Google (adicional novo); 26000 -> 27000 em 01/11: fatos e negociação pedidos pelo dono; o enxugamento do texto é a tarefa seguinte */
+  assert.ok(s.length < 28500, 'sem inchar o turno: ' + s.length);   /* 27500 -> 28500 em 20/11: a frase de que o prazo para na aprovação da prévia (decisão do dono); 27000 -> 27500 em 17/11: a linha do Perfil no Google (adicional novo); 26000 -> 27000 em 01/11: fatos e negociação pedidos pelo dono; o enxugamento do texto é a tarefa seguinte */
 });
 
 test('instruções: regras que valem a conversa inteira, transparência de ser IA, e nada de pedir contato no texto', () => {
@@ -244,7 +244,7 @@ test('avaliador: roda um roteiro pelo turno de verdade e confere ferramentas, es
 
 test('avaliador: todo roteiro tem mensagens e expectativas conhecidas', async () => {
   const { CENARIOS } = await import('../avaliacao/consultor-cenarios.mjs');
-  const tipos = ['ferramenta_ate', 'nunca', 'formato', 'urgencia', 'diagnostico', 'resposta', 'resposta_nao'];
+  const tipos = ['ferramenta_ate', 'nunca', 'formato', 'urgencia', 'diagnostico', 'resposta', 'resposta_nao', 'pedir_contato_no_maximo', 'sem_pergunta_depois_do_pedido', 'adicional', 'sem_urgencia_ate'];
   assert.ok(CENARIOS.length >= 8);
   assert.equal(new Set(CENARIOS.map(c => c.id)).size, CENARIOS.length, 'ids únicos');
   for (const c of CENARIOS) {

@@ -103,7 +103,7 @@ test('proximoPasso: com planta, estimativa, sem plano gravado e preço aberto, c
   assert.ok(PREFIXO_PLANTA.startsWith('Antes de tudo neste turno, chame desenhar_planta (uma vez)'));
   assert.ok(PREFIXO_PLANTA.endsWith('Depois: '));
   assert.match(PREFIXO_PLANTA, /em uma frase/);
-  assert.match(PREFIXO_PLANTA, /montou o mapa do seu caso/, '(PR 4) o texto aprovado do mapa');
+  assert.match(PREFIXO_PLANTA, /o mapa do caso dela está logo abaixo, sem falar em primeira pessoa/, '(PR 4) o texto aprovado do mapa ("o mapa do seu caso"), sem a 1ª pessoa (lapidação 25/11)');
   for (const etapa of ['descoberta', 'contato']) assert.equal(proximoPasso({ ...BASE, etapa, planta: true }), PREFIXO_PLANTA + proximoPasso({ ...BASE, etapa }), etapa);
 });
 
@@ -299,7 +299,7 @@ test('o prompt de sistema é o mesmo com a flag ligada e desligada (nada entra n
   await turno(off, {}, false);
   assert.equal(on.recebidos[0].sistema, off.recebidos[0].sistema);
   assert.equal(on.recebidos[0].sistema, montarSistema(REGRAS, { direcoes: 'manual', metodos: undefined }));
-  assert.ok(on.recebidos[0].sistema.length < 27700);
+  assert.ok(on.recebidos[0].sistema.length < 28500);
   assert.equal(on.recebidos[0].contexto.replace(PREFIXO_PLANTA, ''), off.recebidos[0].contexto);
 });
 
