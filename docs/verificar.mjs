@@ -44,7 +44,9 @@ const ALVOS = [
      Mesmo celular, com a CPU 4x mais lenta e a rede 4G lenta (1,6 Mbps, 150 ms): um aparelho médio. Teto mais folgado que o do PC, de
      propósito: reprova só abaixo de 30 fps ou acima de 4,5 s de LCP (o "ruim" do Core Web Vitals começa em 4 s; a folga de 0,5 s é para o
      ruído da máquina). Uma falha isolada com LCP entre 4,5 e 5 s num alvo *-lento: medir de novo sozinho, como no ruído do desktop.
-     Vale contra produção e servidor local; atrás do Access (staging) a rede lenta não vale (o pedido passa pela rota do Playwright). */
+     Vale contra produção. No servidor LOCAL ele é PULADO: o servidor de docs/ não comprime nem usa HTTP/2, e com a rede lenta o LCP sai
+     em ~6 s por culpa do servidor, não do site (visto em 25/11); para forçar mesmo assim: LENTO_LOCAL=1. Atrás do Access (staging) a
+     rede lenta não vale (o pedido passa pela rota do Playwright). */
   ['/index.html',     'hub-lento',   CELULAR, { lento: true }],
   ['/sites.html',     'sites-lento', CELULAR, { lento: true }],
   ['/automacao.html', 'autom-lento', CELULAR, { lento: true }],
@@ -75,10 +77,11 @@ const navegador = await chromium.launch({ executablePath: EXEC, args: ['--use-gl
 let falhou = false, primeiro = true;
 
 for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exige3d = false, lento = false } = {}] of ALVOS) {
+  if (lento && /^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(BASE) && !process.env.LENTO_LOCAL) { console.log('PULA ' + nome.padEnd(11), 'só vale contra produção (o servidor local não comprime: LCP ~6 s por culpa dele); LENTO_LOCAL=1 força'); continue; }
   const ctx = await navegador.newContext(opcoes);
   const viaAccess = await autorizarContexto(ctx, BASE);   /* staging atras do Access: o token so vai nos pedidos do proprio staging (docs/acesso.mjs) */
   const page = await ctx.newPage();
-  if (lento && viaAccess) console.log('     aviso: ' + nome + ' com a rota do Access: só a CPU lenta vale, a rede lenta não (rode contra produção ou servidor local)');
+  if (lento && viaAccess) console.log('     aviso: ' + nome + ' com a rota do Access: só a CPU lenta vale, a rede lenta não (rode contra produção)');
   if (lento) {
     const cdp = await ctx.newCDPSession(page);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
