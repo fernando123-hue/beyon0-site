@@ -77,7 +77,7 @@ const navegador = await chromium.launch({ executablePath: EXEC, args: ['--use-gl
 let falhou = false, primeiro = true;
 
 for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exige3d = false, lento = false } = {}] of ALVOS) {
-  if (lento && /^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(BASE) && !process.env.LENTO_LOCAL) { console.log('PULA ' + nome.padEnd(11), 'só vale contra produção (o servidor local não comprime: LCP ~6 s por culpa dele); LENTO_LOCAL=1 força'); continue; }
+  if (lento && /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]|0\.0\.0\.0)(?:[:/]|$)/.test(BASE) && process.env.LENTO_LOCAL !== '1') { console.log('PULA ' + nome.padEnd(11), 'só vale contra produção (o servidor local não comprime: LCP ~6 s por culpa dele); LENTO_LOCAL=1 força'); continue; }
   const ctx = await navegador.newContext(opcoes);
   const viaAccess = await autorizarContexto(ctx, BASE);   /* staging atras do Access: o token so vai nos pedidos do proprio staging (docs/acesso.mjs) */
   const page = await ctx.newPage();
