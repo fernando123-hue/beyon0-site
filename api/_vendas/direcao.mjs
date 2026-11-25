@@ -89,7 +89,9 @@ export function resumoCurto(s) {
 
 /* Zero dado inventado: o número da seção "numeros" só fica se TODOS os grupos de dígitos dele aparecem no briefing (grupo inteiro: "1000" não vale
    por um telefone terminado em 1000). Senão vira espaço reservado. Só a geração passa o briefing; ajuste do cliente e fila manual não passam por aqui. */
-const gruposDeDigitos = v => String(v).normalize('NFKC').match(/\p{Nd}+/gu) || [];   /* NFKC + \p{Nd}: "１００" (largura total) conta como 100 */
+/* separador de milhar não separa o número: "1.000" e "1000" são o mesmo (vale nos dois lados da conferência) */
+const semMilhar = v => v.replace(/(?<=\d)[.,](?=\d{3}(?!\d))/g, '');
+const gruposDeDigitos = v => semMilhar(String(v).normalize('NFKC')).match(/\p{Nd}+/gu) || [];   /* NFKC + \p{Nd}: "１００" (largura total) conta como 100 */
 /* os VALORES de texto e número do briefing (as chaves e os ids técnicos não contam: a chave "q1" não autoriza "1 ano"); iterativo e com teto, porque o briefing é
    dado do visitante. A trava é uma heurística (grupo curto como "5" quase sempre aparece em algum endereço ou data); a primeira linha de defesa é o prompt. */
 const MAX_NOS_DO_BRIEFING = 5000;
@@ -103,9 +105,10 @@ function textosDoBriefing(briefing) {
   }
   return achados.join(' ');
 }
-/* true quando o texto tem número que o briefing não trouxe (o espaço reservado "[…]" nunca é número inventado) */
+/* true quando o texto tem número que o briefing não trouxe. O espaço reservado legítimo ("[Anos de oficina]") não tem dígito e passa por isso;
+   "[100%]" tem dígito e NÃO passa (a revisão técnica do PR achou que o atalho dos colchetes deixava o número inventado na tela) */
 function numeroInventado(texto, digitosDoBriefing) {
-  if (!digitosDoBriefing || /^\[[^\]]*\]$/.test(texto)) return false;
+  if (!digitosDoBriefing) return false;
   const grupos = gruposDeDigitos(texto);
   return grupos.length > 0 && !grupos.every(g => digitosDoBriefing.has(g));
 }

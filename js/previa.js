@@ -334,7 +334,7 @@
     var secoes = (Array.isArray(d.secoes) ? d.secoes : []).slice(0, 12).map(function (s) { return s && typeof s === 'object' ? s : {}; });
     var fica = botoesQueFicam(secoes), anterior = '';
     secoes.forEach(function (s, n) {
-      var sec = fica && !fica[n] && s.cta ? Object.assign({}, s, { cta: '' }) : s;
+      var sec = fica && !fica[n] && str(s.cta) ? Object.assign({}, s, { cta: '' }) : s;
       var r = comRitmo(sec, anterior);
       anterior = r.assinatura;
       raiz.appendChild(secao(sec, n === 0, d, r.itens));

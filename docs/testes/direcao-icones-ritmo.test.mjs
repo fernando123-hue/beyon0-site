@@ -85,6 +85,12 @@ test('número: só os VALORES do briefing valem (a chave q1 não autoriza "1 ano
   assert.equal(r.texto, '', 'o rótulo com número inventado sai (o placeholder do título fica)');
   assert.equal(t([{ titulo: '[Anos]', texto: 'Há 10 anos' }], { n: 'abriu há 10 anos' })[0].texto, 'Há 10 anos', 'rótulo com número do briefing fica');
   assert.equal(t([{ titulo: '[x] 500 [y]', texto: 'a' }], { n: 'nada' })[0].titulo, '[Número a confirmar]', 'colchetes soltos não escondem número');
+  assert.equal(t([{ titulo: '[100%]', texto: 'a' }], { n: 'nada' })[0].titulo, '[Número a confirmar]', 'tudo entre colchetes com dígito não escapa');
+  assert.equal(t([{ titulo: '[+300 clientes]', texto: 'a' }], { n: 'nada' })[0].titulo, '[Número a confirmar]', 'idem, com texto dentro');
+  assert.equal(t([{ titulo: '[Anos de oficina]', texto: 'a' }], { n: 'nada' })[0].titulo, '[Anos de oficina]', 'o espaço reservado sem dígito fica');
+  assert.equal(t([{ titulo: '1000 clientes', texto: 'a' }], { n: 'temos 1.000 clientes' })[0].titulo, '1000 clientes', 'milhar no briefing: 1.000 = 1000');
+  assert.equal(t([{ titulo: '1.000 clientes', texto: 'a' }], { n: 'temos 1000 clientes' })[0].titulo, '1.000 clientes', 'milhar no modelo: 1.000 = 1000');
+  assert.equal(t([{ titulo: '1.000 clientes', texto: 'a' }], { n: 'ligue 11 99999-0000' })[0].titulo, '[Número a confirmar]', 'o milhar não autoriza número solto');
   assert.equal(t([{ titulo: '１００%', texto: 'a' }], { n: 'nada' })[0].titulo, '[Número a confirmar]', 'dígitos de largura total contam');
   assert.equal(t([{ titulo: '100%', texto: 'a' }], {})[0].titulo, '[Número a confirmar]', 'briefing vazio: nenhum número vale');
   assert.equal(t([{ titulo: '10 anos', texto: 'a' }], 'texto solto')[0].titulo, '10 anos', 'briefing que não é objeto: sem conferência');
