@@ -1,7 +1,7 @@
 /* ==========================================================================
    A ROLAGEM DA CONVERSA NO CELULAR (dono, 25/11: "quando vamos rolar a tela na página do consultor, existe uma dificuldade na hora de
    rolar a tela porque conflita com a do site ... é necessário uma separação"; escolheu a opção A: "a conversa cresce junto com a página").
-   Até 899 px a conversa deixa de ser uma caixa com rolagem própria (css/orcamento.css): o dedo só rola UMA coisa, a página. No computador
+   Até 899 px a conversa deixa de ser uma caixa com rolagem própria (css/orcamento-palco.css): o dedo só rola UMA coisa, a página. No computador
    (>= 900 px) a caixa continua como era, ao lado do painel do preço.
    Quem decide é o CSS (o overflow-y calculado da caixa); este módulo só LÊ isso, e cada lugar que rolava a caixa pergunta aqui antes.
    Sem a caixa rolando (celular), "levar a fala ao topo" passa a mover a PÁGINA, com três cuidados contra o susto de a tela fugir:
@@ -135,16 +135,19 @@
     if (!botao) return;
     if (!fala || !fala.isConnected || porDentro()) { esconder(); return; }
     var u = topoUtil(), h = altura(), r = fala.getBoundingClientRect();
-    if (r.top >= u && r.top <= h - 48) { esconder(); return; }   /* (a fala entrou na tela: o aviso cumpriu o papel) */
+    var abaixo = r.top > h - 48, acima = r.bottom <= u + 8;
+    if (!abaixo && !acima) { esconder(); return; }   /* (qualquer parte da fala na área útil: o aviso cumpriu o papel, mesmo com a fala maior que a tela) */
     var seta = doc.getElementById('o-voltar-seta');
-    if (seta) seta.textContent = r.top > h ? '↓' : '↑';
+    if (seta) seta.textContent = abaixo ? '↓' : '↑';
     botao.hidden = false;
   }
   function irAFala() {
     var alvo = fala && fala.isConnected ? fala : null;
     if (!alvo) { var f = doc.querySelectorAll('#o-log .msg--agente'), i; for (i = f.length - 1; i >= 0 && !alvo; i--) if (visivel(f[i])) alvo = f[i]; }
+    var tinhaFoco = doc.activeElement === botao;
     esconder();
     if (!alvo || porDentro()) return;
+    if (tinhaFoco && typeof alvo.focus === 'function') { alvo.setAttribute('tabindex', '-1'); alvo.focus({ preventScroll: true }); }   /* (o botão sumiu com o foco nele: o foco segue para a fala, o leitor de tela a lê) */
     var y = alvoDe(alvo, topoUtil());
     if (y != null) { ultimo = { alvo: -1, quando: 0 }; rolarPara(y); }
   }
@@ -160,17 +163,34 @@
     if (c && typeof c.setAttribute === 'function') c.setAttribute('tabindex', porDentro() ? '0' : '-1');
   }
 
+  /* a caixa (computador) até o começo da última fala do Zero, a mesma conta de js/orcamento.js rolarConversa */
+  function caixaAoFim() {
+    var c = caixa(), f = doc.querySelectorAll('#o-log .msg--agente'), i, ultima = null;
+    if (!c) return;
+    for (i = f.length - 1; i >= 0 && !ultima; i--) if (visivel(f[i])) ultima = f[i];
+    if (!ultima) { c.scrollTop = c.scrollHeight; return; }
+    c.scrollTop = Math.max(0, Math.min(c.scrollHeight - c.clientHeight, c.scrollTop + ultima.getBoundingClientRect().top - c.getBoundingClientRect().top - FOLGA));
+  }
+
   function ligar(documento, janela) {
     if (!documento || !janela || typeof documento.getElementById !== 'function') return;
     doc = documento; win = janela;
     botao = doc.getElementById('o-voltar');
     if (botao) botao.addEventListener('click', irAFala);
     /* o 1º toque ou tecla da pessoa libera a rolagem automática (antes, a página só foi aberta e ninguém pediu para ela andar) */
-    var liberar = function () { tocou = true; doc.removeEventListener('pointerdown', liberar, true); doc.removeEventListener('keydown', liberar, true); };
-    doc.addEventListener('pointerdown', liberar, true);
-    doc.addEventListener('keydown', liberar, true);
+    var GESTOS = ['pointerdown', 'touchstart', 'click', 'keydown'];   /* (click sozinho: leitor de tela e comando de voz não mandam pointerdown) */
+    var liberar = function () { tocou = true; GESTOS.forEach(function (g) { doc.removeEventListener(g, liberar, true); }); };
+    GESTOS.forEach(function (g) { doc.addEventListener(g, liberar, true); });
     win.addEventListener('scroll', aoRolar, { passive: true });
-    win.addEventListener('resize', function () { ajustarFoco(); atualizarBotao(); });
+    var estavaDentro = porDentro();
+    var aoRedimensionar = function () {
+      var dentro = porDentro();
+      ajustarFoco(); atualizarBotao();
+      if (dentro && !estavaDentro) caixaAoFim();   /* (a caixa voltou, de 820 para 1180 px: ela nasce no começo, a pessoa estava no fim da conversa) */
+      estavaDentro = dentro;
+    };
+    win.addEventListener('resize', aoRedimensionar);
+    if (win.visualViewport && typeof win.visualViewport.addEventListener === 'function') win.visualViewport.addEventListener('resize', aoRedimensionar);
     ajustarFoco();
   }
 

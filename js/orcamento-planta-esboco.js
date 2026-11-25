@@ -94,7 +94,7 @@
       return true;
     }
     /* o esboço que acabou de nascer: a caixa rola sozinha até a última fala ficar no topo dela, com o cartão logo abaixo (como js/orcamento.js faz a
-       cada fala nova com o cartão na lista). Só a caixa; a página nunca. Depois de o esboço existir: antes, sem a altura dele, a caixa não tem o que
+       cada fala nova com o cartão na lista). No computador a caixa, no celular a página (js/orcamento-rolagem.js). Depois de o esboço existir: antes, sem a altura dele, a caixa não tem o que
        rolar e o navegador prende a rolagem em 0 (visto no Chromium em 12/11) */
     function alinharUltimaFala() {
       var caixa = $('o-log-caixa'), fala = st.item ? st.item.previousElementSibling : null;

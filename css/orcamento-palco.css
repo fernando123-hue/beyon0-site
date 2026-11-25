@@ -235,6 +235,7 @@ html.orc-retomando .orc-vitrine, html.orc-retomando .orc-contadores { display: n
    overflow para saber). No computador (>= 900 px) a caixa segue como era, ao lado do painel do preço */
 @media (max-width: 899px) {
   .orc-conversa .orc-log { max-height: none; overflow: visible; overscroll-behavior: auto; scroll-behavior: auto; scroll-snap-type: none; }
+  .orc-conversa .orc-log { overflow-x: clip; }   /* (a caixa antiga cortava o que fosse mais largo; a página não pode alargar, regra 10 do CLAUDE.md; o overflow-y segue visible) */
 }
 .orc-log__lista > li { scroll-snap-align: start; }
 .orc-log__lista > li:last-child { scroll-snap-align: start end; }

@@ -48,13 +48,13 @@ test('acompanhando: sem item anterior sim; com ele, só se ainda toca a tela (co
 
 /* ---------- com uma tela falsa ---------- */
 function tela({ overflowY = 'visible', anterior = { top: 500, bottom: 560 }, topoFala = 700, altura = 844, y = 0, max = 3000, reduzir = false } = {}) {
-  const ouvintes = {}, rolou = [];
+  const ouvintes = {}, rolou = [], janela = {}, pos = { top: topoFala }, estilo = { overflowY };
   const botao = { hidden: true, ouvintes: {}, addEventListener(t, f) { this.ouvintes[t] = f; } };
   const seta = { textContent: '↓' };
-  const caixa = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } };
+  const caixa = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, scrollTop: 0, scrollHeight: 900, clientHeight: 400, getBoundingClientRect: () => ({ top: 100 }) };
   const classes = (...c) => ({ contains: (x) => c.includes(x) });
   const falaAnterior = { previousElementSibling: null, getClientRects: () => [1], getBoundingClientRect: () => anterior };
-  const fala = { classList: classes('msg', 'msg--agente'), isConnected: true, previousElementSibling: anterior ? falaAnterior : null, getClientRects: () => [1], getBoundingClientRect: () => ({ top: topoFala, bottom: topoFala + 80 }) };
+  const fala = { classList: classes('msg', 'msg--agente'), isConnected: true, previousElementSibling: anterior ? falaAnterior : null, focada: false, setAttribute() {}, focus() { this.focada = true; }, getClientRects: () => [1], getBoundingClientRect: () => ({ top: pos.top, bottom: pos.top + 80 }) };
   const raiz = { scrollTop: 0, scrollHeight: max + altura, classList: classes(reduzir ? 'menos-movimento' : '') };
   const doc = {
     documentElement: raiz,
@@ -64,10 +64,10 @@ function tela({ overflowY = 'visible', anterior = { top: 500, bottom: 560 }, top
   };
   const win = {
     document: doc, innerHeight: altura, pageYOffset: y, visualViewport: null,
-    getComputedStyle: (el) => (el === caixa ? { overflowY } : { getPropertyValue: () => '64px' }),
-    matchMedia: () => ({ matches: false }), scrollTo(o) { rolou.push(o); }, addEventListener: () => {}, setTimeout: (f) => f(), requestAnimationFrame: (f) => f()
+    getComputedStyle: (el) => (el === caixa ? { overflowY: estilo.overflowY } : { getPropertyValue: () => '64px' }),
+    matchMedia: () => ({ matches: false }), scrollTo(o) { rolou.push(o); }, addEventListener: (t, f) => { janela[t] = f; }, setTimeout: (f) => f(), requestAnimationFrame: (f) => f()
   };
-  return { doc, win, fala, botao, seta, caixa, rolou, ouvintes };
+  return { doc, win, fala, botao, seta, caixa, rolou, ouvintes, janela, pos, estilo };
 }
 function ligada(opcoes, tocar = true) {
   const R = carregar(), t = tela(opcoes);
@@ -153,6 +153,64 @@ test('descerAte desce só o que falta para o fim aparecer, e não mexe se já es
   assert.equal(rolou[0].top, 100 + 1000 - (844 - 8), 'o fim do alvo encosta na folga de baixo');
 });
 
+test('quem aciona só por clique (leitor de tela, comando de voz) também libera a rolagem automática', () => {
+  for (const gesto of ['click', 'touchstart', 'keydown']) {
+    const t = ligada({ topoFala: 700 }, false);
+    t.ouvintes[gesto]();
+    t.R.levar(t.fala, t.fala);
+    assert.equal(t.rolou.length, 1, gesto);
+  }
+});
+
+test('botão "Zero respondeu": toque leva à fala, passa o foco a ela (não cai no body) e some', () => {
+  const t = ligada({ anterior: { top: -900, bottom: -700 }, topoFala: 1500 });
+  t.R.levar(t.fala, t.fala);
+  assert.equal(t.botao.hidden, false);
+  assert.equal(t.seta.textContent, '↓');
+  t.doc.activeElement = t.botao;
+  t.botao.ouvintes.click();
+  assert.equal(t.botao.hidden, true);
+  assert.equal(t.fala.focada, true, 'o foco segue para a fala');
+  assert.deepEqual(t.rolou[0], { top: 1500 - 120 - 8, left: 0, behavior: 'smooth' });
+});
+
+test('botão: some quando qualquer parte da fala (mesmo maior que a tela) chega à área útil; a seta aponta para o lado em que a fala ficou', () => {
+  const t = ligada({ anterior: { top: -900, bottom: -700 }, topoFala: 1500 });
+  t.R.levar(t.fala, t.fala);
+  assert.equal(t.botao.hidden, false);
+  t.pos.top = -400;   /* a pessoa rolou além: a fala (80 px) ficou acima da tela */
+  t.janela.scroll();
+  assert.equal(t.botao.hidden, false);
+  assert.equal(t.seta.textContent, '↑');
+  t.pos.top = 300;
+  t.janela.scroll();
+  assert.equal(t.botao.hidden, true, 'a fala está na área útil');
+  t.pos.top = -2000;   /* uma fala mais alta que a tela, a pessoa no meio dela: nada de botão sobre o texto */
+  t.fala.getBoundingClientRect = () => ({ top: -2000, bottom: 600 });
+  t.R.levar(t.fala, t.fala);
+  t.janela.scroll();
+  assert.equal(t.botao.hidden, true);
+});
+
+test('só uma fala nova do Zero merece o botão (a fala do visitante, não)', () => {
+  const t = ligada({ anterior: { top: -900, bottom: -700 }, topoFala: 1500 });
+  t.fala.classList = { contains: (c) => c === 'msg--visitante' };
+  t.R.levar(t.fala, t.fala);
+  assert.equal(t.botao.hidden, true);
+});
+
+test('virar computador (>= 900 px) com a conversa longa: a caixa volta no fim da conversa, não no começo; e o botão some', () => {
+  const t = ligada({ anterior: { top: -900, bottom: -700 }, topoFala: 1500 });
+  t.R.levar(t.fala, t.fala);
+  assert.equal(t.botao.hidden, false);
+  t.estilo.overflowY = 'auto';
+  t.pos.top = 400;
+  t.janela.resize();
+  assert.equal(t.caixa.attrs.tabindex, '0');
+  assert.equal(t.botao.hidden, true);
+  assert.equal(t.caixa.scrollTop, 400 - 100 - 8, 'a caixa desce até a última fala (topo dela 400, topo da caixa 100, folga 8)');
+});
+
 /* ---------- a fiação ---------- */
 test('o CSS tira a rolagem própria da conversa até 899 px e deixa no computador; o botão some no computador e não usa sombra nem desfoque', () => {
   const css = lerTexto('css/orcamento-palco.css');
@@ -165,7 +223,7 @@ test('o CSS tira a rolagem própria da conversa até 899 px e deixa no computado
 
 test('o HTML tem o botão escondido, no corpo da página (fora de qualquer caixa transformada), e o script antes do palco', () => {
   const html = lerTexto('orcamento.html');
-  assert.match(html, /<button class="orc-voltar" id="o-voltar" type="button" hidden>/);
+  assert.match(html, /<button class="orc-voltar" id="o-voltar" type="button" aria-label="Ir até a resposta do Zero" hidden>/);
   assert.match(html, /<span id="o-voltar-seta" aria-hidden="true">/, 'a seta é enfeite: o leitor de tela lê só o texto');
   assert.ok(html.indexOf('id="o-voltar"') > html.indexOf('</footer>'), 'o botão fica depois do rodapé, direto no <body>');
   assert.match(html, /orcamento-rolagem\.js" defer><\/script>\s*<script src="js\/orcamento-palco\.js"/);
@@ -176,10 +234,10 @@ test('quem rolava a caixa pergunta primeiro à página: conversa, toques, cartã
     ['js/orcamento-planta.js', 'BZOrcRolagem.descerAte(a)'], ['js/orcamento-planta-esboco.js', 'BZOrcRolagem.levar(fala, fala)'], ['js/orcamento-palco.js', 'BZOrcRolagem.porDentro()']]) {
     assert.ok(lerTexto(arq).includes(trecho), arq + ' deveria chamar ' + trecho);
   }
-  assert.match(lerTexto('js/orcamento.js'), /rolarConversa\(ultima, true\)/, 'a conversa refeita não move a página');
+  assert.match(lerTexto('js/orcamento.js'), /rolarConversa\(ultima, retomando\)/, 'só a chegada com a conversa salva fica quieta');
 });
 
 test('o módulo não usa innerHTML nem estilo inline (CSP) e só escreve texto fixo no botão', () => {
   const js = lerTexto('js/orcamento-rolagem.js').replace(/\/\*[\s\S]*?\*\//g, '');
-  assert.doesNotMatch(js, /innerHTML|insertAdjacentHTML|\.style\./);
+  assert.doesNotMatch(js, /innerHTML|insertAdjacentHTML|\.style\.|\beval\b|new Function|\bfetch\b|localStorage|sessionStorage|document\.cookie|\blocation\b/);
 });
