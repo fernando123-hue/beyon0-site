@@ -33,13 +33,14 @@ test('o registro: sigla da lista, região e número; normalizado; o resto é des
   assert.equal(limparAtualizacao({ negocio: { nome: 'Clínica', registro: 'ligue 21 99999-0000' } }).negocio.registro, undefined);
 });
 
-test('o Zero ouve as regras do conselho e o pedido do registro (uma vez, sem insistir), em saúde e na advocacia', () => {
+test('o Zero ouve as regras do conselho e NÃO pede o número do registro na conversa (lapidação 25/11: vem depois do pedido), em saúde e na advocacia', () => {
   for (const [texto, sigla] of [['sou dentista', 'CRO'], ['clínica de fisioterapia', 'CREFITO'], ['sou advogado', 'OAB'], ['sou médica', 'CRM']]) {
     const a = avisoRegulado(nichoRegulado(texto));
     assert.ok(a.regras_do_conselho && a.regras_do_conselho.length > 40, texto);
     assert.match(a.registro, new RegExp(sigla));
-    assert.match(a.registro, /UMA vez/);
-    assert.match(a.registro, /sem insistir/);
+    assert.match(a.registro, /^Não peça na conversa o número do registro/, 'a conversa real pediu o CREFITO cedo e duas vezes (25/11)');
+    assert.match(a.registro, /depois do pedido/);
+    assert.doesNotMatch(a.registro, /pergunte/i);
   }
   assert.match(avisoRegulado(nichoRegulado('sou médica')).regras_do_conselho, /PODEM aparecer/, 'o CFM deixa o valor da consulta');
 });
