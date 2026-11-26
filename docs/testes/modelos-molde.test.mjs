@@ -54,3 +54,15 @@ test('fila manual: a identidade fixada diz se a direção pode usar o molde', as
   assert.equal(p.direcoes.filter(d => d.identidade_fixada.molde_x_nao_y === 'no máximo um título').length, 1);
   assert.equal(p.direcoes.filter(d => d.identidade_fixada.molde_x_nao_y === 'nenhum título').length, 2);
 });
+
+test('molde: independe do tema (revisão do #271: com os bits do mesmo hash, o molde caía no escuro em 50% das vezes)', () => {
+  let comMolde = 0, escuroComMolde = 0;
+  for (let k = 0; k < 6000; k++) for (const t of tres('pedido-' + k)) if (t.contraste) { comMolde++; if (t.tema === 'escuro') escuroComMolde++; }
+  const p = escuroComMolde / comMolde;
+  assert.ok(p > 0.29 && p < 0.38, 'P(escuro | molde) = ' + p.toFixed(3) + ' (esperado ~0,33)');
+});
+
+test('titulosNoMolde: hífen de palavra composta não é contraste; travessão e hífen com espaço são; "nao" sem acento conta', () => {
+  assert.equal(titulosNoMolde({ secoes: [{ titulo: 'Pós-não sei de nada' }] }), 0);
+  assert.equal(titulosNoMolde({ secoes: [{ titulo: 'Sem fila - não esperamos ninguém' }, { titulo: 'Sem fila — não esperamos' }, { titulo: 'Bolo fresco, nao congelado' }] }), 3);
+});
