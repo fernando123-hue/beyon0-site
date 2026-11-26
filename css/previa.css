@@ -68,7 +68,6 @@
 .pv-hero--faixa .pv-rotulo::before { background: var(--pv-dest-texto); }
 .pv-hero--faixa .pv-btn { background: var(--pv-dest-texto); color: var(--pv-dest); }
 .pv-hero--faixa .pv-arte { background: transparent; border-color: var(--pv-dest-texto); }
-.pv-hero--faixa .pv-arte__leg { background: var(--pv-dest); color: var(--pv-dest-texto); }
 
 .pv-arte { position: relative; overflow: hidden; width: 100%; height: 300px; background: var(--pv-sup); border-top: 2px solid var(--pv-texto); --pv-a-forte: var(--pv-dest); --pv-a-fraco: var(--pv-texto); --pv-a-cheio: var(--pv-dest); --pv-a-vazio: var(--pv-texto); }
 .pv-hero--faixa .pv-arte { --pv-a-forte: var(--pv-dest-texto); --pv-a-fraco: var(--pv-dest-texto); --pv-a-cheio: var(--pv-dest-texto); --pv-a-vazio: var(--pv-dest-texto); }
@@ -78,7 +77,6 @@
 .pv-arte .a-fraco { fill: none; stroke: var(--pv-a-fraco); stroke-opacity: .3; stroke-width: 1.2; }
 .pv-arte .a-cheio { fill: var(--pv-a-cheio); stroke: none; }
 .pv-arte .a-vazio { fill: none; stroke: var(--pv-a-vazio); stroke-width: 2; }
-.pv-arte__leg { position: absolute; left: 20px; bottom: 14px; padding: 4px 8px; background: var(--pv-fundo); color: var(--pv-texto); font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
 
 .pv-itens { list-style: none; display: grid; gap: 14px; }
 .pv-item { padding: 18px; border-radius: var(--pv-raio); background: var(--pv-fundo); border: 1px solid color-mix(in srgb, var(--pv-texto) 10%, transparent); display: flex; flex-direction: column; gap: 6px; }
