@@ -93,7 +93,7 @@
     /* compacto: o quadro fica com o que sobra da caixa depois do rótulo e da legenda, medidos já na página (a legenda tem 63 px, 3 linhas, abaixo de 960 e 42 acima) */
     raiz.appendChild(card);
     var fora = op.compacto > 0 ? card.offsetHeight - quadro.offsetHeight : 0;   /* (só mede no compacto: no celular não força o layout) */
-    var g = geometria(W, op.compacto > 0 ? Math.max(1, op.compacto - (fora > 0 ? fora : 76)) : 0);
+    var g = geometria(W, op.compacto > 0 ? Math.max(1, op.compacto - (fora > 0 ? fora : 97)) : 0);
     var cy = function (i) { return g.estacoes[i].cy; }, LEDY = g.led.cy, C = g.chip;
     quadro.style.height = g.H + 'px';
     var svg = S('svg', { viewBox: '0 0 ' + g.W + ' ' + g.H, width: g.W, height: g.H, 'aria-hidden': 'true', focusable: 'false' }, quadro, 'lv-svg');

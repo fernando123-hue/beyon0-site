@@ -131,10 +131,10 @@ test('o relógio solta as animações canceladas (não guarda para sempre o que 
 });
 
 /* achado 18 (26/11): no computador o cartão do esboço (rótulo 24 + quadro 408 + legenda 74 = 506 px) não cabia na caixa da conversa, que lá ROLA e
-   corta (min(60vh, 620px): 459 px numa tela de 768, 431 de conteúdo tirando o respiro de 14 + 14). Medido em 1366x768: 76 px do quadro e a legenda
+   corta (era min(60vh, 620px): 459 px numa tela de 768, 431 de conteúdo tirando o respiro de 14 + 14; desde 26/11 é 68vh, 492 úteis). Medido em 1366x768: 76 px do quadro e a legenda
    inteira fora, e o objetivo preso na fila (fora da vista da caixa) mesmo depois de o mapa ficar pronto na faixa */
 /* (26/11, dono: a legenda sem o rótulo repetido; no computador ela tem 2 linhas, 42 px, mais a margem de 10) */
-const CAIXA_768 = 459 - 28, ROTULO = 24, LEGENDA_COMPUTADOR = 42 + 10;
+const CAIXA_768 = 520 - 28, ROTULO = 24, LEGENDA_COMPUTADOR = 42 + 10;   /* (a caixa de 68vh numa janela de 768: 492 úteis, medido no E2E) */
 test('computador: o esboço compacto (a caixa que rola e corta) cabe inteiro na caixa de uma janela de 768 de alto; onde a caixa não corta, nada muda', () => {
   for (const larg of [470, 535, 620]) {
     const g = ambiente().E.geometria(larg, CAIXA_768 - ROTULO - LEGENDA_COMPUTADOR);
@@ -186,7 +186,7 @@ test('marcarPronta com uma estação no meio e o esboço fora da tela (o relógi
   esb.parar();
 });
 
-/* revisão do achado 18: num notebook 1366x768 de verdade (o navegador e a barra de tarefas) a janela útil tem ~650 px e a caixa, 60vh, ~362 úteis: o
+/* revisão do achado 18: num notebook 1366x768 de verdade (o navegador e a barra de tarefas) a janela útil tem ~650 px e a caixa, com 60vh, ~362 úteis (412 com 68vh): o
    cartão de 428 voltava a cortar. O passo do compacto sai da altura útil da caixa, entre 44 e 36; o chip encolhe junto, sem encostar no vizinho */
 test('computador: o passo do compacto sai da altura da caixa (44 a 36); se nem no 36 couber, fica no 36, com o objetivo ainda à vista', () => {
   const { E } = ambiente();
@@ -243,6 +243,6 @@ test('a legenda é só a frase: sem o rótulo da estação (o nó já diz qual �
   esb.parar();
   const css = fs.readFileSync(new URL('../../css/planta-esboco.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.ok(!/lv-leitura__tag/.test(css), 'nada do rótulo no CSS');
-  assert.match(css, /\.lv-leitura\s*\{[^}]*\bheight:\s*63px/, 'celular: 3 linhas de 21 px');
-  assert.match(css, /@media \(min-width: 960px\)\s*\{[^@]*\.lv-leitura\s*\{\s*height:\s*42px/, 'computador: 2 linhas');
+  assert.match(css, /\.lv-leitura\s*\{[^}]*\bheight:\s*calc\(3em \* 1\.5\)/, 'celular: 3 linhas (63 px na fonte de 14, e acompanha a fonte maior)');
+  assert.match(css, /@media \(min-width: 960px\)\s*\{[^@]*\.lv-leitura\s*\{\s*height:\s*calc\(2em \* 1\.5\)/, 'computador: 2 linhas');
 });

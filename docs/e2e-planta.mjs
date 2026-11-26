@@ -10,7 +10,7 @@
      - "Quero ajustar algo" foca a caixa com a dica do mapa;
      - o AJUSTE: um estado forjado na rede (versão 2 com um nó "ajustado") faz o nó novo aparecer com a marca, sem refazer a entrada.
    Ligada, computador durante a conversa (1366x768, 1366x650, 1280x650 e 930x768): o esboço cabe INTEIRO na caixa (de 68vh) e a caixa de digitar
-   não desce além do que descia com 60vh.
+   não desce além de onde ficava com 60vh (medido: o fundo dela em 739, 620, 620 e 713).
    Ligada, computador (1280x900 e 1366x768): o esboço cabe na caixa e, com o mapa pronto, deixa "em construção" (achado 18); o botão "Ver a planta do seu site" aparece sob a fala do Zero e abre a faixa com o mapa, com o foco no título.
    Regressão do v2: um plano v2 forjado na rede desenha com o módulo antigo (.plv-quadro).
    Desligada: nada da planta é baixado e a conversa é a de sempre.
@@ -188,7 +188,8 @@ for (const [larg, alt] of [[1366, 768], [1366, 650], [1280, 650], [930, 768]]) {
      620 e o Enviar já terminava abaixo da dobra (678); em 768, 635 a 739 e o Enviar a 797 */
   const digitar = await page.evaluate(() => { const r = document.getElementById('o-texto').getBoundingClientRect(), b = document.querySelector('#o-form button[type="submit"]'); return { topo: Math.round(r.top), fundo: Math.round(r.bottom), enviar: b ? Math.round(b.getBoundingClientRect().bottom) : null, janela: innerHeight }; });
   console.log('       a caixa de digitar: ' + JSON.stringify(digitar));
-  ok(digitar.topo + 48 <= digitar.janela, 'a caixa de digitar começa à vista (' + JSON.stringify(digitar) + ')');
+  const FUNDO_60VH = { '1366x768': 739, '1366x650': 620, '1280x650': 620, '930x768': 713 }[larg + 'x' + alt];
+  ok(digitar.topo + 48 <= digitar.janela && digitar.fundo <= FUNDO_60VH + 2, 'a caixa de digitar começa à vista e não desce além de onde ficava com 60vh (' + FUNDO_60VH + ')');
   ok(!!esb && /em construção/.test(esb.kicker), 'durante a conversa, "em construção"');
   await foto(page.locator('#o-log .lv-item'), 'e2e-' + larg + 'x' + alt + '-conversa');
   ok(await lateral(page), 'sem rolagem lateral');
@@ -206,16 +207,21 @@ for (const [larg, alt] of [[1366, 768], [1366, 650], [1280, 650], [930, 768]]) {
   const frases = new Set([...fonte.matchAll(/frase: '([^']+)'/g)].map((m) => m[1]).concat(['A planta começa quando você me contar do seu negócio.'],
     ['tratamento', 'serviço'].map((c) => 'Quem chega acha logo o ' + c + ' que procura, explicado em palavras simples.')));
   const ks = Object.keys(PELO);
-  for (const a of ks) { frases.add('A pessoa chega ' + PELO[a] + '.'); for (const b of ks) for (const c of ks) if (new Set([a, b, c]).size === 3) frases.add('A pessoa chega ' + juntar([PELO[a], PELO[b], PELO[c]], 'ou') + '.'); }
+  for (const a of ks) {
+    frases.add('A pessoa chega ' + PELO[a] + '.');
+    for (const b of ks) { if (b !== a) frases.add('A pessoa chega ' + juntar([PELO[a], PELO[b]], 'ou') + '.'); for (const c of ks) if (new Set([a, b, c]).size === 3) frases.add('A pessoa chega ' + juntar([PELO[a], PELO[b], PELO[c]], 'ou') + '.'); }
+  }
   for (const [larg, alt] of [[320, 640], [390, 844], [930, 768], [1366, 650]]) {
     console.log('\n== a legenda do esboço, ' + larg + 'x' + alt + ' (' + frases.size + ' frases) ==');
     const { ctx, page } = await abrir(ON, { larg, alt });
     await page.goto(ON + '/orcamento', { waitUntil: 'load', timeout: 90000 });
     await esperarToques(page);
     await page.addStyleTag({ url: '/css/planta-esboco.css' });
+    /* o semViuva do próprio módulo (o esboço e o que ele precisa, na ordem de js/orcamento-planta-esboco.js) */
+    for (const js of ['planta-pecas', 'mapa-saber', 'planta-cresce', 'planta-relogio', 'planta-esboco']) if (!(await page.evaluate((n) => !!document.querySelector('script[src$="/' + n + '.js"]'), js))) await page.addScriptTag({ url: '/js/' + js + '.js' });
     await page.evaluate(() => document.fonts.ready);
     const r = await page.evaluate(({ lista }) => {
-      const semViuva = (t) => { const s = String(t || '').replace(/\s+$/, ''), m = s.match(/(\S+)\s+(\S+)$/); if (!m || s.split(/\s+/).length < 3 || m[1].length + m[2].length > 17) return s; return s.slice(0, s.length - m[0].length) + m[1] + '\u00a0' + m[2]; };
+      const semViuva = window.BZPlantaEsboco.semViuva;
       const li = document.createElement('li'); li.className = 'lv-item'; li.setAttribute('data-fica', '');
       const sec = document.createElement('section'); sec.className = 'lv'; li.appendChild(sec);
       const p = document.createElement('p'); p.className = 'lv-leitura'; sec.appendChild(p);
