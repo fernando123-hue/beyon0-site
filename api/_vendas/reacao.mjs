@@ -19,7 +19,11 @@ export const LIMITES_REACAO = Object.freeze({
   por_conversa: 12,
   dia_usd: 1,
   freio_visitante: { max: 30, janelaMs: 10 * 60e3 },
-  freio_ip: { max: 60, janelaMs: 10 * 60e3 }
+  freio_ip: { max: 60, janelaMs: 10 * 60e3 },
+  /* (revisão de segurança do PR #274, A1 e A4) a reação só gasta enquanto o dia do Zero INTEIRO (banco, todos os isolados) está abaixo de 40% do
+     TETOS.dia_usd: quem abusar dela não come o teto da venda. E a chamada que estoura o prazo sem custo informado conta um mínimo no teto do isolado */
+  fatia_do_dia: 0.4,
+  custo_minimo_usd: 0.0003
 });
 export const ANOTACAO_MAX = 90;
 
@@ -58,6 +62,12 @@ const NOMES_LIVRES = new Set(['zero', 'ia', 'whatsapp', 'instagram', 'google', '
 /* promessa nossa: a anotação descreve o que a PESSOA quer, nunca o que a Beyon garante */
 const PROMESSA = /\b(garant\w*|prometo|prometemos|com certeza|certeza de|sem falta|resultado certo)\b|100\s*%/i;
 const ENFEITE = /[!?]|\p{Extended_Pictographic}/u;
+/* (revisão de segurança do PR #274, A2) o que a anotação, atribuída ao "Zero (IA)", nunca diz em minúsculas: oferta (grátis, desconto), prazo, promessa de
+   resultado, a própria marca, ofensa e link. Medido com o Haiku real em 26/11: "orçamento grátis" e "promessa de entrega para amanhã" passavam; as 30 frases
+   reais não usam nenhuma destas palavras. (A fidelidade de vocabulário, 70% das palavras no texto, foi medida e NÃO entrou: derrubava 3 das 30 reais e
+   deixava passar 3 dos 6 ataques) */
+/* (o \b do JavaScript só conhece letra sem acento: "amanhã" escapava; a fronteira aqui é a de letra Unicode) */
+const OFERTA = /(?<![\p{L}\d])(?:gr[aá]tis|gratuit\p{L}*|sem\s+custo|de\s+gra[cç]a|desconto\p{L}*|promo[cç]\p{L}*|promess\p{L}*|assegur\p{L}*|dobr(?:ar|a|o|amos)|triplic\p{L}*|multiplic\p{L}*|vamos|iremos|faremos|prazo\p{L}*|amanh[aã]|beyon\p{L}*|golp\p{L}*|fraud\p{L}*|p[eé]ssim\p{L}*|lixo|merda|porra|caralh\p{L}*|idiota\p{L}*|otári\p{L}*|www)(?![\p{L}\d])|(?<![\p{L}\d])[\p{L}\d-]+\.(?:com|br|net|org|io|app|site|online|store|xyz)(?![\p{L}\d])|https?:/iu;
 
 /* todo número e todo nome próprio (palavra com maiúscula que não abre a frase) precisa estar no texto digitado */
 export function fielAoTexto(anotacao, texto) {
@@ -79,7 +89,7 @@ export function conferirReacao(json, texto) {
   const a = semInvisiveis(json.anotacao).replace(/\s+/g, ' ').trim().replace(/[.;,]+$/, '');
   if (!a || a.length > ANOTACAO_MAX) return { anotacao: null, motivo: 'tamanho' };
   if (/[<>]/.test(a) || ENFEITE.test(a)) return { anotacao: null, motivo: 'forma' };
-  if (semPrecoNoTexto(a) !== a.normalize('NFKC') || PROMESSA.test(a)) return { anotacao: null, motivo: 'trava' };
+  if (semPrecoNoTexto(a) !== a.normalize('NFKC') || PROMESSA.test(a) || OFERTA.test(a)) return { anotacao: null, motivo: 'trava' };
   if (semNegarSerIA(a).trocou) return { anotacao: null, motivo: 'trava' };
   if (!fielAoTexto(a, texto)) return { anotacao: null, motivo: 'fidelidade' };
   return { anotacao: a, motivo: 'ok' };

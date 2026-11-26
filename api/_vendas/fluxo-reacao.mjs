@@ -44,21 +44,23 @@ export function criarAcoesDaReacao({ ia, env, custoDoDia, visitante, donoDaConve
     if (!reacaoLigada(env) || !ia) return sem(seq, 'desligada');
     const vid = await visitante(request);
     exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
+    /* (revisão de segurança do PR #274, A3) o freio por visitante antes da ida ao banco: passado dele, nenhuma consulta */
+    if (freios.visitante(vid)) return sem(seq, 'limite');
     await donoDaConversa(vid, corpo.conversa_id, etapas);
     const texto = textoParaReacao(corpo?.texto);
     if (!texto) return sem(seq, 'trava');
-    if (freios.visitante(vid) || freios.ip(request ? ipDe(request) : 'sem-ip') || freios.conversa(corpo.conversa_id)) return sem(seq, 'limite');
+    if (freios.ip(request ? ipDe(request) : 'sem-ip') || freios.conversa(corpo.conversa_id)) return sem(seq, 'limite');
     if (gasto.de(hoje()) >= LIMITES_REACAO.dia_usd) return sem(seq, 'teto');
     /* (revisão do PR #274, achado 2) o teto de US$ 1 acima é do isolado; o do Zero inteiro (TETOS.dia_usd, lido do banco como em dentroDoCusto) vale
        para todos os isolados: bateu, a reação some antes do Zero. Consulta que falha = sem reação (a reação é enfeite, na dúvida não gasta) */
     const dia = await Promise.resolve().then(() => custoDoDia()).catch(() => NaN);
-    if (!(Number(dia) < TETOS.dia_usd)) return sem(seq, 'teto');
+    if (!(Number(dia) < LIMITES_REACAO.fatia_do_dia * TETOS.dia_usd)) return sem(seq, 'teto');
     const t0 = Date.now();
     let r;
     try { r = await ia.mensagem(montarPedidoReacao(texto)); }
     catch (e) {
       const custo = (e && e.custo_usd) || 0;
-      gasto.somar(hoje(), custo);
+      gasto.somar(hoje(), Math.max(custo, LIMITES_REACAO.custo_minimo_usd));
       registrar(corpo.conversa_id, vid, custo);
       log({ nivel: 'aviso', evento: 'reação', motivo: 'prazo', ms: Date.now() - t0, seq, erro: e instanceof ErroIA ? e.motivo : 'interno', request_id: requestId });
       return sem(seq, 'prazo');

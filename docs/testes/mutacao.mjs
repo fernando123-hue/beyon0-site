@@ -1066,7 +1066,7 @@ export const SABOTAGENS = [
   { nome: '(mapa vivo 1b) a anotação sem a conferência de fidelidade (nome e número que ela não digitou passam)', fonte: 'api/_vendas/reacao.mjs', testes: ['docs/testes/reacao.test.mjs'],
     de: "if (!fielAoTexto(a, texto)) return { anotacao: null, motivo: 'fidelidade' };", para: '/* sabotagem: sem fidelidade */' },
   { nome: '(mapa vivo 1b) a anotação sem a trava de preço e promessa', fonte: 'api/_vendas/reacao.mjs', testes: ['docs/testes/reacao.test.mjs'],
-    de: "if (semPrecoNoTexto(a) !== a.normalize('NFKC') || PROMESSA.test(a)) return { anotacao: null, motivo: 'trava' };", para: '/* sabotagem: sem trava */' },
+    de: "if (semPrecoNoTexto(a) !== a.normalize('NFKC') || PROMESSA.test(a) || OFERTA.test(a)) return { anotacao: null, motivo: 'trava' };", para: '/* sabotagem: sem trava */' },
 ];
 
 /* MUTACAO_FATIA=i/N (CI em paralelo): a rodada de N máquinas, cada uma com a sua fatia. A fatia i fica com as sabotagens de
