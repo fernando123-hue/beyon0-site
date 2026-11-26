@@ -50,8 +50,19 @@
     total.appendChild(K.el('span', 'orc-xz__total-rotulo', 'Total'));
     total.appendChild(K.el('span', '', ' '));   /* (o espaço que o leitor de tela lê entre a palavra e o número; o vão à vista é do CSS) */
     total.appendChild(K.el('b', 'orc-xz__total-valor'));
+    /* (lapidação 25/11) a entrada de agora ao lado do total: a fala do Zero de antes do toque fica com o valor de antes */
+    total.appendChild(K.el('span', 'sr-only', '. '));   /* (revisão técnica do #252: o leitor de tela lia "R$ 8.350entrada") */
+    total.appendChild(K.el('span', 'orc-xz__total-entrada'));
     erro.setAttribute('role', 'alert');
-    li.appendChild(fala); li.appendChild(grupo); li.appendChild(total); li.appendChild(erro);
+    /* (lapidação 25/11, auditoria da tela: no celular o "Quero os três modelos" ficava a ~1.400 px, depois do radar) o mesmo pedido, aqui,
+       logo abaixo do total que vale: um toque abre os passos (o evento é o do botão de fora, js/orcamento-perguntas.js) */
+    var quero = K.el('button', 'btn btn--primary orc-xz__quero', 'Quero os três modelos');
+    quero.type = 'button';
+    quero.addEventListener('click', function () { doc.dispatchEvent(new CustomEvent('bz:quero-com-zero')); });
+    li.appendChild(fala); li.appendChild(grupo); li.appendChild(total); li.appendChild(erro); li.appendChild(quero);
+    s.quero = quero;
+    /* (revisão técnica do #252) o bloco que nasce com o pedido já começado não traz um "Quero" morto */
+    if (window.BZPedido && typeof window.BZPedido.emCurso === 'function' && window.BZPedido.emCurso()) quero.hidden = true;
     K.inserir(li);
     li.setAttribute('data-toque-tardio', '');   /* (sempre depois das falas do servidor, também quando a página as redesenha) */
     s.li = li; s.grupo = grupo; s.total = total; s.erro = erro;
@@ -90,6 +101,7 @@
     s.li.hidden = !extras.length;
     esperando();   /* (um cartão novo nasce no mesmo estado dos outros) */
     if (r.total != null) mostrarTotal(dinheiro(r.total));
+    s.total.querySelector('.orc-xz__total-entrada').textContent = r.entrada != null && r.total != null ? 'Entrada para destravar: ' + dinheiro(r.entrada) : '';
     s.total.hidden = r.total == null;
   }
   /* o número novo assenta com um passo curto (só transform/opacity, desligado com movimento reduzido, css/orcamento-extras-zero.css) */
@@ -158,7 +170,10 @@
     if (s.travado || !s.li) return;
     s.travado = true;
     Object.keys(s.cartoes).forEach(function (k) { s.cartoes[k].botao.disabled = true; });
+    if (s.quero) s.quero.hidden = true;
   }
+  /* (lapidação 25/11) o pedido começou (passos abertos): o "Quero" daqui sai, como o de fora (js/orcamento.js) */
+  doc.addEventListener('bz:passo-aberto', function () { if (s.quero) s.quero.hidden = true; });
 
   window.BZExtrasZero = {
     /* a página (js/orcamento.js) chama a cada estado novo e quando o valor é liberado. g.reler: relê o estado depois de um toque que mudou o preço */

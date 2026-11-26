@@ -57,7 +57,8 @@ function sugestoes(regras, fatores, toques) {
     const valor = Math.abs(outro.valor_total - atual.valor_total);
     return valor > 0 ? { chave: s.chave, nome: s.nome, frase: s.frase, valor, incluido, indicado: s.indicado } : null;
   }).filter(Boolean);
-  return { total: atual.valor_total, extras };
+  /* (lapidação 25/11) a entrada nova junto do total: a fala antiga do Zero fica com o valor de antes, e o bloco diz os dois números de agora */
+  return { total: atual.valor_total, entrada: atual.sinal, extras };
 }
 
 export function criarAcoesDosExtras({ banco, visitante, estado, donoDaConversa, cartao }) {

@@ -239,8 +239,9 @@ test('ligar: escuta a resposta (bz:respostas) e o radar (bz:radar); só escreve 
 test('o módulo do palco escreve só por textContent; o radar avisa o palco com o número e o valor que ELE já mostra', () => {
   const fonte = semComentario(lerTexto('js/orcamento-palco.js'));
   assert.doesNotMatch(fonte, /innerHTML|insertAdjacentHTML|setAttribute\(\s*['"]style/);
-  /* o único estilo por JS é a folga embaixo da lista da conversa (por evento, nunca por quadro; CLAUDE.md permite el.style) */
-  assert.deepEqual([...new Set(fonte.match(/\w+\.style\.\w+/g) || [])], ['lista.style.paddingBottom']);
+  /* os únicos estilos por JS: a folga embaixo da lista da conversa e o top da coluna da direita mais alta que a tela (lapidação 25/11),
+     por evento e nunca por quadro (CLAUDE.md permite el.style) */
+  assert.deepEqual([...new Set(fonte.match(/\w+\.style\.\w+/g) || [])], ['lista.style.paddingBottom', 'a.style.top']);
   const radar = semComentario(lerTexto('js/orcamento-escopo.js'));
   assert.match(radar, /new CustomEvent\('bz:radar', \{ detail: \{ integracoes: st\.dims\.integracoes\.n, valor: st\.valor \} \}\)/);
 });

@@ -49,7 +49,8 @@ test('as sugestões: 2 ou 3 extras do ramo, com o quanto cada um soma ao total (
   assert.equal(r.status, 200, JSON.stringify(r.corpo));
   assert.deepEqual(r.corpo.extras.map(x => x.chave), ['agendamento', 'textos', 'imagens'], 'saúde: agendamento, textos e imagens (as sugestões do catálogo)');
   assert.equal(r.corpo.total, 7900);
-  const por = Object.fromEntries(r.corpo.extras.map(x => [x.chave, x]));
+  assert.equal(Number(r.corpo.entrada), 3160, 'a entrada de agora (40%) vem junto do total, calculada pelo servidor');
+  const por =Object.fromEntries(r.corpo.extras.map(x => [x.chave, x]));
   assert.equal(por.agendamento.valor, 450);
   assert.equal(por.imagens.valor, 250);
   assert.equal(por.textos.valor, 1750, 'textos são por página: as 5 do institucional, o que de fato soma ao total');
@@ -73,6 +74,8 @@ test('incluir e tirar: o servidor recalcula, regrava a estimativa (a que o pedid
   assert.equal(com.status, 200, JSON.stringify(com.corpo));
   assert.equal(com.corpo.estimativa.valor_total, 8350);
   assert.equal(com.corpo.total, 8350);
+  assert.equal(Number(com.corpo.entrada), Number(com.corpo.estimativa.sinal), 'a entrada do bloco é o sinal da estimativa nova');
+  assert.equal(Number(com.corpo.entrada), 3340);
   assert.equal(com.corpo.extras.find(x => x.chave === 'agendamento').incluido, true);
   assert.equal(com.corpo.extras.find(x => x.chave === 'agendamento').valor, 450, 'o valor do incluído é o quanto ele pesa no total');
   const e1 = await estadoDe(n, c);

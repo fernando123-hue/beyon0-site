@@ -22,6 +22,7 @@
 
 /* "Ficou certo?" (PR 5c): o lugar já reservado (is-espera = invisível) aparece quando o mapa fica pronto */
 .mpc-acoes { margin-top: 14px; }
+.mpc-acoes[hidden] { display: none; }   /* (lapidação 25/11: com o pedido aberto, a pergunta do mapa sai) */
 .mpc-acoes.is-espera { visibility: hidden; }
 .mpc-pergunta { margin: 0 0 10px; font-size: var(--fs-s); line-height: 1.5; color: var(--t1); }
 .mpc-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -63,6 +64,10 @@
 .is-ouro .mpc-no--objetivo { --cor: rgb(var(--ouro-rgb)); }
 .is-ouro .mpc-no--objetivo .mpc-no__titulo { color: rgb(var(--ouro-2-rgb)); transition: color .5s var(--ease); }
 .is-ouro .mpc-no--objetivo .mpc-chip__disco { fill: rgb(var(--ouro-2-rgb)); }
+/* (lapidação 25/11) no tema claro o ouro claro sumia no branco (1,27:1): o título vai à tinta e o ouro fica só no disco e na borda.
+   #7A4A00 no branco: 8,4:1 */
+html[data-tema="claro"].is-ouro .mpc-no--objetivo .mpc-no__titulo, html[data-tema="claro"] .is-ouro .mpc-no--objetivo .mpc-no__titulo { color: #7A4A00; }
+html[data-tema="claro"].is-ouro .mpc-no--objetivo .mpc-chip__disco, html[data-tema="claro"] .is-ouro .mpc-no--objetivo .mpc-chip__disco { fill: rgb(var(--ouro-3-rgb)); }
 
 /* os títulos das faixas do antes/depois */
 .mpc-cab { font-size: 12px; line-height: 16px; color: var(--t3); }
