@@ -103,8 +103,16 @@
   /* (lapidação 25/11, auditoria da tela) a coluna da direita no computador não rola mais por dentro (cortava os cartões ao meio): mais alta que a
      tela, o "top" do sticky fica negativo e ela acompanha a página até o fim dela aparecer; mais baixa, fica presa no alto (o top do CSS) */
   var FOLGA_BAIXO = 16;
+  /* (revisão técnica do #252) a altura da coluna muda também por outros caminhos (cartões que abrem, fontes): ela é medida de novo sozinha */
+  var vigiadas = typeof WeakSet === 'function' ? new WeakSet() : null;
+  function vigiar(a) {
+    if (!vigiadas || vigiadas.has(a) || typeof window.ResizeObserver !== 'function') return;
+    vigiadas.add(a);
+    new window.ResizeObserver(function () { prenderColuna(a); }).observe(a);   /* (o "top" não muda a altura: sem laço) */
+  }
   function prenderColuna(a) {
     if (!a || !a.style) return;
+    vigiar(a);
     var mq = typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 900px)') : null;
     a.style.top = '';
     if (!mq || !mq.matches || typeof window.innerHeight !== 'number' || typeof window.getComputedStyle !== 'function') return;

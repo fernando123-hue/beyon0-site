@@ -42,7 +42,7 @@
 .orc-xz__total-valor { font-family: var(--mono); font-size: 1rem; font-weight: 600; color: var(--t1); white-space: nowrap; }
 /* (lapidação 25/11) a entrada de agora, na linha de baixo e alinhada ao número: os dois valores que valem depois do toque */
 .orc-xz__total { flex-wrap: wrap; row-gap: 2px; }
-.orc-xz__total-entrada { flex: 1 0 100%; text-align: right; font-family: var(--mono); font-size: .875rem; color: var(--t2); white-space: nowrap; }
+.orc-xz__total-entrada { flex: 1 0 100%; text-align: right; font-family: var(--mono); font-size: .875rem; color: var(--t2); text-wrap: pretty; }   /* (o valor não quebra: o "R$ 3.340" vem com espaço fixo do toLocaleString; em 320 o rótulo pode descer) */
 .orc-xz__total-entrada:empty { display: none; }
 /* o "Quero" dentro da conversa: largura cheia no celular, do tamanho do texto no computador */
 .orc-xz__quero { justify-self: start; width: 100%; margin: 6px 16px 0; max-width: calc(100% - 32px); }

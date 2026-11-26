@@ -147,6 +147,7 @@
      conversa) e o foco entra nele; antes ela ficava parada no cartão e só o "Zero respondeu" avisava */
   document.addEventListener('bz:quero-com-zero', function () {
     abrirPedido();
+    if (!(window.BZPedido && window.BZPedido.emCurso && window.BZPedido.emCurso())) return;   /* (revisão de segurança do #252: nada abriu, nada rola) */
     var li = document.querySelector('#o-log [data-pedido]:not([data-feito])');
     if (!li) return;
     var alvo = li.querySelector('input, button');
@@ -166,6 +167,8 @@
     if (window.BZPedido && window.BZPedido.emCurso && window.BZPedido.emCurso()) { $('o-quero-modelos').hidden = true; $('o-p-refazer').hidden = true; $('o-est-acoes').hidden = true; }
   }
   document.addEventListener('bz:passo-aberto', function () {
+    /* (revisão técnica do #252) cada passo novo recolhe a caixa de novo, menos com a pessoa escrevendo nela agora */
+    escreverAberto = document.activeElement === $('o-texto');
     [].forEach.call(document.querySelectorAll('#o-log .mpc-acoes'), function (a) { a.hidden = true; });
     arrumarParaOPasso();
   });
