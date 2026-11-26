@@ -650,6 +650,7 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .orc-toque__erro-campo:empty { display: none; }
 .orc-toque__rede { display: grid; gap: .3rem; font-size: var(--fs-b); }
 /* (lapidação 26/11, achado 19) os campos das redes na largura cheia; a saída "Não, pode seguir" numa linha própria, como botão principal */
+.orc-toque__rede { justify-self: stretch; }   /* (o justify-items: start de .orc-log__lista > .orc-toque vencia o stretch das redes) */
 .orc-toque__rede .orc-toque__campo { width: 100%; }
 .orc-toque__campo::placeholder { color: var(--t3); opacity: 1; }
 .orc-toque > .orc-toque__seguir { justify-self: start; margin-top: .4rem; }
