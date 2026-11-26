@@ -4,6 +4,7 @@
    reconciliação que recupera a confirmação que ficou para trás. O banco é o real (PGlite) e o Mercado Pago o simulador fiel.
    npm run testar */
 import { test, before } from 'node:test';
+import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { montarLocal } from '../banco-local.mjs';
 import { atender } from '../../api/vendas.mjs';
@@ -11,7 +12,7 @@ import { receber } from '../../api/pagamentos.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { configPagamentos } from '../../api/_pagamentos/config.mjs';
 import { criarServicoPagamentos, validarPagador } from '../../api/_pagamentos/servico.mjs';
-import { criarConfirmacao, confirmacaoDoAmbiente, textoDaConfirmacao, escaparHtml, htmlDe, confirmarEntradas, linkDoPedido, RESEND_URL, REMETENTE, RESPONDER_PARA }
+import { criarConfirmacao, confirmacaoDoAmbiente, textoDaConfirmacao, escaparHtml, htmlDe, confirmarEntradas, linkDoPedido, mascararEmail, RESEND_URL, REMETENTE, RESPONDER_PARA }
   from '../../api/_pagamentos/confirmacao.mjs';
 import { CODIGO_LINK, hashDoLink } from '../../api/_vendas/link-pedido.mjs';
 import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
@@ -317,6 +318,9 @@ test('o link só entra no formato exato; qualquer outra coisa some e fica a fras
   assert.equal(confirmacaoDoAmbiente({ ...CF, BZ_AMBIENTE: 'previa' }).link, false, 'prévia');
   assert.equal(confirmacaoDoAmbiente({ RESEND_API_KEY: CHAVE, BZ_ENTREGA: 'ligada' }).link, false, 'local');
   assert.equal(confirmacaoDoAmbiente({ ...CF, BZ_ENTREGA: undefined }).link, false, 'entrega desligada');
+  /* (T5, revisão técnica) fechado por padrão: quem cria a confirmação à mão não manda link sem pedir */
+  assert.equal(criarConfirmacao({ chave: CHAVE, entrega: true }).link, false, 'comLink é falso por padrão');
+  assert.equal(criarConfirmacao({ chave: CHAVE, entrega: true }).custoPorItem, 1);
 });
 
 /* o banco de mentira das unidades: a reserva devolve ITEM; o link responde o que o teste pedir; guarda o que recebeu */
@@ -336,12 +340,13 @@ function bancoFalso({ link = { ok: true, criado: true }, quebrarLink = false } =
 
 test('confirmarEntradas: o banco recebe só o hash; o e-mail leva o link; o código não aparece em log nenhum', async () => {
   const f = resendFalso(), b = bancoFalso();
-  const { r, linhas } = await comLog(() => confirmarEntradas({ banco: b.banco, confirmacao: criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true }), provedor: 'mercadopago', filtro: { provedor_order_id: 'ORD1234' } }));
+  const { r, linhas } = await comLog(() => confirmarEntradas({ banco: b.banco, confirmacao: criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true, comLink: true }), provedor: 'mercadopago', filtro: { provedor_order_id: 'ORD1234' } }));
   assert.deepEqual(r, { enviadas: 1, falhas: 0 });
   const codigo = LINK_NO_TEXTO.exec(f.chamadas[0].corpo.text)?.[1];
   assert.match(codigo || '', CODIGO_LINK, 'o link foi no e-mail');
   const pedido = b.chamadas.find(x => x.nome === 'pagamentos_link_da_confirmacao');
-  assert.deepEqual(Object.keys(pedido.p).sort(), ['codigo_hash', 'tentativa_id']);
+  assert.deepEqual(Object.keys(pedido.p).sort(), ['codigo_hash', 'email_mascarado', 'tentativa_id']);
+  assert.equal(pedido.p.email_mascarado, 'c***@empresa.com.br', 'só o e-mail mascarado vai junto (S1)');
   assert.equal(pedido.p.codigo_hash, hashDoLink(codigo), 'só o hash vai ao banco');
   assert.ok(!JSON.stringify(b.chamadas).includes(codigo), 'o código em claro nunca vai ao banco');
   assert.ok(!linhas.some(l => l.includes(codigo)), 'nem ao log');
@@ -350,7 +355,7 @@ test('confirmarEntradas: o banco recebe só o hash; o e-mail leva o link; o cód
 test('confirmarEntradas: a conversa já tem link (o cliente gerou o dele) ou o banco falhou ao criar: o e-mail sai do mesmo jeito, sem link, com a frase de antes', async () => {
   for (const b of [bancoFalso({ link: { ok: true, criado: false, motivo: 'ja_tem_link' } }), bancoFalso({ quebrarLink: true })]) {
     const f = resendFalso();
-    const { r, linhas } = await comLog(() => confirmarEntradas({ banco: b.banco, confirmacao: criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true }), provedor: 'mercadopago', filtro: { provedor_order_id: 'ORD1234' } }));
+    const { r, linhas } = await comLog(() => confirmarEntradas({ banco: b.banco, confirmacao: criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true, comLink: true }), provedor: 'mercadopago', filtro: { provedor_order_id: 'ORD1234' } }));
     assert.deepEqual(r, { enviadas: 1, falhas: 0 });
     assert.doesNotMatch(f.chamadas[0].corpo.text, /#pedido=/);
     assert.match(f.chamadas[0].corpo.text, /página do pedido, a mesma em que fez o pagamento/);
@@ -362,7 +367,7 @@ test('confirmarEntradas: a conversa já tem link (o cliente gerou o dele) ou o b
 test('confirmarEntradas: o Resend recusou (o e-mail não saiu): o link criado para ele é desfeito; no tempo esgotado ele pode ter saído, então fica', async () => {
   for (const [falha, desfaz] of [[500, true], [422, true], ['tempo', false], ['rede', false]]) {
     const f = resendFalso({ falha }), b = bancoFalso();
-    const { linhas } = await comLog(() => confirmarEntradas({ banco: b.banco, confirmacao: criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true, timeoutMs: 30 }), provedor: 'mercadopago', filtro: { provedor_order_id: 'ORD1234' } }));
+    const { linhas } = await comLog(() => confirmarEntradas({ banco: b.banco, confirmacao: criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true, comLink: true, timeoutMs: 30 }), provedor: 'mercadopago', filtro: { provedor_order_id: 'ORD1234' } }));
     const desfeito = b.chamadas.filter(x => x.p && x.p.desfazer === true);
     assert.equal(desfeito.length, desfaz ? 1 : 0, String(falha));
     const codigo = LINK_NO_TEXTO.exec(f.chamadas[0].corpo.text)?.[1];
@@ -373,7 +378,7 @@ test('confirmarEntradas: o Resend recusou (o e-mail não saiu): o link criado pa
 
 test('Pix pago com a entrega ligada: o e-mail leva o link do pedido, o link abre ESTE pedido em outro aparelho, e o código não fica em log, banco ou resposta', async () => {
   const f = resendFalso();
-  const servico = servicoCom(criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true }));
+  const servico = servicoCom(criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true, comLink: true }));
   const { r: tudo, linhas } = await comLog(async () => {
     const { n, c, t } = await ateOPix(servico);
     sim.pagarPix(t.provedor_order_id);
@@ -390,6 +395,9 @@ test('Pix pago com a entrega ligada: o e-mail leva o link do pedido, o link abre
   assert.ok(!JSON.stringify(tudo).includes(codigo), 'nem na resposta do aviso ou da consulta');
   const linha = (await local.db.query('select * from app.links_pedido where conversa_id = $1', [tudo.c])).rows;
   assert.equal(linha.length, 1); assert.equal(linha[0].codigo_hash, hashDoLink(codigo)); assert.equal(linha[0].pelo_email, true);
+  /* (S1, revisão de segurança) o e-mail digitado nunca foi verificado: o banco guarda para onde o link foi só MASCARADO, e a página o mostra */
+  assert.equal(linha[0].email_mascarado, 'a***@exemplo.com');
+  assert.ok(!JSON.stringify(linha).includes('ana@exemplo.com'), 'o e-mail inteiro não fica no link');
   const eventos = (await local.db.query('select dados from app.eventos_funil where conversa_id = $1', [tudo.c])).rows;
   assert.ok(!JSON.stringify(eventos).includes(codigo));
   /* o cliente abre o e-mail em outro aparelho: o link leva ao pedido dele */
@@ -401,7 +409,7 @@ test('Pix pago com a entrega ligada: o e-mail leva o link do pedido, o link abre
 
 test('Pix pago, Resend fora: o pagamento segue, e o link criado para o e-mail que não saiu é desfeito (a página volta a oferecer o dela)', async () => {
   const f = resendFalso({ falha: 503 });
-  const servico = servicoCom(criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true }));
+  const servico = servicoCom(criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true, comLink: true }));
   const { c, t } = await ateOPix(servico);
   sim.pagarPix(t.provedor_order_id);
   const { r } = await comLog(() => aviso(servico, t.provedor_order_id));
@@ -417,11 +425,33 @@ test('a reconciliação conta o link: com a entrega ligada, só reserva se coube
   const { c, t } = await ateOPix(semChave);
   sim.pagarPix(t.provedor_order_id);
   await comLog(() => aviso(semChave, t.provedor_order_id));
-  const comChave = servicoCom(criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true }));
+  const comChave = servicoCom(criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true, comLink: true }));
   /* (orcamento 5, lista vazia: sobram 2, que davam reserva + envio; com o link não cabe) */
   await comChave.reconciliar({ orcamento: 5, limite: 0, varrerDias: 0 });
   assert.equal((await tentativaDe(c)).confirmacao_email_em, null, 'sem folga para o link: não reservou');
   await comChave.reconciliar({});
   const meu = paraResend(f).filter(x => x.corpo.to[0] === 'ana@exemplo.com');
   assert.ok(meu.some(x => LINK_NO_TEXTO.test(x.corpo.text)), 'a varredura também leva o link');
+});
+
+test('mascararEmail: a 1ª letra e o domínio; nada que não seja e-mail permitido', () => {
+  assert.equal(mascararEmail('fernanda.souza@gmail.com'), 'f***@gmail.com');
+  assert.equal(mascararEmail('a@b.com.br'), 'a***@b.com.br');
+  for (const ruim of ['', 'sem-arroba', 'a<b@x.com', null, 42]) assert.equal(mascararEmail(ruim), null, JSON.stringify(ruim));
+});
+
+test('(T4, revisão técnica) as confirmações com link não comem o orçamento das desistências pela metade', async () => {
+  const chamadas = [];
+  const banco = async (nome, p) => {
+    chamadas.push(nome);
+    if (nome === 'pagamentos_para_reconciliar') return [];
+    if (nome === 'pagamentos_reservar_confirmacao') return { itens: Array.from({ length: p.limite }, () => ({ ...ITEM, tentativa_id: randomUUID() })) };
+    if (nome === 'pagamentos_link_da_confirmacao') return { ok: true, criado: true };
+    if (nome === 'desistencia_pendentes') return { itens: [] };
+    return {};
+  };
+  const servico = criarServicoPagamentos({ banco, cfg, confirmacao: criarConfirmacao({ chave: CHAVE, fetch: resendFalso().buscar, entrega: true, comLink: true }) });
+  const r = await comLog(() => servico.reconciliar({ orcamento: 20, varrerDias: 0 }));
+  assert.ok(r.r.confirmacoes >= 1, JSON.stringify(r.r));
+  assert.ok(chamadas.includes('desistencia_pendentes'), 'sobrou orçamento para as desistências: ' + chamadas.join(','));
 });

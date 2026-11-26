@@ -146,7 +146,10 @@ async function reservada(opcoes) {
 
 test('link no e-mail: com a entrada reservada e sem link vivo, cria o link do pedido (só o hash), o estado sabe que ele foi por e-mail, e ele abre o pedido certo', async () => {
   const c = await reservada();
-  const r = await linkDaConfirmacao({ tentativa_id: c.t.id, codigo_hash: hexLink('EMAIL1') });
+  /* (S1) o e-mail digitado nunca foi verificado: só a forma MASCARADA vai junto; o e-mail inteiro é recusado */
+  for (const ruim of ['cliente@empresa.com.br', 'c***@', '***@x.com', 'c***@x.com<script>', 'c**@x.com'])
+    assert.equal((await erroDe(linkDaConfirmacao({ tentativa_id: c.t.id, codigo_hash: hexLink('EMAIL1'), email_mascarado: ruim })))?.codigo, '22023', ruim);
+  const r = await linkDaConfirmacao({ tentativa_id: c.t.id, codigo_hash: hexLink('EMAIL1'), email_mascarado: 'c***@empresa.com.br' });
   assert.deepEqual(r, { ok: true, criado: true });
   const linha = await um('select * from app.links_pedido where conversa_id = $1', [c.conversa_id]);
   assert.equal(linha.codigo_hash, hexLink('EMAIL1')); assert.equal(linha.pelo_email, true);
@@ -154,6 +157,8 @@ test('link no e-mail: com a entrada reservada e sem link vivo, cria o link do pe
   assert.ok(linha.valido_ate > new Date(Date.now() + 100 * 864e5), 'vale o pedido inteiro, como o da página');
   const e = (await rpc('vendas_estado', { conversa_id: c.conversa_id, visitante_id: c.visitante_id })).entrega;
   assert.deepEqual([e.link_pedido, e.link_no_email], [true, true], 'a página não pede para gerar outro: o link está no e-mail');
+  assert.equal(e.link_no_email_para, 'c***@empresa.com.br', 'para onde foi, mascarado: o cliente nota o e-mail digitado errado');
+  assert.ok(!JSON.stringify(e).includes('cliente@empresa'), 'o e-mail inteiro nunca no estado');
   assert.deepEqual(await linkDaConfirmacao({ tentativa_id: c.t.id, codigo_hash: hexLink('EMAIL1b') }), { ok: true, criado: false, motivo: 'ja_tem_link' }, 'de novo: não troca');
   const u = await usarLink('EMAIL1');
   assert.deepEqual([u.r.ok, u.r.conversa_id], [true, c.conversa_id], 'o link do e-mail abre ESTE pedido');
@@ -163,7 +168,8 @@ test('link no e-mail: com a entrada reservada e sem link vivo, cria o link do pe
   assert.equal(novo.criado, true);
   assert.equal((await usarLink('EMAIL1')).r.ok, false, 'o do e-mail parou');
   const visitante = (await um('select visitante_id from app.conversas where id = $1', [c.conversa_id])).visitante_id;
-  assert.equal((await rpc('vendas_estado', { conversa_id: c.conversa_id, visitante_id: visitante })).entrega.link_no_email, false);
+  const depois = (await rpc('vendas_estado', { conversa_id: c.conversa_id, visitante_id: visitante })).entrega;
+  assert.deepEqual([depois.link_no_email, depois.link_no_email_para], [false, null]);
 });
 
 test('link no e-mail: o link que o cliente JÁ gerou na página nunca é revogado; o e-mail vai sem link', async () => {

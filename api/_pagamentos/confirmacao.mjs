@@ -82,12 +82,19 @@ export function textoDaConfirmacao({ valor, metodo, prazoDias, entrega, link = n
   return { assunto: 'Recebemos a entrada do seu site', texto: paragrafos.map(paragrafoTexto).join('\n\n') + '\n', html: htmlDe(paragrafos) };
 }
 
+/* (revisão de segurança S1) o e-mail é digitado e nunca verificado: a página mostra para onde o link foi, assim, e o cliente nota o erro.
+   Só a 1ª letra e o domínio; o banco recusa qualquer outra forma (20261126120000) */
+export function mascararEmail(email) {
+  if (!emailPermitido(email)) return null;
+  const [local, dominio] = email.split('@');
+  return local[0] + '***@' + dominio;
+}
 /* o item que a reserva devolveu está em condição de sair (as mesmas conferências do envio) */
 const itemValido = ({ tentativa_id, email, valor } = {}) => UUID.test(String(tentativa_id || '')) && emailPermitido(email) && valorValido(valor);
 const motivoDoErro = e => (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) ? 'tempo' : 'rede';
 
-/* `comLink`: o e-mail leva o link do pedido (só com a entrega ligada; confirmacaoDoAmbiente o liga só em produção, a origem do link) */
-export function criarConfirmacao({ chave, fetch: buscar = globalThis.fetch, entrega = false, comLink = true, timeoutMs = TEMPO_MAXIMO_MS } = {}) {
+/* `comLink`: o e-mail leva o link do pedido (só com a entrega ligada). FALSO por padrão: só confirmacaoDoAmbiente o liga, e só em produção (a origem do link) */
+export function criarConfirmacao({ chave, fetch: buscar = globalThis.fetch, entrega = false, comLink = false, timeoutMs = TEMPO_MAXIMO_MS } = {}) {
   const ligada = typeof chave === 'string' && CHAVE_VALIDA.test(chave) && typeof buscar === 'function';
   const link = !!entrega && !!comLink;
   return {
@@ -140,7 +147,7 @@ export async function confirmarEntradas({ banco, confirmacao, provedor, filtro }
     return resumo;
   }
   for (const item of itens) {
-    const pedido = confirmacao.link && itemValido(item) ? await linkParaOEmail(banco, item.tentativa_id) : null;
+    const pedido = confirmacao.link && itemValido(item) ? await linkParaOEmail(banco, item.tentativa_id, mascararEmail(item.email)) : null;
     const r = await confirmacao.enviar(pedido ? { ...item, link: pedido.link } : item);
     if (!r.enviado && pedido && /^http /.test(r.motivo)) await desfazerLink(banco, item.tentativa_id, pedido.hash);
     if (r.enviado) { resumo.enviadas++; continue; }
@@ -158,10 +165,10 @@ const logDoLink = (evento, tentativa_id, e) => console.error(JSON.stringify({ or
 
 /* o link do pedido para o e-mail: { link, hash } se o banco o criou agora; null se a conversa já tem um (o do cliente fica) ou se o banco
    falhou (o e-mail sai sem link, com a frase de antes). O código fica só no retorno: o banco recebe o hash e o log, nada dele */
-async function linkParaOEmail(banco, tentativa_id) {
+async function linkParaOEmail(banco, tentativa_id, email_mascarado) {
   const codigo = novoCodigoLink(), hash = hashDoLink(codigo);
   try {
-    const r = await banco('pagamentos_link_da_confirmacao', { tentativa_id, codigo_hash: hash });
+    const r = await banco('pagamentos_link_da_confirmacao', { tentativa_id, codigo_hash: hash, email_mascarado });
     return r && r.criado === true ? { link: linkDoPedido(codigo), hash } : null;
   } catch (e) {
     if (e instanceof SemOrcamento) throw e;

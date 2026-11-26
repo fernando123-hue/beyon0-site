@@ -11,11 +11,22 @@
 --   recebeu; a página volta a gerar e mostrar o dela. Vale mesmo passada a 1 hora (um envio lento não deixa o link vivo).
 -- • app.links_pedido.pelo_email: o link foi criado para o e-mail. app.vendas_estado ganha entrega.link_no_email (o link vivo foi
 --   por e-mail), para a página dizer "está no seu e-mail" em vez de "gere um novo" (que revogaria o do e-mail).
+-- • app.links_pedido.email_mascarado (revisão de segurança S1): o e-mail do pagador é digitado e NUNCA verificado; um erro de
+--   digitação entrega o link a um estranho. A página mostra para onde ele foi, mascarado ("f***@gmail.com"), e o cliente que nota
+--   o erro gera outro link (o do e-mail deixa de valer) enquanto ainda tem o pedido aberto. O banco guarda e devolve SÓ a forma
+--   mascarada (o check da coluna recusa o e-mail inteiro): entrega.link_no_email_para.
+-- • A CAMADA ATUAL DE app.vendas_estado É ESTA (26/11): renomeia a anterior (vendas_estado_antes_link_email, que embrulha a de 20/11)
+--   e acrescenta os dois campos. Um `create or replace function app.vendas_estado` futuro TEM de partir deste corpo, senão o
+--   link_no_email some e a página volta a pedir "gere um novo" (revogando o do e-mail); docs/testes/confirmacao-banco.test.mjs pega.
 -- ORDEM DE TRAVAS: a conversa antes do link (a mesma de 20261023120200_pr3b2_link_pedido.sql). A reserva da confirmação já
 -- terminou (outra transação): nenhuma trava de tentativa fica presa aqui (pagamentos_aplicar trava conversa → tentativa).
 -- ==========================================================================
 
 alter table app.links_pedido add column pelo_email boolean not null default false;
+-- (a 1ª letra, *** e o domínio, na regra de domínio de EMAIL_PERMITIDO; nunca a parte local inteira)
+alter table app.links_pedido add column email_mascarado text check (email_mascarado is null or (
+  pelo_email and char_length(email_mascarado) <= 260
+  and email_mascarado ~ '^[a-z0-9_%+-]\*\*\*@([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$'));
 
 create or replace function app.pagamentos_link_da_confirmacao(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
@@ -29,9 +40,13 @@ declare
   v_n integer;
   v_desfazer boolean := coalesce((p ->> 'desfazer')::boolean, false);
   v_reservada_em timestamptz;
+  v_mascara text := nullif(p ->> 'email_mascarado', '');
 begin
   if v_hash !~ '^[0-9a-f]{64}$' or coalesce(p ->> 'tentativa_id', '') !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
     raise exception 'link da confirmação: parâmetros inválidos' using errcode = '22023';
+  end if;
+  if v_mascara is not null and (char_length(v_mascara) > 260 or v_mascara !~ '^[a-z0-9_%+-]\*\*\*@([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$') then
+    raise exception 'link da confirmação: e-mail mascarado inválido' using errcode = '22023';
   end if;
   v_tid := (p ->> 'tentativa_id')::uuid;
   -- a entrada desta tentativa, com a confirmação reservada (as mesmas junções da reserva, 20261115130000)
@@ -66,27 +81,28 @@ begin
   -- trava 2: o link. Já existe um (vivo, mesmo vencido): não se mexe nele; o e-mail vai sem link
   perform 1 from app.links_pedido where conversa_id = c.id and revogado_em is null for update;
   if found then return jsonb_build_object('ok', true, 'criado', false, 'motivo', 'ja_tem_link'); end if;
-  insert into app.links_pedido (org_id, conversa_id, codigo_hash, valido_ate, pelo_email)
-  values (c.org_id, c.id, v_hash, now() + interval '120 days', true);   -- (os 120 dias do link da página, 20261023120200)
+  insert into app.links_pedido (org_id, conversa_id, codigo_hash, valido_ate, pelo_email, email_mascarado)
+  values (c.org_id, c.id, v_hash, now() + interval '120 days', true, v_mascara);   -- (os 120 dias do link da página, 20261023120200)
   perform privado.evento(c.org_id, c.id, 'link_pedido_criado', jsonb_build_object('pelo_email', true));
   return jsonb_build_object('ok', true, 'criado', true);
 end $$;
 revoke all on function app.pagamentos_link_da_confirmacao(jsonb) from public, anon, authenticated;
 grant execute on function app.pagamentos_link_da_confirmacao(jsonb) to service_role;
 
--- ---------- a leitura do cliente: link_no_email ----------
+-- ---------- a leitura do cliente: link_no_email e link_no_email_para (A CAMADA ATUAL: ver o cabeçalho) ----------
 alter function app.vendas_estado(jsonb) rename to vendas_estado_antes_link_email;
 revoke all on function app.vendas_estado_antes_link_email(jsonb) from public, anon, authenticated, service_role;
 
 create function app.vendas_estado(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare r jsonb;
+declare r jsonb; l app.links_pedido;
 begin
   r := app.vendas_estado_antes_link_email(p);   -- (o dono da conversa é conferido lá: de outro visitante, P0002)
   if jsonb_typeof(r -> 'entrega') = 'object' then
-    r := jsonb_set(r, '{entrega,link_no_email}', to_jsonb(exists (
-      select 1 from app.links_pedido l
-       where l.conversa_id = (r #>> '{conversa,id}')::uuid and l.revogado_em is null and l.valido_ate > now() and l.pelo_email)));
+    select * into l from app.links_pedido
+     where conversa_id = (r #>> '{conversa,id}')::uuid and revogado_em is null and valido_ate > now() and pelo_email;
+    r := jsonb_set(jsonb_set(r, '{entrega,link_no_email}', to_jsonb(l.id is not null)),
+                   '{entrega,link_no_email_para}', coalesce(to_jsonb(l.email_mascarado), 'null'::jsonb));
   end if;
   return r;
 end $$;

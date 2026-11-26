@@ -19,6 +19,8 @@ Como montar, mudar, testar, proteger e recuperar o banco. A arquitetura e o porq
 
 **Prova de que é reproduzível:** `npm run testar` cria um Postgres vazio, aplica as seis migrations do zero e confere o estado final em cada execução.
 
+- **`app.vendas_estado` é uma pilha de camadas** (cada uma renomeia a anterior e acrescenta campos). A camada atual é a de `20261126120000_link_no_email.sql` (`entrega.link_no_email` e `link_no_email_para`, sobre a de 20/11). Um `create or replace function app.vendas_estado` futuro tem de partir DESSE corpo; partir de um antigo apaga os campos de cima (`docs/testes/confirmacao-banco.test.mjs` pega a perda do `link_no_email`).
+
 ### Para acrescentar uma tabela ao `app` (lista de conferência)
 
 1. Coluna `org_id uuid not null references app.organizacoes (id) on delete cascade` e `unique (org_id, id)`.
@@ -267,6 +269,12 @@ Um backup que nunca foi restaurado não está provado.
 - **Desistência que ficou `pedida` e o cliente não quer mais (ou travou):** só o dono resolve, à mão: o agente roda um programa pequeno no banco (nunca SQL solto) que apaga a linha de `app.desistencias` daquele pedido (a cobrança do restante volta a abrir) ou, se a entrada já foi devolvida, encerra o pedido pelo painel (`encerrar BZ-… desistencia`). Linhas `pedida` ou `estornada` com mais de 3 dias saem da rotina da reconciliação sem alerta próprio: o aviso `desistencia`/`desistencia_falhou` do dia é o rastro.
 - **Rastro:** `app.desistencias` (status `pedida`, `estornada`, `concluida`, tentativas, falhas, carimbos). O alerta do estorno da entrada vira `desistencia` (e-mail "o cliente desistiu dentro dos 7 dias e a entrada foi devolvida"), nunca "estorno" nem "contestação".
 - **Pendência de outro repositório:** a captação (`config/entrega.json`) sobe `condicoes_versao` para `2026-11-21` junto com `/condicoes` (o texto ganhou "você também pode desistir pelo próprio pedido, em Seu pedido").
+
+## 5.4 O link do pedido no e-mail da confirmação (26/11)
+
+- **O que é:** o e-mail da entrada paga (`api/_pagamentos/confirmacao.mjs`, pelo Resend) leva o link pessoal do pedido, `https://beyonzero.com.br/orcamento#pedido=<código>`. Quem tem o link abre o pedido em qualquer aparelho (e o aparelho anterior perde o acesso). O banco guarda só o hash; a página mostra o e-mail para onde o link foi, mascarado, para o cliente notar um endereço digitado errado e gerar outro link.
+- **Rastreio de cliques e de aberturas do Resend: DESLIGADO no domínio `beyonzero.com.br`** (Resend › Domains › o domínio › Configuration: *Click tracking* e *Open tracking* desligados). Com o rastreio de cliques ligado, o Resend reescreve o link por um redirecionamento dele e o código do pedido passa pelos servidores e registros de terceiros. Conferir antes de ligar a entrega (`BZ_ENTREGA`) e a cada mudança de domínio ou de conta no Resend.
+- **O painel do Resend e a caixa do `reply_to` (`contato.beyon.zero@gmail.com`) dão acesso aos pedidos:** o painel guarda o corpo dos e-mails enviados (com o link) e o cliente que responde ao e-mail devolve o link citado. Trate o acesso a eles como acesso aos pedidos: só o dono, com verificação em duas etapas, sem compartilhar a conta; se alguém de fora tiver tido acesso, o cliente gera um link novo pela página ("Gerar um link novo"), que revoga o anterior.
 
 ## 6. Próxima fase: Infisical (só com autorização do dono)
 
