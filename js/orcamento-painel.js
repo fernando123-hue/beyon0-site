@@ -84,6 +84,8 @@
   function focavel() {
     var raiz = document.getElementById('o-peca'), a = raiz && raiz.parentNode;
     if (!a || !a.setAttribute) return;
+    /* (lapidação 25/11) a coluna mais alta que a tela fica presa pelo fim dela (js/orcamento-palco.js prenderColuna; aqui nada de estilo) */
+    if (window.BZOrcPalco && typeof window.BZOrcPalco.prenderColuna === 'function') window.BZOrcPalco.prenderColuna(a);
     var ov = typeof window.getComputedStyle === 'function' ? window.getComputedStyle(a).overflowY : 'auto';   /* (sem a função: vale só a altura) */
     if (a.scrollHeight > a.clientHeight + 1 && (ov === 'auto' || ov === 'scroll')) a.setAttribute('tabindex', '0'); else a.removeAttribute('tabindex');
   }

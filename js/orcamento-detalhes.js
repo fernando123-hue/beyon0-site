@@ -84,7 +84,7 @@
   }
   /* o que a tela já sabe recusar (o servidor confere tudo de novo) */
   function recusa(d) {
-    if (d.negocio.length < 2) return ['o-d-negocio', 'Informe o nome do negócio.'];
+    if (d.negocio.length < 2) return ['o-d-negocio', d.negocio.length ? 'O nome ficou curto: escreva o nome completo do negócio.' : 'Informe o nome do negócio.'];
     if (d.vende.length < 3) return ['o-d-vende', 'Conte o que você vende (pode tocar numa sugestão).'];
     if (d.telefone.replace(/\D/g, '').length < 10) return ['o-tel', 'Informe o seu telefone com DDD: é o contato do seu pedido.'];
     if (Object.keys(d.redes).length && !d.autoriza_redes) return ['o-d-redes-ok', 'Para olharmos as suas redes, marque a autorização (ou deixe as redes em branco).'];

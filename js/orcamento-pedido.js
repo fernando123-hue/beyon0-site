@@ -113,7 +113,11 @@
   }
 
   /* o passo aberto agora (a pergunta e o grupo): o que volta ao fim da conversa quando o Zero fala no meio do pedido */
-  function abrir(pergunta, li) { li.setAttribute('data-pedido', ''); p.aberto = { pergunta: pergunta, li: li }; }
+  function abrir(pergunta, li) {
+    li.setAttribute('data-pedido', ''); p.aberto = { pergunta: pergunta, li: li };
+    /* (lapidação 25/11) a página recolhe a caixa livre e tira o "Quero" velho: a pergunta da vez é a deste passo (js/orcamento.js) */
+    try { doc.dispatchEvent(new CustomEvent('bz:passo-aberto')); } catch (e) { /* sem o evento, a página segue como antes */ }
+  }
   function passoAberto() { return p && p.aberto && !p.aberto.li.hasAttribute('data-feito') && p.aberto.li.parentNode ? p.aberto : null; }
   function aoFim(a) {
     var log = $('o-log'), u = log.lastElementChild, fim = u && u.hasAttribute('data-fica') ? u : null;
@@ -127,7 +131,7 @@
   function seguirOu(proximo) { return function () { if (p.corrigindo) { p.corrigindo = false; cartao(); } else proximo(); }; }
   function passoNegocio() {
     campo({ chave: 'negocio', pergunta: 'Para fazer os três modelos: qual é o nome do negócio?', max: 60, autocomplete: 'organization', valor: p.d.negocio,
-      validar: function (v) { return v.length < 2 ? 'Informe o nome do negócio.' : null; },
+      validar: function (v) { return !v.length ? 'Informe o nome do negócio.' : v.length < 2 ? 'O nome ficou curto: escreva o nome completo do negócio.' : null; },   /* (lapidação 25/11: quem escreveu uma letra leu "informe") */
       depois: function (v) { p.d.negocio = v; seguirOu(passoVende)(); } });
   }
   /* o ramo das sugestões: o tocado nesta visita; senão o que o servidor guardou no caso (o pacote gravado, uma visita de antes); senão "outro" */
@@ -328,6 +332,9 @@
       passoNegocio();
     },
     ativo: function () { return !!p; },
+    /* (lapidação 25/11) o pedido começou nesta página (passos abertos ou já enviado): o "Quero" e o "Mudar as respostas" saem de cena */
+    emCurso: function () { return !!p || enviado; },
+    temPassoAberto: function () { return !!passoAberto(); },
     /* o Zero falou no meio do pedido (ela escreveu na caixa): o passo aberto volta ao fim da conversa, logo abaixo da fala */
     trazerAoFim: function () { var a = passoAberto(); if (a) aoFim(a); },
     configurar: function (g) {

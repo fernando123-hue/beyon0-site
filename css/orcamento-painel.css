@@ -24,5 +24,8 @@
 @media (min-width: 900px) {
   /* a coluna da direita fica presa ao rolar (orcamento.css) e abre pelo radar do escopo (css/orcamento-escopo.css): com os detalhes e as peças
      ela passa da tela, então rola por dentro (o tabindex de quando rola é do BZPainel.focavel) */
-  .orc-painel { max-height: calc(100vh - var(--nav-h) - 2rem); overflow-y: auto; }
+  /* (lapidação 25/11, auditoria da tela: a rolagem por dentro cortava os cartões ao meio, sem sinal de que rolava) a coluna rola com a página;
+     quando ela é mais alta que a tela, o js/orcamento-painel.js (prender) põe o "top" do sticky negativo: ela acompanha a página até o fim dela
+     aparecer e só então fica presa. Mais baixa que a tela, fica presa no alto, como antes */
+  .orc-painel { max-height: none; overflow: visible; }
 }

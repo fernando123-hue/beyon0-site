@@ -26,7 +26,7 @@
 
   function criar(o) {
     var el = null, anel = null, estadoEl = null, valorEl = null;
-    var radarVisto = true, mesaVista = false, escrevendo = false, ativo = false, st = null, palcoVisto = false;
+    var radarVisto = true, mesaVista = false, escrevendo = false, ativo = false, st = null, palcoVisto = false, precoVisto = false;
     /* depois de escrever (o campo perdeu o foco: a pessoa foi tocar em "Seguir"), a barra só volta quando ela ROLAR a página. Voltando na hora,
        ela deslizava por cima do botão no meio do toque (e o foco no botão ainda rolava a página para tirá-lo de trás dela): o toque se perdia */
     var esperaRolar = false;
@@ -36,6 +36,8 @@
     /* o palco do orçamento (direção C) já mostra o valor: a barra não repete isso ao lado dele nem cobre o título (dono, 24/11). Ela só entra
        depois que o palco inteiro passou para trás do menu; sem palco na página, nada muda */
     var palco = doc.querySelector('.orc-palco');
+    /* (lapidação 25/11, auditoria da tela) o cartão do preço e o "Quero os três modelos" à vista: a barra repetiria o valor e cobria o botão */
+    var preco = [doc.getElementById('o-est-acoes'), doc.getElementById('o-est')].filter(Boolean), precoNaTela = [];
 
     function montar() {
       el = doc.createElement('div');
@@ -60,7 +62,7 @@
       el.classList.toggle('is-ouro', !!st.ouro);
     }
     function decidir() {
-      var mostrar = ativo && !radarVisto && mesaVista && !escrevendo && !esperaRolar && !palcoVisto && !!(mq && mq.matches);
+      var mostrar = ativo && !radarVisto && mesaVista && !escrevendo && !esperaRolar && !palcoVisto && !precoVisto && !!(mq && mq.matches);
       if (!el && !mostrar) return;
       if (!el) montar();
       el.classList.toggle('is-visivel', mostrar);
@@ -72,12 +74,14 @@
         entradas.forEach(function (e) {
           if (e.target === mesa) mesaVista = e.isIntersecting;
           else if (e.target === palco) palcoVisto = e.isIntersecting;
+          else if (preco.indexOf(e.target) >= 0) { precoNaTela[preco.indexOf(e.target)] = e.isIntersecting; precoVisto = precoNaTela.some(Boolean); }
           else radarVisto = e.isIntersecting && e.intersectionRect.height >= Math.min(LIMIAR_PX, e.boundingClientRect.height);
         });
         decidir();
       }, { rootMargin: '-72px 0px 0px 0px', threshold: LIMIARES });
       io.observe(o.alvo); io.observe(mesa);
       if (palco) io.observe(palco);
+      preco.forEach(function (p) { io.observe(p); });
     }
     /* o foco do teclado nunca fica atrás da barra (WCAG 2.4.11): campo de escrever em qualquer lugar da página tira a barra; outro
        controle que cairia atrás dela desce para a vista (o scroll-padding de html.tem-barra-escopo conta a altura da barra) */

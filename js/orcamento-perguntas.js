@@ -187,9 +187,10 @@
     if (res.estimativa && NOMES[atual]) $('o-est-formato').textContent = NOMES[atual];   /* (as palavras da tela, as mesmas dos vizinhos) */
     vizinhos(rec, atual);
     incluidos(atual);
-    $('o-quero-modelos').hidden = !res.estimativa;   /* (pacote que pede conversa não se grava por aqui) */
+    /* (lapidação 25/11) com o pedido já começado nesta página (js/orcamento-pedido.js), o "Quero" não volta */
+    $('o-quero-modelos').hidden = !res.estimativa || !!(window.BZPedido && window.BZPedido.emCurso && window.BZPedido.emCurso());   /* (pacote que pede conversa não se grava por aqui) */
     ultimoRes = { res: res, urgencia: comUrgencia };
-    $('o-est-acoes').hidden = retido();
+    $('o-est-acoes').hidden = retido() || !!(window.BZPedido && window.BZPedido.emCurso && window.BZPedido.emCurso());   /* (lapidação 25/11: com o pedido começado, o cartão das ações ficava vazio) */
     ['o-reco', 'o-ajustar-abrir', 'o-vizinhos', 'o-est-sugerido'].forEach(function (id) { if (comZero()) $(id).hidden = true; });
     if (comZero()) return;
     /* as sugestões (refeitas quando o catálogo muda: outro formato, outro ramo) e as marcas dos dois lugares */

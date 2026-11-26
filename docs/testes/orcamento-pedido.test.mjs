@@ -30,7 +30,7 @@ test('os passos: nome do negócio, o que vende (com sugestões do ramo), WhatsAp
   assert.equal(p.caixa().getAttribute('aria-required'), 'true');
   p.seguir('B');
   await depoisDoErro();
-  assert.equal(p.aberto('.orc-toque--campo').querySelector('.orc-toque__erro-campo').textContent, 'Informe o nome do negócio.');
+  assert.equal(p.aberto('.orc-toque--campo').querySelector('.orc-toque__erro-campo').textContent, 'O nome ficou curto: escreva o nome completo do negócio.', 'uma letra: o erro diz o problema (lapidação 25/11)');
   assert.equal(p.caixa().getAttribute('aria-invalid'), 'true', 'o erro fica preso ao campo');
   assert.equal(p.doc.activeElement, p.caixa(), 'o foco volta ao campo com erro');
   p.seguir('Padaria Sol');

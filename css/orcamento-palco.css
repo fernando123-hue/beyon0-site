@@ -266,7 +266,7 @@ html[data-tema="claro"] .msg--agente::before { background-image: url('../assets/
   transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro);
 }
 .orc-op--ic .orc-ic { display: none; }
-.orc-op--toque:hover { border-color: var(--t1); color: var(--t1); }
+@media (hover: hover) and (pointer: fine) { .orc-op--toque:hover { border-color: var(--t1); color: var(--t1); } }
 .orc-op--toque:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 .orc-op--toque[aria-pressed="true"], .orc-op--ic[aria-pressed="true"] { border-color: var(--t1); background: var(--cartao); color: var(--t1); box-shadow: inset 0 0 0 1px var(--t1); }
 .orc-op--toque[aria-pressed="true"]::before, .orc-op--ic[aria-pressed="true"]::before { content: none; }
@@ -359,11 +359,12 @@ html.menos-movimento .orc-campo[data-energia]:not([data-energia="0"]) textarea {
 .orc__main .btn, .orc__main .btn--sm { border-radius: 999px; font-family: var(--sans); font-size: 1rem; font-weight: 600; letter-spacing: normal; text-transform: none; }   /* (16 px: a frase do botão como gente fala, docs/e2e-ajustes.mjs) */
 /* (o principal: no escuro, a cor de ação do site, chapada, com a tinta escura em cima (11:1); no claro, o "Enviar" escuro do desenho) */
 .orc__main .btn--primary { background-color: var(--ac); border-color: var(--ac); color: var(--ac-tinta); box-shadow: none; }
-.orc__main .btn--primary:hover { background-color: var(--ac-2); border-color: var(--ac-2); }
+/* (lapidação 25/11) o hover só com mouse: no toque ele ficava preso e o botão parecia desligado */
+@media (hover: hover) and (pointer: fine) { .orc__main .btn--primary:hover { background-color: var(--ac-2); border-color: var(--ac-2); } }
 html[data-tema="claro"] .orc__main .btn--primary { background-color: var(--t1); border-color: var(--t1); color: #FFFFFF; }
-html[data-tema="claro"] .orc__main .btn--primary:hover { background-color: #2B3133; border-color: #2B3133; }
+@media (hover: hover) and (pointer: fine) { html[data-tema="claro"] .orc__main .btn--primary:hover { background-color: #2B3133; border-color: #2B3133; } }
 .orc__main .btn--ghost { background-color: transparent; border-color: var(--t1); color: var(--t1); }
-.orc__main .btn--ghost:hover { background-color: var(--s1); color: var(--t1); }
+@media (hover: hover) and (pointer: fine) { .orc__main .btn--ghost:hover { background-color: var(--s1); color: var(--t1); } }
 .orc__main .btn:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 
 /* ---------- o radar e os cartões ao lado: branco com traço; o núcleo é um pedaço do palco (preto, o valor na luz) ---------- */
