@@ -59,12 +59,18 @@ export function trilhoDaDirecao(briefing, estrategia, semente = '') {
   return {
     tipografia: { titulos, texto: TEXTO_DO_TITULO[titulos][(h >>> (6 + i)) & 1] },
     tema: (h >>> 9) % 3 === i ? 'escuro' : 'claro',
-    temperatura
+    temperatura,
+    /* o molde "X, não Y" só numa das três (26/11: dois modelos abriam com a mesma ideia, "feito para a sua festa, não para a vitrine") */
+    contraste: (h >>> 11) % 3 === i
   };
 }
 /* o trecho do pedido que leva o trilho ao modelo (fora do briefing: é do código) */
+const fraseDoMolde = t => (t.contraste ? 'no máximo um título no molde "X, não Y"' : 'nenhum título no molde "X, não Y" (outro modelo do cliente usa esse recurso)');
 export const pedidoDoTrilho = t => (t ? '\n\nIDENTIDADE FIXADA PELO CÓDIGO (os três modelos do cliente nunca saem iguais): tema ' + t.tema +
-  ' (a paleta inteira segue o tema); a cor de destaque na ' + TEMPERATURAS[t.temperatura] + ', no tom que combina com este negócio. A tipografia o código aplica.' : '');
+  ' (a paleta inteira segue o tema); a cor de destaque na ' + TEMPERATURAS[t.temperatura] + ', no tom que combina com este negócio; ' + fraseDoMolde(t) + '. A tipografia o código aplica.' : '');
+/* quantos títulos de seção estão no molde de contraste ("X, não Y", também com travessão); "Não espere..." no começo não conta */
+const MOLDE_CONTRASTE = /[,;—–-]\s*não\s/i;
+export const titulosNoMolde = d => (d && Array.isArray(d.secoes) ? d.secoes.filter(s => typeof s?.titulo === 'string' && MOLDE_CONTRASTE.test(s.titulo)).length : 0);
 /* o que ocupa o lugar de um número que o briefing não trouxe (o renderer o desenha como espaço reservado) */
 export const NUMERO_A_CONFIRMAR = '[Número a confirmar]';
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -216,7 +222,9 @@ export function higienizar(bruta, estrategia, opcoes) {
     rodape: { texto: t(d.rodape?.texto, 200) }
   };
   if (LOREM.test(JSON.stringify(direcao))) return { erro: 'texto de preenchimento (lorem ipsum)' };
-  /* o tema não se força (a paleta do modelo é feita para o tema dele): só se anota o desvio, para a medição ver se o modelo obedece */
-  if (trilhoValido && (trilho.tema === 'escuro' || trilho.tema === 'claro') && trilho.tema !== direcao.identidade.estilo.tema) return { direcao, ajustes: [...ajustes, 'tema_fora_do_trilho'] };
-  return { direcao, ajustes };
+  /* o tema e o molde não se forçam (a paleta do modelo é feita para o tema dele; reescrever título é do modelo): só se anota o desvio,
+     para a medição ver se o modelo obedece */
+  const temaFora = trilhoValido && (trilho.tema === 'escuro' || trilho.tema === 'claro') && trilho.tema !== direcao.identidade.estilo.tema;
+  const moldeFora = trilhoValido && trilho.contraste === false && titulosNoMolde(direcao) > 0;
+  return { direcao, ajustes: [...ajustes, ...(temaFora ? ['tema_fora_do_trilho'] : []), ...(moldeFora ? ['molde_x_nao_y'] : [])] };
 }
