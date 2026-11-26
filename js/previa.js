@@ -294,12 +294,13 @@
     if (!icones.length) {
       formasNaArte(svg, MOTIVOS[(hash(marca) + ordem) % MOTIVOS.length]());
     } else {
-      var fundo = FUNDO_DA_ESTRATEGIA[d && d.estrategia];
+      /* a estratégia vem da IA: só uma das 3 da lista ("__proto__" ou "constructor" achariam o Object e quebrariam a prévia) */
+      var est = ESTRATEGIAS.indexOf(d && d.estrategia) >= 0 ? d.estrategia : 'conversao';
       /* o fundo só com traço (as formas chapadas dos motivos saem: com o ícone na frente, elas brigariam com ele) */
-      formasNaArte(svg, MOTIVOS[fundo === undefined ? 1 : fundo]().filter(function (f) { return f[2] === 'a-fraco'; }));
+      formasNaArte(svg, MOTIVOS[FUNDO_DA_ESTRATEGIA[est]]().filter(function (f) { return f[2] === 'a-fraco'; }));
       /* a composição também muda com a estratégia (nunca o mesmo arranjo nos três): o principal de 120 px, o eco fino 8 px atrás,
          os outros menores (60 e 48 px) */
-      var c = COMPOSICAO[d && d.estrategia] || COMPOSICAO.conversao;
+      var c = COMPOSICAO[est];
       svg.appendChild(iconeNaArte(icones[0], c[0][0] + 8, c[0][1] + 8, 5, 'a-fraco', 'pv-arte__icone--eco'));
       svg.appendChild(iconeNaArte(icones[0], c[0][0], c[0][1], 5, 'a-forte', 'pv-arte__icone--grande'));
       if (icones[1]) svg.appendChild(iconeNaArte(icones[1], c[1][0], c[1][1], 2.5, 'a-forte', 'pv-arte__icone'));

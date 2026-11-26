@@ -570,3 +570,23 @@ test('arte do topo: ícone fora da lista, "nenhum" ou repetido não quebra; sem 
     }
   }
 });
+
+test('arte do topo: estratégia estranha vinda da IA (__proto__, constructor, objeto, número) não quebra a prévia (revisão do #264)', () => {
+  const D = carregar();
+  for (const estrategia of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', {}, 5, null]) {
+    const raiz = D.desenhar(comIcones(['bolo', 'coracao', 'check'], { estrategia }));
+    assert.equal(comClasse(raiz, 'pv-arte').length, 1, 'desenhou com estrategia ' + String(estrategia));
+  }
+});
+
+test('arte do topo: nas 3 composições os ícones ficam na faixa que aparece na tira do celular e no topo largo (x 25–365, y 77–223)', () => {
+  const D = carregar();
+  for (const estrategia of ['conversao', 'autoridade', 'experiencia']) {
+    const grupos = todos(comClasse(D.desenhar(comIcones(['bolo', 'coracao', 'check'], { estrategia })), 'pv-arte')[0], n => n.tag === 'g');
+    assert.equal(grupos.length, 4, 'principal, eco e dois menores');
+    for (const g of grupos) {
+      const [, x, y, s] = g.attrs.transform.match(/translate\(([\d.]+) ([\d.]+)\) scale\(([\d.]+)\)/).map(Number);
+      assert.ok(x >= 25 && x + 24 * s <= 365 && y >= 77 && y + 24 * s <= 223, estrategia + ' ' + g.attrs['data-papel'] + ' fora da faixa: ' + g.attrs.transform);
+    }
+  }
+});
