@@ -49,10 +49,10 @@
     if (f && window.BZOrcRolagem && window.BZOrcRolagem.levar(f, inserido || f)) return;
     if (!f) { c.scrollTop = c.scrollHeight; return; }
     var topoDaFala = c.scrollTop + f.getBoundingClientRect().top - c.getBoundingClientRect().top - FOLGA_FALA;
-    /* (lapidação 25/11, auditoria da tela: no computador o "Concordo e quero os modelos" ficava sob a borda da caixa) o cartão com a ação
+    /* (lapidação 25/11, auditoria da tela: no computador o "Concordo e quero os modelos" ficava sob a borda da caixa) o aceite e as redes, com a ação
        principal no fim desce até a ação aparecer, mesmo que o começo da fala suba um pouco: a ação é o que a pessoa precisa ver */
     var alvo = topoDaFala;
-    if (inserido && inserido !== f && inserido.querySelector && inserido.querySelector('.btn--primary')) {
+    if (inserido && inserido !== f && inserido.querySelector && inserido.querySelector('.orc-aceite__concordo, .orc-toque--redes .btn--primary')) {
       var fimDoCartao = c.scrollTop + inserido.getBoundingClientRect().bottom - c.getBoundingClientRect().top + FOLGA_FALA;
       alvo = Math.max(alvo, fimDoCartao - c.clientHeight);
     }
