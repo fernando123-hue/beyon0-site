@@ -181,7 +181,7 @@ const partesNaCaixa = (page) => page.evaluate(() => {
   /* a janela de verdade: a caixa, menos o que a nav fixa cobre e o que passa do fim da tela */
   const nav = R(document.querySelector('.nav, header'));
   const jan = { top: Math.max(c.top + parseFloat(cs.borderTopWidth), nav ? nav.bottom : 0), bottom: Math.min(c.bottom - parseFloat(cs.borderBottomWidth), innerHeight) };
-  const card = document.querySelector('#o-log .lv-item');
+  const q = document.querySelector('#o-log .lv-item .lv-quadro'), card = q ? q.closest('.lv-item') : null;   /* (o cartão do esboço, não outro .lv-item) */
   const vis = (el) => { const b = R(el); return b ? { alto: ro(b.height), visivel: ro(Math.max(0, Math.min(b.bottom, jan.bottom) - Math.max(b.top, jan.top))) } : null; };
   const parte = (sel) => vis(card && card.querySelector(sel));
   /* a última fala do Zero acima do cartão (a pergunta: a regra de rolagem do #189 a deixa no topo da caixa) */
@@ -196,8 +196,10 @@ const CSS_ORCAMENTO = await readFile(new URL('../css/orcamento.css', import.meta
 ok(REGRA_CAIXA.test(CSS_ORCAMENTO), 'a regra da caixa do computador está no css/orcamento.css (a comparação com 60vh a troca)');
 async function conversarMedindo(larg, alt, caixa60) {
   const { ctx, page, erros } = await abrir(ON, { larg, alt });
-  if (caixa60) await page.route('**/css/orcamento.css*', async (rota) => { const r = await rota.fetch(); await rota.fulfill({ response: r, body: (await r.text()).replace(REGRA_CAIXA, '$1min(60vh, 620px);') }); });
+  let trocou = false;
+  if (caixa60) await page.route('**/css/orcamento.css*', async (rota) => { const r = await rota.fetch(), t = await r.text(), novo = t.replace(REGRA_CAIXA, '$1min(60vh, 620px);'); trocou = novo !== t; await rota.fulfill({ response: r, body: novo }); });
   await page.goto(ON + '/orcamento', { waitUntil: 'load', timeout: 90000 });
+  if (caixa60) ok(trocou, 'a regra de 60vh entrou nesta visita (o CSS servido tem a regra da caixa)');
   await esperarToques(page);
   await responderAteADor(page);
   await turno(page, 'Pelo Instagram e por indicação, e muita gente pergunta e some');

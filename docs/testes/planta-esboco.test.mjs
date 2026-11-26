@@ -247,10 +247,11 @@ test('a legenda é só a frase: sem o rótulo da estação (o nó já diz qual �
 /* revisão da caixa (26/11): o quadro inteiro à vista com a pergunta do Zero no topo da caixa. opcoes.acima (o que as falas ocupam acima do cartão)
    entra no desconto quando passa da legenda; sem ele, o de sempre */
 test('opcoes.acima: o passo do compacto desconta as falas acima do cartão quando elas pesam mais que a legenda', () => {
+  const passo = (op) => { const { E, raiz } = ambiente({ largura: 620 }); const esb = E.criar(raiz, op); const p = esb.interno.g.passo; esb.parar(); return p; };
   const { E } = ambiente({ largura: 620 });
-  const passo = (op) => { const r = ambiente({ largura: 620 }).raiz; const esb = E.criar(r, op); const p = esb.interno.g.passo; esb.parar(); return p; };
-  /* (no DOM de mentira o cartão não tem layout: o rótulo e a legenda valem a reserva de 97, e o topo do quadro, 0) */
+  /* (no DOM de mentira o cartão não tem layout: o rótulo e a legenda valem a reserva de 97, e o topo do quadro, a do rótulo, 24) */
   assert.equal(passo({ compacto: 396 }), E.geometria(600, 396 - 97).passo, 'sem acima: o de sempre');
-  assert.equal(passo({ compacto: 396, acima: 200 }), E.geometria(600, 396 - 200).passo, 'com as falas pesando mais: o desconto é o delas');
+  assert.equal(passo({ compacto: 396, acima: 200 }), E.geometria(600, 396 - 224).passo, 'com as falas pesando mais: o desconto é o delas (com o rótulo)');
+  assert.equal(passo({ compacto: 396, acima: 50 }), E.geometria(600, 396 - 97).passo, 'falas que pesam menos que a legenda: a reserva de sempre');
   assert.ok(passo({ compacto: 396, acima: 200 }) < passo({ compacto: 396 }));
 });
