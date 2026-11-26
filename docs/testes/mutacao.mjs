@@ -1063,6 +1063,10 @@ export const SABOTAGENS = [
     de: "if (antes.criando) return 'restante_criando';", para: '/* sabotagem D8 criando */' },
   { nome: '(D8) a cobrança do restante envolta não confere o dono da conversa antes de olhar a desistência', arquivo: '20261120120000_desistencia_cliente.sql', testes: ['docs/testes/desistencia-banco.test.mjs'],
     de: "perform privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);\n  if exists (select 1 from app.desistencias d", para: 'if exists (select 1 from app.desistencias d' },
+  { nome: '(mapa vivo 1b) a anotação sem a conferência de fidelidade (nome e número que ela não digitou passam)', fonte: 'api/_vendas/reacao.mjs', testes: ['docs/testes/reacao.test.mjs'],
+    de: "if (!fielAoTexto(a, texto)) return { anotacao: null, motivo: 'fidelidade' };", para: '/* sabotagem: sem fidelidade */' },
+  { nome: '(mapa vivo 1b) a anotação sem a trava de preço e promessa', fonte: 'api/_vendas/reacao.mjs', testes: ['docs/testes/reacao.test.mjs'],
+    de: "if (semPrecoNoTexto(a) !== a.normalize('NFKC') || PROMESSA.test(a)) return { anotacao: null, motivo: 'trava' };", para: '/* sabotagem: sem trava */' },
 ];
 
 /* MUTACAO_FATIA=i/N (CI em paralelo): a rodada de N máquinas, cada uma com a sua fatia. A fatia i fica com as sabotagens de
