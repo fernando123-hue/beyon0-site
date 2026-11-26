@@ -425,7 +425,9 @@ html.visor-aberto { overflow: hidden; }
   .orc-mesa { grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); align-items: start; }
   .orc-painel { position: sticky; top: calc(var(--nav-h) + 1rem); }
   .orc-conversa { padding: 1.4rem; }
-  .orc-log { max-height: min(60vh, 620px); }
+  /* 68vh (dono, 26/11, vendo 1366x650): num notebook de 768 de verdade a janela útil tem ~650 e com 60vh a caixa tinha 360 úteis, menos que o
+     esboço da planta no passo mínimo (381); com 68vh, 412, e o cartão cabe inteiro (js/planta-esboco.js, passo pela altura da caixa) */
+  .orc-log { max-height: min(68vh, 620px); }
   .orc-dirs { grid-template-columns: repeat(3, 1fr); }
   .visor__aparelho { order: 2; flex-basis: auto; margin-left: auto; }
   .visor__fechar { order: 3; margin-left: .4rem; }
