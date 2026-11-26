@@ -127,7 +127,7 @@ test('fonte e página: ES5, sem innerHTML, script antes do orcamento.js, chamada
   assert.match(css, /\.orc-reacao\s*\{/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.orc-reacao__peca\.is-nova[^}]*animation:\s*none/);
   assert.ok(!/\.orc-reacao[^{]*\{[^}]*(blur|shadow|filter)/.test(css), 'sem blur nem sombra');
-  assert.match(css, /\.orc-reacao\s*\{[^}]*min-height:\s*32px/, 'altura reservada: a 1ª peça não empurra a caixa (revisão do #265)');
+  assert.match(css, /\.orc-reacao\s*\{[^}]*flex-wrap:\s*nowrap[^}]*height:\s*32px[^}]*overflow-x:\s*auto/, 'uma linha de altura fixa: a peça nova não empurra a caixa, nem a 2ª linha em 320 px (revisão do #265)');
   assert.match(css, /\.orc-reacao\[hidden\]\s*\{\s*display:\s*none/, 'o hidden vence o display: flex');
   assert.match(css, /html\.menos-movimento \.orc-reacao__peca\s*\{\s*transition:\s*none/);
 });

@@ -678,8 +678,11 @@ html.menos-movimento .pix__anel-vivo { transition: none; }
 
 /* MAPA VIVO v2, fase 1a (js/orcamento-reacao.js): as peças do que a pessoa conta acendem numa fileira logo acima da caixa enquanto ela digita.
    Só existe com a flag BZ_PLANTA (hoje só na prévia). Traço nítido, sem sombra nem desfoque; a peça nova chega com a borda acesa e sobe 4 px. */
-/* (revisão do #265) a altura de uma fileira fica reservada desde que ela nasce: a 1ª peça não empurra a caixa no meio da digitação */
-.orc-reacao { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem; margin: .9rem 0 0; padding: 0; min-height: 32px; }
+/* (revisão do #265) UMA linha, de altura reservada desde que nasce: a peça nova nunca empurra a caixa no meio da digitação (medido: em 320 px
+   a 2ª linha empurrava 38 px). O que não cabe desliza de lado por dentro da fileira (a página não ganha rolagem lateral); a mais nova fica à vista */
+.orc-reacao { list-style: none; display: flex; flex-wrap: nowrap; gap: .4rem; margin: .9rem 0 0; padding: 0; height: 32px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.orc-reacao::-webkit-scrollbar { display: none; }
+.orc-reacao__peca { flex: none; }
 .orc-reacao[hidden] { display: none; }
 .orc-reacao__peca { display: inline-flex; align-items: center; gap: .4rem; height: 32px; padding: 0 .7rem 0 .35rem; border: 1px solid var(--stroke); border-radius: 999px; font-family: var(--mono); font-size: var(--fs-ctrl); color: var(--t2); transition: border-color .6s var(--ease-micro), color .6s var(--ease-micro); }
 .orc-reacao__peca svg { width: 22px; height: 22px; flex: none; fill: none; stroke: var(--t1); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

@@ -76,6 +76,7 @@
           var id = win.setTimeout(function () { li.classList.remove('is-nova'); st.novas = st.novas.filter(function (x) { return x !== id; }); }, NOVA_MS);
           st.novas.push(id);
         });
+        st.fila.scrollLeft = st.fila.scrollWidth || 0;   /* (numa linha só: a peça mais nova fica à vista) */
       } catch (e) { falhar(e); }
     }
     function aoDigitar() { win.clearTimeout(st.timer); st.timer = win.setTimeout(reagir, ESPERA); }
