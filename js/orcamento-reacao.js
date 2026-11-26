@@ -54,7 +54,10 @@
         svg.appendChild(path);
       });
       li.appendChild(svg);
-      li.appendChild(doc.createTextNode(p.nome));
+      var nome = doc.createElement('span');
+      nome.className = 'orc-reacao__nome';
+      nome.textContent = p.nome;
+      li.appendChild(nome);
       return li;
     }
     /* lê a caixa e acende o que é novo; o que deixou de valer sai */
@@ -76,8 +79,13 @@
           var id = win.setTimeout(function () { li.classList.remove('is-nova'); st.novas = st.novas.filter(function (x) { return x !== id; }); }, NOVA_MS);
           st.novas.push(id);
         });
-        st.fila.scrollLeft = st.fila.scrollWidth || 0;   /* (numa linha só: a peça mais nova fica à vista) */
+        caber();
       } catch (e) { falhar(e); }
+    }
+    /* numa linha só: se as peças com o nome não cabem (320 px com 3 ou mais), ficam só os ícones; nenhuma peça cortada na borda */
+    function caber() {
+      st.fila.classList.remove('is-compacta');
+      if ((st.fila.scrollWidth || 0) > (st.fila.clientWidth || 0) + 1) st.fila.classList.add('is-compacta');
     }
     function aoDigitar() { win.clearTimeout(st.timer); st.timer = win.setTimeout(reagir, ESPERA); }
 

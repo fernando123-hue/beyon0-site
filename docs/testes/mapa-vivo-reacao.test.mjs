@@ -182,3 +182,21 @@ test('renders seguidos com estado novo (um por turno) não duplicam ouvinte nem 
   a.api.atualizar({ mensagens: [] });
   assert.equal(a.w.timers.length, 0, 'nenhum timer solto depois de tirar a fileira');
 });
+
+test('quando as peças não cabem numa linha (320 px), a fileira fica só com os ícones: nenhuma peça cortada na borda (revisão do #265, medido)', () => {
+  const a = ambiente();
+  a.api.atualizar(LIGADA);
+  const fila = a.fila();
+  fila.clientWidth = 280;
+  Object.defineProperty(fila, 'scrollWidth', { get: () => (fila.classList.contains('is-compacta') ? 200 : 318), configurable: true });
+  a.digitar('pelo instagram e whatsapp, quero agenda');
+  a.w.avancar(300);
+  assert.ok(fila.classList.contains('is-compacta'), 'não coube: só ícones');
+  assert.equal(fila.children[0].porClasse('orc-reacao__nome')[0].textContent, 'Instagram', 'o nome continua no nó (o CSS o esconde)');
+  Object.defineProperty(fila, 'scrollWidth', { get: () => 150, configurable: true });
+  a.digitar('pelo instagram');
+  a.w.avancar(300);
+  assert.ok(!fila.classList.contains('is-compacta'), 'coube de novo: os nomes voltam');
+  const css = lerFonte('css/orcamento.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.orc-reacao\.is-compacta \.orc-reacao__nome\s*\{\s*display:\s*none/);
+});
