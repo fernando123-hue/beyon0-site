@@ -39,6 +39,7 @@ export const ACOES = {
     ajustar: 'ajustar', desfazer: 'desfazer', 'pedido-livre': 'pedidoLivre', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar',
     simular: 'simular', 'confirmar-pacote': 'confirmarPacote', detalhes: 'detalhes',
     'extras-sugeridos': 'extrasSugeridos', 'alternar-extra': 'alternarExtra',   /* (24/11) os extras na conversa com o Zero: api/_vendas/fluxo-extras.mjs */
+    reagir: 'reagir',   /* (mapa vivo, fase 1b) a anotação enquanto a pessoa digita: api/_vendas/fluxo-reacao.mjs */
     'material-salvar': 'materialSalvar', 'material-reservar': 'materialReservar', 'material-conferir': 'materialConferir',
     'material-remover': 'materialRemover', 'material-enviar': 'materialEnviar',
     'link-pedido': 'linkPedido', 'sair-do-aparelho': 'sairDoAparelho', 'outro-aparelho': 'outroAparelho', 'abrir-pedido': 'abrirPedido',
