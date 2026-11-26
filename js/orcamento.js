@@ -143,7 +143,36 @@
     if (!E || !E.estimativa || E.conversa.tem_contato || E.pedido) return;
     if (window.BZPedido) window.BZPedido.iniciar(); else if (!$('o-contato').hidden) irPara('o-contato');
   }
-  document.addEventListener('bz:quero-com-zero', abrirPedido);
+  /* (lapidação 25/11, auditoria da tela) o toque em "Quero" é um pedido explícito: a página vai até o passo aberto (que nasce lá em cima, na
+     conversa) e o foco entra nele; antes ela ficava parada no cartão e só o "Zero respondeu" avisava */
+  document.addEventListener('bz:quero-com-zero', function () {
+    abrirPedido();
+    if (!(window.BZPedido && window.BZPedido.emCurso && window.BZPedido.emCurso())) return;   /* (revisão de segurança do #252: nada abriu, nada rola) */
+    var li = document.querySelector('#o-log [data-pedido]:not([data-feito])');
+    if (!li) return;
+    var alvo = li.querySelector('input, button');
+    var bloco = li.previousElementSibling && li.previousElementSibling.classList.contains('msg--agente') ? li.previousElementSibling : li;
+    if (typeof bloco.scrollIntoView === 'function') bloco.scrollIntoView({ block: 'start', behavior: document.documentElement.classList.contains('menos-movimento') ? 'auto' : 'smooth' });
+    if (alvo && typeof alvo.focus === 'function') alvo.focus({ preventScroll: true });
+  });
+  /* (lapidação 25/11, auditoria da tela) com um passo do pedido aberto, a pergunta da vez é a dele: a caixa livre recolhe num "Escrever
+     para o Zero" (um toque a devolve), o "Quero os três modelos" e o "Mudar as respostas" saem (o pedido já começou) e a pergunta do mapa deixa
+     de pedir resposta. Nada é apagado da conversa */
+  var escreverAberto = false;
+  function passoNaTela() { return !!(window.BZPedido && window.BZPedido.temPassoAberto && window.BZPedido.temPassoAberto()); }
+  function arrumarParaOPasso() {
+    var recolhe = passoNaTela() && !escreverAberto && !$('o-form').hidden;
+    $('o-form').classList.toggle('is-recolhido', recolhe);
+    $('o-escrever').hidden = !recolhe;
+    if (window.BZPedido && window.BZPedido.emCurso && window.BZPedido.emCurso()) { $('o-quero-modelos').hidden = true; $('o-p-refazer').hidden = true; $('o-est-acoes').hidden = true; }
+  }
+  document.addEventListener('bz:passo-aberto', function () {
+    /* (revisão técnica do #252) cada passo novo recolhe a caixa de novo, menos com a pessoa escrevendo nela agora */
+    escreverAberto = document.activeElement === $('o-texto');
+    [].forEach.call(document.querySelectorAll('#o-log .mpc-acoes'), function (a) { a.hidden = true; });
+    arrumarParaOPasso();
+  });
+  $('o-escrever').addEventListener('click', function () { escreverAberto = true; arrumarParaOPasso(); $('o-texto').focus(); });
   window.BZOrcConversa = { enviar: function (texto) { return enviar(texto); }, anunciar: function (texto) { anunciar(texto); } };
   /* o pacote pede conversa (fora do automático ou acima do limite): nada do preço anterior (valor, prazo, itens) fica
      na tela, e a voz avisa uma vez */
@@ -284,9 +313,18 @@
   /* um item com data-fica (o cartão da planta, js/orcamento-planta.js) fica sempre por último: as falas entram antes dele */
   var FOLGA_FALA = 8;
   function ficaNoFim() { var u = $('o-log').lastElementChild; return u && u.hasAttribute('data-fica') ? u : null; }
+  /* (lapidação 25/11, auditoria da tela) no celular "R$" ficava numa linha e o número na outra ("entrada de R$ / 3.160"), e "Beyon / Zero":
+     espaço fixo só nesses pares; o resto da fala quebra como sempre */
+  var NBSP = ' ';
+  function semQuebraRuim(texto) {
+    return String(texto == null ? '' : texto)
+      .replace(/R\$ (?=\d)/g, 'R$' + NBSP)
+      .replace(/(\d+) (dias? úte(?:is|l))/g, function (_, n, d) { return n + NBSP + d.replace(' ', NBSP); })
+      .replace(/Beyon Zero/g, 'Beyon' + NBSP + 'Zero');
+  }
   function msg(papel, texto, semRolar) {
     var li = el('li', 'msg msg--' + papel);
-    li.appendChild(el('p', '', texto));
+    li.appendChild(el('p', '', papel === 'agente' ? semQuebraRuim(texto) : texto));
     $('o-log').insertBefore(li, ficaNoFim());
     if (!semRolar) rolarConversa(li);
     return li;
@@ -788,7 +826,10 @@
       mostrar('o-pag-indisponivel', true);
       return;
     }
-    $('o-pag-lead').textContent = lead + ' Para destravar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante só quando o site estiver pronto, antes de ir ao ar.';
+    /* (lapidação 25/11) o restante com o valor, junto da entrada: a mesma frase do cartão do preço e do recibo */
+    var resto = Math.max(0, Math.round((Number(pr.valor_total) - Number(sinal)) * 100) / 100);
+    $('o-pag-lead').textContent = lead + ' Para destravar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '.' +
+      (resto > 0 ? ' O restante, ' + dinheiro(resto) + ', só quando o site estiver pronto, antes de ir ao ar.' : '');
     if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada, {});   /* ({}: solta o "só Pix" que o restante tenha pedido) */
   }
 
@@ -926,6 +967,7 @@
     $('o-texto').placeholder = Object.prototype.hasOwnProperty.call(DICA_DUVIDA, et) ? DICA_DUVIDA[et] : dicaPadrao;
     mostrar('o-conversa-fechada', !aberta);
     if (!aberta) $('o-atalhos').hidden = true;
+    arrumarParaOPasso();
     window.BZDetalhes.atualizar(E);   /* os detalhes, o pedido recebido ou o pedido encerrado (js/orcamento-detalhes.js) */
     if (window.BZOrcPlanta) window.BZOrcPlanta.atualizar(E, { rolarAte: rolarAte, enviar: enviar });   /* a planta do site (js/orcamento-planta.js): só age com E.planta (flag BZ_PLANTA); sem o módulo a tela segue igual */
     if (window.BZOrcEsboco) window.BZOrcEsboco.atualizar(E);   /* a planta viva v2, o esboço que cresce na conversa (js/orcamento-planta-esboco.js): só age com a flag BZ_PLANTA; sem o módulo a tela segue igual */

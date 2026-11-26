@@ -311,6 +311,13 @@ try {
     await page.waitForSelector(PASSO, { timeout: 15000 });
     await page.unroute(GRAVAR, espiaGravar);
     ok(!gravouOutro, 'com consultor: "Quero" não chama o confirmar-pacote (a estimativa do Zero vale)');
+    /* (lapidação 25/11) com o passo aberto, a pergunta da vez é a dele: a caixa livre recolhe, o "Quero" sai e o foco entra no passo;
+       "Escrever para o Zero" devolve a caixa */
+    ok(await page.locator('#o-form').evaluate(f => f.classList.contains('is-recolhido')) && await page.locator('#o-escrever').isVisible(), 'passo aberto: a caixa livre recolhe num "Escrever para o Zero"');
+    ok(await page.locator('#o-quero-modelos').isHidden() && await page.locator('#o-p-refazer').isHidden(), 'passo aberto: o "Quero" e o "Mudar as respostas" saem de cena');
+    ok(await page.evaluate(() => { const li = document.querySelector('#o-log [data-pedido]:not([data-feito])'); return !!(li && li.contains(document.activeElement)); }), 'passo aberto: o foco entra no passo');
+    await page.click('#o-escrever');
+    ok(await page.locator('#o-texto').isVisible() && await page.evaluate(() => document.activeElement && document.activeElement.id === 'o-texto'), '"Escrever para o Zero" devolve a caixa, com o foco nela');
     /* segurança na tela: HTML digitado aparece como texto */
     const respostas = await page.locator('#o-log .msg--agente').count();
     await page.fill('#o-texto', '<img src=x onerror=alert(1)> Também atendo aos sábados');
@@ -349,7 +356,7 @@ try {
   await foto(page, '1d-pedido-320');
   await page.setViewportSize({ width: 390, height: 844 });
   await responder(page, 'C');
-  ok(await espera(page, () => /nome do negócio/.test(document.querySelector('#o-log .orc-toque--campo:not([data-feito]) .orc-toque__erro-campo').textContent), 3000), 'pedido: nome curto demais é recusado na hora, com motivo');
+  ok(await espera(page, () => /nome ficou curto/.test(document.querySelector('#o-log .orc-toque--campo:not([data-feito]) .orc-toque__erro-campo').textContent), 3000), 'pedido: nome curto demais é recusado na hora, com o motivo dito (lapidação 25/11)');
   await responder(page, 'Empresa Teste E2E');
   await page.waitForSelector(PASSO);
   ok(await page.locator(PASSO).getByRole('button', { name: 'Consultoria', exact: true }).count() === 1, 'pedido: as sugestões do que vende seguem o ramo tocado (saúde: Consultas)');

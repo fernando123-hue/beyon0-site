@@ -177,6 +177,7 @@
           <button class="orc-mic__cancelar" type="button" id="o-mic-cancelar" hidden>Descartar gravação</button>
           <button class="btn btn--primary orc-enviar" type="submit" id="o-enviar">Enviar<svg class="orc-enviar__seta" aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M3 8h9.5M8.75 4.25 12.5 8l-3.75 3.75"/></svg></button>
         </form>
+        <button class="orc-escrever" type="button" id="o-escrever" hidden aria-controls="o-form">Escrever para o Zero</button>
         <p class="orc-nota orc-voz" id="o-mic-aviso" hidden></p>
         <p class="orc-nota" id="o-conversa-fechada" hidden>A conversa com o Zero ficou registrada acima. Daqui em diante, o seu orçamento segue pelas etapas abaixo.</p>
         <p class="orc-nota">Prefere escrever antes? <a class="orc-sem-quebra" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado</a>.</p>
@@ -247,8 +248,8 @@
             <ul class="orc-est__itens" id="o-est-itens"></ul>
             <dl class="orc-est__dados">
               <div><dt>Prazo</dt><dd id="o-est-prazo"></dd></div>
-              <div><dt>Para destravar</dt><dd id="o-est-sinal"></dd></div>
-              <div><dt>Com o site no ar</dt><dd id="o-est-resto"></dd></div>
+              <div><dt>Entrada para destravar</dt><dd id="o-est-sinal"></dd></div>
+              <div><dt>Restante, com o site pronto</dt><dd id="o-est-resto"></dd></div>
             </dl>
             <p class="orc-est__total"><span>Investimento total</span> <b class="orc-est__valor" id="o-est-valor"></b></p>
             <p class="orc-est__sem-risco" id="o-est-sem-risco">Você não paga nada até escolher um modelo e confirmar o resumo.</p>
@@ -400,7 +401,7 @@ Trazer cores ou uma seção de outro modelo conta como um ajuste.</p>
         <p class="esc-numero__rot">Investimento total</p>
         <p class="esc-numero__valor" id="o-esc-total"></p>
         <dl class="esc-numero__fatos">
-          <div id="o-esc-entrada-caixa" hidden><dt>Para destravar</dt><dd id="o-esc-entrada"></dd></div>
+          <div id="o-esc-entrada-caixa" hidden><dt>Entrada para destravar</dt><dd id="o-esc-entrada"></dd></div>
           <div id="o-esc-prazo-caixa" hidden><dt>Prazo</dt><dd id="o-esc-prazo"></dd></div>
         </dl>
       </div>

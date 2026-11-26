@@ -67,7 +67,7 @@
       $('o-rec-meio').textContent = 'Sinal do projeto';
       $('o-rec-pct-resto').textContent = (100 - pct) + '%';
       $('o-rec-resto').textContent = o.dinheiro(restante);
-      $('o-rec-prazo').textContent = 'quando o site for entregue';
+      $('o-rec-prazo').textContent = 'quando o site estiver pronto, antes de ir ao ar';
       $('o-rec-entrega').hidden = !(restante > 0);
       $('o-rec-partes').classList.toggle('is-unica', !(restante > 0));
       $('o-rec-total-v').textContent = 'Total do projeto ' + o.dinheiro(r.total);
