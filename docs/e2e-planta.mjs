@@ -9,8 +9,8 @@
      - ao recarregar, a pergunta volta;
      - "Quero ajustar algo" foca a caixa com a dica do mapa;
      - o AJUSTE: um estado forjado na rede (versão 2 com um nó "ajustado") faz o nó novo aparecer com a marca, sem refazer a entrada.
-   Ligada, computador durante a conversa (1366x768, 1366x650, 1280x650 e 930x768): o esboço cabe INTEIRO na caixa (de 68vh) e a caixa de digitar
-   não desce além de onde ficava com 60vh (medido: o fundo dela em 739, 620, 620 e 713).
+   Ligada, computador conversando e no "pronta" (1366x650, 1280x650, 1366x768, 1440x900 e 930x768): o QUADRO do esboço inteiro à vista na caixa,
+   na rolagem de verdade; nas telas altas a página (abas, Conversa, RADAR, caixa de digitar) onde ficava com a caixa de 60vh.
    Ligada, computador (1280x900 e 1366x768): o esboço cabe na caixa e, com o mapa pronto, deixa "em construção" (achado 18); o botão "Ver a planta do seu site" aparece sob a fala do Zero e abre a faixa com o mapa, com o foco no título.
    Regressão do v2: um plano v2 forjado na rede desenha com o módulo antigo (.plv-quadro).
    Desligada: nada da planta é baixado e a conversa é a de sempre.
@@ -168,33 +168,62 @@ console.log('\n== flag ligada, computador ' + larg + 'x' + alt + ' ==');
 }
 }
 
-/* ---------- computador, DURANTE a conversa: o esboço compacto pela altura da caixa (revisão do achado 18) ---------- */
-/* num notebook de 768 de verdade (navegador e barra de tarefas) a janela útil tem ~650: com a caixa de 60vh (360 úteis) o cartão não cabia nem no passo
-   36 (381 px, faltavam 21 da legenda). O dono aprovou a caixa de 68vh (26/11, a comparação em 1366x650): agora o cartão tem de caber INTEIRO em toda
-   altura daqui, sem o "ou fica no passo mínimo". 930: a caixa já rola e a legenda é a do celular */
-for (const [larg, alt] of [[1366, 768], [1366, 650], [1280, 650], [930, 768]]) {
-  console.log('\n== computador ' + larg + 'x' + alt + ', o esboço durante a conversa ==');
+/* ---------- computador, DURANTE a conversa e no "pronta": o QUADRO inteiro à vista na caixa, na rolagem de verdade ---------- */
+/* num notebook de 768 de verdade (navegador e barra de tarefas) a janela útil tem ~650: com a caixa de 60vh o quadro do esboço não cabia. O dono
+   aprovou a caixa maior só para isso (26/11): a caixa cresce SÓ onde falta (css/orcamento.css), e nas telas altas a página fica onde estava com 60vh.
+   Mede cada parte do cartão (rótulo, quadro, legenda) contra o retângulo da caixa depois de assentar, com a fala do Zero no topo da caixa (a regra de
+   rolagem do #189 fica): o QUADRO inteiro é exigido; o rótulo e a legenda são anotados. Nas telas altas, as abas, o título da Conversa, o RADAR e a
+   caixa de digitar são comparados com a mesma tela com a caixa de 60vh (a regra trocada só nesta visita, pela rota do CSS) */
+const REGRA_CAIXA = /(\n  \.orc-log \{ max-height: )([^;]+);/;   /* (a do computador, recuada no bloco de 900 px; a da linha 59 é a do celular) */
+const partesNaCaixa = (page) => page.evaluate(() => {
+  const R = (e) => (e ? e.getBoundingClientRect() : null), ro = Math.round;
+  const caixa = document.getElementById('o-log-caixa'), cs = getComputedStyle(caixa), c = R(caixa);
+  const jan = { top: Math.max(c.top + parseFloat(cs.borderTopWidth), 0), bottom: Math.min(c.bottom - parseFloat(cs.borderBottomWidth), innerHeight) };
+  const card = document.querySelector('#o-log .lv-item');
+  const parte = (sel) => { const b = R(card && card.querySelector(sel)); return b ? { alto: ro(b.height), visivel: ro(Math.max(0, Math.min(b.bottom, jan.bottom) - Math.max(b.top, jan.top))) } : null; };
+  const topo = (el) => (el ? ro(el.getBoundingClientRect().top) : null);
+  return { rotulo: parte('.lv-kicker'), quadro: parte('.lv-quadro'), legenda: parte('.lv-leitura'), kicker: card ? (card.querySelector('.lv-kicker') || {}).textContent : '',
+    pagina: { abas: topo(document.querySelector('.orc-etapas')), conversa: topo(document.getElementById('o-conversa-titulo')), radar: topo(document.getElementById('o-est-titulo')), digitar: topo(document.getElementById('o-texto')) } };
+});
+async function conversarMedindo(larg, alt, caixa60) {
   const { ctx, page, erros } = await abrir(ON, { larg, alt });
+  if (caixa60) await page.route('**/css/orcamento.css*', async (rota) => { const r = await rota.fetch(), t = await r.text(); if (!REGRA_CAIXA.test(t)) throw new Error('a regra da caixa do computador sumiu do css/orcamento.css'); await rota.fulfill({ response: r, body: t.replace(REGRA_CAIXA, '$1min(60vh, 620px);') }); });
   await page.goto(ON + '/orcamento', { waitUntil: 'load', timeout: 90000 });
   await esperarToques(page);
   await responderAteADor(page);
   await turno(page, 'Pelo Instagram e por indicação, e muita gente pergunta e some');
   await page.waitForSelector('#o-log .lv-item .lv-quadro', { timeout: 20000 });
-  await espera(4000);
-  const esb = await esbocoNaCaixa(page);
-  const passo = await page.evaluate(() => { const t = [...document.querySelectorAll('#o-log .lv-item .lv-lista .lv-txt')].map((li) => parseFloat(li.style.top)); return t.length > 1 ? Math.round(t[1] - t[0]) : 0; });
-  ok(!!esb && esb.alto <= esb.util, 'o esboço cabe inteiro na caixa (' + JSON.stringify(Object.assign({ passo }, esb)) + ')');
-  /* a caixa de digitar: com a caixa da conversa mais alta ela desce (8vh), e o alto dela tem de seguir à vista. Com 60vh, em 650, ela ia de 516 a
-     620 e o Enviar já terminava abaixo da dobra (678); em 768, 635 a 739 e o Enviar a 797 */
-  const digitar = await page.evaluate(() => { const r = document.getElementById('o-texto').getBoundingClientRect(), b = document.querySelector('#o-form button[type="submit"]'); return { topo: Math.round(r.top), fundo: Math.round(r.bottom), enviar: b ? Math.round(b.getBoundingClientRect().bottom) : null, janela: innerHeight }; });
-  console.log('       a caixa de digitar: ' + JSON.stringify(digitar));
-  const FUNDO_60VH = { '1366x768': 739, '1366x650': 620, '1280x650': 620, '930x768': 713 }[larg + 'x' + alt];
-  ok(digitar.topo + 48 <= digitar.janela && digitar.fundo <= FUNDO_60VH + 2, 'a caixa de digitar começa à vista e não desce além de onde ficava com 60vh (' + FUNDO_60VH + ')');
-  ok(!!esb && /em construção/.test(esb.kicker), 'durante a conversa, "em construção"');
-  await foto(page.locator('#o-log .lv-item'), 'e2e-' + larg + 'x' + alt + '-conversa');
-  ok(await lateral(page), 'sem rolagem lateral');
-  ok(erros.length === 0, 'nenhum erro no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
+  await espera(5000);
+  const conversa = await partesNaCaixa(page);
+  if (!caixa60) await page.screenshot({ path: PASTA ? path.join(PASTA, 'e2e-' + larg + 'x' + alt + '-conversa-tela.png') : '/dev/null' }).catch(() => {});
+  await turno(page, 'planta-boa pode desenhar');
+  await espera(9000);
+  const pronta = await partesNaCaixa(page);
+  if (!caixa60) await page.screenshot({ path: PASTA ? path.join(PASTA, 'e2e-' + larg + 'x' + alt + '-pronta-tela.png') : '/dev/null' }).catch(() => {});
+  const lat = await lateral(page);
   await ctx.close();
+  return { conversa, pronta, lat, erros };
+}
+for (const [larg, alt] of [[1366, 650], [1280, 650], [1366, 768], [1440, 900], [930, 768]]) {
+  console.log('\n== computador ' + larg + 'x' + alt + ': o quadro à vista na caixa, conversando e no "pronta" ==');
+  const m = await conversarMedindo(larg, alt, false);
+  /* (abaixo de 960 px a planta consagra no próprio cartão: no "pronta" o esboço já não está lá) */
+  for (const estado of larg >= 960 ? ['conversa', 'pronta'] : ['conversa']) {
+    const e = m[estado];
+    ok(!!e.quadro && e.quadro.visivel === e.quadro.alto, estado + ': o quadro inteiro à vista (' + JSON.stringify({ rotulo: e.rotulo, quadro: e.quadro, legenda: e.legenda }) + ')');
+    console.log('       ' + estado + ', a página: ' + JSON.stringify(e.pagina));
+  }
+  ok(/em construção/.test(m.conversa.kicker) && (larg < 960 || /pronta/.test(m.pronta.kicker)), 'o rótulo: "em construção" conversando, "pronta" com o mapa');
+  ok(m.lat, 'sem rolagem lateral');
+  ok(m.erros.length === 0, 'nenhum erro no console' + (m.erros.length ? ': ' + m.erros.join(' | ') : ''));
+  if (alt >= 768 && larg >= 960) {
+    /* nas telas altas a caixa é a de 60vh: a página tem de estar onde estava, conversando e no "pronta" */
+    const b = await conversarMedindo(larg, alt, true);
+    for (const estado of ['conversa', 'pronta']) {
+      const a = m[estado].pagina, p = b[estado].pagina, dif = Object.keys(a).filter((k) => Math.abs(a[k] - p[k]) > 2);
+      ok(!dif.length, estado + ': as abas, a Conversa, o RADAR e a caixa de digitar onde ficavam com 60vh (' + JSON.stringify({ agora: a, com60vh: p }) + ')');
+    }
+  }
 }
 
 /* ---------- a legenda do esboço, só a frase (26/11): a mais longa cabe na altura dela, no celular primeiro ---------- */
@@ -211,9 +240,13 @@ for (const [larg, alt] of [[1366, 768], [1366, 650], [1280, 650], [930, 768]]) {
     frases.add('A pessoa chega ' + PELO[a] + '.');
     for (const b of ks) { if (b !== a) frases.add('A pessoa chega ' + juntar([PELO[a], PELO[b]], 'ou') + '.'); for (const c of ks) if (new Set([a, b, c]).size === 3) frases.add('A pessoa chega ' + juntar([PELO[a], PELO[b], PELO[c]], 'ou') + '.'); }
   }
-  for (const [larg, alt] of [[320, 640], [390, 844], [930, 768], [1366, 650]]) {
-    console.log('\n== a legenda do esboço, ' + larg + 'x' + alt + ' (' + frases.size + ' frases) ==');
+  /* na Sora e na fonte de reserva (a que aparece antes de a Sora chegar, ou sem ela: 'Sora Reserva', css/tokens.css), trocada só na legenda e só
+     nesta visita, pela rota do CSS do esboço. A fonte de reserva depende do aparelho: aqui é a que esta máquina tem para os nomes de css/tokens.css */
+  const RESERVA = "\n.lv-leitura { font-family: 'Sora Reserva', ui-sans-serif, system-ui, sans-serif; }\n";
+  for (const [larg, alt, fonte] of [[320, 640, 'Sora'], [320, 640, 'reserva'], [390, 844, 'Sora'], [390, 844, 'reserva'], [930, 768, 'Sora'], [930, 768, 'reserva'], [1366, 650, 'Sora'], [1366, 650, 'reserva']]) {
+    console.log('\n== a legenda do esboço, ' + larg + 'x' + alt + ', fonte ' + fonte + ' (' + frases.size + ' frases) ==');
     const { ctx, page } = await abrir(ON, { larg, alt });
+    if (fonte === 'reserva') await page.route('**/css/planta-esboco.css*', async (rota) => { const r = await rota.fetch(); await rota.fulfill({ response: r, body: (await r.text()) + RESERVA }); });
     await page.goto(ON + '/orcamento', { waitUntil: 'load', timeout: 90000 });
     await esperarToques(page);
     await page.addStyleTag({ url: '/css/planta-esboco.css' });
@@ -229,9 +262,11 @@ for (const [larg, alt] of [[1366, 768], [1366, 650], [1280, 650], [930, 768]]) {
       document.getElementById('o-log').appendChild(li);
       let pior = { sobra: 1e9 };
       for (const f of lista) { t.textContent = semViuva(f); const sobra = p.clientHeight - t.offsetHeight; if (sobra < pior.sobra) pior = { sobra, frase: f, alto: t.offsetHeight, caixa: p.clientHeight }; }
-      return { pior, lateral: document.documentElement.scrollWidth - innerWidth, largura: Math.round(p.getBoundingClientRect().width) };
+      return { pior, fonte: getComputedStyle(t).fontFamily.slice(0, 24), lateral: document.documentElement.scrollWidth - innerWidth, largura: Math.round(p.getBoundingClientRect().width) };
     }, { lista: [...frases] });
-    ok(r.pior.sobra >= 0, 'a frase mais alta cabe na legenda (' + JSON.stringify(r) + ')');
+    /* abaixo de 360 px a mais alta enche as 3 linhas (sobra 0): uma 4ª de reserva, para a fonte de reserva de outro aparelho ou uma fonte maior */
+    const RESERVA_LINHA = larg < 360 ? 21 : 0;
+    ok(r.pior.sobra >= RESERVA_LINHA, 'a frase mais alta cabe na legenda' + (RESERVA_LINHA ? ', com uma linha de sobra' : '') + ' (' + JSON.stringify(r) + ')');
     ok(r.lateral <= 1, 'sem rolagem lateral');
     await ctx.close();
   }

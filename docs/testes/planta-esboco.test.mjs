@@ -5,7 +5,6 @@
    node --test docs/testes/planta-esboco.test.mjs */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { criarJanela, textosDe } from './planta-dom-falso.mjs';
 
@@ -229,7 +228,7 @@ test('marcarPronta interrompendo uma estação no meio: a legenda termina com a 
 
 /* 26/11, dono: "OBJETIVO" aparecia duas vezes, no nó e na legenda logo abaixo. A legenda explica a estação que acabou de aparecer: repetir o nome dela
    não acrescenta nada. Fica só a frase, e a legenda encolhe para a altura dela (3 linhas no celular, 2 no computador, de 21 px: Sora 14/1.5) */
-test('a legenda é só a frase: sem o rótulo da estação (o nó já diz qual é), e com a altura das linhas da frase', () => {
+test('a legenda é só a frase: sem o rótulo da estação (o nó já diz qual é)', () => {
   const { w, E, raiz } = ambiente({ largura: 346 });
   const esb = E.criar(raiz, {});
   assert.equal(raiz.porClasse('lv-leitura__tag').length, 0, 'sem o rótulo na legenda');
@@ -241,8 +240,6 @@ test('a legenda é só a frase: sem o rótulo da estação (o nó já diz qual �
   assert.equal(raiz.porClasse('lv-leitura')[0].attrs['aria-hidden'], 'true', 'segue fora do leitor de tela (o anúncio é o role=status)');
   assert.match(raiz.porClasse('lv-sr')[0].textContent, /Nova etapa na planta: /, 'o leitor de tela recebe o mesmo anúncio de antes');
   esb.parar();
-  const css = fs.readFileSync(new URL('../../css/planta-esboco.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  assert.ok(!/lv-leitura__tag/.test(css), 'nada do rótulo no CSS');
-  assert.match(css, /\.lv-leitura\s*\{[^}]*\bheight:\s*calc\(3em \* 1\.5\)/, 'celular: 3 linhas (63 px na fonte de 14, e acompanha a fonte maior)');
-  assert.match(css, /@media \(min-width: 960px\)\s*\{[^@]*\.lv-leitura\s*\{\s*height:\s*calc\(2em \* 1\.5\)/, 'computador: 2 linhas');
+  /* a altura da legenda é conferida por comportamento, não por regex no CSS: docs/e2e-planta.mjs mede as 835 frases no cartão de verdade, na Sora e na
+     fonte de reserva, em 320, 390, 930 e 1366 (abaixo de 360 px, com uma linha de sobra) */
 });
