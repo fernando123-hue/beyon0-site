@@ -40,6 +40,23 @@
     return e;
   }
 
+  /* (lapidação 26/11, achado 4 dos modelos) a palavra com hífen não se parte no hífen ("ar- / condicionado"): ela vai inteira num span que não
+     quebra. As outras quebras ficam com o text-wrap do css/previa.css (balance nos títulos, pretty no texto) */
+  /* palavra por palavra (separadas por espaço), com a regex ANCORADA no pedaço: tempo linear. A busca solta no texto inteiro era
+     quadrática numa sequência longa de letras sem hífen (revisão de segurança do #260: 200 mil letras levavam mais de 60 s) */
+  var COM_HIFEN = /^([^A-Za-zÀ-ÿ]*)([A-Za-zÀ-ÿ]+(?:-[A-Za-zÀ-ÿ]+)+)([^A-Za-zÀ-ÿ]*)$/;
+  function semPartir(alvo, texto) {
+    var solto = '';
+    texto.split(/(\s+)/).forEach(function (p) {
+      var m = p.length <= 80 ? COM_HIFEN.exec(p) : null;
+      if (!m) { solto += p; return; }
+      solto += m[1];
+      if (solto) alvo.appendChild(document.createTextNode(solto));
+      var s = document.createElement('span'); s.className = 'pv-inteira'; s.textContent = m[2]; alvo.appendChild(s);
+      solto = m[3];
+    });
+    if (solto) alvo.appendChild(document.createTextNode(solto));
+  }
   /* texto com os espaços reservados marcados */
   function escrever(alvo, s) {
     str(s).split(RESERVADO).forEach(function (parte) {
@@ -50,7 +67,7 @@
         r.title = 'Espaço reservado: entra o dado real do seu negócio';
         alvo.appendChild(r);
       } else {
-        alvo.appendChild(document.createTextNode(parte));
+        semPartir(alvo, parte);
       }
     });
   }
@@ -102,6 +119,12 @@
     return svg;
   }
 
+  /* "1. ", "3) ", "Passo 2 - ": número, pontuação e ESPAÇO; sem o espaço é conteúdo ("10-20 minutos", "5–10 dias", "12:30") */
+  var SEM_NUMERO = /^\s*(?:passo\s+)?\d{1,2}\s*[.)–—-]\s+/i;
+  function semNumero(titulo) {
+    var t = str(titulo).replace(SEM_NUMERO, '');
+    return t.trim() ? t : str(titulo);   /* o título que era só o número fica como veio: passo sem título não */
+  }
   function titulado(li, i) {
     if (i.titulo) li.appendChild(el('h5', 'pv-item__t', i.titulo));
     if (i.texto) li.appendChild(el('p', 'pv-item__x', i.texto));
@@ -137,7 +160,8 @@
         var num = el('span', 'pv-passo__n', String(n + 1));
         num.setAttribute('aria-hidden', 'true');
         li.appendChild(num);
-        titulado(li, i);
+        /* (achado 11 dos modelos) a numeração é do desenho: o "1." que o modelo escreveu no título sai (o círculo já diz 1) */
+        titulado(li, { titulo: semNumero(i.titulo), texto: i.texto });
       } else if (modo === 'linhas') {
         li.className = 'pv-item pv-linha';
         var marca = icone(i.icone);   /* com ícone, ele ocupa o lugar do índice numérico */
