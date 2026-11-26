@@ -85,6 +85,8 @@ test('o anel da barra do celular: o mesmo progresso, o ouro só no confirmado', 
   D.aplicarAnel(a, st({ marco: 4, ouro: true }));
   assert.equal(classe(a.svg), 'rde-anel is-ouro');
   assert.equal(a.num.textContent, '5/5');
+  D.aplicarAnel(a, st({ marco: 4 }));
+  assert.equal(a.num.textContent, '4/5', 'o 5/5 só com o ouro: em confirmação o arco ainda está aberto (revisão do #254)');
   D.aplicarAnel(a, st());
   assert.equal(classe(a.svg), 'rde-anel is-vazio');
 });

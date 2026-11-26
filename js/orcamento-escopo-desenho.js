@@ -111,7 +111,8 @@
     var fr = fracao(st.marco, st.ouro);
     anel.progresso.setAttribute('stroke-dashoffset', f((1 - fr) * 1000) / 1000);
     anel.svg.setAttribute('class', 'rde-anel' + (st.ouro ? ' is-ouro' : '') + (fr > 0 ? '' : ' is-vazio'));
-    if (anel.num) anel.num.textContent = (st.ouro ? MARCOS_TOTAL : Math.max(0, Math.min(MARCOS_TOTAL - 1, st.marco || 0)) + 1) + '/' + MARCOS_TOTAL;
+    /* (revisão do #254) o 5/5 só com o ouro: em confirmação o arco ainda está aberto */
+    if (anel.num) anel.num.textContent = (st.ouro ? MARCOS_TOTAL : Math.max(0, Math.min(MARCOS_TOTAL - 2, st.marco || 0)) + 1) + '/' + MARCOS_TOTAL;
   }
 
   return { montar: montar, aplicar: aplicar, montarAnel: montarAnel, aplicarAnel: aplicarAnel, fracao: fracao, ponto: ponto, arco: arco, DIMS: DIMS, R: { C: C, EXT: R_EXT, DIM: R_DIM, MIOLO: R_MIOLO } };

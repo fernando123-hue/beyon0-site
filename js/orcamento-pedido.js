@@ -169,7 +169,14 @@
     }, { falaId: K.ultimaFala() });
     /* (lapidação 26/11, achado 19) a saída não é mais uma opção igual às outras: vira o botão principal, numa linha própria */
     var sair = [].filter.call(grupo.querySelectorAll('button'), function (b) { return b.getAttribute('data-valor') === 'seguir'; })[0];
-    if (sair) { sair.className = 'btn btn--primary btn--sm orc-toque__seguir'; grupo.appendChild(sair); }   /* (sai do grupo das opções, fica no fim do passo) */
+    if (sair) {
+      var ops = sair.parentNode, tinhaFoco = doc.activeElement === sair;
+      sair.className = 'btn btn--primary btn--sm orc-toque__seguir';
+      grupo.appendChild(sair);   /* (sai do grupo das opções, fica no fim do passo) */
+      /* (revisão do #254) com todos os opcionais já contados, o grupo ficava vazio e o foco se perdia na mudança */
+      if (ops && ops !== grupo && !ops.children.length && typeof ops.remove === 'function') ops.remove();
+      if (tinhaFoco) sair.focus();
+    }
     abrir(pergunta, grupo);
   }
   function preenchido(chave) { return chave === 'redes' ? Object.keys(p.d.redes).length > 0 : !!p.d[chave]; }
