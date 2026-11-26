@@ -86,13 +86,14 @@
     H('span', '', 'Planta', topo); var estadoTopo = H('b', '', ' · nasce com a conversa', topo);
     var quadro = H('div', 'lv-quadro', null, card);
     var leitura = H('p', 'lv-leitura', null, card); leitura.setAttribute('aria-hidden', 'true');
-    var leTag = H('b', 'lv-leitura__tag', 'Zero', leitura), leTxt = H('span', 'lv-leitura__txt', 'A planta começa quando você me contar do seu negócio.', leitura);
+    /* só a frase (dono, 26/11): o nó logo acima já diz qual estação é; repetir o nome dela ("OBJETIVO" duas vezes) confundia */
+    var leTxt = H('span', 'lv-leitura__txt', 'A planta começa quando você me contar do seu negócio.', leitura);
     var leVarre = H('span', 'lv-varre', null, leitura);
     var status = H('p', 'lv-sr', '', card); status.setAttribute('role', 'status');
-    /* compacto: o quadro fica com o que sobra da caixa depois do rótulo e da legenda, medidos já na página (a legenda tem 84 px abaixo de 960 e 64 acima) */
+    /* compacto: o quadro fica com o que sobra da caixa depois do rótulo e da legenda, medidos já na página (a legenda tem 63 px, 3 linhas, abaixo de 960 e 42 acima) */
     raiz.appendChild(card);
     var fora = op.compacto > 0 ? card.offsetHeight - quadro.offsetHeight : 0;   /* (só mede no compacto: no celular não força o layout) */
-    var g = geometria(W, op.compacto > 0 ? Math.max(1, op.compacto - (fora > 0 ? fora : 98)) : 0);
+    var g = geometria(W, op.compacto > 0 ? Math.max(1, op.compacto - (fora > 0 ? fora : 76)) : 0);
     var cy = function (i) { return g.estacoes[i].cy; }, LEDY = g.led.cy, C = g.chip;
     quadro.style.height = g.H + 'px';
     var svg = S('svg', { viewBox: '0 0 ' + g.W + ' ' + g.H, width: g.W, height: g.H, 'aria-hidden': 'true', focusable: 'false' }, quadro, 'lv-svg');
@@ -166,7 +167,7 @@
 
     inst = {
       card: card, quadro: quadro, svg: svg, g: g, est: est, led: led, nucleo: { g: gN, li: liN, cx: RX, cy: NY }, estadoTopo: estadoTopo, topo: topo,
-      leitura: leitura, leTag: leTag, leTxt: leTxt, status: status, trilhoFan: trilhoFan, trechos: trechos,
+      leitura: leitura, leTxt: leTxt, status: status, trilhoFan: trilhoFan, trechos: trechos,
       semeado: false, esboco: null, fila: [], ocupado: false, repouso: [], visivel: !window.IntersectionObserver, parado: false, rel: Relogio.criar()
     };
     card.classList.add('is-dormente');
@@ -200,8 +201,8 @@
         anim(inst.trechos[t], [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: Math.max(40, T.luz * (pb - pa)), delay: T.luz * pa, easing: 'linear', fill: 'backwards' });
       }
     }
-    function ler(tag, txt, animar) {
-      inst.leTag.textContent = tag; inst.leTxt.textContent = semViuva(txt);
+    function ler(txt, animar) {
+      inst.leTxt.textContent = semViuva(txt);
       if (animar) varrer(leVarre, 0);
     }
 
@@ -250,22 +251,22 @@
       acender(x);
     }
     function imprimir(item, animar) {
-      var refeita = item.tipo === 'refeita', alvo, tag, frase;
+      var refeita = item.tipo === 'refeita', alvo, frase;
       if (item.lugar === 'objetivo') {
         var o = inst.esboco.objetivo;
         led.conhecido = true; led.objetivo = o; led.tit.textContent = semViuva(o.titulo);
         acender(led);
-        alvo = led; tag = 'Objetivo'; frase = o.frase;
+        alvo = led; frase = o.frase;
         acenderTrilhoAte(5, animar);
       } else {
         var k = Cresce.LUGARES.indexOf(item.lugar), e = inst.esboco.estacoes[k];
         alvo = est[k]; pintarEstacao(alvo, e);
-        tag = e.verbo; frase = e.frase;
+        frase = e.frase;
         acenderTrilhoAte(k, animar);
       }
       inst.status.textContent = (refeita ? 'A planta mudou: ' : 'Nova etapa na planta: ') + (alvo.est ? alvo.est.titulo : led.objetivo.titulo) + '.';
-      inst.ultima = [tag, frase];   /* (a legenda certa se a estação for interrompida: marcarPronta) */
-      if (!animar) { ler(tag, frase, false); return 0; }
+      inst.ultima = frase;   /* (a legenda certa se a estação for interrompida: marcarPronta) */
+      if (!animar) { ler(frase, false); return 0; }
       luz(alvo.cy - (alvo === led ? LR * 0.63 : C / 2), 0);
       var chega = T.luz;
       if (alvo === led) {
@@ -278,7 +279,7 @@
         Array.prototype.forEach.call(alvo.ic.childNodes, function (p, q) { tracar(p, chega + 40 + q * 45, T.chip); });
       }
       varrer(alvo.varre, chega + T.chip - 60);
-      depois(chega, function () { som(refeita ? 'refaz' : 'estacao'); ler(tag, frase, true); });
+      depois(chega, function () { som(refeita ? 'refaz' : 'estacao'); ler(frase, true); });
       return chega + T.chip + T.texto;
     }
 
@@ -354,7 +355,7 @@
       if (inst.pronta && inst.ocupado) {
         inst.rel.parar(); inst.rel = Relogio.criar(); inst.repouso = []; inst.ocupado = false;
         if (!inst.visivel || document.hidden) inst.rel.pausar();
-        if (inst.ultima) ler(inst.ultima[0], inst.ultima[1], false);   /* o ler() dela estava num timer do relógio velho */
+        if (inst.ultima) ler(inst.ultima, false);   /* o ler() dela estava num timer do relógio velho */
       }
       andar();   /* (pronta, a fila sai de uma vez pelo mesmo caminho do movimento reduzido, mesmo fora da tela) */
     }
