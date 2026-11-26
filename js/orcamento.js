@@ -908,11 +908,17 @@
     emGeracao.forEach(function (d) { pedirDirecao(d.id); });
   }
   /* a recomendação do Zero, acima dos três: enquanto a pessoa escolhe (depois de escolher, o selo no cartão basta) */
+  /* (achado 14 dos modelos) só com o modelo recomendado PRONTO e com conteúdo (o mesmo que o cartão pede para desenhar): "Eu iria no 1"
+     com o 1 ainda em produção apontava para um cartão vazio. Função pura: docs/testes/modelos-recomendacao.test.mjs a roda */
+  function recomendacaoVisivel(r, direcoes, recId, escolhida, pode) {
+    var pronta = (direcoes || []).some(function (d) { return d.id === recId && d.status === 'pronta' && !!d.conteudo; });
+    return !!(r && typeof r.texto === 'string' && recId && pronta && !escolhida && pode);
+  }
   function recomendacao() {
     var caixa = $('o-recomenda');
     if (!caixa) return;
     var r = E.recomendacao;
-    var mostra = !!(r && typeof r.texto === 'string' && recomendadaId() && !escolhidaId() && podeEscolher());
+    var mostra = recomendacaoVisivel(E.recomendacao, E.direcoes, recomendadaId(), escolhidaId(), podeEscolher());
     if (!mudou('recomenda', [mostra, mostra ? r.texto : ''])) return;
     caixa.textContent = '';
     caixa.hidden = !mostra;
