@@ -9,6 +9,7 @@
      - ao recarregar, a pergunta volta;
      - "Quero ajustar algo" foca a caixa com a dica do mapa;
      - o AJUSTE: um estado forjado na rede (versão 2 com um nó "ajustado") faz o nó novo aparecer com a marca, sem refazer a entrada.
+   Ligada, computador durante a conversa (1366x768, 1366x650, 1280x650 e 930x768): o esboço cabe na caixa ou fica no passo mínimo.
    Ligada, computador (1280x900 e 1366x768): o esboço cabe na caixa e, com o mapa pronto, deixa "em construção" (achado 18); o botão "Ver a planta do seu site" aparece sob a fala do Zero e abre a faixa com o mapa, com o foco no título.
    Regressão do v2: um plano v2 forjado na rede desenha com o módulo antigo (.plv-quadro).
    Desligada: nada da planta é baixado e a conversa é a de sempre.
@@ -164,6 +165,28 @@ console.log('\n== flag ligada, computador ' + larg + 'x' + alt + ' ==');
   ok(erros.length === 0, 'nenhum erro no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
   await ctx.close();
 }
+}
+
+/* ---------- computador, DURANTE a conversa: o esboço compacto pela altura da caixa (revisão do achado 18) ---------- */
+/* num notebook de 768 de verdade (navegador e barra de tarefas) a janela útil tem ~650 e a caixa (60vh) ~362 úteis: o passo do esboço sai da altura
+   útil da caixa, de 44 a 36; abaixo do que o passo 36 alcança o cartão fica no mínimo (a medida sai no log). 930: a caixa já rola e a legenda tem 84 */
+for (const [larg, alt] of [[1366, 768], [1366, 650], [1280, 650], [930, 768]]) {
+  console.log('\n== computador ' + larg + 'x' + alt + ', o esboço durante a conversa ==');
+  const { ctx, page, erros } = await abrir(ON, { larg, alt });
+  await page.goto(ON + '/orcamento', { waitUntil: 'load', timeout: 90000 });
+  await esperarToques(page);
+  await responderAteADor(page);
+  await turno(page, 'Pelo Instagram e por indicação, e muita gente pergunta e some');
+  await page.waitForSelector('#o-log .lv-item .lv-quadro', { timeout: 20000 });
+  await espera(4000);
+  const esb = await esbocoNaCaixa(page);
+  const passo = await page.evaluate(() => { const t = [...document.querySelectorAll('#o-log .lv-item .lv-lista .lv-txt')].map((li) => parseFloat(li.style.top)); return t.length > 1 ? Math.round(t[1] - t[0]) : 0; });
+  ok(!!esb && (esb.alto <= esb.util || passo === 36), 'o esboço cabe na caixa ou fica no passo mínimo (' + JSON.stringify(Object.assign({ passo }, esb)) + ')');
+  ok(!!esb && /em construção/.test(esb.kicker), 'durante a conversa, "em construção"');
+  await foto(page.locator('#o-log .lv-item'), 'e2e-' + larg + 'x' + alt + '-conversa');
+  ok(await lateral(page), 'sem rolagem lateral');
+  ok(erros.length === 0, 'nenhum erro no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
+  await ctx.close();
 }
 
 /* ---------- regressão do v2 (plano antigo gravado numa conversa) ---------- */
