@@ -500,6 +500,23 @@ test('quebras no sentido (lapidação 26/11, achado 4 dos modelos): a palavra co
   assert.match(css, /\.pv-inteira\s*\{[^}]*display:\s*inline-block[^}]*max-width:\s*100%[^}]*overflow-wrap:\s*anywhere/);
 });
 
+test('quebras no sentido: a palavra com hífen junto de pontuação, várias numa frase; nada no meio de uma palavra (revisão do #260)', () => {
+  const P = carregar();
+  const raiz = P.desenhar(direcao({ secoes: [{ tipo: 'hero', variante: 'split', rotulo: '', titulo: 'Bem-estar, ar-condicionado e 2024-2025 (pós-obra).', subtitulo: '', texto: '', itens: [], cta: 'Chamar' }] }));
+  assert.deepEqual(comClasse(raiz, 'pv-inteira').map(s => s.textContent), ['Bem-estar', 'ar-condicionado', 'pós-obra']);
+  assert.ok(todos(raiz, n => /^h[1-5]$/.test(n.tag)).some(h => h.textContent === 'Bem-estar, ar-condicionado e 2024-2025 (pós-obra).'));
+});
+
+test('quebras no sentido: texto enorme sem hífen não trava o desenho (ReDoS, revisão de segurança do #260)', () => {
+  const P = carregar();
+  const longo = 'a'.repeat(200000) + '!';
+  const t0 = performance.now();
+  const raiz = P.desenhar(direcao({ secoes: [{ tipo: 'hero', variante: 'split', rotulo: '', titulo: 'Topo', subtitulo: '', texto: longo + ' ' + 'b-'.repeat(50000) + 'c', itens: [], cta: 'Chamar' }] }));
+  const ms = performance.now() - t0;
+  assert.ok(ms < 1500, 'desenhou em ' + Math.round(ms) + ' ms (a busca antiga levava mais de 60 s)');
+  assert.ok(todos(raiz, n => n.tag === 'p').some(p => p.textContent.startsWith('aaaa')), 'o texto continua inteiro');
+});
+
 test('passos (achado 11 dos modelos): o "1." que o modelo escreveu sai do título; o círculo do desenho é a numeração', () => {
   const P = carregar();
   const raiz = P.desenhar(direcao({ secoes: [{ tipo: 'processo', variante: 'linha_do_tempo', rotulo: '', titulo: 'Como funciona', subtitulo: '', texto: '',

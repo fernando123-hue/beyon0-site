@@ -42,13 +42,20 @@
 
   /* (lapidação 26/11, achado 4 dos modelos) a palavra com hífen não se parte no hífen ("ar- / condicionado"): ela vai inteira num span que não
      quebra. As outras quebras ficam com o text-wrap do css/previa.css (balance nos títulos, pretty no texto) */
-  var COM_HIFEN = /([A-Za-zÀ-ÿ]+(?:-[A-Za-zÀ-ÿ]+)+)/;
+  /* palavra por palavra (separadas por espaço), com a regex ANCORADA no pedaço: tempo linear. A busca solta no texto inteiro era
+     quadrática numa sequência longa de letras sem hífen (revisão de segurança do #260: 200 mil letras levavam mais de 60 s) */
+  var COM_HIFEN = /^([^A-Za-zÀ-ÿ]*)([A-Za-zÀ-ÿ]+(?:-[A-Za-zÀ-ÿ]+)+)([^A-Za-zÀ-ÿ]*)$/;
   function semPartir(alvo, texto) {
-    texto.split(COM_HIFEN).forEach(function (p, k) {
-      if (!p) return;
-      if (k % 2) { var s = document.createElement('span'); s.className = 'pv-inteira'; s.textContent = p; alvo.appendChild(s); }
-      else alvo.appendChild(document.createTextNode(p));
+    var solto = '';
+    texto.split(/(\s+)/).forEach(function (p) {
+      var m = p.length <= 80 ? COM_HIFEN.exec(p) : null;
+      if (!m) { solto += p; return; }
+      solto += m[1];
+      if (solto) alvo.appendChild(document.createTextNode(solto));
+      var s = document.createElement('span'); s.className = 'pv-inteira'; s.textContent = m[2]; alvo.appendChild(s);
+      solto = m[3];
     });
+    if (solto) alvo.appendChild(document.createTextNode(solto));
   }
   /* texto com os espaços reservados marcados */
   function escrever(alvo, s) {
