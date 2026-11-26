@@ -75,7 +75,45 @@ test('fila manual: o pedido.json leva a identidade fixada de cada direção, com
   const p = pedidoParaModelo({ conversa_id: '11111111-2222-4333-8444-555555555555', briefing: b, fatores: {},
     direcoes: Object.keys(ESTRATEGIAS).map((e, i) => ({ id: 'd' + i, numero: i + 1, estrategia: e, status: 'na_fila' })) });
   for (const d of p.direcoes) {
-    const t = trilhoDaDirecao(b, d.estrategia);
+    const t = trilhoDaDirecao(b, d.estrategia, '11111111-2222-4333-8444-555555555555');
     assert.deepEqual(d.identidade_fixada, { tema: t.tema, cor_de_destaque: TEMPERATURAS[t.temperatura], tipografia: t.tipografia });
   }
+});
+
+test('trilho, propriedade: em 2.000 sementes as garantias valem sempre e cada estratégia pega cada fonte, cor e o escuro', () => {
+  const conta = {};
+  for (let k = 0; k < 2000; k++) {
+    const t = Object.keys(ESTRATEGIAS).map(e => trilhoDaDirecao(null, e, 'pedido-' + k));
+    assert.equal(new Set(t.map(x => x.tipografia.titulos)).size, 3, 'semente ' + k);
+    assert.equal(t.filter(x => x.tema === 'escuro').length, 1, 'semente ' + k);
+    assert.equal(new Set(t.map(x => x.temperatura)).size, 3, 'semente ' + k);
+    t.forEach((x, i) => { for (const c of [x.tipografia.titulos, x.temperatura, x.tema]) conta[i + c] = (conta[i + c] || 0) + 1; });
+  }
+  for (const [chave, n] of Object.entries(conta)) if (!chave.endsWith('claro')) assert.ok(n > 500, chave + ' só ' + n + ' em 2000');
+});
+
+test('trilho: a semente (id do pedido) vence o texto do briefing; briefing só com segmento também gera trilho válido', () => {
+  const s = '11111111-2222-4333-8444-555555555555';
+  for (const e of Object.keys(ESTRATEGIAS)) assert.deepEqual(trilhoDaDirecao(briefing('Nome antigo'), e, s), trilhoDaDirecao(briefing('Nome novo', 'outro ramo'), e, s), 'o briefing mudou entre as chamadas e o trilho não');
+  const t = Object.keys(ESTRATEGIAS).map(e => trilhoDaDirecao({ negocio: { segmento: 'barbearia' } }, e));
+  assert.equal(new Set(t.map(x => x.tipografia.titulos)).size, 3);
+});
+
+test('higienizar: o tema não é forçado, mas o desvio do trilho fica anotado em ajustes', () => {
+  const bruta = { identidade: { estilo: { tema: 'claro' } }, navegacao: { marca: 'M' }, secoes: [{ tipo: 'hero', titulo: 'a' }, { tipo: 'sobre', titulo: 'b' }, { tipo: 'cta', titulo: 'c' }] };
+  const tip = { titulos: 'serif_classica', texto: 'sans_geometrica' };
+  const fora = higienizar(bruta, 'conversao', { trilho: { tipografia: tip, tema: 'escuro' } });
+  assert.equal(fora.direcao.identidade.estilo.tema, 'claro');
+  assert.ok(fora.ajustes.includes('tema_fora_do_trilho'));
+  assert.ok(!higienizar(bruta, 'conversao', { trilho: { tipografia: tip, tema: 'claro' } }).ajustes.includes('tema_fora_do_trilho'));
+});
+
+test('reserva sem IA: com o trilho, as fontes são as dele (o degrau que cai não repete a fonte de título de outro modelo)', async () => {
+  const { direcaoDeReserva } = await import('../../api/_vendas/reserva.mjs');
+  const b = briefing('Doce Ateliê da Ana');
+  for (const e of Object.keys(ESTRATEGIAS)) {
+    const trilho = trilhoDaDirecao(b, e, 'pedido-x');
+    assert.deepEqual(direcaoDeReserva({ briefing: b, estrategia: e, trilho }).direcao.identidade.tipografia, trilho.tipografia);
+  }
+  assert.ok(direcaoDeReserva({ briefing: b, estrategia: 'conversao' }).direcao, 'sem trilho continua como antes');
 });

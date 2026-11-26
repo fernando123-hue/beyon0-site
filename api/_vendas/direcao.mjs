@@ -26,9 +26,9 @@ export const ICONES = ['nenhum', 'calendario', 'relogio', 'local', 'mensagem', '
 export const TOPO_DA_ESTRATEGIA = { conversao: 'split', autoridade: 'centro', experiencia: 'faixa' };
 /* O TRILHO de identidade (achado 1 da lapidação de 25/11; regra do dono de 20/11, nunca padronizar): as três chamadas da geração correm
    separadas e uma não vê a outra, então saíam com a mesma fonte, o mesmo tema claro e a mesma família de cor. O código reparte antes:
-   títulos em três fontes diferentes, um só modelo escuro e o destaque de cada um numa família de cor diferente. A divisão gira pelo nome
-   e o segmento do negócio, para dois clientes também não saírem iguais. As fontes o código fixa (como o topo); tema e cor vão ao modelo
-   no pedido, porque a paleta inteira tem de combinar com eles. */
+   títulos em três fontes diferentes, um só modelo escuro e o destaque de cada um numa família de cor diferente. A divisão gira pelo
+   pedido (semente), para dois clientes também não saírem iguais. As fontes o código fixa (como o topo); tema e cor vão ao modelo no
+   pedido, porque a paleta inteira tem de combinar com eles, e o higienizar() anota em `ajustes` quando o modelo saiu do tema pedido. */
 export const TEMPERATURAS = {
   quente: 'família quente (vermelhos, laranjas, corais, dourados)',
   fria: 'família fria (azuis, verdes, turquesas, violetas)',
@@ -46,11 +46,14 @@ function hash(s) {
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return h;
 }
-export function trilhoDaDirecao(briefing, estrategia) {
+/* semente = o id do pedido (conversa_id). As três chamadas leem o briefing do banco cada uma na sua hora, e ele pode mudar entre elas (a
+   pessoa segue conversando): girar pelo texto do briefing faria as três caírem em trilhos de giros diferentes e perder a garantia. Com a
+   semente, as três giram igual. Sem semente (testes, medição), gira pelo nome e o segmento */
+export function trilhoDaDirecao(briefing, estrategia, semente = '') {
   const i = ORDEM_ESTRATEGIAS.indexOf(estrategia);
   if (i < 0) return null;
   const n = briefing && typeof briefing === 'object' && briefing.negocio && typeof briefing.negocio === 'object' ? briefing.negocio : {};
-  const h = hash(textoSeguro(n.nome) + '|' + textoSeguro(n.segmento));
+  const h = hash(typeof semente === 'string' && semente ? semente : textoSeguro(n.nome) + '|' + textoSeguro(n.segmento));
   const titulos = TITULOS[PERMUTACOES[h % 6][i]];
   const temperatura = Object.keys(TEMPERATURAS)[PERMUTACOES[(h >>> 3) % 6][i]];
   return {
@@ -213,5 +216,7 @@ export function higienizar(bruta, estrategia, opcoes) {
     rodape: { texto: t(d.rodape?.texto, 200) }
   };
   if (LOREM.test(JSON.stringify(direcao))) return { erro: 'texto de preenchimento (lorem ipsum)' };
+  /* o tema não se força (a paleta do modelo é feita para o tema dele): só se anota o desvio, para a medição ver se o modelo obedece */
+  if (trilhoValido && (trilho.tema === 'escuro' || trilho.tema === 'claro') && trilho.tema !== direcao.identidade.estilo.tema) return { direcao, ajustes: [...ajustes, 'tema_fora_do_trilho'] };
   return { direcao, ajustes };
 }

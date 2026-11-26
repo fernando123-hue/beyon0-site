@@ -217,7 +217,7 @@ export function pedidoParaModelo(p) {
     briefing: briefingDelimitado(limparProfundo(briefingParaGeracao(p.briefing), apagador(p.contato))),
     formato_e_escopo: { formato: p.fatores?.formato || null, paginas: p.fatores?.paginas || null, adicionais: p.fatores?.adicionais || {} },
     direcoes: (p.direcoes || []).map(d => ({ id: d.id, numero: d.numero, estrategia: d.estrategia, status: d.status, instrucao: ESTRATEGIAS[d.estrategia] || null,
-      identidade_fixada: identidadeFixada(trilhoDaDirecao(p.briefing, d.estrategia)) }))
+      identidade_fixada: identidadeFixada(trilhoDaDirecao(p.briefing, d.estrategia, String(p.conversa_id))) }))
   };
 }
 /* o mesmo trilho da geração automática (direcao.mjs): aqui a sessão escreve a tipografia, então ela vai junto */
