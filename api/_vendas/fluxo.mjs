@@ -41,6 +41,8 @@ import { criarAcoesDoMaterial } from './fluxo-material.mjs';
 import { criarAcoesDoLink } from './fluxo-link.mjs';
 import { criarAcoesDaPrevia } from './fluxo-previa.mjs';
 import { criarAcoesDoRecado } from './fluxo-recado.mjs';
+import { criarAcoesDaReacao } from './fluxo-reacao.mjs';
+import { reacaoLigada } from './reacao.mjs';
 import { entregaLigada, FRASE_DESLIGADA } from '../_material/interruptor.mjs';
 import { plantaLigada, semChavesDaPlanta, montarPlanta, leituraParaTela } from './planta.mjs';
 import { avisarDono } from '../_aviso.mjs';
@@ -95,6 +97,8 @@ export function traduzirErro(e) {
 }
 
 const exigir = (cond, status, msg) => { if (!cond) throw new Recusa(status, msg); };
+/* o registro (app.ia_chamadas) só aceita os três papéis do banco: a reação (fase 1b, Haiku) entra como extração */
+const PAPEL_NO_REGISTRO = { reacao: 'extracao' };
 const texto = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, max) : '');
 
 /* as regras comerciais ATIVAS vêm de api/_vendas/regras-ativas.mjs. Com { cache: true } só no catálogo, no preço ao
@@ -241,11 +245,17 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     const t0 = Date.now();
     try {
       const r = await iaBase.mensagem(p);
-      chamadas.push({ papel: p.papel, modelo: r.modelo, parada: r.parada, custo_usd: abaterDoProvisorio(p.papel, r.custo_usd || 0), tokens_entrada: r.uso?.entrada ?? null,
+      chamadas.push({ papel: PAPEL_NO_REGISTRO[p.papel] ?? p.papel, modelo: r.modelo, parada: r.parada, custo_usd: abaterDoProvisorio(p.papel, r.custo_usd || 0), tokens_entrada: r.uso?.entrada ?? null,
         tokens_saida: r.uso?.saida ?? null, ferramentas: (r.chamadas || []).map(c => c.nome), ms: Date.now() - t0 });
       return r;
     } catch (e) {
-      chamadas.push({ papel: p.papel, erro: e instanceof ErroIA ? e.motivo : 'interno', custo_usd: abaterDoProvisorio(p.papel, (e && e.custo_usd) || 0), ms: Date.now() - t0 });
+      const custo = abaterDoProvisorio(p.papel, (e && e.custo_usd) || 0);
+      /* (revisão do PR #274, achado 1) o disjuntor (vendas_ia_disponivel) lê as 5 últimas linhas da organização SEM olhar o papel: a falha da
+         reação (muitas por minuto, prazo de 4 s) não pode fechá-lo para o Zero inteiro. Falha dela sem custo não vira linha; com custo, vira
+         linha sem erro, só para o gasto do dia enxergar. O efeito inverso (reações boas escondendo uma queda do Sonnet/Opus) fica até a
+         migration que faz o disjuntor ignorar 'extracao' (pendência anotada no PR; a reação fica desligada em produção até lá) */
+      if (p.papel === 'reacao') { if (custo > 0) chamadas.push({ papel: PAPEL_NO_REGISTRO.reacao, custo_usd: custo, ms: Date.now() - t0 }); }
+      else chamadas.push({ papel: PAPEL_NO_REGISTRO[p.papel] ?? p.papel, erro: e instanceof ErroIA ? e.motivo : 'interno', custo_usd: custo, ms: Date.now() - t0 });
       throw e;
     }
   } };
@@ -472,6 +482,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     ...criarAcoesDoLink({ banco, visitante, visitantes, segredoFreio, env }),
     ...criarAcoesDaPrevia({ banco, visitante, estado, env }),
     ...criarAcoesDoRecado({ banco, visitantes, segredoFreio, env, segundoPlano }),
+    ...criarAcoesDaReacao({ ia, env, custoDoDia: () => banco('vendas_custo_dia', { org_slug: ORG }).then(d => d.custo_usd), visitante, donoDaConversa, etapas: CONVERSA_ABERTA, gravarChamadas, somarCusto, segundoPlano, requestId }),
 
     /* começar: cria o visitante anônimo e a conversa, com a origem da visita (das métricas, sem dado pessoal) */
     async sessao({ corpo }) {
@@ -517,7 +528,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* (dono, 15/11) com os modelos prontos, o Zero recomenda um, pelo objetivo que a pessoa deu (regra fixa, api/_vendas/recomendacao.mjs) */
       const recomendacao = recomendar(e.conversa?.briefing, e.direcoes);
       return { ...e, ...(recomendacao ? { recomendacao } : {}), painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env),
-        ...(planta ? { ...(planta.planta ? { planta: planta.planta } : {}), ...(planta.leitura ? { leitura: planta.leitura } : {}), planta_editavel: planta.planta_editavel } : {}),
+        ...(planta ? { ...(planta.planta ? { planta: planta.planta } : {}), ...(planta.leitura ? { leitura: planta.leitura } : {}), planta_editavel: planta.planta_editavel, ...(reacaoLigada(env) ? { reacao: true } : {}) } : {}),
         /* (fluxo novo, spec §2) a tela segura o valor até o caso ser entendido; fora do fluxo novo a chave não existe (a resposta é a de hoje) */
         ...(fluxoConversa(briefingBruto) ? { valor_liberado: valorLiberado({ briefing: briefingBruto, estimativa: e.estimativa, mensagens: e.mensagens }) } : {}) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
     },

@@ -131,3 +131,9 @@ test('premium 3 e 4: o documento do padrão traz o aviso de cookies que bloqueia
   assert.match(secao('1'), /5 segundos/);
   assert.match(secao('2'), /cort/i);
 });
+
+/* o testar do package.json é lista fechada: estes rodam daqui (docs/testes/suite-completa.test.mjs confere que nenhum teste fica de fora) */
+import './direcao-icones-ritmo.test.mjs';
+import './modelos-trilho.test.mjs';
+import './modelos-molde.test.mjs';
+import './suite-completa.test.mjs';
