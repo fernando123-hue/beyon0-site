@@ -128,3 +128,98 @@ test('o relógio solta as animações canceladas (não guarda para sempre o que 
   assert.equal(rel.quantas(), 1, 'a cancelada saiu');
   void a;
 });
+
+/* achado 18 (26/11): no computador o cartão do esboço (rótulo 24 + quadro 408 + legenda 74 = 506 px) não cabia na caixa da conversa, que lá ROLA e
+   corta (min(60vh, 620px): 459 px numa tela de 768, 431 de conteúdo tirando o respiro de 14 + 14). Medido em 1366x768: 76 px do quadro e a legenda
+   inteira fora, e o objetivo preso na fila (fora da vista da caixa) mesmo depois de o mapa ficar pronto na faixa */
+const CAIXA_768 = 459 - 28, ROTULO = 24, LEGENDA_COMPUTADOR = 64 + 10;
+test('computador: o esboço compacto (a caixa que rola e corta) cabe inteiro na caixa de uma janela de 768 de alto; onde a caixa não corta, nada muda', () => {
+  for (const larg of [470, 535, 620]) {
+    const g = ambiente().E.geometria(larg, CAIXA_768 - ROTULO - LEGENDA_COMPUTADOR);
+    assert.ok(ROTULO + g.H + LEGENDA_COMPUTADOR <= CAIXA_768, larg + ' px: o cartão tem ' + (ROTULO + g.H + LEGENDA_COMPUTADOR) + ' px, a caixa ' + CAIXA_768);
+    g.estacoes.forEach((e, k) => { if (k) assert.ok(e.texto.y >= g.estacoes[k - 1].texto.y + g.estacoes[k - 1].texto.h, 'os textos não se sobrepõem'); });
+    assert.ok(g.led.cy + g.led.r <= g.H, 'o objetivo cabe no quadro');
+  }
+  for (const larg of [276, 346, 800]) assert.equal(ambiente().E.geometria(larg).H, 408, larg + ' px: celular e tablet (a caixa não corta), a geometria de sempre');
+  const { E, raiz } = ambiente({ largura: 620 });
+  E.criar(raiz, { compacto: CAIXA_768 }).parar();
+  assert.ok(raiz.porClasse('lv')[0]._classes.has('lv--compacto'), 'a classe do título numa linha (reticências no CSS)');
+});
+
+test('marcarPronta: a planta ficou pronta (a faixa do computador): o que esperava na fila imprime de uma vez, sem som nem animação, e o rótulo deixa "em construção"', () => {
+  const { w, E, raiz } = ambiente({ largura: 620 });
+  const sons = [];
+  /* a caixa mostra só o alto do quadro: o objetivo e as últimas estações esperam na fila (o que se mediu em 1366x768) */
+  const esb = E.criar(raiz, { rolagem: caixaDe(0, 150), som: (n) => sons.push(n), compacto: CAIXA_768 });
+  esb.crescer(Cresce.derivar(BRIEFING_CHEIO));
+  w.mostrar(1);
+  w.avancar(20000);
+  const kicker = () => raiz.porClasse('lv-kicker')[0].textContent;
+  assert.ok(acesas(raiz) < 6 && /em construção/.test(kicker()), 'antes: estações na fila e "em construção"');
+  const nSons = sons.length, nAnim = w.document.animacoes.length;
+  esb.marcarPronta(true);
+  assert.equal(acesas(raiz), 6, 'as cinco estações e o objetivo');
+  assert.ok(!/em construção/.test(kicker()) && /pronta/.test(kicker()), 'o rótulo: ' + kicker());
+  assert.equal(sons.length, nSons, 'sem som (o ouro da faixa é o som da consagração)');
+  assert.equal(w.document.animacoes.filter((a, i) => i >= nAnim && a.opcoes.iterations !== 10).length, 0, 'sem animação de estação');
+  assert.equal(esb.ocioso(), true);
+  esb.marcarPronta(false);
+  assert.ok(/em construção/.test(kicker()), 'a planta saiu: volta a "em construção"');
+  esb.parar();
+});
+
+test('marcarPronta com uma estação no meio e o esboço fora da tela (o relógio pausado: a página foi até a faixa): a fila sai assim mesmo', () => {
+  const { w, E, raiz } = ambiente({ largura: 620 });
+  const esb = E.criar(raiz, { compacto: CAIXA_768 });
+  esb.crescer(Cresce.derivar(BRIEFING_CHEIO));
+  w.mostrar(1);
+  w.avancar(100);   /* a semente no meio */
+  w.mostrar(0);     /* a pessoa foi até a faixa: o esboço sai da tela e o relógio pausa */
+  w.avancar(20000);
+  assert.ok(acesas(raiz) < 6, 'parado no meio');
+  esb.marcarPronta(true);
+  assert.equal(acesas(raiz), 6, 'as cinco estações e o objetivo, mesmo fora da tela');
+  assert.equal(esb.ocioso(), true);
+  assert.ok(/pronta/.test(raiz.porClasse('lv-kicker')[0].textContent));
+  esb.parar();
+});
+
+/* revisão do achado 18: num notebook 1366x768 de verdade (o navegador e a barra de tarefas) a janela útil tem ~650 px e a caixa, 60vh, ~362 úteis: o
+   cartão de 428 voltava a cortar. O passo do compacto sai da altura útil da caixa, entre 44 e 36; o chip encolhe junto, sem encostar no vizinho */
+test('computador: o passo do compacto sai da altura da caixa (44 a 36); se nem no 36 couber, fica no 36, com o objetivo ainda à vista', () => {
+  const { E } = ambiente();
+  for (const [util, fora] of [[431, 98], [431, 118], [400, 98], [362, 98], [362, 118], [250, 98]]) {
+    const g = E.geometria(600, util - fora), cartao = g.H + fora;
+    assert.ok(g.passo <= 44 && g.passo >= 36, 'passo ' + g.passo);
+    assert.ok(cartao <= util || g.passo === 36, util + ' úteis, ' + fora + ' de rótulo e legenda: cartão ' + cartao + ' com passo ' + g.passo);
+    /* o MAIOR passo que cabe: com um a mais, já não cabe (H(p) = 54 + 5p + chip/2 + 34, o chip = min(36, p - 6)) */
+    const H = (p) => 54 + 5 * p + Math.min(36, p - 6) / 2 + 34;
+    assert.equal(H(g.passo), g.H, 'a conta do teste é a do módulo');
+    if (g.passo < 44) assert.ok(fora + H(g.passo + 1) > util, 'passo ' + g.passo + ': com ' + (g.passo + 1) + ' caberia');
+    g.estacoes.forEach((e, k) => { if (k) assert.ok(e.cy - g.estacoes[k - 1].cy >= g.chip + 6, 'os chips não se encostam'); });
+    g.estacoes.forEach((e, k) => { if (k) assert.ok(e.texto.y >= g.estacoes[k - 1].texto.y + g.estacoes[k - 1].texto.h, 'os textos não se sobrepõem'); });
+    assert.ok(g.estacoes[0].texto.h >= 36, 'cabe o verbo e uma linha de título');
+    if (util >= 362) assert.ok(24 + g.led.cy + g.led.r <= util, 'o objetivo (o LED) fica dentro da caixa (num notebook de 768 com o navegador)');
+  }
+  assert.ok(E.geometria(600, 431 - 98).passo === 44, 'com folga, o passo de 44');
+  assert.ok(E.geometria(600, 362 - 98).passo < 44, 'na caixa de 362, o passo encolhe');
+});
+
+test('marcarPronta interrompendo uma estação no meio: a legenda termina com a estação que estava sendo impressa (o ler() dela era um timer do relógio velho)', () => {
+  const { w, E, raiz } = ambiente({ largura: 620 });
+  const esb = E.criar(raiz, { compacto: CAIXA_768 });
+  esb.crescer(Cresce.derivar(BRIEFING_CHEIO));
+  w.mostrar(1);
+  w.avancar(30000);
+  const legenda = () => raiz.porClasse('lv-leitura__txt')[0].textContent;
+  const antes = legenda();
+  /* uma origem a mais: a chegada é refeita, e a pessoa vai à faixa no meio da luz (antes do ler, aos 350 ms) */
+  const mais = JSON.parse(JSON.stringify(BRIEFING_CHEIO)); mais.situacao_atual.como_chegam = 'Google, indicação e Instagram';
+  esb.crescer(Cresce.derivar(mais));
+  w.avancar(100);
+  esb.marcarPronta(true);
+  const chegada = Cresce.derivar(mais).estacoes[0].frase;
+  assert.notEqual(chegada, antes);
+  assert.equal(legenda(), E.semViuva(chegada), 'a legenda é a da chegada refeita, não a do objetivo');
+  esb.parar();
+});

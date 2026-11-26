@@ -258,3 +258,48 @@ test('a planta consagrada fica onde nasceu ao cruzar 960 px (no cartão continua
   assert.ok(plv(li), 'segue no cartão');
   assert.equal(amb.faixa.hidden, true);
 });
+
+/* achado 18 (26/11): no computador a planta ficava pronta na faixa e o esboço da conversa seguia "Planta · em construção" para sempre, com o
+   objetivo preso na fila (fora da vista da caixa, medido em 1366x768) */
+test('computador: com a planta pronta na faixa, o esboço da conversa deixa "em construção" e imprime o que esperava; a planta some, ele volta', () => {
+  const amb = ambiente({ largura: 1280 });
+  amb.w.getComputedStyle = (el) => ({ overflowY: el === amb.caixa ? 'auto' : 'visible' });   /* a caixa do computador rola e corta */
+  comEsboco(amb);
+  assert.ok(cartao(amb).porClasse('lv')[0]._classes.has('lv--compacto'), 'na caixa que corta, o esboço compacto');
+  const lv = () => cartao(amb).porClasse('lv-kicker')[0].textContent;
+  assert.ok(/em construção/.test(lv()), 'enquanto conversa: em construção');
+  amb.render(estado(3, true)); ate(amb, 20); amb.render(estado(3, true));
+  assert.equal(amb.faixa.hidden, false, 'a faixa abriu');
+  assert.ok(!/em construção/.test(lv()) && /pronta/.test(lv()), 'com o mapa na faixa: ' + lv());
+  assert.ok(cartao(amb).porClasse('lv-txt--led')[0]._classes.has('is-aceso'), 'o objetivo impresso no esboço');
+  amb.render(estado(3)); ate(amb, 20);
+  assert.ok(/em construção/.test(lv()), 'a planta saiu do estado: em construção de novo');
+});
+
+/* revisão do achado 18: os dois caminhos em que o esboço é refeito ou a faixa some com a planta ainda pronta */
+function prontaNaFaixa(amb) {
+  amb.w.getComputedStyle = (el) => ({ overflowY: el === amb.caixa ? 'auto' : 'visible' });
+  comEsboco(amb);
+  amb.render(estado(3, true)); ate(amb, 20); amb.render(estado(3, true));
+  assert.equal(amb.faixa.hidden, false, 'a faixa abriu');
+  return () => cartao(amb).porClasse('lv-kicker')[0].textContent;
+}
+test('computador: o esboço refeito numa largura nova (com a planta na faixa) continua "pronta"', () => {
+  const amb = ambiente({ largura: 1280 });
+  const lv = prontaNaFaixa(amb);
+  assert.ok(/pronta/.test(lv()));
+  const velho = cartao(amb).porClasse('lv')[0];
+  cartao(amb).clientWidth = 900; amb.w.disparar('resize'); ate(amb, 400);
+  assert.notEqual(cartao(amb).porClasse('lv')[0], velho, 'o esboço foi refeito');
+  assert.ok(/pronta/.test(lv()) && !/em construção/.test(lv()), 'refeito: ' + lv());
+});
+test('computador: a faixa recolhida durante o envio do formulário deixa o esboço "pronta" (a planta não saiu do estado)', () => {
+  const amb = ambiente({ largura: 1280 });
+  const form = amb.doc.createElement('form'); amb.ids['o-detalhes-form'] = form;
+  const lv = prontaNaFaixa(amb);
+  /* o formulário à vista (o bloco antes da faixa termina dentro da janela): a faixa espera um gesto para voltar */
+  amb.faixa.previousElementSibling.getBoundingClientRect = () => ({ top: 100, bottom: 600, height: 500, left: 0, right: 1280, width: 1280 });
+  form.setAttribute('aria-busy', 'true'); form.disparar('submit');
+  assert.equal(amb.faixa.hidden, true, 'a faixa recolheu no envio');
+  assert.ok(/pronta/.test(lv()), 'recolhida: ' + lv());
+});
