@@ -74,7 +74,7 @@ test('o Zero: com clínica sem profissão, o aviso traz as regras e manda pergun
   assert.match(a.profissao_a_confirmar, /UMA vez/);
   assert.ok(a.regras_do_conselho && a.nunca.includes('antes e depois'), 'as regras valem até lá');
   assert.equal(a.registro, undefined, 'a profissão vem antes do número do registro: uma pergunta de cada vez');
-  assert.match(avisoRegulado(nichoRegulado('sou dentista')).registro, /CRO/, 'com a profissão, o registro é pedido como antes');
+  assert.match(avisoRegulado(nichoRegulado('sou dentista')).registro, /CRO/, 'com a profissão, a regra do registro (não pedir na conversa) cita a sigla');
   assert.equal(avisoRegulado(nichoRegulado('sou dentista')).profissao_a_confirmar, undefined);
 });
 

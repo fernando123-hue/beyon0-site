@@ -24,7 +24,7 @@ import { redigir, semPrecoNoTexto, semPrecoComMarca } from './seguranca.mjs';
 import { semPromessaDePagamento, motivoDaPergunta, motivoDaTroca, RESPOSTAS_PAGAMENTO } from './promessa.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import {
-  ABERTURA_PADRAO, pedeValor, semPromessaDeRecado, semPerguntaRepetida, nichoRegulado, ramoSemProfissao, NICHO_GENERICO, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto, jaDito, CHAVES_DE_SAUDE } from './zero.mjs';
+  ABERTURA_PADRAO, pedeValor, semPromessaDeRecado, semPerguntaRepetida, semAberturaDeMolde, nichoRegulado, ramoSemProfissao, NICHO_GENERICO, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto, jaDito, CHAVES_DE_SAUDE } from './zero.mjs';
 import { semPromessaDeSuporte, semMensalidadeDoAtendente } from './travas-promessa.mjs';
 import { semPromessaDeResultado, semGarantia } from './travas-resultado.mjs';
 import { semNegarSerIA, IDENTIDADE_FIXO } from './travas-identidade.mjs';
@@ -55,7 +55,7 @@ export { ferramentas };
 /* o pacote completo como referência (revisão de preços, dono 2026-11-21: "Aprovo a proposta inteira"): quem vê primeiro o site mais completo
    acha o do seu caso razoável. A instrução vai no ESTADO, e não no prompt fixo, só no turno em que vale: o valor liberado, nenhum valor dito
    ainda, a etapa com preço aberto e a tabela ATIVA fechando o pacote. O número é do motor, pelo [[completo]] (zero.mjs → comMarcadores) */
-const INSTRUCAO_PACOTE_COMPLETO = 'Se neste turno você disser um valor, antes dele diga em uma frase curta, só como referência, quanto fica o site mais completo que a Beyon faz (o institucional com o visual desenhado do zero, animações no site todo, uma interação de assinatura e os textos das páginas), escrevendo [[completo]] (este marcador vale só aqui). Na frase seguinte vem o que serve pro caso dela, com o motivo e o valor. É referência, não oferta: não recomende o completo por isso. Se o que ela precisa já é isso ou mais, não cite.';
+const INSTRUCAO_PACOTE_COMPLETO = 'Se neste turno você disser um valor, depois da frase sobre o caso dela e antes do valor dela (nunca como abertura), diga em uma frase curta, só como referência e sem listar o que ele tem, quanto fica o site mais completo que a gente faz, escrevendo [[completo]] (este marcador vale só aqui). Na frase seguinte vem o que serve pro caso dela, com o valor. É referência, não oferta: não recomende o completo por isso. Se o que ela precisa já é isso ou mais, não cite.';
 export function referenciaDoCompleto({ regras, jaDitoNaConversa = [], etapa, pedidoStatus, liberado = true, estimativa = null }) {
   if (!liberado || jaDitoNaConversa.includes('valor_dito') || ETAPAS_SO_DUVIDAS.includes(etapa) || !precoAberto(etapa, pedidoStatus)) return null;
   const completo = valorDoPacoteCompleto(regras);
@@ -264,6 +264,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   /* (teste com o modelo real) a pergunta ignorada não volta com as mesmas palavras; olha as duas últimas falas do Zero guardadas */
   /* se o turno acabou de ligar um botão (formulário ou recado), o convite fica no texto mesmo repetido */
   if (!pedirContato && !diagnostico) resposta = semPerguntaRepetida(resposta, (conversa.mensagens || []).filter(m => m && m.papel === 'agente').map(m => m.conteudo)).texto;
+  resposta = semAberturaDeMolde(resposta).texto;
   /* as travas do Zero (api/_vendas/zero.mjs), nesta ordem, sobre o que vai para a tela:
      1) o recado: ninguém deixou, enviou ou avisou nada; o botão aparece junto da mensagem;
      2) saúde e regulados: o proibido nunca sai liberado (e o briefing não guarda depoimentos);
