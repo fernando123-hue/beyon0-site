@@ -329,7 +329,8 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
       await umPorVez(lista, t => nucleo.atualizar(t, 'reconciliacao'));
       /* as confirmações da entrada que ficaram para trás (aprovada por aqui, aviso que caiu antes do envio, chave que faltava):
          só com folga para a reserva e para cada envio; o que não couber fica para a próxima (a reserva é do banco, uma vez só) */
-      const folga = Math.min(CONFIRMACOES_POR_VEZ, gasto.restantes() - 1);
+      /* (cada item gasta confirmacao.custoPorItem: o envio e, com a entrega ligada, também o link do pedido e o desfazer, api/_pagamentos/confirmacao.mjs) */
+      const folga = Math.min(CONFIRMACOES_POR_VEZ, Math.floor((gasto.restantes() - 1) / ((confirmacao && confirmacao.custoPorItem) || 1)));
       if (!parou && confirmacao && confirmacao.ligada && folga >= 1) {
         try { resumo.confirmacoes = (await confirmarEntradas({ banco: bancoContado, confirmacao: confirmacao.contada(gasto.contar), provedor: PROV, filtro: { limite: folga } })).enviadas; }
         catch (e) { if (e instanceof SemOrcamento) parou = true; else throw e; }

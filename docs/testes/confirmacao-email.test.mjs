@@ -11,8 +11,9 @@ import { receber } from '../../api/pagamentos.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { configPagamentos } from '../../api/_pagamentos/config.mjs';
 import { criarServicoPagamentos, validarPagador } from '../../api/_pagamentos/servico.mjs';
-import { criarConfirmacao, confirmacaoDoAmbiente, textoDaConfirmacao, escaparHtml, htmlDe, RESEND_URL, REMETENTE, RESPONDER_PARA }
+import { criarConfirmacao, confirmacaoDoAmbiente, textoDaConfirmacao, escaparHtml, htmlDe, confirmarEntradas, linkDoPedido, RESEND_URL, REMETENTE, RESPONDER_PARA }
   from '../../api/_pagamentos/confirmacao.mjs';
+import { CODIGO_LINK, hashDoLink } from '../../api/_vendas/link-pedido.mjs';
 import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
 
 const BASE = 'http://127.0.0.1:8899';
@@ -145,7 +146,7 @@ before(async () => {
   cfg = { ...configPagamentos({}), intervaloAposRecusaS: 0 };
 });
 const servicoCom = (confirmacao, banco = local.rpc) => criarServicoPagamentos({ banco, cfg, confirmacao });
-function navegador(servico) {
+function navegador(servico, env = {}) {
   const deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE, pagamentos: servico };
   const meuIp = '198.51.100.' + (++ip % 250);
   let token = null;
@@ -153,7 +154,7 @@ function navegador(servico) {
     const r = await atender(new Request(BASE + '/api/vendas?acao=' + acao + (extra.query || ''), {
       method: metodo, body: corpo === undefined ? undefined : JSON.stringify(corpo),
       headers: { 'x-forwarded-for': meuIp, ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: 'Bearer ' + token } : {}) }
-    }), {}, metodo, deps);
+    }), env, metodo, deps);
     return { status: r.status, corpo: await r.json() };
   };
   return { chamar, async iniciar() { const r = await chamar('POST', 'sessao', {}); token = r.corpo.token; return r.corpo; } };
@@ -275,4 +276,152 @@ test('a reconciliação respeita o orçamento de subpedidos: sem folga, não res
   await comChave.reconciliar({});
   assert.equal(paraResend(f).filter(x => x.corpo.to[0] === 'ana@exemplo.com').length >= 1, true);
   assert.ok((await tentativaDe(c)).confirmacao_email_em);
+});
+
+/* ======================= O LINK DO PEDIDO NO E-MAIL (decisão do dono, 19/11: "o cliente não tem que se preocupar com nenhum código, com nada") =======================
+   Com a entrega ligada, o e-mail leva <origem>/orcamento#pedido=<código>: o MESMO formato que a página abre em outro aparelho (js/orcamento-entrega.js,
+   linkDoPedido; js/orcamento-retomada.js, o prefixo #pedido= → abrir-pedido). O código só existe na memória do servidor e no e-mail: nunca no log,
+   no banco (só o hash) ou na resposta da API. */
+const LINK_NO_TEXTO = /https:\/\/beyonzero\.com\.br\/orcamento#pedido=([A-Za-z0-9_-]{32})/;
+const CODIGO_EXEMPLO = 'AbCdEfGhIjKlMnOpQrStUvWxYz012345';
+
+test('o texto com o link: diz que é o link do pedido, que serve para o material e para acompanhar, que não se repassa; sem a palavra "código"', () => {
+  const link = linkDoPedido(CODIGO_EXEMPLO);
+  assert.equal(link, 'https://beyonzero.com.br/orcamento#pedido=' + CODIGO_EXEMPLO, 'o formato que a página abre (#pedido=, no fragmento)');
+  const t = textoDaConfirmacao({ valor: 1200, metodo: 'pix', prazoDias: 10, entrega: true, link });
+  for (const corpo of [t.texto, t.html.replace('<!DOCTYPE html>', '')]) {
+    assert.ok(corpo.includes(link), 'o link inteiro');
+    assert.match(corpo, /link do seu pedido/);
+    assert.match(corpo, /material/); assert.match(corpo, /acompanh/);
+    assert.match(corpo, /não repasse/i);
+    assert.doesNotMatch(corpo, /c[óo]digo/i, 'o cliente não lida com código nenhum');
+    assert.doesNotMatch(corpo, /—|!|Fernando/i);
+    assert.match(corpo, /10 dias úteis/); assert.match(corpo, /responder este e-mail/);
+  }
+  assert.doesNotMatch(t.texto, /mesma em que fez o pagamento/, 'com o link, a frase antiga sai');
+  assert.ok(t.html.includes('<a href="' + link + '">' + link + '</a>'), 'no HTML, um link de verdade (sem estilo, sem rastreio)');
+  assert.doesNotMatch(t.html, /style=/i);
+});
+
+test('o link só entra no formato exato; qualquer outra coisa some e fica a frase de antes; sem entrega ligada, nunca há link', () => {
+  for (const ruim of ['javascript:alert(1)', 'https://outro.site/orcamento#pedido=' + CODIGO_EXEMPLO, 'https://beyonzero.com.br/orcamento#pedido=curto',
+    'https://beyonzero.com.br/orcamento#pedido=' + CODIGO_EXEMPLO + '"><script>', 42, null]) {
+    const t = textoDaConfirmacao({ valor: 1200, metodo: 'pix', prazoDias: 10, entrega: true, link: ruim });
+    assert.doesNotMatch(t.texto + t.html, /<script|javascript:|outro\.site|#pedido=/, JSON.stringify(ruim));
+    assert.match(t.texto, /página do pedido, a mesma em que fez o pagamento/, 'a frase de antes: ' + JSON.stringify(ruim));
+  }
+  const desligada = textoDaConfirmacao({ valor: 1200, metodo: 'pix', prazoDias: 10, entrega: false, link: linkDoPedido(CODIGO_EXEMPLO) });
+  assert.doesNotMatch(desligada.texto, /#pedido=/, 'entrega desligada: as ações do link estão fechadas, então o link não vai');  /* o link aponta para a produção: só a produção o manda (numa prévia com chave de teste, ele abriria a produção sem o pedido) */
+  const CF = { RESEND_API_KEY: CHAVE, BZ_ENTREGA: 'ligada', BZ_PLATAFORMA: 'cloudflare' };
+  assert.equal(confirmacaoDoAmbiente(CF).link, true, 'produção (Cloudflare sem BZ_AMBIENTE=previa)');
+  assert.equal(confirmacaoDoAmbiente({ ...CF, BZ_AMBIENTE: 'previa' }).link, false, 'prévia');
+  assert.equal(confirmacaoDoAmbiente({ RESEND_API_KEY: CHAVE, BZ_ENTREGA: 'ligada' }).link, false, 'local');
+  assert.equal(confirmacaoDoAmbiente({ ...CF, BZ_ENTREGA: undefined }).link, false, 'entrega desligada');
+});
+
+/* o banco de mentira das unidades: a reserva devolve ITEM; o link responde o que o teste pedir; guarda o que recebeu */
+function bancoFalso({ link = { ok: true, criado: true }, quebrarLink = false } = {}) {
+  const chamadas = [];
+  const banco = async (nome, p) => {
+    chamadas.push({ nome, p });
+    if (nome === 'pagamentos_reservar_confirmacao') return { itens: [ITEM] };
+    if (nome === 'pagamentos_link_da_confirmacao') {
+      if (quebrarLink) throw Object.assign(new Error('banco fora'), { codigo: '08006' });
+      return p.desfazer ? { ok: true, desfeito: true } : link;
+    }
+    throw new Error('inesperado: ' + nome);
+  };
+  return { banco, chamadas };
+}
+
+test('confirmarEntradas: o banco recebe só o hash; o e-mail leva o link; o código não aparece em log nenhum', async () => {
+  const f = resendFalso(), b = bancoFalso();
+  const { r, linhas } = await comLog(() => confirmarEntradas({ banco: b.banco, confirmacao: criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true }), provedor: 'mercadopago', filtro: { provedor_order_id: 'ORD1234' } }));
+  assert.deepEqual(r, { enviadas: 1, falhas: 0 });
+  const codigo = LINK_NO_TEXTO.exec(f.chamadas[0].corpo.text)?.[1];
+  assert.match(codigo || '', CODIGO_LINK, 'o link foi no e-mail');
+  const pedido = b.chamadas.find(x => x.nome === 'pagamentos_link_da_confirmacao');
+  assert.deepEqual(Object.keys(pedido.p).sort(), ['codigo_hash', 'tentativa_id']);
+  assert.equal(pedido.p.codigo_hash, hashDoLink(codigo), 'só o hash vai ao banco');
+  assert.ok(!JSON.stringify(b.chamadas).includes(codigo), 'o código em claro nunca vai ao banco');
+  assert.ok(!linhas.some(l => l.includes(codigo)), 'nem ao log');
+});
+
+test('confirmarEntradas: a conversa já tem link (o cliente gerou o dele) ou o banco falhou ao criar: o e-mail sai do mesmo jeito, sem link, com a frase de antes', async () => {
+  for (const b of [bancoFalso({ link: { ok: true, criado: false, motivo: 'ja_tem_link' } }), bancoFalso({ quebrarLink: true })]) {
+    const f = resendFalso();
+    const { r, linhas } = await comLog(() => confirmarEntradas({ banco: b.banco, confirmacao: criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true }), provedor: 'mercadopago', filtro: { provedor_order_id: 'ORD1234' } }));
+    assert.deepEqual(r, { enviadas: 1, falhas: 0 });
+    assert.doesNotMatch(f.chamadas[0].corpo.text, /#pedido=/);
+    assert.match(f.chamadas[0].corpo.text, /página do pedido, a mesma em que fez o pagamento/);
+    assert.ok(!b.chamadas.some(x => x.p && x.p.desfazer), 'nada a desfazer');
+    assert.ok(!linhas.some(l => /cliente@empresa/.test(l)), 'sem o e-mail no log');
+  }
+});
+
+test('confirmarEntradas: o Resend recusou (o e-mail não saiu): o link criado para ele é desfeito; no tempo esgotado ele pode ter saído, então fica', async () => {
+  for (const [falha, desfaz] of [[500, true], [422, true], ['tempo', false], ['rede', false]]) {
+    const f = resendFalso({ falha }), b = bancoFalso();
+    const { linhas } = await comLog(() => confirmarEntradas({ banco: b.banco, confirmacao: criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true, timeoutMs: 30 }), provedor: 'mercadopago', filtro: { provedor_order_id: 'ORD1234' } }));
+    const desfeito = b.chamadas.filter(x => x.p && x.p.desfazer === true);
+    assert.equal(desfeito.length, desfaz ? 1 : 0, String(falha));
+    const codigo = LINK_NO_TEXTO.exec(f.chamadas[0].corpo.text)?.[1];
+    if (desfaz) assert.equal(desfeito[0].p.codigo_hash, hashDoLink(codigo), 'desfaz o MESMO link');
+    assert.ok(!linhas.some(l => l.includes(codigo)), 'o código não vai ao log nem na falha');
+  }
+});
+
+test('Pix pago com a entrega ligada: o e-mail leva o link do pedido, o link abre ESTE pedido em outro aparelho, e o código não fica em log, banco ou resposta', async () => {
+  const f = resendFalso();
+  const servico = servicoCom(criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true }));
+  const { r: tudo, linhas } = await comLog(async () => {
+    const { n, c, t } = await ateOPix(servico);
+    sim.pagarPix(t.provedor_order_id);
+    const respostas = [await aviso(servico, t.provedor_order_id), await aviso(servico, t.provedor_order_id)];
+    const consulta = await n.chamar('GET', 'pagamento', undefined, { query: '&conversa=' + c });
+    return { c, respostas: await Promise.all(respostas.map(x => x.text())), consulta };
+  });
+  const enviados = paraResend(f);
+  assert.equal(enviados.length, 1);
+  const codigo = LINK_NO_TEXTO.exec(enviados[0].corpo.text)?.[1];
+  assert.match(codigo || '', CODIGO_LINK, 'o link no texto: ' + enviados[0].corpo.text);
+  assert.ok(enviados[0].corpo.html.includes('#pedido=' + codigo));
+  assert.ok(!linhas.some(l => l.includes(codigo)), 'nada no log');
+  assert.ok(!JSON.stringify(tudo).includes(codigo), 'nem na resposta do aviso ou da consulta');
+  const linha = (await local.db.query('select * from app.links_pedido where conversa_id = $1', [tudo.c])).rows;
+  assert.equal(linha.length, 1); assert.equal(linha[0].codigo_hash, hashDoLink(codigo)); assert.equal(linha[0].pelo_email, true);
+  const eventos = (await local.db.query('select dados from app.eventos_funil where conversa_id = $1', [tudo.c])).rows;
+  assert.ok(!JSON.stringify(eventos).includes(codigo));
+  /* o cliente abre o e-mail em outro aparelho: o link leva ao pedido dele */
+  const outro = navegador(servico, { BZ_ENTREGA: 'ligada' });
+  const aberto = await outro.chamar('POST', 'abrir-pedido', { codigo });
+  assert.equal(aberto.status, 200, JSON.stringify(aberto.corpo));
+  assert.equal(aberto.corpo.conversa_id, tudo.c, 'o pedido certo');
+});
+
+test('Pix pago, Resend fora: o pagamento segue, e o link criado para o e-mail que não saiu é desfeito (a página volta a oferecer o dela)', async () => {
+  const f = resendFalso({ falha: 503 });
+  const servico = servicoCom(criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true }));
+  const { c, t } = await ateOPix(servico);
+  sim.pagarPix(t.provedor_order_id);
+  const { r } = await comLog(() => aviso(servico, t.provedor_order_id));
+  assert.equal(r.status, 200);
+  assert.equal((await pagamentoDe(c)).status, 'pago');
+  assert.equal(paraResend(f).length, 1);
+  assert.equal((await local.db.query('select count(*)::int n from app.links_pedido where conversa_id = $1', [c])).rows[0].n, 0);
+});
+
+test('a reconciliação conta o link: com a entrega ligada, só reserva se couberem a reserva, o link, o envio e o desfazer', async () => {
+  const f = resendFalso();
+  const semChave = servicoCom(criarConfirmacao({ chave: undefined, fetch: f.buscar }));
+  const { c, t } = await ateOPix(semChave);
+  sim.pagarPix(t.provedor_order_id);
+  await comLog(() => aviso(semChave, t.provedor_order_id));
+  const comChave = servicoCom(criarConfirmacao({ chave: CHAVE, fetch: f.buscar, entrega: true }));
+  /* (orcamento 5, lista vazia: sobram 2, que davam reserva + envio; com o link não cabe) */
+  await comChave.reconciliar({ orcamento: 5, limite: 0, varrerDias: 0 });
+  assert.equal((await tentativaDe(c)).confirmacao_email_em, null, 'sem folga para o link: não reservou');
+  await comChave.reconciliar({});
+  const meu = paraResend(f).filter(x => x.corpo.to[0] === 'ana@exemplo.com');
+  assert.ok(meu.some(x => LINK_NO_TEXTO.test(x.corpo.text)), 'a varredura também leva o link');
 });
