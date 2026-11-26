@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   var Q = new URLSearchParams(location.search), Ler = window.BZMapaVivoLer, Pecas = window.BZPlantaPecas;
-  var LENTO = Math.max(1, Number(Q.get('lento')) || 1), LATENCIA_PADRAO = 1700;
+  var LENTO = Math.max(1, Number(Q.get('lento')) || 1), LATENCIA_PADRAO = 1300;   /* (medido 26/11: mediana 1,3 s, p90 1,5 s, 30 chamadas do Haiku, docs/lab-mapa-vivo-latencia.mjs) */
   var LATENCIA = Number(Q.get('latencia')) >= 0 && Q.get('latencia') !== null ? Number(Q.get('latencia')) : LATENCIA_PADRAO;
   var PAUSA_PARA_ANOTAR = 700, ESPERA_LEITURA = 250, POR_LETRA = 55, POR_LETRA_ANOTA = 18, SEM_REACAO = Q.get('semreacao') === '1';
   var estatico = Q.get('estatico') === '1';
