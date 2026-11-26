@@ -26,7 +26,9 @@ import { CENARIOS } from './consultor-cenarios.mjs';
    antes da conferência; sem ctx, vale a regra de antes (todo dinheiro reprova) */
 /* (só os 40% da entrada passam; a urgência só quando a estimativa tem urgência: "30% a menos" segue reprovando) */
 const tirarDoMotor = (r, permitidos = [], pcts = [40]) => pcts.reduce((t, p) => t.replace(new RegExp('\\b' + p + '\\s*%', 'g'), 'PCT_DA_TABELA'),
-  permitidos.reduce((t, v) => t.split('R$ ' + Number(v).toLocaleString('pt-BR')).join('VALOR_DO_MOTOR').split('R$' + Number(v).toLocaleString('pt-BR')).join('VALOR_DO_MOTOR'), r));
+  permitidos.reduce((t, v) => t.split('R$ ' + reais(v)).join('VALOR_DO_MOTOR').split('R$' + reais(v)).join('VALOR_DO_MOTOR'), r));
+/* (como o dinheiro() de api/_vendas/zero.mjs: centavos só quando há) */
+function reais(v) { const n = Number(v); return n.toLocaleString('pt-BR', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 }); }
 const frases = r => r.split(/[.!?]+(?:\s|$)/).filter(s => s.trim().length > 2).length;
 export const REGRAS_GERAIS = [
   /* (o site já apaga R$ e "reais"; aqui pega o que passa: porcentagem, "mil", "3k", números de 4+ dígitos ou com milhar) */

@@ -233,7 +233,7 @@ export const CENARIOS = [
       'Hoje eles chegam por indicação e pelo Instagram, e eu perco horário porque respondo tudo na mão.',
       'Quanto fica?'
     ],
-    espera: [1, 2, 3, 4].map(turno => ({ tipo: 'resposta_nao', turno, padrao: /(?:CREFITO|registro)[^.!?]{0,60}\?|(?:qual|me passa|tem)[^.!?]{0,30}(?:CREFITO|registro)/i }))
+    espera: [1, 2, 3, 4].map(turno => ({ tipo: 'resposta_nao', turno, padrao: /(?:n[úu]mero|qual)[^.!?]{0,40}(?:CREFITO|registro)[^.!?]{0,40}\?|(?:CREFITO|registro)[^.!?]{0,20}\bn[úu]mero[^.!?]{0,40}\?/i }))
   },
   {
     id: 'agendamento-landing',

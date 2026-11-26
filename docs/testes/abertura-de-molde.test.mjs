@@ -16,4 +16,6 @@ test('abertura de molde: o que não é molde fica igual', () => {
     assert.deepEqual(semAberturaDeMolde(t), { texto: t, trocou: false }, t);
   }
   assert.equal(semAberturaDeMolde('Legal, sim.').texto, 'Legal, sim.', 'fala curta demais: não sobra frase, fica como está');
+  assert.equal(semAberturaDeMolde('[[total]] é o valor do site de uma página.').texto, '[[total]] é o valor do site de uma página.', 'fala que começa pelo marcador fica igual');
+  assert.equal(semAberturaDeMolde('Legal! Ótimo, o site de uma página dá conta.').texto, 'Ótimo, o site de uma página dá conta.', 'só a primeira palavra de molde sai (uma passada)');
 });

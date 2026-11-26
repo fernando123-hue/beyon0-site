@@ -9,7 +9,7 @@ import { atender } from '../../api/vendas.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { LIMITES_DE_TESTE } from './_pedido.mjs';
 import { PASSOS_ABERTOS, proximoPasso } from '../../api/_vendas/consultor.mjs';
-import { CHAVES_DO_CODIGO, semChavesDoCodigo } from '../../api/_vendas/briefing.mjs';
+import { CHAVES_DO_CODIGO, semChavesDoCodigo, limparAtualizacao } from '../../api/_vendas/briefing.mjs';
 
 let local, deps, ipSeq = 0;
 const contextos = [];
@@ -55,6 +55,7 @@ test('pedido aberto: o turno que abre os passos marca o caso, e o turno seguinte
 test('pedido aberto: a chave é só do código (o modelo não a vê nem a grava) e o próximo passo muda só com ela', () => {
   assert.ok(CHAVES_DO_CODIGO.includes('pedido_aberto'));
   assert.deepEqual(semChavesDoCodigo({ negocio: { segmento: 'x' }, pedido_aberto: true }), { negocio: { segmento: 'x' } });
+  assert.equal(limparAtualizacao({ pedido_aberto: true, negocio: { segmento: 'x' } }).pedido_aberto, undefined, 'o modelo não grava a chave pelo atualizar_briefing');
   const briefing = { negocio: { segmento: 'fisioterapia', descricao: 'clínica' }, objetivos: ['agendamentos'], projeto: { formato: 'landing_page' }, situacao_atual: { como_chegam: 'Instagram' } };
   const estimativa = { valor_total: 3350, sinal: 1340, prazo_dias: 9 };
   const sem = proximoPasso({ etapa: 'estimativa', briefing, estimativa });
