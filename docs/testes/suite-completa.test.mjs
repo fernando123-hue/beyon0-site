@@ -19,6 +19,8 @@ export const FORA_DE_PROPOSITO = {
 };
 
 const IMPORTA = /import\s*(?:[^'"]*?from\s*)?['"]\.\/([\w.-]+\.test\.mjs)['"]/g;
+/* tira comentários de bloco e de linha inteira antes de procurar imports: um import comentado não liga nada (revisão do PR) */
+const semComentarios = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const AGREGADOR_PLANTA = 'planta-todos.test.mjs';
 
 /* os arquivos que a suíte roda, a partir da lista do `testar`, seguindo os imports e o agregador da planta */
@@ -31,7 +33,7 @@ export function alcancados(pasta, testar) {
     if (vistos.has(nome) || !todos.includes(nome)) continue;
     vistos.add(nome);
     const texto = fs.readFileSync(pasta + nome, 'utf8');
-    for (const m of texto.matchAll(IMPORTA)) fila.push(m[1]);
+    for (const m of semComentarios(texto).matchAll(IMPORTA)) fila.push(m[1]);
     if (nome === AGREGADOR_PLANTA) fila.push(...todos.filter((n) => /^planta-.+\.test\.mjs$/.test(n)));
   }
   return { todos, vistos };
@@ -51,7 +53,7 @@ test('a lista de exceções não guarda nome velho, nem arquivo que já roda', (
   }
 });
 
-test('o próprio guarda está na suíte, e o caminhador segue import, from e o agregador', () => {
+test('o próprio guarda está na suíte, e o caminhador segue import, from e o agregador, e ignora import comentado', () => {
   assert.ok(alcancados(PASTA, PACOTE.scripts.testar).vistos.has('suite-completa.test.mjs'));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'suite-completa-'));
   try {
@@ -62,6 +64,8 @@ test('o próprio guarda está na suíte, e o caminhador segue import, from e o a
     fs.writeFileSync(p + 'planta-todos.test.mjs', '');
     fs.writeFileSync(p + 'planta-um.test.mjs', '');
     fs.writeFileSync(p + 'solto.test.mjs', '');
+    fs.writeFileSync(p + 'comentado.test.mjs', '');
+    fs.appendFileSync(p + 'b.test.mjs', "// import './comentado.test.mjs';\n/* import './comentado.test.mjs'; */\n");
     const { vistos } = alcancados(p, 'node --test docs/testes/a.test.mjs');
     assert.deepEqual([...vistos].sort(), ['a.test.mjs', 'b.test.mjs', 'c.test.mjs', 'planta-todos.test.mjs', 'planta-um.test.mjs']);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
