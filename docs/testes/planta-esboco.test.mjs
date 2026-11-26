@@ -130,9 +130,10 @@ test('o relógio solta as animações canceladas (não guarda para sempre o que 
 });
 
 /* achado 18 (26/11): no computador o cartão do esboço (rótulo 24 + quadro 408 + legenda 74 = 506 px) não cabia na caixa da conversa, que lá ROLA e
-   corta (min(60vh, 620px): 459 px numa tela de 768, 431 de conteúdo tirando o respiro de 14 + 14). Medido em 1366x768: 76 px do quadro e a legenda
+   corta (era min(60vh, 620px): 459 px numa tela de 768, 431 de conteúdo tirando o respiro de 14 + 14; desde 26/11 é min(max(60vh, 426px), 620px, calc(100vh - var(--nav-h) - 9.5rem)): o mesmo 431 em 768, 396 em 650). Medido em 1366x768: 76 px do quadro e a legenda
    inteira fora, e o objetivo preso na fila (fora da vista da caixa) mesmo depois de o mapa ficar pronto na faixa */
-const CAIXA_768 = 459 - 28, ROTULO = 24, LEGENDA_COMPUTADOR = 64 + 10;
+/* (26/11, dono: a legenda sem o rótulo repetido; no computador ela tem 2 linhas, 42 px, mais a margem de 10) */
+const CAIXA_768 = 459 - 28, ROTULO = 24, LEGENDA_COMPUTADOR = 42 + 10;   /* (a caixa de 60vh numa janela de 768: 431 úteis, medido no E2E) */
 test('computador: o esboço compacto (a caixa que rola e corta) cabe inteiro na caixa de uma janela de 768 de alto; onde a caixa não corta, nada muda', () => {
   for (const larg of [470, 535, 620]) {
     const g = ambiente().E.geometria(larg, CAIXA_768 - ROTULO - LEGENDA_COMPUTADOR);
@@ -184,11 +185,11 @@ test('marcarPronta com uma estação no meio e o esboço fora da tela (o relógi
   esb.parar();
 });
 
-/* revisão do achado 18: num notebook 1366x768 de verdade (o navegador e a barra de tarefas) a janela útil tem ~650 px e a caixa, 60vh, ~362 úteis: o
+/* revisão do achado 18: num notebook 1366x768 de verdade (o navegador e a barra de tarefas) a janela útil tem ~650 px e a caixa, com 60vh, ~362 úteis (396 com o mínimo de 426 px): o
    cartão de 428 voltava a cortar. O passo do compacto sai da altura útil da caixa, entre 44 e 36; o chip encolhe junto, sem encostar no vizinho */
 test('computador: o passo do compacto sai da altura da caixa (44 a 36); se nem no 36 couber, fica no 36, com o objetivo ainda à vista', () => {
   const { E } = ambiente();
-  for (const [util, fora] of [[431, 98], [431, 118], [400, 98], [362, 98], [362, 118], [250, 98]]) {
+  for (const [util, fora] of [[431, 76], [431, 97], [412, 76], [400, 76], [362, 76], [362, 97], [250, 76]]) {
     const g = E.geometria(600, util - fora), cartao = g.H + fora;
     assert.ok(g.passo <= 44 && g.passo >= 36, 'passo ' + g.passo);
     assert.ok(cartao <= util || g.passo === 36, util + ' úteis, ' + fora + ' de rótulo e legenda: cartão ' + cartao + ' com passo ' + g.passo);
@@ -201,8 +202,9 @@ test('computador: o passo do compacto sai da altura da caixa (44 a 36); se nem n
     assert.ok(g.estacoes[0].texto.h >= 36, 'cabe o verbo e uma linha de título');
     if (util >= 362) assert.ok(24 + g.led.cy + g.led.r <= util, 'o objetivo (o LED) fica dentro da caixa (num notebook de 768 com o navegador)');
   }
-  assert.ok(E.geometria(600, 431 - 98).passo === 44, 'com folga, o passo de 44');
-  assert.ok(E.geometria(600, 362 - 98).passo < 44, 'na caixa de 362, o passo encolhe');
+  assert.ok(E.geometria(600, 431 - 76).passo === 44, 'com folga, o passo de 44');
+  assert.ok(E.geometria(600, 362 - 76).passo < 44, 'na caixa de 362, o passo encolhe');
+  assert.equal(E.geometria(600, 396 - 99).passo, 38, 'na caixa de 426 px numa janela de 650 (396 úteis), com as falas acima do cartão (rótulo 24 + 75), o passo de 38');
 });
 
 test('marcarPronta interrompendo uma estação no meio: a legenda termina com a estação que estava sendo impressa (o ler() dela era um timer do relógio velho)', () => {
@@ -222,4 +224,34 @@ test('marcarPronta interrompendo uma estação no meio: a legenda termina com a 
   assert.notEqual(chegada, antes);
   assert.equal(legenda(), E.semViuva(chegada), 'a legenda é a da chegada refeita, não a do objetivo');
   esb.parar();
+});
+
+/* 26/11, dono: "OBJETIVO" aparecia duas vezes, no nó e na legenda logo abaixo. A legenda explica a estação que acabou de aparecer: repetir o nome dela
+   não acrescenta nada. Fica só a frase, e a legenda encolhe para a altura dela (3 linhas no celular, 2 no computador, de 21 px: Sora 14/1.5) */
+test('a legenda é só a frase: sem o rótulo da estação (o nó já diz qual é)', () => {
+  const { w, E, raiz } = ambiente({ largura: 346 });
+  const esb = E.criar(raiz, {});
+  assert.equal(raiz.porClasse('lv-leitura__tag').length, 0, 'sem o rótulo na legenda');
+  esb.crescer(Cresce.derivar(BRIEFING_CHEIO));
+  w.mostrar(1);
+  w.avancar(30000);
+  const esboco = Cresce.derivar(BRIEFING_CHEIO);
+  assert.equal(raiz.porClasse('lv-leitura__txt')[0].textContent, E.semViuva(esboco.objetivo.frase), 'a frase da última estação');
+  assert.equal(raiz.porClasse('lv-leitura')[0].attrs['aria-hidden'], 'true', 'segue fora do leitor de tela (o anúncio é o role=status)');
+  assert.match(raiz.porClasse('lv-sr')[0].textContent, /Nova etapa na planta: /, 'o leitor de tela recebe o mesmo anúncio de antes');
+  esb.parar();
+  /* a altura da legenda é conferida por comportamento, não por regex no CSS: docs/e2e-planta.mjs mede as 835 frases no cartão de verdade, na Sora e na
+     fonte de reserva, em 320, 390, 930 e 1366 (abaixo de 360 px, com uma linha de sobra) */
+});
+
+/* revisão da caixa (26/11): o quadro inteiro à vista com a pergunta do Zero no topo da caixa. opcoes.acima (o que as falas ocupam acima do cartão)
+   entra no desconto quando passa da legenda; sem ele, o de sempre */
+test('opcoes.acima: o passo do compacto desconta as falas acima do cartão quando elas pesam mais que a legenda', () => {
+  const passo = (op) => { const { E, raiz } = ambiente({ largura: 620 }); const esb = E.criar(raiz, op); const p = esb.interno.g.passo; esb.parar(); return p; };
+  const { E } = ambiente({ largura: 620 });
+  /* (no DOM de mentira o cartão não tem layout: o rótulo e a legenda valem a reserva de 97, e o topo do quadro, a do rótulo, 24) */
+  assert.equal(passo({ compacto: 396 }), E.geometria(600, 396 - 97).passo, 'sem acima: o de sempre');
+  assert.equal(passo({ compacto: 396, acima: 200 }), E.geometria(600, 396 - 224).passo, 'com as falas pesando mais: o desconto é o delas (com o rótulo)');
+  assert.equal(passo({ compacto: 396, acima: 50 }), E.geometria(600, 396 - 97).passo, 'falas que pesam menos que a legenda: a reserva de sempre');
+  assert.ok(passo({ compacto: 396, acima: 200 }) < passo({ compacto: 396 }));
 });
