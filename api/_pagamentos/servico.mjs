@@ -34,7 +34,9 @@ const PARALELO = 5;                    /* consultas simultâneas na reconciliaç
 const VARREDURA_DIAS = 0.5;            /* a janela da varredura: 12 h, 4× o intervalo do cron (3 h); o que passou disso a lista de tentativas já cobre */
 const SEM_DINHEIRO = new Set(['canceled', 'expired', 'failed']);   /* (estados da listagem em que a order não tem dinheiro a conferir) */
 const RESERVA_FINAL = 2;               /* subpedidos guardados para o fim da reconciliação (pagamentos_atencao e a ocorrência) */
-const CONFIRMACOES_POR_VEZ = 5;        /* confirmações da entrada recuperadas por reconciliação (1 reserva + 1 envio cada) */
+const CONFIRMACOES_POR_VEZ = 5;        /* confirmações da entrada recuperadas por reconciliação: 1 reserva para o lote + por item o envio e, com o link do
+                                          pedido (26/11), também o link e o desfazer (confirmacao.custoPorItem, até 3): no pior caso 1 + 15 subpedidos */
+const RESERVA_DESISTENCIAS = 12;       /* o que as desistências pela metade precisam (concluirPendentes); as confirmações nunca o consomem */
 export const ORG = 'beyon-zero';
 /* a referência de um pedido real é o UUID da tentativa (banco: external_reference = t.id::text): nunca começa com "TESTE-".
    Só o Pix de teste do dono cria order com esse prefixo; o aviso e a varredura a ignoram (sem tentativa, sem alarme) */
@@ -329,13 +331,15 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
       await umPorVez(lista, t => nucleo.atualizar(t, 'reconciliacao'));
       /* as confirmações da entrada que ficaram para trás (aprovada por aqui, aviso que caiu antes do envio, chave que faltava):
          só com folga para a reserva e para cada envio; o que não couber fica para a próxima (a reserva é do banco, uma vez só) */
-      const folga = Math.min(CONFIRMACOES_POR_VEZ, gasto.restantes() - 1);
+      /* (cada item gasta confirmacao.custoPorItem: o envio e, com a entrega ligada, também o link do pedido e o desfazer, api/_pagamentos/confirmacao.mjs) */
+      /* (e o orçamento das desistências fica de fora: um estorno pela metade vale mais que uma confirmação, que a próxima execução ainda manda dentro das 48 h) */
+      const folga = Math.min(CONFIRMACOES_POR_VEZ, Math.floor((gasto.restantes() - 1 - RESERVA_DESISTENCIAS) / ((confirmacao && confirmacao.custoPorItem) || 1)));
       if (!parou && confirmacao && confirmacao.ligada && folga >= 1) {
         try { resumo.confirmacoes = (await confirmarEntradas({ banco: bancoContado, confirmacao: confirmacao.contada(gasto.contar), provedor: PROV, filtro: { limite: folga } })).enviadas; }
         catch (e) { if (e instanceof SemOrcamento) parou = true; else throw e; }
       }
       /* (20/11) as desistências de cliente que ficaram pela metade (queda entre o estorno e o encerramento, resposta que não voltou): só se ACABA o que já aconteceu, nunca se estorna sozinho */
-      if (!parou && gasto.restantes() >= 12) {
+      if (!parou && gasto.restantes() >= RESERVA_DESISTENCIAS) {
         try { const n = await criarDesistencia({ banco: bancoContado, mp: mpContado, cfg, nucleo }).concluirPendentes(); if (n > 0) resumo.desistencias = n; }
         catch (e) { if (e instanceof SemOrcamento) parou = true; else { resumo.erros++; console.error('[pagamentos] desistências pendentes:', (e && (e.codigo || e.tipo)) || 'erro'); } }
       }

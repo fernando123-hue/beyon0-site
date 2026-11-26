@@ -9,7 +9,8 @@
      - ao recarregar, a pergunta volta;
      - "Quero ajustar algo" foca a caixa com a dica do mapa;
      - o AJUSTE: um estado forjado na rede (versão 2 com um nó "ajustado") faz o nó novo aparecer com a marca, sem refazer a entrada.
-   Ligada, computador (1280): o botão "Ver a planta do seu site" aparece sob a fala do Zero e abre a faixa com o mapa, com o foco no título.
+   Ligada, computador durante a conversa (1366x768, 1366x650, 1280x650 e 930x768): o esboço cabe na caixa ou fica no passo mínimo.
+   Ligada, computador (1280x900 e 1366x768): o esboço cabe na caixa e, com o mapa pronto, deixa "em construção" (achado 18); o botão "Ver a planta do seu site" aparece sob a fala do Zero e abre a faixa com o mapa, com o foco no título.
    Regressão do v2: um plano v2 forjado na rede desenha com o módulo antigo (.plv-quadro).
    Desligada: nada da planta é baixado e a conversa é a de sempre.
    Cada rodada usa um IP novo (o freio local de sessões por IP). Sai com 1 se algo falhar. */
@@ -70,7 +71,13 @@ async function turno(page, texto) {
   await page.waitForFunction((k) => document.querySelectorAll('#o-log .msg--agente').length > k, n, { timeout: 40000 });
   await page.waitForSelector('#o-pensando[hidden]', { state: 'attached', timeout: 40000 });
 }
-const rolarAoCartao = (page) => page.evaluate(() => { const li = document.querySelector('#o-log .lv-item'); const c = document.getElementById('o-log-caixa'); if (li && c) c.scrollTop += li.getBoundingClientRect().top - c.getBoundingClientRect().top - 8; });
+/* leva o cartão à vista: no computador a caixa rola; no celular (desde a conversa que cresce com a página, 25/11) a caixa não rola e quem anda é a página */
+const rolarAoCartao = (page) => page.evaluate(() => {
+  const li = document.querySelector('#o-log .lv-item'), c = document.getElementById('o-log-caixa');
+  if (!li || !c) return;
+  if (getComputedStyle(c).overflowY !== 'visible') c.scrollTop += li.getBoundingClientRect().top - c.getBoundingClientRect().top - 8;
+  else window.scrollBy(0, li.getBoundingClientRect().top - 80);
+});
 const lateral = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 
 /* ---------- ligada, celular ---------- */
@@ -102,6 +109,8 @@ console.log('\n== flag ligada, celular 390 (' + ON + ') ==');
   ok(mensagens.length === antes, '"Está certo" não manda mensagem (não gasta IA)');
   ok(/Está certo\./.test(await acoes.textContent()), '"Está certo" vira uma fala na tela');
   await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('#o-log .lv-item .mpc-quadro', { timeout: 30000 });
+  await rolarAoCartao(page);
   await page.waitForSelector('#o-log .lv-item .mpc-acoes:not(.is-espera)', { timeout: 30000 });
   ok(await page.getByRole('button', { name: 'Está certo', exact: true }).count() === 1, 'ao recarregar, a pergunta volta (nada foi gravado)');
   await page.getByRole('button', { name: 'Quero ajustar algo', exact: true }).click();
@@ -122,10 +131,20 @@ console.log('\n== flag ligada, celular 390 (' + ON + ') ==');
   await ctx.close();
 }
 
-/* ---------- ligada, computador ---------- */
-console.log('\n== flag ligada, computador 1280 ==');
+/* ---------- ligada, computador (1280x900 e o notebook comum, 1366x768) ---------- */
+/* o esboço que fica na conversa (no computador a caixa ROLA e corta, css/orcamento.css): achado 18 (26/11), em 1366x768 o cartão de 506 px não cabia
+   na caixa de 459 (o objetivo e a legenda fora) e seguia "em construção" para sempre, com o objetivo preso na fila, depois do mapa pronto na faixa */
+const esbocoNaCaixa = (page) => page.evaluate(() => {
+  const card = document.querySelector('#o-log .lv-item'), caixa = document.getElementById('o-log-caixa');
+  if (!card || !caixa) return null;
+  const cs = getComputedStyle(caixa), util = caixa.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  return { kicker: (card.querySelector('.lv-kicker') || {}).textContent || '', alto: Math.round(card.getBoundingClientRect().height), util: Math.round(util),
+    objetivo: !!card.querySelector('.lv-txt--led.is-aceso') };
+});
+for (const [larg, alt] of [[1280, 900], [1366, 768]]) {
+console.log('\n== flag ligada, computador ' + larg + 'x' + alt + ' ==');
 {
-  const { ctx, page, erros } = await abrir(ON, { larg: 1280, alt: 900 });
+  const { ctx, page, erros } = await abrir(ON, { larg, alt });
   await conversarAteOMapa(page, ON);
   await page.waitForFunction(() => !!window.BZMapa, null, { timeout: 20000 });
   const ver = page.locator('.plv-ver');
@@ -137,7 +156,34 @@ console.log('\n== flag ligada, computador 1280 ==');
   ok(f.faixa && f.mapa, 'o botão abre a faixa com o mapa');
   ok(f.foco === 'H2', 'o foco vai ao título do mapa');
   await espera(9000);
-  await foto(page.locator('#o-planta'), 'e2e-1280-faixa');
+  await foto(page.locator('#o-planta'), 'e2e-' + larg + '-faixa');
+  const esb = await esbocoNaCaixa(page);
+  ok(!!esb && esb.alto <= esb.util, 'o esboço cabe inteiro na caixa da conversa (' + JSON.stringify(esb) + ')');
+  ok(!!esb && !/em construção/.test(esb.kicker) && esb.objetivo, 'com o mapa pronto na faixa, o esboço deixa "em construção" e imprime o objetivo');
+  await foto(page.locator('#o-log .lv-item'), 'e2e-' + larg + '-esboco');
+  ok(await lateral(page), 'sem rolagem lateral');
+  ok(erros.length === 0, 'nenhum erro no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
+  await ctx.close();
+}
+}
+
+/* ---------- computador, DURANTE a conversa: o esboço compacto pela altura da caixa (revisão do achado 18) ---------- */
+/* num notebook de 768 de verdade (navegador e barra de tarefas) a janela útil tem ~650 e a caixa (60vh) ~362 úteis: o passo do esboço sai da altura
+   útil da caixa, de 44 a 36; abaixo do que o passo 36 alcança o cartão fica no mínimo (a medida sai no log). 930: a caixa já rola e a legenda tem 84 */
+for (const [larg, alt] of [[1366, 768], [1366, 650], [1280, 650], [930, 768]]) {
+  console.log('\n== computador ' + larg + 'x' + alt + ', o esboço durante a conversa ==');
+  const { ctx, page, erros } = await abrir(ON, { larg, alt });
+  await page.goto(ON + '/orcamento', { waitUntil: 'load', timeout: 90000 });
+  await esperarToques(page);
+  await responderAteADor(page);
+  await turno(page, 'Pelo Instagram e por indicação, e muita gente pergunta e some');
+  await page.waitForSelector('#o-log .lv-item .lv-quadro', { timeout: 20000 });
+  await espera(4000);
+  const esb = await esbocoNaCaixa(page);
+  const passo = await page.evaluate(() => { const t = [...document.querySelectorAll('#o-log .lv-item .lv-lista .lv-txt')].map((li) => parseFloat(li.style.top)); return t.length > 1 ? Math.round(t[1] - t[0]) : 0; });
+  ok(!!esb && (esb.alto <= esb.util || passo === 36), 'o esboço cabe na caixa ou fica no passo mínimo (' + JSON.stringify(Object.assign({ passo }, esb)) + ')');
+  ok(!!esb && /em construção/.test(esb.kicker), 'durante a conversa, "em construção"');
+  await foto(page.locator('#o-log .lv-item'), 'e2e-' + larg + 'x' + alt + '-conversa');
   ok(await lateral(page), 'sem rolagem lateral');
   ok(erros.length === 0, 'nenhum erro no console' + (erros.length ? ': ' + erros.join(' | ') : ''));
   await ctx.close();

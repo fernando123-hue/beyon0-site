@@ -64,6 +64,9 @@
 .lv-verbo { color: var(--t3); }
 .lv-tit { font: 400 var(--fs-s)/1.3 var(--sans); color: var(--t1); overflow-wrap: break-word; }
 .lv-txt.is-provisorio .lv-tit { color: var(--t3); }
+/* o esboço compacto (a caixa do computador, que rola e corta: js/planta-esboco.js) tem uma linha de título; o que não couber termina em reticências,
+   nunca numa 2ª linha cortada pela metade (fonte grande, uma chegada com muitas origens) */
+.lv--compacto .lv-tit { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lv-txt--led .lv-verbo { color: var(--ac); }
 .lv-ponta { display: flex; gap: 8px; align-items: baseline; height: 20px; white-space: nowrap; }
 .lv-ponta .lv-verbo { color: var(--ac-3); }

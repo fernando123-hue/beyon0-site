@@ -4,6 +4,7 @@
    reservar. A retenção (app.vendas_reter) apaga o que sobrar em 30 dias. Postgres real (PGlite) com as migrations.  node --test */
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash, randomUUID } from 'node:crypto';
 import { novoBanco, como, erroDe } from './_banco.mjs';
 import { rpcDe, prepararOrg, conversaComEntradaPaga } from './_entrega.mjs';
 import { entregaEm, iniciarRestante, aprovarRestante } from './_previa.mjs';
@@ -123,4 +124,108 @@ test('retenção: vendas_reter apaga o e-mail do pagador guardado há mais de 30
   assert.equal((await tentativaDe(velha.t.id)).pagador_email, null);
   assert.equal((await tentativaDe(recente.t.id)).pagador_email, 'cliente@empresa.com.br');
   assert.equal((await rpc('vendas_reter', {})).pagadores_apagados, 0, 'rodar de novo não acha nada');
+});
+
+/* ======================= O LINK DO PEDIDO NO E-MAIL (decisão do dono, 19/11: "o cliente não tem que se preocupar com nenhum código") =======================
+   Depois da reserva, o servidor sorteia o código e entrega ao banco SÓ o hash (app.pagamentos_link_da_confirmacao). O banco cria o link do pedido
+   se a conversa ainda não tem um vivo; se o cliente já gerou o dele na página, NÃO troca (o link que ele guardou continua valendo) e o e-mail vai
+   sem link. Se o e-mail não saiu de fato, `desfazer` apaga o link criado para ele (ninguém o recebeu). Só o service_role executa. */
+const linkDaConfirmacao = p => rpc('pagamentos_link_da_confirmacao', p);
+const hexLink = s => createHash('sha256').update('bz-pedido|' + s).digest('hex');
+const usarLink = async codigo => {
+  const v = randomUUID();
+  await db.query('insert into auth.users (id) values ($1)', [v]);
+  return { v, r: await rpc('vendas_link_pedido_usar', { org_slug: 'beyon-zero', codigo_hash: hexLink(codigo), visitante_id: v }) };
+};
+const vivos = c => um('select count(*)::int n from app.links_pedido where conversa_id = $1 and revogado_em is null', [c.conversa_id]);
+async function reservada(opcoes) {
+  const c = await entrada(opcoes);
+  assert.equal((await reservar({ provedor_order_id: c.t.provedor_order_id })).itens.length, 1);
+  return c;
+}
+
+test('link no e-mail: com a entrada reservada e sem link vivo, cria o link do pedido (só o hash), o estado sabe que ele foi por e-mail, e ele abre o pedido certo', async () => {
+  const c = await reservada();
+  /* (S1) o e-mail digitado nunca foi verificado: só a forma MASCARADA vai junto; o e-mail inteiro é recusado */
+  for (const ruim of ['cliente@empresa.com.br', 'c***@', '***@x.com', 'c***@x.com<script>', 'c**@x.com'])
+    assert.equal((await erroDe(linkDaConfirmacao({ tentativa_id: c.t.id, codigo_hash: hexLink('EMAIL1'), email_mascarado: ruim })))?.codigo, '22023', ruim);
+  const r = await linkDaConfirmacao({ tentativa_id: c.t.id, codigo_hash: hexLink('EMAIL1'), email_mascarado: 'c***@empresa.com.br' });
+  assert.deepEqual(r, { ok: true, criado: true });
+  const linha = await um('select * from app.links_pedido where conversa_id = $1', [c.conversa_id]);
+  assert.equal(linha.codigo_hash, hexLink('EMAIL1')); assert.equal(linha.pelo_email, true);
+  assert.ok(!JSON.stringify(linha).includes('EMAIL1'), 'o banco guarda só o hash');
+  assert.ok(linha.valido_ate > new Date(Date.now() + 100 * 864e5), 'vale o pedido inteiro, como o da página');
+  const e = (await rpc('vendas_estado', { conversa_id: c.conversa_id, visitante_id: c.visitante_id })).entrega;
+  assert.deepEqual([e.link_pedido, e.link_no_email], [true, true], 'a página não pede para gerar outro: o link está no e-mail');
+  assert.equal(e.link_no_email_para, 'c***@empresa.com.br', 'para onde foi, mascarado: o cliente nota o e-mail digitado errado');
+  assert.ok(!JSON.stringify(e).includes('cliente@empresa'), 'o e-mail inteiro nunca no estado');
+  assert.deepEqual(await linkDaConfirmacao({ tentativa_id: c.t.id, codigo_hash: hexLink('EMAIL1b') }), { ok: true, criado: false, motivo: 'ja_tem_link' }, 'de novo: não troca');
+  const u = await usarLink('EMAIL1');
+  assert.deepEqual([u.r.ok, u.r.conversa_id], [true, c.conversa_id], 'o link do e-mail abre ESTE pedido');
+  assert.equal((await usarLink('EMAIL1b')).r.ok, false, 'o 2º hash nunca virou link');
+  /* "Gerar um link novo" na página troca o do e-mail como troca qualquer outro, e o estado deixa de dizer "no e-mail" */
+  const novo = await rpc('vendas_link_pedido_criar', { conversa_id: c.conversa_id, visitante_id: u.v, codigo_hash: hexLink('PAGINA1'), forcar: true });
+  assert.equal(novo.criado, true);
+  assert.equal((await usarLink('EMAIL1')).r.ok, false, 'o do e-mail parou');
+  const visitante = (await um('select visitante_id from app.conversas where id = $1', [c.conversa_id])).visitante_id;
+  const depois = (await rpc('vendas_estado', { conversa_id: c.conversa_id, visitante_id: visitante })).entrega;
+  assert.deepEqual([depois.link_no_email, depois.link_no_email_para], [false, null]);
+});
+
+test('link no e-mail: o link que o cliente JÁ gerou na página nunca é revogado; o e-mail vai sem link', async () => {
+  const c = await entrada();
+  assert.equal((await rpc('vendas_link_pedido_criar', { conversa_id: c.conversa_id, visitante_id: c.visitante_id, codigo_hash: hexLink('DOCLIENTE') })).criado, true);
+  assert.equal((await reservar({ provedor_order_id: c.t.provedor_order_id })).itens.length, 1);
+  assert.deepEqual(await linkDaConfirmacao({ tentativa_id: c.t.id, codigo_hash: hexLink('EMAIL2') }), { ok: true, criado: false, motivo: 'ja_tem_link' });
+  assert.equal((await vivos(c)).n, 1);
+  assert.equal((await um('select revogado_em from app.links_pedido where codigo_hash = $1', [hexLink('DOCLIENTE')])).revogado_em, null, 'o do cliente segue vivo');
+  assert.equal((await rpc('vendas_estado', { conversa_id: c.conversa_id, visitante_id: c.visitante_id })).entrega.link_no_email, false);
+  assert.deepEqual([(await usarLink('DOCLIENTE')).r.ok, (await usarLink('EMAIL2')).r.ok], [true, false]);
+  assert.equal((await linkDaConfirmacao({ tentativa_id: c.t.id, codigo_hash: hexLink('DOCLIENTE'), desfazer: true })).desfeito, false, 'desfazer nunca apaga o link do cliente');
+  assert.equal((await usarLink('DOCLIENTE')).r.ok, true);
+});
+
+test('link no e-mail: só para a entrada paga e RESERVADA há pouco; sem reserva, estornada ou tentativa estranha, não cria', async () => {
+  const semReserva = await entrada();
+  assert.deepEqual(await linkDaConfirmacao({ tentativa_id: semReserva.t.id, codigo_hash: hexLink('SR') }), { ok: true, criado: false, motivo: 'fora_da_confirmacao' }, 'sem a reserva da confirmação');
+  const velha = await reservada();
+  await db.query("update app.tentativas_pagamento set confirmacao_email_em = now() - interval '2 hours' where id = $1", [velha.t.id]);
+  assert.equal((await linkDaConfirmacao({ tentativa_id: velha.t.id, codigo_hash: hexLink('VELHA') })).criado, false, 'reserva antiga: não vira gerador de link');
+  const estornada = await reservada();
+  await db.query("update app.pagamentos set status = 'estornado' where proposta_id = $1 and parcela = 'sinal'", [estornada.proposta]);
+  assert.equal((await linkDaConfirmacao({ tentativa_id: estornada.t.id, codigo_hash: hexLink('EST') })).criado, false, 'sinal estornado');
+  assert.equal((await linkDaConfirmacao({ tentativa_id: randomUUID(), codigo_hash: hexLink('X') })).criado, false, 'tentativa que não existe');
+  for (const c of [semReserva, velha, estornada]) assert.equal((await vivos(c)).n, 0);
+  assert.equal((await erroDe(linkDaConfirmacao({ tentativa_id: semReserva.t.id, codigo_hash: 'nao-e-hash' }))).codigo, '22023');
+  assert.equal((await erroDe(linkDaConfirmacao({ tentativa_id: 'x', codigo_hash: hexLink('X') }))).codigo, '22023');
+  for (const papel of ['anon', 'eeeeeeee-0000-4000-8000-0000000000e1']) {
+    const e = await erroDe(como(db, papel, q => q('select app.pagamentos_link_da_confirmacao($1::jsonb)', [JSON.stringify({ tentativa_id: semReserva.t.id, codigo_hash: hexLink('X') })]), { manter: false }));
+    assert.equal(e.codigo, '42501', papel + ' não executa');
+  }
+});
+
+test('link no e-mail: desfazer (o e-mail não saiu) apaga só o link criado para ele e ainda não usado; a página volta a gerar o dela', async () => {
+  const c = await reservada();
+  assert.equal((await linkDaConfirmacao({ tentativa_id: c.t.id, codigo_hash: hexLink('NAOSAIU') })).criado, true);
+  assert.deepEqual(await linkDaConfirmacao({ tentativa_id: c.t.id, codigo_hash: hexLink('NAOSAIU'), desfazer: true }), { ok: true, desfeito: true });
+  assert.equal((await vivos(c)).n, 0);
+  assert.equal((await rpc('vendas_estado', { conversa_id: c.conversa_id, visitante_id: c.visitante_id })).entrega.link_pedido, false, 'a página vai gerar e mostrar o dela');
+  assert.equal((await rpc('vendas_link_pedido_criar', { conversa_id: c.conversa_id, visitante_id: c.visitante_id, codigo_hash: hexLink('PAGINA2') })).criado, true);
+  /* o link do e-mail que já foi usado (então o e-mail chegou) não é desfeito */
+  const d = await reservada();
+  await linkDaConfirmacao({ tentativa_id: d.t.id, codigo_hash: hexLink('USADO') });
+  assert.equal((await usarLink('USADO')).r.ok, true);
+  assert.equal((await linkDaConfirmacao({ tentativa_id: d.t.id, codigo_hash: hexLink('USADO'), desfazer: true })).desfeito, false);
+  assert.equal((await usarLink('USADO')).r.ok, true);
+  /* o envio lento: passada a 1 hora da reserva, desfazer ainda vale (criar, não) */
+  const lenta = await reservada();
+  await linkDaConfirmacao({ tentativa_id: lenta.t.id, codigo_hash: hexLink('LENTA') });
+  await db.query("update app.tentativas_pagamento set confirmacao_email_em = now() - interval '2 hours' where id = $1", [lenta.t.id]);
+  assert.equal((await linkDaConfirmacao({ tentativa_id: lenta.t.id, codigo_hash: hexLink('LENTA'), desfazer: true })).desfeito, true);
+  assert.equal((await vivos(lenta)).n, 0);
+  /* nem o de outra conversa */
+  const e = await reservada();
+  await linkDaConfirmacao({ tentativa_id: e.t.id, codigo_hash: hexLink('DOOUTRO') });
+  assert.equal((await linkDaConfirmacao({ tentativa_id: c.t.id, codigo_hash: hexLink('DOOUTRO'), desfazer: true })).desfeito, false);
+  assert.equal((await usarLink('DOOUTRO')).r.ok, true);
 });

@@ -25,7 +25,7 @@ function rodar(arquivos) {
     /* sem NODE_TEST_CONTEXT: dentro de um teste o Node o define, e o `--test` filho se recusaria a rodar ("called recursively") */
     const env = Object.assign({}, process.env);
     delete env.NODE_TEST_CONTEXT;
-    const r = spawnSync(process.execPath, ['--test', path.join(dir, 'planta-todos.test.mjs')], { encoding: 'utf8', timeout: 60000, env });
+    const r = spawnSync(process.execPath, ['--test', '--test-reporter=spec', path.join(dir, 'planta-todos.test.mjs')], { encoding: 'utf8', timeout: 60000, env });
     return { codigo: r.status, saida: (r.stdout || '') + (r.stderr || '') };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
