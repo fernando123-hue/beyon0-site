@@ -68,7 +68,6 @@
 .pv-hero--faixa .pv-rotulo::before { background: var(--pv-dest-texto); }
 .pv-hero--faixa .pv-btn { background: var(--pv-dest-texto); color: var(--pv-dest); }
 .pv-hero--faixa .pv-arte { background: transparent; border-color: var(--pv-dest-texto); }
-.pv-hero--faixa .pv-arte__leg { background: var(--pv-dest); color: var(--pv-dest-texto); }
 
 .pv-arte { position: relative; overflow: hidden; width: 100%; height: 300px; background: var(--pv-sup); border-top: 2px solid var(--pv-texto); --pv-a-forte: var(--pv-dest); --pv-a-fraco: var(--pv-texto); --pv-a-cheio: var(--pv-dest); --pv-a-vazio: var(--pv-texto); }
 .pv-hero--faixa .pv-arte { --pv-a-forte: var(--pv-dest-texto); --pv-a-fraco: var(--pv-dest-texto); --pv-a-cheio: var(--pv-dest-texto); --pv-a-vazio: var(--pv-dest-texto); }
@@ -78,7 +77,6 @@
 .pv-arte .a-fraco { fill: none; stroke: var(--pv-a-fraco); stroke-opacity: .3; stroke-width: 1.2; }
 .pv-arte .a-cheio { fill: var(--pv-a-cheio); stroke: none; }
 .pv-arte .a-vazio { fill: none; stroke: var(--pv-a-vazio); stroke-width: 2; }
-.pv-arte__leg { position: absolute; left: 20px; bottom: 14px; padding: 4px 8px; background: var(--pv-fundo); color: var(--pv-texto); font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
 
 .pv-itens { list-style: none; display: grid; gap: 14px; }
 .pv-item { padding: 18px; border-radius: var(--pv-raio); background: var(--pv-fundo); border: 1px solid color-mix(in srgb, var(--pv-texto) 10%, transparent); display: flex; flex-direction: column; gap: 6px; }
@@ -207,3 +205,10 @@
   .pv-hero--faixa .pv-arte { border-color: var(--pv-dest-texto); }
   .pv-hero--centro .pv-arte { height: 360px; max-width: 960px; margin: 0 auto; border: 2px solid var(--pv-texto); }
 }
+
+/* (lapidação 26/11, achado 4 dos modelos) a quebra cai no sentido: títulos equilibrados, texto sem palavra sozinha na última linha, e a palavra
+   com hífen inteira (js/previa.js, semPartir) */
+.pv h1, .pv h2, .pv h3, .pv h4, .pv h5, .pv-marca { text-wrap: balance; }
+.pv p, .pv blockquote, .pv li { text-wrap: pretty; }
+/* inteira enquanto couber na linha; a palavra maior que a linha quebra dentro da própria caixa (nowrap estourava 320 px) */
+.pv-inteira { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }

@@ -908,11 +908,17 @@
     emGeracao.forEach(function (d) { pedirDirecao(d.id); });
   }
   /* a recomendação do Zero, acima dos três: enquanto a pessoa escolhe (depois de escolher, o selo no cartão basta) */
+  /* (achado 14 dos modelos) só com o modelo recomendado PRONTO e com conteúdo (o mesmo que o cartão pede para desenhar): "Eu iria no 1"
+     com o 1 ainda em produção apontava para um cartão vazio. Função pura: docs/testes/modelos-recomendacao.test.mjs a roda */
+  function recomendacaoVisivel(r, direcoes, recId, escolhida, pode) {
+    var pronta = (direcoes || []).some(function (d) { return d.id === recId && d.status === 'pronta' && !!d.conteudo; });
+    return !!(r && typeof r.texto === 'string' && recId && pronta && !escolhida && pode);
+  }
   function recomendacao() {
     var caixa = $('o-recomenda');
     if (!caixa) return;
     var r = E.recomendacao;
-    var mostra = !!(r && typeof r.texto === 'string' && recomendadaId() && !escolhidaId() && podeEscolher());
+    var mostra = recomendacaoVisivel(E.recomendacao, E.direcoes, recomendadaId(), escolhidaId(), podeEscolher());
     if (!mudou('recomenda', [mostra, mostra ? r.texto : ''])) return;
     caixa.textContent = '';
     caixa.hidden = !mostra;
@@ -971,6 +977,7 @@
     window.BZDetalhes.atualizar(E);   /* os detalhes, o pedido recebido ou o pedido encerrado (js/orcamento-detalhes.js) */
     if (window.BZOrcPlanta) window.BZOrcPlanta.atualizar(E, { rolarAte: rolarAte, enviar: enviar });   /* a planta do site (js/orcamento-planta.js): só age com E.planta (flag BZ_PLANTA); sem o módulo a tela segue igual */
     if (window.BZOrcEsboco) window.BZOrcEsboco.atualizar(E);   /* a planta viva v2, o esboço que cresce na conversa (js/orcamento-planta-esboco.js): só age com a flag BZ_PLANTA; sem o módulo a tela segue igual */
+    if (window.BZOrcReacao) window.BZOrcReacao.atualizar(E);   /* o mapa vivo, fase 1a (js/orcamento-reacao.js): as peças acendem ao digitar; só com a flag BZ_PLANTA e com as peças do esboço já na página */
     if (window.BZOrcEscopo) window.BZOrcEscopo.atualizar(E);   /* o radar do escopo (js/orcamento-escopo.js): só lê o estado; sem o módulo a tela segue igual */
     if (window.BZPainel) window.BZPainel.atualizar(E.painel);   /* as peças da conversa: notas, ficha e caso (js/orcamento-painel.js); sem o módulo a tela segue igual */
     extrasNaConversa();
