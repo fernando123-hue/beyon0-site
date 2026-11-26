@@ -681,7 +681,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
         try {
           /* (spec 2026-11-15 §5) saúde e advocacia: as regras do conselho no prompt e a conferência antes de gravar */
           const nicho = nichoReguladoDaSessao({ briefing: p.briefing, mensagens: est.mensagens });
-          const g = await gerarDirecaoGarantida({ ia, briefing: p.briefing, estrategia: p.estrategia, numero: p.numero, fatores: p.fatores, nicho, hoje: new Date().toISOString().slice(0, 10),
+          const g = await gerarDirecaoGarantida({ ia, briefing: p.briefing, estrategia: p.estrategia, numero: p.numero, fatores: p.fatores, nicho, semente: String(corpo.conversa_id), hoje: new Date().toISOString().slice(0, 10),
             aoCair: ({ etapa, motivo }) => console.error(JSON.stringify({ origem: 'vendas', nivel: 'aviso', request_id: requestId || null, evento: 'degrau da geração caiu', etapa, motivo })) });
           if (g.degrau !== 'opus') console.error(JSON.stringify({ origem: 'vendas', nivel: 'aviso', request_id: requestId || null, evento: 'direção de reserva usada', degrau: g.degrau, motivos: g.motivos }));
           await somarCusto(corpo.conversa_id, vid, g.custo_usd);   /* (antes de gravar: a Opus já cobrou, dê certo ou não a gravação) */

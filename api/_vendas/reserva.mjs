@@ -84,9 +84,9 @@ function montar(briefing, estrategia, nicho, nivel) {
 }
 
 /* devolve { direcao, ajustes, modelo, custo_usd, tentativas } no mesmo formato do gerarDirecao; nunca lança por conteúdo do briefing */
-export function direcaoDeReserva({ briefing, estrategia, nicho = null, hoje = '' }) {
+export function direcaoDeReserva({ briefing, estrategia, nicho = null, hoje = '', trilho = null }) {
   for (let nivel = 0; nivel <= 3; nivel++) {
-    const h = higienizar(montar(briefing, estrategia, nicho, nivel), estrategia);
+    const h = higienizar(montar(briefing, estrategia, nicho, nivel), estrategia, trilho ? { trilho: { tipografia: trilho.tipografia } } : undefined);
     if (h.erro) continue;
     const c = nicho ? conferirDirecao(h.direcao, nicho, { hoje }) : { ok: true };
     if (c.ok) return { direcao: h.direcao, ajustes: h.ajustes, modelo: MODELO_RESERVA_CODIGO, custo_usd: 0, tentativas: 0 };
