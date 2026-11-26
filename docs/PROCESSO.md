@@ -114,12 +114,23 @@ desta seção).
    desfaz migration**. Voltar para uma versão sem a API tira do ar o `/orcamento`, o aviso do Mercado Pago e as
    rotinas: um Pix pago nesse intervalo só é aplicado depois de publicar de novo e a reconciliação rodar. Com
    clientes pagando, voltar só para uma versão que já tenha a API.
-5. Migration de banco: **antes** do passo 4, pelo agente (dono, 2026-11-26: a migration que passou pelo processo,
-   revisada e mesclada, vai ao banco de produção sem pedir o "sim" dele), pelo SQL Editor do Supabase de produção, no
-   roteiro de `docs/fundacao/02-OPERACAO.md`: conferir antes que ela ainda não foi aplicada, rodar o arquivo inteiro da
-   `main` sem mudar nada, conferir depois (colunas, funções e permissões que ela cria). O código novo nunca vai ao ar
-   antes da migration que ele usa (ou, se for, tem de funcionar sem ela). Só o login do painel com verificação em duas
-   etapas é do dono.
+5. Migration de banco: **antes** do passo 4, pelo agente, sem pedir o "sim" do dono (dono, 2026-11-26: "Tem minha
+   permissão para o banco também, após tudo revisado e passado pelos processos").
+   - **Vale só para** um arquivo de `supabase/migrations/` que já está na `main` (PR revisado, CI verde, mesclado),
+     rodado **inteiro e igual ao da `main`** (copiado do arquivo no sha da `main`, sem editar). **Proibido** no banco de
+     produção: SQL que não seja esse arquivo (solto, de ramo não mesclado, editado, ou só um trecho). Qualquer outra
+     mudança no banco real continua sendo do dono ("Sempre pedir o dono", abaixo).
+   - **Como:** pelo SQL Editor do Supabase de produção (o agente não roda `supabase db push`: as permissões do Claude Code do dono o negam). Antes,
+     conferir que ela ainda não foi aplicada (as colunas e funções que ela cria não existem) e que as anteriores estão;
+     rodar; depois, conferir o que ela cria (colunas, funções, permissões; `docs/fundacao/02-OPERACAO.md` §4.4) e
+     registrar a versão em `supabase_migrations.schema_migrations` como as anteriores estão registradas (conferir as
+     colunas da tabela antes), para um `db push` futuro não a reaplicar.
+   - **Se der erro:** parar; não tentar de novo nem corrigir à mão no banco. Conferir o estado (o SQL Editor costuma
+     reverter o script inteiro, mas conferir, não presumir). A correção é uma migration nova, por PR, e o dono é avisado.
+     O passo 4 não anda enquanto o banco não estiver no estado esperado.
+   - O código novo nunca vai ao ar antes da migration que ele usa.
+   - **Do dono:** só entrar no painel do Supabase quando a sessão do Chrome dele expira (o login pede o código de duas
+     etapas do celular dele); com o painel aberto, o resto é do agente.
 
 **O risco que fica (dito como é; decisão do dono, 2026-10-21, uma conta só até a 1ª venda).** O Builds do Worker de
 prévias roda o código de **toda** branch empurrada (`npm ci`, o Build command, o `wrangler` lendo o `wrangler.jsonc`)
@@ -149,7 +160,7 @@ para `beyonzero.com.br`. Nada novo é promovido na Vercel.
 ## Sempre pedir o dono
 
 Apagar dado, trocar segredo, publicar ao vivo por qualquer caminho que não seja o PR "Promover para produção" do passo 4,
-mudança no banco real fora de migration que passou pelo processo (item 5 do passo a passo de produção), decisão de negócio, e mexer em qualquer ajuste de domínio, zona ou produção da Cloudflare (e da Vercel, enquanto ela existir).
+mudança no banco real que não seja uma migration já mesclada na `main`, aplicada inteira e sem alteração (item 5 do passo a passo de produção), decisão de negócio, e mexer em qualquer ajuste de domínio, zona ou produção da Cloudflare (e da Vercel, enquanto ela existir).
 
 ## Limites (ditos como são)
 

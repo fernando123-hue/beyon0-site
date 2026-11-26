@@ -5,7 +5,7 @@ Como montar, mudar, testar, proteger e recuperar o banco. A arquitetura e o porq
 ## 1. Migrations
 
 - Ficam em `supabase/migrations/`, no formato do Supabase CLI: `AAAAMMDDHHMMSS_nome.sql`. Rodam em ordem de nome, uma vez cada.
-- **Toda mudança de estrutura é uma migration nova.** Nunca se edita uma migration já aplicada, e nada se muda à mão no painel do Supabase.
+- **Toda mudança de estrutura é uma migration nova.** Nunca se edita uma migration já aplicada, e nada se muda à mão no painel do Supabase (a única exceção é rodar no SQL Editor de produção, inteira e sem alteração, uma migration já mesclada na `main`: `docs/PROCESSO.md`, item 5 do passo a passo de produção).
 - Hoje são seis:
 
 | Arquivo | O que cria |
@@ -121,7 +121,7 @@ O site local roda com `npm run servir`. As funções de `/api` respondem com um 
    npx supabase@2 db push
    ```
 
-   O `init` só cria `supabase/config.toml` e não mexe nas migrations. O `db push` aplica as migrations de `supabase/migrations` e registra cada uma no histórico do projeto. Daqui em diante, toda migration nova sobe pelo mesmo comando.
+   O `init` só cria `supabase/config.toml` e não mexe nas migrations. O `db push` aplica as migrations de `supabase/migrations` e registra cada uma no histórico do projeto. Daqui em diante, toda migration nova sobe pelo mesmo comando, quando é o dono que aplica; o agente aplica pelo SQL Editor e registra a versão no histórico (`docs/PROCESSO.md`, item 5 do passo a passo de produção).
 3. Em **Settings › Data API › Exposed schemas**, acrescente `app` e `metricas`. O `privado` **nunca** entra nessa lista.
 4. **Superado pela Fase 2 (login anônimo LIGADO, cadastro aberto desligado; `docs/fase2/02-OPERACAO.md`).** Em **Authentication › Sign In / Providers**, mantenha o **cadastro aberto desligado** ("Allow new users to sign up") e o **login anônimo ligado** (o orçamento abre a sessão do visitante). Em **Authentication › Rate Limits**, ligue **IP Address Forwarding**: o Worker repassa o IP do visitante e, sem a opção, todos dividem o limite do IP da Cloudflare. O texto original desta etapa, "só entra quem o dono convidar", valia antes do orçamento. Mesmo que alguém se cadastrasse, sem ser membro de uma organização não veria nada, mas falaria direto com a API; desligar diminui a superfície.
 5. Crie a organização e o primeiro dono, no **SQL Editor**, como `postgres`:
