@@ -1327,4 +1327,9 @@ test('ESTADO: a instrução do pacote completo vai só no turno em que vale, sem
   assert.doesNotMatch(montarSistema(REGRAS), /completo\]\]/, 'o prompt fixo (com cache) não ganha nada');
 });
 
+/* o mapa vivo (fase 1a) é da planta mas não se chama planta-*: entra aqui, pelo mesmo motivo do agregador */
+import './mapa-vivo-ler.test.mjs';
+import './mapa-vivo-reacao.test.mjs';
+/* o guarda da suíte também daqui (também em geracao.test.mjs): só some se os dois imports saírem */
+import './suite-completa.test.mjs';
 import './planta-todos.test.mjs';
