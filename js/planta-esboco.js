@@ -26,7 +26,7 @@
   var RX = 26, NY = 26, NR = 20, C = 36, LR = 20, TX = RX + C / 2 + 14, CHAMFRO = 7;
   /* COMPACTO (opcoes.compacto = a altura útil da caixa da conversa que ROLA e corta, a do computador, >= 900 px): lá o título cabe numa linha (o que
      passar dela termina em reticências, css/planta-esboco.css) e o passo é o MAIOR entre 44 e 36 com que o cartão (rótulo + quadro + legenda) cabe
-     INTEIRO na caixa (min(68vh, 620px), css/orcamento.css: 412 px úteis numa janela de 650 de alto, a de um notebook de 768 com o navegador). Abaixo de 42 o chip
+     INTEIRO na caixa (min(max(60vh, 456px), 620px), css/orcamento.css: 426 px úteis numa janela de 650 de alto, a de um notebook de 768 com o navegador). Abaixo de 42 o chip
      encolhe junto (6 px de vão). Se nem no passo 36 couber, fica no 36 (o marcarPronta garante o fim). Com o passo do celular o cartão tinha 506 px:
      o objetivo e a legenda ficavam fora e o objetivo, fora da vista, esperava na fila para sempre (achado 18, 26/11). Onde a caixa não corta
      (celular, tablet), a geometria é a de sempre */

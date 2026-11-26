@@ -130,10 +130,10 @@ test('o relógio solta as animações canceladas (não guarda para sempre o que 
 });
 
 /* achado 18 (26/11): no computador o cartão do esboço (rótulo 24 + quadro 408 + legenda 74 = 506 px) não cabia na caixa da conversa, que lá ROLA e
-   corta (era min(60vh, 620px): 459 px numa tela de 768, 431 de conteúdo tirando o respiro de 14 + 14; desde 26/11 é 68vh, 492 úteis). Medido em 1366x768: 76 px do quadro e a legenda
+   corta (era min(60vh, 620px): 459 px numa tela de 768, 431 de conteúdo tirando o respiro de 14 + 14; desde 26/11 é min(max(60vh, 456px), 620px): o mesmo 431 em 768, 426 em 650). Medido em 1366x768: 76 px do quadro e a legenda
    inteira fora, e o objetivo preso na fila (fora da vista da caixa) mesmo depois de o mapa ficar pronto na faixa */
 /* (26/11, dono: a legenda sem o rótulo repetido; no computador ela tem 2 linhas, 42 px, mais a margem de 10) */
-const CAIXA_768 = 520 - 28, ROTULO = 24, LEGENDA_COMPUTADOR = 42 + 10;   /* (a caixa de 68vh numa janela de 768: 492 úteis, medido no E2E) */
+const CAIXA_768 = 459 - 28, ROTULO = 24, LEGENDA_COMPUTADOR = 42 + 10;   /* (a caixa de 60vh numa janela de 768: 431 úteis, medido no E2E) */
 test('computador: o esboço compacto (a caixa que rola e corta) cabe inteiro na caixa de uma janela de 768 de alto; onde a caixa não corta, nada muda', () => {
   for (const larg of [470, 535, 620]) {
     const g = ambiente().E.geometria(larg, CAIXA_768 - ROTULO - LEGENDA_COMPUTADOR);
@@ -185,7 +185,7 @@ test('marcarPronta com uma estação no meio e o esboço fora da tela (o relógi
   esb.parar();
 });
 
-/* revisão do achado 18: num notebook 1366x768 de verdade (o navegador e a barra de tarefas) a janela útil tem ~650 px e a caixa, com 60vh, ~362 úteis (412 com 68vh): o
+/* revisão do achado 18: num notebook 1366x768 de verdade (o navegador e a barra de tarefas) a janela útil tem ~650 px e a caixa, com 60vh, ~362 úteis (426 com o mínimo de 456 px): o
    cartão de 428 voltava a cortar. O passo do compacto sai da altura útil da caixa, entre 44 e 36; o chip encolhe junto, sem encostar no vizinho */
 test('computador: o passo do compacto sai da altura da caixa (44 a 36); se nem no 36 couber, fica no 36, com o objetivo ainda à vista', () => {
   const { E } = ambiente();
@@ -204,7 +204,7 @@ test('computador: o passo do compacto sai da altura da caixa (44 a 36); se nem n
   }
   assert.ok(E.geometria(600, 431 - 76).passo === 44, 'com folga, o passo de 44');
   assert.ok(E.geometria(600, 362 - 76).passo < 44, 'na caixa de 362, o passo encolhe');
-  assert.ok(E.geometria(600, 412 - 76).passo === 44, 'na caixa de 68vh numa janela de 650 (412 úteis), sem a linha do rótulo na legenda, o passo de 44');
+  assert.ok(E.geometria(600, 426 - 76).passo === 44, 'na caixa de 456 px numa janela de 650 (426 úteis), sem a linha do rótulo na legenda, o passo de 44');
 });
 
 test('marcarPronta interrompendo uma estação no meio: a legenda termina com a estação que estava sendo impressa (o ler() dela era um timer do relógio velho)', () => {

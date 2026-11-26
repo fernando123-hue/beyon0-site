@@ -425,9 +425,11 @@ html.visor-aberto { overflow: hidden; }
   .orc-mesa { grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); align-items: start; }
   .orc-painel { position: sticky; top: calc(var(--nav-h) + 1rem); }
   .orc-conversa { padding: 1.4rem; }
-  /* 68vh (dono, 26/11, vendo 1366x650): num notebook de 768 de verdade a janela útil tem ~650 e com 60vh a caixa tinha 360 úteis, menos que o
-     esboço da planta no passo mínimo (381); com 68vh, 412, e o cartão cabe inteiro (js/planta-esboco.js, passo pela altura da caixa) */
-  .orc-log { max-height: min(68vh, 620px); }
+  /* 60vh, e nunca menos que 456 px: a caixa cresce SÓ onde falta (dono, 26/11: a planta caber no notebook baixo, não a caixa maior em toda tela).
+     Num notebook de 768 de verdade a janela útil tem ~650 e com 60vh a caixa tinha 390 px: o quadro do esboço não cabia. 456 = o quadro inteiro
+     à vista no pior caso medido, o "pronta" (a fala da pessoa e a do Zero acima do cartão, pela regra de rolagem do #189: 104 px) + rótulo 24 +
+     quadro 326 (passo 44, js/planta-esboco.js) + a borda, e 1 de folga. De ~760 px de altura para cima vale o 60vh de sempre: a página não se mexe */
+  .orc-log { max-height: min(max(60vh, 456px), 620px); }
   .orc-dirs { grid-template-columns: repeat(3, 1fr); }
   .visor__aparelho { order: 2; flex-basis: auto; margin-left: auto; }
   .visor__fechar { order: 3; margin-left: .4rem; }

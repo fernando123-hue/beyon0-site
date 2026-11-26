@@ -79,7 +79,7 @@
 .lv.is-dormente .lv-ponta { opacity: .5; }
 
 /* a legenda: o que a última estação faz, só a frase (o nó acima já diz qual é, dono 26/11). Altura FIXA, a das linhas da frase mais longa que
-   js/planta-cresce.js produz (21 px cada, Sora 14/1.5), em linhas, para acompanhar a fonte maior do navegador: 3 no celular (a 320 px), 2 no
+   js/planta-cresce.js produz (21 px cada, Sora 14/1.5), em linhas, para acompanhar a fonte maior do navegador: 3 no celular (4 abaixo de 360 px), 2 no
    computador (docs/e2e-planta.mjs mede todas). O texto troca sem mexer em nada */
 .lv-leitura { position: relative; overflow: hidden; box-sizing: border-box; margin: 10px 0 0; height: calc(3em * 1.5); font-size: var(--fs-s); line-height: 1.5; color: var(--t2); }
 .lv-leitura__txt { display: block; }
@@ -89,6 +89,9 @@
 
 @media (min-width: 960px) {
   .lv-leitura { height: calc(2em * 1.5); }   /* no computador a frase cabe em 2 linhas */
+}
+@media (max-width: 359px) {
+  .lv-leitura { height: calc(4em * 1.5); }   /* abaixo de 360 px a mais alta enche as 3: uma 4ª de reserva (a fonte de reserva, uma fonte maior) */
 }
 @media (prefers-reduced-motion: reduce) {
   .lv *, .lv *::before, .lv *::after { animation: none !important; transition: none !important; }
