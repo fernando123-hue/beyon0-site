@@ -356,5 +356,22 @@
     return escala;
   }
 
-  window.BZPrevia = { desenhar: desenhar, encaixar: encaixar, FONTES: FONTES };
+  /* (lapidação 26/11, achado 27) a miniatura de altura fixa cortava uma linha do título ao meio. Aqui: o corte mais baixo, até `limite` (px da
+     janela), que não passa no meio de nenhuma linha de texto; a linha que não cabe inteira sai toda. Sem desfoque nem degradê */
+  var FOLGA_CORTE = 6;
+  function corteLimpo(janela, tela, limite) {
+    var topo = janela.getBoundingClientRect().top, faixas = [], r = document.createRange();
+    var andar = document.createTreeWalker(tela, NodeFilter.SHOW_TEXT, null), no;
+    while ((no = andar.nextNode())) {
+      if (!no.nodeValue.trim()) continue;
+      r.selectNodeContents(no);
+      [].forEach.call(r.getClientRects(), function (q) { if (q.top - topo < limite) faixas.push([q.top - topo, q.bottom - topo]); });
+    }
+    var corta = function (y) { return faixas.some(function (f) { return f[0] < y && y < f[1]; }); };
+    if (!corta(limite)) return limite;
+    var limpos = faixas.map(function (f) { return f[0] - FOLGA_CORTE; }).filter(function (y) { return y > 0 && y < limite && !corta(y); });
+    return limpos.length ? Math.max.apply(null, limpos) : limite;
+  }
+
+  window.BZPrevia = { desenhar: desenhar, encaixar: encaixar, corteLimpo: corteLimpo, FONTES: FONTES };
 })();

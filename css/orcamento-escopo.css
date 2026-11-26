@@ -126,6 +126,7 @@
 .rde-anel__trilho { fill: none; stroke: rgb(205 212 212 / .18); stroke-width: 2; }
 .rde-anel__progresso { fill: none; stroke: var(--ac); stroke-width: 2; stroke-linecap: round; }
 .rde-anel.is-vazio .rde-anel__progresso { opacity: 0; }
+.rde-anel__num { font-family: var(--mono); font-size: 10px; letter-spacing: .02em; fill: var(--t2); }
 .rde-anel.is-ouro .rde-anel__progresso { stroke: rgb(var(--ouro-rgb)); }
 .rde-barra__txt { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; margin: 0; }
 .rde-barra__estado { overflow: hidden; font: 500 9.5px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ac); white-space: nowrap; text-overflow: ellipsis; }

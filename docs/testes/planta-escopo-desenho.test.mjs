@@ -81,8 +81,10 @@ test('o anel da barra do celular: o mesmo progresso, o ouro só no confirmado', 
   D.aplicarAnel(a, st({ marco: 2 }));
   assert.equal(a.progresso.getAttribute('stroke-dashoffset'), '0.6');
   assert.equal(classe(a.svg), 'rde-anel');
+  assert.equal(a.num.textContent, '3/5', 'a etapa escrita no miolo do anel (lapidação 26/11)');
   D.aplicarAnel(a, st({ marco: 4, ouro: true }));
   assert.equal(classe(a.svg), 'rde-anel is-ouro');
+  assert.equal(a.num.textContent, '5/5');
   D.aplicarAnel(a, st());
   assert.equal(classe(a.svg), 'rde-anel is-vazio');
 });
