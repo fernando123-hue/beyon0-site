@@ -125,9 +125,24 @@ test('o estado traz a recomendação com os modelos prontos, e escolher continua
   assert.deepEqual(Object.keys(ev[1]).sort(), ['estrategia', 'geracao', 'numero'], 'o evento é o de sempre');
 });
 
-test('a recomendação só aparece com o modelo recomendado PRONTO (lapidação 26/11, achado 14 dos modelos)', () => {
+test('a recomendação só aparece com o modelo recomendado PRONTO e com conteúdo (lapidação 26/11, achado 14 dos modelos)', () => {
+  /* (revisão técnica do #260) roda a regra de verdade, não só o texto: a função pura sai do js/orcamento.js */
   const js = ler('js/orcamento.js');
-  const corpo = js.slice(js.indexOf('function recomendacao()'), js.indexOf('function focoNaLista'));
-  assert.match(corpo, /d\.id === recomendadaId\(\) && d\.status === 'pronta'/);
-  assert.match(corpo, /recomendadaId\(\) && pronta && !escolhidaId\(\)/);
+  const ini = js.indexOf('function recomendacaoVisivel(');
+  assert.ok(ini > 0, 'a regra é uma função pura');
+  const corpo = js.slice(ini).match(/^[\s\S]*?\r?\n  \}\r?\n/);   /* até o fecho da função (o arquivo pode vir com CRLF) */
+  assert.ok(corpo, 'achei o fim da função');
+  const visivel = new Function(corpo[0] + '; return recomendacaoVisivel;')();
+  const r = { texto: 'Eu iria no 1' };
+  const pronta = { id: 'a', status: 'pronta', conteudo: {} };
+  assert.equal(visivel(r, [pronta, { id: 'b', status: 'gerando' }], 'a', null, true), true);
+  assert.equal(visivel(r, [{ id: 'a', status: 'gerando' }, { id: 'b', status: 'pronta', conteudo: {} }], 'a', null, true), false, 'o recomendado ainda em produção');
+  assert.equal(visivel(r, [{ id: 'a', status: 'pronta' }], 'a', null, true), false, 'pronto sem conteúdo: o cartão está vazio');
+  assert.equal(visivel(r, undefined, 'a', null, true), false, 'sem a lista');
+  assert.equal(visivel(r, [pronta], null, null, true), false, 'sem recomendado');
+  assert.equal(visivel(r, [pronta], 'a', 'a', true), false, 'já escolheu');
+  assert.equal(visivel(r, [pronta], 'a', null, false), false, 'não pode escolher');
+  assert.equal(visivel({ texto: 3 }, [pronta], 'a', null, true), false, 'texto que não é texto');
+  assert.equal(visivel(null, [pronta], 'a', null, true), false);
+  assert.match(js.slice(js.indexOf('function recomendacao()'), js.indexOf('function focoNaLista')), /recomendacaoVisivel\(E\.recomendacao, E\.direcoes, recomendadaId\(\), escolhidaId\(\), podeEscolher\(\)\)/);
 });

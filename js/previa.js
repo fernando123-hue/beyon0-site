@@ -112,7 +112,12 @@
     return svg;
   }
 
-  var SEM_NUMERO = /^\s*(?:passo\s+)?\d{1,2}\s*[.):–—-]\s*/i;
+  /* "1. ", "3) ", "Passo 2 - ": número, pontuação e ESPAÇO; sem o espaço é conteúdo ("10-20 minutos", "5–10 dias", "12:30") */
+  var SEM_NUMERO = /^\s*(?:passo\s+)?\d{1,2}\s*[.)–—-]\s+/i;
+  function semNumero(titulo) {
+    var t = str(titulo).replace(SEM_NUMERO, '');
+    return t.trim() ? t : str(titulo);   /* o título que era só o número fica como veio: passo sem título não */
+  }
   function titulado(li, i) {
     if (i.titulo) li.appendChild(el('h5', 'pv-item__t', i.titulo));
     if (i.texto) li.appendChild(el('p', 'pv-item__x', i.texto));
@@ -149,7 +154,7 @@
         num.setAttribute('aria-hidden', 'true');
         li.appendChild(num);
         /* (achado 11 dos modelos) a numeração é do desenho: o "1." que o modelo escreveu no título sai (o círculo já diz 1) */
-        titulado(li, { titulo: str(i.titulo).replace(SEM_NUMERO, ''), texto: i.texto });
+        titulado(li, { titulo: semNumero(i.titulo), texto: i.texto });
       } else if (modo === 'linhas') {
         li.className = 'pv-item pv-linha';
         var marca = icone(i.icone);   /* com ícone, ele ocupa o lugar do índice numérico */

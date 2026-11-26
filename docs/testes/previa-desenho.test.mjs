@@ -495,13 +495,17 @@ test('quebras no sentido (lapidação 26/11, achado 4 dos modelos): a palavra co
   assert.ok(todos(raiz, n => /^h[1-5]$/.test(n.tag)).some(h => h.textContent === 'Conserto de ar-condicionado em casa'), 'o texto lido é o mesmo');
   const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
   assert.match(css, /\.pv h1[^{]*\{[^}]*text-wrap:\s*balance/);
-  assert.match(css, /\.pv-inteira\s*\{[^}]*white-space:\s*nowrap/);
+  /* (revisão técnica do #260) inteira enquanto couber; palavra maior que a linha quebra dentro da própria caixa, sem rolagem lateral em 320 px */
+  assert.doesNotMatch(css, /\.pv-inteira\s*\{[^}]*white-space:\s*nowrap/);
+  assert.match(css, /\.pv-inteira\s*\{[^}]*display:\s*inline-block[^}]*max-width:\s*100%[^}]*overflow-wrap:\s*anywhere/);
 });
 
 test('passos (achado 11 dos modelos): o "1." que o modelo escreveu sai do título; o círculo do desenho é a numeração', () => {
   const P = carregar();
   const raiz = P.desenhar(direcao({ secoes: [{ tipo: 'processo', variante: 'linha_do_tempo', rotulo: '', titulo: 'Como funciona', subtitulo: '', texto: '',
-    itens: [{ titulo: '1. A conversa', texto: 'a' }, { titulo: 'Passo 2 - O desenho', texto: 'b' }, { titulo: '3) A entrega', texto: 'c' }, { titulo: '24 horas de suporte', texto: 'd' }], cta: '' }] }));
+    itens: [{ titulo: '1. A conversa', texto: 'a' }, { titulo: 'Passo 2 - O desenho', texto: 'b' }, { titulo: '3) A entrega', texto: 'c' }, { titulo: '24 horas de suporte', texto: 'd' },
+      { titulo: '10-20 minutos de espera', texto: 'e' }, { titulo: '12:30 Atendimento', texto: 'f' }, { titulo: '5–10 dias úteis', texto: 'g' }, { titulo: '4.', texto: 'h' }], cta: '' }] }));
   const titulos = comClasse(raiz, 'pv-item__t').map(t => t.textContent);
-  assert.deepEqual(titulos, ['A conversa', 'O desenho', 'A entrega', '24 horas de suporte'], 'número sem pontuação depois (24 horas) fica');
+  assert.deepEqual(titulos, ['A conversa', 'O desenho', 'A entrega', '24 horas de suporte', '10-20 minutos de espera', '12:30 Atendimento', '5–10 dias úteis', '4.'],
+    'número sem pontuação e espaço depois fica (24 horas, faixas 10-20 e 5–10, hora 12:30); título que é só o número não some');
 });
