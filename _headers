@@ -165,6 +165,11 @@
   ! Cache-Control
   Cache-Control: public, max-age=0, must-revalidate
 
+# o leitor do mapa vivo, fase 1a (js/orcamento-reacao.js o baixa sob demanda, sem ?v): nunca leitor velho com página nova
+/js/mapa-vivo-ler.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
 # O balão do atendente é carregado por <script> em site de OUTRA origem: só este arquivo (nunca /js/*) sai com CORP cross-origin.
 # E revalida sempre (depois do /js/*, para o "! Cache-Control" tirar o cache curto): a URL é fixa no site do cliente, sem ?v,
 # então uma correção do balão chega no próximo carregamento de lá
