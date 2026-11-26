@@ -79,7 +79,9 @@ test('o topo tem a arte desenhada por código: um SVG com formas, no lugar da ca
   assert.equal(svg[0].ns, 'http://www.w3.org/2000/svg', 'criado com createElementNS (nunca innerHTML)');
   assert.equal(svg[0].attrs.viewBox, '0 0 390 300');
   assert.ok(todos(svg[0], n => n !== svg[0]).length >= 8, 'o desenho tem formas de verdade');
-  assert.ok(/foto/i.test(arte[0].textContent), 'a legenda diz que ali entra a foto do cliente');
+  /* (lapidação 26/11, achado 3 dos modelos) a etiqueta "Aqui entra a foto" saiu: ela fazia do nosso desenho um espaço vazio */
+  assert.equal(arte[0].textContent.trim(), '', 'a arte não tem texto');
+  assert.equal(comClasse(raiz, 'pv-arte__leg').length, 0);
 });
 
 test('o desenho do topo é determinístico e muda entre os 3 modelos do mesmo negócio', () => {
@@ -145,7 +147,7 @@ test('o CSS do topo: arte sem listras, título do topo maior, texto longo do top
   assert.ok(/\.pv-sec--hero \.pv-texto\s*\{[^}]*display:\s*block/.test(largo), 'o texto longo do topo volta DENTRO do bloco do container largo');
   assert.ok(/\.pv-sec--hero \.pv-texto\s*\{[^}]*display:\s*none/.test(css.slice(0, css.indexOf('@container'))), 'e some fora dele (celular)');
   assert.ok(/\.pv-arte svg \*\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(css), 'o traço da arte não engrossa quando estica');
-  assert.ok(/\.pv-arte__leg\s*\{[^}]*color:\s*var\(--pv-texto\)/.test(css), 'a legenda usa a cor de texto (contraste de leitura, não o texto suave)');
+  assert.ok(!/\.pv-arte__leg/.test(css), 'a etiqueta da foto saiu da arte (achado 3 dos modelos)');
   assert.ok(/\.pv-sec--hero\s*\{[^}]*padding:\s*0 0 calc\(var\(--pv-esp\)/.test(css), 'a densidade vale no topo do celular');
   /* o dono escolheu a opção A (19/11): no celular a arte é uma tira ANTES do título, para o cartão da escolha (300 px) mostrar arte + título; no largo volta ao lado */
   const estreito = css.slice(0, css.indexOf('@container'));
@@ -525,4 +527,66 @@ test('passos (achado 11 dos modelos): o "1." que o modelo escreveu sai do títul
   const titulos = comClasse(raiz, 'pv-item__t').map(t => t.textContent);
   assert.deepEqual(titulos, ['A conversa', 'O desenho', 'A entrega', '24 horas de suporte', '10-20 minutos de espera', '12:30 Atendimento', '5–10 dias úteis', '4.'],
     'número sem pontuação e espaço depois fica (24 horas, faixas 10-20 e 5–10, hora 12:30); título que é só o número não some');
+});
+
+/* (lapidação 26/11, achados 2 e 3 dos modelos) a arte do topo nasce dos ícones do próprio negócio; o fundo vem da estratégia */
+const comIcones = (icones, extra = {}) => direcao({ secoes: [direcao().secoes[0],
+  { tipo: 'servicos', variante: 'cartoes', rotulo: '', titulo: 'Serviços', subtitulo: '', texto: '', itens: icones.map((icone, k) => ({ titulo: 'Item ' + k, texto: 'x', icone })), cta: '' },
+  direcao().secoes[2]], ...extra });
+const desenhoDaArte = raiz => JSON.stringify(todos(comClasse(raiz, 'pv-arte')[0], n => n.tag === 'svg')[0], (k, v) => (k === 'estilo' || k === 'style' ? undefined : v));
+
+test('arte do topo: os ícones do negócio entram grandes, em traço, com o do ofício na frente dos genéricos', () => {
+  const raiz = carregar().desenhar(comIcones(['check', 'bolo', 'coracao']));
+  const grupos = todos(comClasse(raiz, 'pv-arte')[0], n => n.tag === 'g');
+  assert.ok(grupos.length >= 3, 'o ícone principal, o eco dele e os menores (' + grupos.length + ')');
+  const principal = grupos.find(g => /\bpv-arte__icone--grande\b/.test(g.attrs['data-papel'] || ''));
+  assert.ok(principal, 'há um ícone principal');
+  assert.equal(principal.attrs['data-icone'], 'bolo', 'o ícone do ofício (bolo) vem antes do genérico (check)');
+  assert.match(principal.attrs.transform, /^translate\(\d+(\.\d+)? \d+(\.\d+)?\) scale\([4-6](\.\d+)?\)$/, 'grande: 4 a 6 vezes a grade de 24');
+  const usados = new Set(grupos.map(g => g.attrs['data-icone']));
+  assert.ok(usados.has('coracao') && usados.has('check'), 'os outros ícones do negócio entram menores');
+  assert.equal(todos(comClasse(raiz, 'pv-arte')[0], n => n.attrs && n.attrs.class === 'a-cheio').length, 0, 'nada de forma chapada que pareça foto que não carregou');
+});
+
+test('arte do topo: dois ramos na mesma estratégia têm desenhos diferentes; o mesmo negócio muda o fundo pela estratégia', () => {
+  const D = carregar();
+  const confeitaria = desenhoDaArte(D.desenhar(comIcones(['bolo', 'coracao'], { estrategia: 'conversao' })));
+  const marcenaria = desenhoDaArte(D.desenhar(comIcones(['regua', 'casa'], { estrategia: 'conversao' })));
+  assert.notEqual(confeitaria, marcenaria, 'veios de madeira na confeitaria nunca mais');
+  const tres = ['conversao', 'autoridade', 'experiencia'].map(estrategia => desenhoDaArte(D.desenhar(comIcones(['bolo'], { estrategia }))));
+  assert.equal(new Set(tres).size, 3, 'os 3 modelos do mesmo negócio têm fundos diferentes');
+  assert.equal(desenhoDaArte(D.desenhar(comIcones(['bolo']))), desenhoDaArte(D.desenhar(comIcones(['bolo']))), 'determinístico');
+});
+
+test('arte do topo: ícone fora da lista, "nenhum" ou repetido não quebra; sem ícone nenhum o desenho antigo continua (sem o quadrado cheio)', () => {
+  const D = carregar();
+  const raiz = D.desenhar(comIcones(['nenhum', 'inventado', 'bolo', 'bolo']));
+  const icones = todos(comClasse(raiz, 'pv-arte')[0], n => n.tag === 'g').map(g => g.attrs['data-icone']);
+  assert.ok(icones.length && icones.every(i => i === 'bolo'), 'só o ícone válido: ' + icones.join(','));
+  for (const estrategia of ['conversao', 'autoridade', 'experiencia']) {
+    for (const marca of ['Cedro & Linha', 'Frio Certo', 'Clínica Sol', 'Padaria Lua', 'Studio Aurora', 'Oficina Norte']) {
+      const r = D.desenhar(direcao({ estrategia, navegacao: { marca, itens: [], cta: 'Pedir' } }));
+      assert.equal(todos(comClasse(r, 'pv-arte')[0], n => n.attrs && n.attrs.class === 'a-cheio' && n.tag === 'rect' && !n.attrs.transform).length, 0, 'sem quadrado cheio reto (o losango girado não lembra foto): ' + marca + '/' + estrategia);
+    }
+  }
+});
+
+test('arte do topo: estratégia estranha vinda da IA (__proto__, constructor, objeto, número) não quebra a prévia (revisão do #264)', () => {
+  const D = carregar();
+  for (const estrategia of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', {}, 5, null]) {
+    const raiz = D.desenhar(comIcones(['bolo', 'coracao', 'check'], { estrategia }));
+    assert.equal(comClasse(raiz, 'pv-arte').length, 1, 'desenhou com estrategia ' + String(estrategia));
+  }
+});
+
+test('arte do topo: nas 3 composições os ícones ficam na faixa que aparece na tira do celular e no topo largo (x 25–365, y 77–223)', () => {
+  const D = carregar();
+  for (const estrategia of ['conversao', 'autoridade', 'experiencia']) {
+    const grupos = todos(comClasse(D.desenhar(comIcones(['bolo', 'coracao', 'check'], { estrategia })), 'pv-arte')[0], n => n.tag === 'g');
+    assert.equal(grupos.length, 4, 'principal, eco e dois menores');
+    for (const g of grupos) {
+      const [, x, y, s] = g.attrs.transform.match(/translate\(([\d.]+) ([\d.]+)\) scale\(([\d.]+)\)/).map(Number);
+      assert.ok(x >= 25 && x + 24 * s <= 365 && y >= 77 && y + 24 * s <= 223, estrategia + ' ' + g.attrs['data-papel'] + ' fora da faixa: ' + g.attrs.transform);
+    }
+  }
 });
