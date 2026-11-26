@@ -23,6 +23,10 @@
   /* o global que cada módulo publica: o que já está na página (o planta-pecas.js, se a faixa veio antes) não é baixado de novo */
   var GLOBAIS = { 'js/planta-pecas.js': 'BZPlantaPecas', 'js/mapa-saber.js': 'BZMapaSaber', 'js/planta-cresce.js': 'BZPlantaCresce', 'js/planta-relogio.js': 'BZPlantaRelogio', 'js/planta-som.js': 'BZPlantaSom', 'js/planta-esboco.js': 'BZPlantaEsboco' };
   var ESPERA_RESIZE = 160, TOLERANCIA_LARGURA = 6, FOLGA_FALA = 8;
+  /* no computador o quadro do esboço tem de ficar INTEIRO à vista com a pergunta do Zero no topo da caixa (a regra de rolagem do #189). No pior caso
+     medido, o "pronta" em 1366x650, a fala da pessoa e a do Zero ocupam 104 px do topo da caixa ao cartão; tirando o respiro e a borda, que já estão
+     fora da altura útil (29), sobram 75 acima do cartão. O passo do esboço desconta isso */
+  var ACIMA = 75;
   /* a consagração: a metade do núcleo/LED e a do chip no esboço (js/planta-esboco.js), e quanto do esboço precisa estar à vista para o voo sair dele */
   var PONTA = 20, CHIP = 24, FRACAO_VOO = 0.35;
 
@@ -81,7 +85,7 @@
       return h > 0 ? h : 1e4;
     }
     function novoEsboco(inicial) {
-      var op = { rolagem: $('o-log-caixa'), compacto: alturaCaixa(), som: function (nome) { if (win.BZPlantaSom) win.BZPlantaSom.tocar(nome); } };
+      var op = { rolagem: $('o-log-caixa'), compacto: alturaCaixa(), acima: ACIMA, som: function (nome) { if (win.BZPlantaSom) win.BZPlantaSom.tocar(nome); } };
       if (inicial) op.inicial = inicial;
       st.esb = win.BZPlantaEsboco.criar(st.item, op);
       if (st.pronta) st.esb.marcarPronta(true);   /* (refeito numa largura nova: a planta continua pronta na faixa) */
