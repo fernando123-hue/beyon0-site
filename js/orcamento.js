@@ -730,25 +730,7 @@
     return li;
   }
   var regerouSozinho = false, regeracaoTerminou = false;
-  /* (lapidação 26/11, achado 27) as miniaturas terminam entre duas linhas, nunca no meio de uma: o mesmo corte nos três cartões (a linha de baixo
-     fica alinhada), só se ele não comer mais que um terço da altura; as fontes que chegam depois mudam as linhas, então mede de novo */
-  var MINI_MINIMO = 2 / 3;
-  function cortarMinis(minis) {
-    if (typeof PV.corteLimpo !== 'function' || !minis.length) return;
-    var base = minis[0].clientHeight;
-    if (!base) return;
-    var y = Math.floor(Math.min.apply(null, minis.map(function (m) { var t = m.querySelector('.pv-tela'); return t ? PV.corteLimpo(m, t, base) : base; })));
-    if (y < base && y >= base * MINI_MINIMO) minis.forEach(function (m) { m.style.height = y + 'px'; });
-  }
-  function encaixarMinis() {
-    var minis = [].slice.call(document.querySelectorAll('.dir__mini'));
-    minis.forEach(function (m) { m.style.height = ''; var t = m.querySelector('.pv-tela'); if (t) PV.encaixar(m, t, 390); });
-    cortarMinis(minis);
-    if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') document.fonts.ready.then(function () {
-      minis.forEach(function (m) { m.style.height = ''; });
-      cortarMinis(minis);
-    });
-  }
+  function encaixarMinis() { [].forEach.call(document.querySelectorAll('.dir__mini'), function (m) { var t = m.querySelector('.pv-tela'); if (t) PV.encaixar(m, t, 390); }); }
   var adiado = null;
   window.addEventListener('resize', function () { clearTimeout(adiado); adiado = setTimeout(encaixarMinis, 150); });
   /* o relógio dos cartões em geração: só roda enquanto há geração */

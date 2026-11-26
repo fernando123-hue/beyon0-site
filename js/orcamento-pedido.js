@@ -239,7 +239,9 @@
       itens.push([o.chave, o.mostra, o.chave === 'redes' ? REDES.filter(function (r) { return p.d.redes[r[0]]; }).map(function (r) { return r[1]; }).join(', ') : p.d[o.chave]]);
     });
     itens.forEach(function (it) {
-      var item = K.el('li', 'orc-aceite__item'), texto = K.el('span', '', it[1] + ': ' + it[2]), corrigir = K.el('button', 'orc-toque__naosei', 'Corrigir');
+      var item = K.el('li', 'orc-aceite__item'), texto = K.el('span', '', it[1] + ': '), corrigir = K.el('button', 'orc-toque__naosei', 'Corrigir');
+      /* (lapidação 26/11) o número do WhatsApp não se parte no meio ("(21) / 91439-8532" a 320 px); o texto lido é o mesmo */
+      texto.appendChild(K.el('span', it[0] === 'telefone' ? 'orc-sem-quebra' : '', it[2]));
       corrigir.type = 'button';
       corrigir.setAttribute('aria-label', 'Corrigir ' + it[1].toLowerCase());
       corrigir.addEventListener('click', function () { if (li.hasAttribute('data-feito') || p.enviando) return; K.fechar(li, null); p.corrigindo = true; corrigirCampo(it[0]); });
