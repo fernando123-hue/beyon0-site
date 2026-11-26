@@ -9,7 +9,8 @@
      - ao recarregar, a pergunta volta;
      - "Quero ajustar algo" foca a caixa com a dica do mapa;
      - o AJUSTE: um estado forjado na rede (versão 2 com um nó "ajustado") faz o nó novo aparecer com a marca, sem refazer a entrada.
-   Ligada, computador durante a conversa (1366x768, 1366x650, 1280x650 e 930x768): o esboço cabe na caixa ou fica no passo mínimo.
+   Ligada, computador durante a conversa (1366x768, 1366x650, 1280x650 e 930x768): o esboço cabe INTEIRO na caixa (de 68vh) e a caixa de digitar
+   não desce além do que descia com 60vh.
    Ligada, computador (1280x900 e 1366x768): o esboço cabe na caixa e, com o mapa pronto, deixa "em construção" (achado 18); o botão "Ver a planta do seu site" aparece sob a fala do Zero e abre a faixa com o mapa, com o foco no título.
    Regressão do v2: um plano v2 forjado na rede desenha com o módulo antigo (.plv-quadro).
    Desligada: nada da planta é baixado e a conversa é a de sempre.
@@ -168,8 +169,9 @@ console.log('\n== flag ligada, computador ' + larg + 'x' + alt + ' ==');
 }
 
 /* ---------- computador, DURANTE a conversa: o esboço compacto pela altura da caixa (revisão do achado 18) ---------- */
-/* num notebook de 768 de verdade (navegador e barra de tarefas) a janela útil tem ~650 e a caixa (60vh) ~362 úteis: o passo do esboço sai da altura
-   útil da caixa, de 44 a 36; abaixo do que o passo 36 alcança o cartão fica no mínimo (a medida sai no log). 930: a caixa já rola e a legenda tem 84 */
+/* num notebook de 768 de verdade (navegador e barra de tarefas) a janela útil tem ~650: com a caixa de 60vh (360 úteis) o cartão não cabia nem no passo
+   36 (381 px, faltavam 21 da legenda). O dono aprovou a caixa de 68vh (26/11, a comparação em 1366x650): agora o cartão tem de caber INTEIRO em toda
+   altura daqui, sem o "ou fica no passo mínimo". 930: a caixa já rola e a legenda é a do celular */
 for (const [larg, alt] of [[1366, 768], [1366, 650], [1280, 650], [930, 768]]) {
   console.log('\n== computador ' + larg + 'x' + alt + ', o esboço durante a conversa ==');
   const { ctx, page, erros } = await abrir(ON, { larg, alt });
@@ -181,7 +183,12 @@ for (const [larg, alt] of [[1366, 768], [1366, 650], [1280, 650], [930, 768]]) {
   await espera(4000);
   const esb = await esbocoNaCaixa(page);
   const passo = await page.evaluate(() => { const t = [...document.querySelectorAll('#o-log .lv-item .lv-lista .lv-txt')].map((li) => parseFloat(li.style.top)); return t.length > 1 ? Math.round(t[1] - t[0]) : 0; });
-  ok(!!esb && (esb.alto <= esb.util || passo === 36), 'o esboço cabe na caixa ou fica no passo mínimo (' + JSON.stringify(Object.assign({ passo }, esb)) + ')');
+  ok(!!esb && esb.alto <= esb.util, 'o esboço cabe inteiro na caixa (' + JSON.stringify(Object.assign({ passo }, esb)) + ')');
+  /* a caixa de digitar: com a caixa da conversa mais alta ela desce (8vh), e o alto dela tem de seguir à vista. Com 60vh, em 650, ela ia de 516 a
+     620 e o Enviar já terminava abaixo da dobra (678); em 768, 635 a 739 e o Enviar a 797 */
+  const digitar = await page.evaluate(() => { const r = document.getElementById('o-texto').getBoundingClientRect(), b = document.querySelector('#o-form button[type="submit"]'); return { topo: Math.round(r.top), fundo: Math.round(r.bottom), enviar: b ? Math.round(b.getBoundingClientRect().bottom) : null, janela: innerHeight }; });
+  console.log('       a caixa de digitar: ' + JSON.stringify(digitar));
+  ok(digitar.topo + 48 <= digitar.janela, 'a caixa de digitar começa à vista (' + JSON.stringify(digitar) + ')');
   ok(!!esb && /em construção/.test(esb.kicker), 'durante a conversa, "em construção"');
   await foto(page.locator('#o-log .lv-item'), 'e2e-' + larg + 'x' + alt + '-conversa');
   ok(await lateral(page), 'sem rolagem lateral');
