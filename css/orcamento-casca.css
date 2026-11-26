@@ -65,8 +65,9 @@
 .esc-numero[hidden] { display: none; }
 .esc-numero__rot { margin: 0; font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--t2); }
 .esc-numero__valor { margin: .25rem 0 .8rem; font-weight: 300; font-size: clamp(2.1rem, 1.4rem + 3.4vw, 3rem); line-height: 1.05; letter-spacing: -.02em; color: var(--t1); overflow-wrap: anywhere; }
-.esc-numero__fatos { display: flex; flex-wrap: wrap; gap: .6rem 1.6rem; margin: 0; }
-.esc-numero__fatos > div { min-width: 0; }
+/* (lapidação 26/11) grade de 2 colunas: entrada | restante na mesma linha (no flex o rótulo longo do restante descia e deixava a entrada sozinha) */
+.esc-numero__fatos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem 1.2rem; margin: 0; }
+.esc-numero__fatos > div { min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; }   /* (rótulo de 2 linhas: os valores lado a lado ficam na mesma linha) */
 .esc-numero__fatos > div[hidden] { display: none; }
 .esc-numero__fatos dt { font-size: .78rem; color: var(--t2); }
 .esc-numero__fatos dd { margin: .1rem 0 0; font-size: 1.05rem; color: var(--t1); overflow-wrap: anywhere; }

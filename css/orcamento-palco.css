@@ -271,6 +271,11 @@ html[data-tema="claro"] .msg--agente::before { background-image: url('../assets/
 .orc-op--toque[aria-pressed="true"], .orc-op--ic[aria-pressed="true"] { border-color: var(--t1); background: var(--cartao); color: var(--t1); box-shadow: inset 0 0 0 1px var(--t1); }
 .orc-op--toque[aria-pressed="true"]::before, .orc-op--ic[aria-pressed="true"]::before { content: none; }
 .orc-op--toque[aria-pressed="true"]::after { content: "✓"; content: "✓" / ""; flex: none; margin-left: auto; color: var(--t1); font-size: .875rem; line-height: 1; }
+/* (lapidação 26/11, achado 19) o "Autorizo" tem cara de caixa de marcar: o quadrado à vista antes do texto, vazio até o toque */
+.orc-op.orc-op--toque.orc-toque__autoriza { justify-content: flex-start; }
+.orc-op.orc-op--toque.orc-toque__autoriza::before { content: ""; flex: none; display: inline-grid; place-items: center; width: 20px; height: 20px; border: 1.5px solid currentColor; border-radius: 4px; font-size: .75rem; line-height: 1; }
+.orc-op.orc-op--toque.orc-toque__autoriza[aria-pressed="true"]::before { content: "✓"; content: "✓" / ""; border-color: var(--t1); background: var(--t1); color: var(--bg); }
+.orc-op.orc-op--toque.orc-toque__autoriza[aria-pressed="true"]::after { content: none; }
 @media (prefers-reduced-motion: no-preference) {
   html:not(.menos-movimento) .orc-op--toque { transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro), transform .12s ease-out; }
   html:not(.menos-movimento) .orc-op--toque:active { transform: scale(.985); }

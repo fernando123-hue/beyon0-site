@@ -126,12 +126,13 @@
 .rde-anel__trilho { fill: none; stroke: rgb(205 212 212 / .18); stroke-width: 2; }
 .rde-anel__progresso { fill: none; stroke: var(--ac); stroke-width: 2; stroke-linecap: round; }
 .rde-anel.is-vazio .rde-anel__progresso { opacity: 0; }
+.rde-anel__num { font-family: var(--mono); font-size: 10px; letter-spacing: .02em; fill: var(--t2); }
 .rde-anel.is-ouro .rde-anel__progresso { stroke: rgb(var(--ouro-rgb)); }
 .rde-barra__txt { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; margin: 0; }
 .rde-barra__estado { overflow: hidden; font: 500 9.5px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ac); white-space: nowrap; text-overflow: ellipsis; }
 .rde-barra__valor { font: 400 17px/1.2 var(--mono); color: var(--t1); font-variant-numeric: tabular-nums; }
 .rde-barra.is-ouro .rde-barra__estado, .rde-barra.is-ouro .rde-barra__valor { color: rgb(var(--ouro-rgb)); }
-.rde-barra__ver { flex: none; min-height: 40px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 999px; background: none; color: var(--t2); font: 500 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
+.rde-barra__ver { flex: none; min-height: 44px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 999px; background: none; color: var(--t2); font: 500 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
 .rde-barra__ver:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 @media (min-width: 900px) { .rde-barra { display: none; } }
 @media (max-width: 899px) { html.tem-barra-escopo { scroll-padding-top: calc(var(--nav-h) + 56px + 16px); } }

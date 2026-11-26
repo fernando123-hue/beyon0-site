@@ -373,7 +373,12 @@ try {
   await preencherRedes(page, { instagram: '@clinicateste', youtube: '@ClinicaTeste' }, false);
   ok(await espera(page, () => /autoriza/i.test(document.querySelector('#o-log .orc-toque--redes:not([data-feito]) .orc-toque__erro-campo').textContent), 3000), 'redes sem autorização: recusado com motivo');
   await autorizacao(page).click();
+  await page.locator(REDES).scrollIntoViewIfNeeded();
+  await foto(page, '1c-redes-cel');   /* (lapidação 26/11: campos na largura cheia com exemplo, o quadrado do "Autorizo" marcado) */
   await seguir(page, REDES);
+  await page.locator('#o-log .orc-toque__seguir').last().scrollIntoViewIfNeeded();
+  ok(await page.locator('#o-log .orc-toque:not([data-feito]) > .orc-toque__seguir').count() === 1, 'opcionais: "Não, pode seguir" é o botão principal, fora do grupo das opções');
+  await foto(page, '1c-opcionais-cel');
   await tocarNoPedido(page, 'Não, pode seguir');
   await page.waitForSelector(CARTAO);
   const resumoCartao = await page.textContent(CARTAO);
@@ -513,6 +518,13 @@ try {
   /* a casca nova dos modelos (parte 2): o cartão com o botão grande à vista e os pontos do carrossel */
   await page.evaluate(() => { const c = document.querySelector('#o-dirs .dir'); c.scrollIntoView({ block: 'end' }); });
   await foto(page, '2b-direcoes-cartao-cel');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForTimeout(600);
+  await page.locator('#o-dirs').scrollIntoViewIfNeeded();
+  await foto(page, '2c-direcoes-pc');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => { const c = document.querySelector('#o-dirs .dir'); c.scrollIntoView({ block: 'end' }); });
   ok(await page.evaluate(() => { const p = document.getElementById('o-dirs-pontos'); return !p.hidden && p.children.length === 3 && p.children[0].classList.contains('is-atual'); }), 'modelos: os 3 pontos do carrossel aparecem e o 1º está aceso');
   ok(await page.evaluate(() => { const b = document.querySelector('#o-dirs .dir .dir__acoes').children; return b[0].classList.contains('btn--primary') && b[1].hasAttribute('data-abrir'); }), 'modelos: "Escolher este" vem primeiro no DOM (a ordem do Tab é a que se vê)');
   /* o selo "Recomendado pelo Zero" não cobre NADA da miniatura (19/11 cobria a marca do negócio; 24/11 cortava o botão do site): ele mora na
