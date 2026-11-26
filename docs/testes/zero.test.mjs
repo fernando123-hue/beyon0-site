@@ -738,7 +738,7 @@ test('prompt do Zero: as palavras-bordão que o modelo copiava (rodada 4) não e
   assert.match(s, /Quando ela conta uma dor concreta/, 'responder primeiro à dor');
   assert.match(s, /Curiosidade sobre o funcionamento interno/, 'recado não é para curiosidade sobre o funcionamento interno');
   assert.match(s, /o valor é o mesmo com o dono/, 'com o dono o valor é o mesmo');
-  assert.ok(s.length <= 27700, 'o prompt segue dentro do limite: ' + s.length);
+  assert.ok(s.length <= 28500, 'o prompt segue dentro do limite: ' + s.length);
 });
 
 /* ---------- peças da conversa, fatia 1: o painel derivado do briefing (api/_vendas/painel.mjs) ---------- */
@@ -895,12 +895,12 @@ test('passo seguinte e prompt: o valor já dito não se repete nem se reestima s
   const fonte = fs.readFileSync(new URL('../../api/_vendas/consultor.mjs', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const ini = fonte.indexOf('function proximoPassoBase');
   const corpo = fonte.slice(ini, fonte.indexOf('\n}\n', ini));
-  assert.equal(corpo.split('O valor já foi dito: não o repita e não chame estimar de novo enquanto formato, páginas, extras (e as quantidades), urgência e complexidade não mudarem; se algum mudou, chame estimar e diga o que mudou e o novo valor').length - 1, 2, 'os dois passos depois da estimativa trazem a regra do valor já dito, com tudo que muda o preço e o que fazer quando muda');
+  assert.equal(corpo.split('O valor já foi dito: não o repita e não chame estimar de novo enquanto formato, páginas, extras (e as quantidades), urgência e complexidade não mudarem; se algum mudou, chame estimar e diga o que mudou e o novo valor').length - 1, 3, 'os três passos depois da estimativa (inclusive o dos passos do pedido abertos, 25/11) trazem a regra do valor já dito, com tudo que muda o preço e o que fazer quando muda');
   assert.ok(!/recado para a equipe/.test(corpo), 'o passo da etapa contato não manda o recado "para a equipe" (a regra 1 proíbe falar em equipe)');
   const REGRAS = JSON.parse(fs.readFileSync(new URL('../../docs/fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
   assert.match(s, /nem finja conversa anterior/, 'o prompt proíbe fingir conversa anterior');
-  assert.ok(s.length <= 27700, 'o prompt segue dentro do limite: ' + s.length);
+  assert.ok(s.length <= 28500, 'o prompt segue dentro do limite: ' + s.length);
 });
 
 /* ---------- a pergunta que voltava com as mesmas palavras (teste com o modelo real, 03/11) ---------- */
@@ -985,7 +985,7 @@ test('prompt do Zero: quem faz o trabalho é a Beyon ("a gente", nunca "eu monto
     assert.match(s, /\n3\. Modelos: /, direcoes + ': o passo 3 do processo se chama "Modelos"');
     assert.ok(!/direç(?:ão|ões)(?! visual)/i.test(s), direcoes + ': "direções" (os modelos) é jargão que o modelo repetia e não aparece no prompt; "direção visual" da tabela de preços é outra coisa e fica');
     assert.ok(!/falando como "a gente" ou "eu"/.test(s), direcoes + ': a recusa em saúde fala como "a gente", sem "ou eu"');
-    assert.ok(s.length <= 27700, direcoes + ': o prompt segue dentro do limite: ' + s.length);
+    assert.ok(s.length <= 28500, direcoes + ': o prompt segue dentro do limite: ' + s.length);
   }
 });
 

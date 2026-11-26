@@ -240,13 +240,13 @@ export function avisoRegulado(nicho, { pediuAgora = false } = {}) {
     /* (spec 2026-11-15 §4) o que o conselho deixa e não deixa no site, e o registro para pôr no site */
     ...(Object.hasOwn(CONSELHOS, nicho.chave) ? {
       regras_do_conselho: CONSELHOS[nicho.chave].resumo,
-      ...(nicho.chave === 'saude_generica' ? {} : { registro: 'Se o briefing ainda não tem negocio.registro, pergunte UMA vez, com naturalidade, o número do registro (' + CONSELHOS[nicho.chave].registro + ', com a UF) para pôr no site, e registre em negocio.registro. Se a pessoa não souber ou não quiser, siga sem insistir.' })
+      ...(nicho.chave === 'saude_generica' ? {} : { registro: 'Não peça na conversa o número do registro (' + CONSELHOS[nicho.chave].registro + ', com a UF): ele vem depois do pedido, com o conteúdo do site. Se ela der o número por conta própria, registre em negocio.registro, sem comentar.' })
     } : {}),
     nicho: nicho.site, conselho: nicho.conselho === 'conselho' ? 'o conselho da profissão da pessoa' : nicho.conselho,
     nunca: ['depoimento de paciente ou cliente', 'antes e depois', `preço ou promoção de ${nicho.procedimento}`, 'promessa de resultado', 'sessão grátis ou sorteio'],
     cabe: nicho.cabe, pediu_item_proibido_agora: pediuAgora,
     ...(nicho.chave === 'saude_generica' ? { profissao_a_confirmar: 'A pessoa falou de clínica ou consultório, mas ainda não disse a profissão. Pergunte UMA vez, com naturalidade, qual é (dentista, psicólogo, fisioterapeuta, médico, advogado…) e registre em negocio.segmento. As regras acima valem até lá.' } : {}),
-    orientacao: 'Só site informativo. Recuse como política da Beyon, sem citar a lei, ofereça o que cabe e mande conferir com o conselho. Não registre depoimentos no briefing.'
+    orientacao: 'Só site informativo: diga isso uma vez, em meia frase junto do valor, e que vale conferir com o conselho. A lista do "nunca" serve para recusar quando ela pedir um desses itens, não para anunciar. Recuse como política da Beyon, sem citar a lei, e ofereça o que cabe. Não registre depoimentos no briefing.'
   };
 }
 
@@ -408,6 +408,16 @@ const jaccard = (a, b) => {
   return comuns / (a.size + b.size - comuns);
 };
 const ehPergunta = f => /\?\s*$/.test(f.trim());
+/* (lapidação 25/11) a abertura de molde: na auditoria com o modelo real, quase toda 1ª fala abria com "Legal," ou "Que bom," mesmo com o
+   prompt pedindo para começar pelo conteúdo. Só a palavra solta no começo, seguida de vírgula ou ponto, sai; o resto da fala fica como está */
+const ABERTURA_DE_MOLDE = /^\s*(?:legal|que bom|que legal|ótimo|otimo|perfeito|show|bacana)\s*[,.!]\s+(?=\S)/i;
+export function semAberturaDeMolde(texto) {
+  const original = String(texto ?? '');
+  if (!ABERTURA_DE_MOLDE.test(original)) return { texto: original, trocou: false };
+  const resto = original.replace(ABERTURA_DE_MOLDE, '');
+  if (resto.trim().length < 20) return { texto: original, trocou: false };
+  return { texto: resto.charAt(0).toUpperCase() + resto.slice(1), trocou: true };
+}
 export function semPerguntaRepetida(texto, falasAnteriores) {
   const original = String(texto ?? '');
   const anteriores = (Array.isArray(falasAnteriores) ? falasAnteriores : []).slice(-2)

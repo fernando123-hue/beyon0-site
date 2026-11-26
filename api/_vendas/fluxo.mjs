@@ -394,6 +394,11 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const situacao = limparAtualizacao({ situacao_atual: { como_chegam: redigir(semInvisiveis(msg)) } }).situacao_atual;
       if (situacao) r = { ...r, briefing: { ...r.briefing, situacao_atual: situacao } };
     }
+    /* (lapidação 25/11) o turno que abre os passos do pedido marca o caso: nos turnos seguintes o ESTADO diz que os passos estão na tela
+       e o Zero responde sem pergunta própria (a conversa real teve duas vozes pedindo duas coisas). Chave só do código, nunca vai ao modelo */
+    if (!soDuvidas && r.pedir_contato && r.briefing && r.briefing.pedido_aberto !== true && precoAberto(est.conversa.etapa, est.pedido?.status)) {
+      r = { ...r, briefing: { ...r.briefing, pedido_aberto: true } };
+    }
     await banco('vendas_registrar_turno', { conversa_id: conversaId, visitante_id: vid, mensagem_visitante: redigir(msg), mensagem_agente: r.resposta,
       ...(soDuvidas ? {} : { briefing: r.briefing, confianca: r.confianca }), custo_usd: r.custo_usd })
       .catch(async e => { await somarCusto(conversaId, vid, r.custo_usd); throw e; });
