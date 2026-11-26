@@ -76,7 +76,7 @@ test('fila manual: o pedido.json leva a identidade fixada de cada direção, com
     direcoes: Object.keys(ESTRATEGIAS).map((e, i) => ({ id: 'd' + i, numero: i + 1, estrategia: e, status: 'na_fila' })) });
   for (const d of p.direcoes) {
     const t = trilhoDaDirecao(b, d.estrategia, '11111111-2222-4333-8444-555555555555');
-    assert.deepEqual(d.identidade_fixada, { tema: t.tema, cor_de_destaque: TEMPERATURAS[t.temperatura], tipografia: t.tipografia });
+    assert.deepEqual(d.identidade_fixada, { tema: t.tema, cor_de_destaque: TEMPERATURAS[t.temperatura], tipografia: t.tipografia, molde_x_nao_y: t.contraste ? 'no máximo um título' : 'nenhum título' });
   }
 });
 

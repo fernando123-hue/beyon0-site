@@ -221,7 +221,7 @@ export function pedidoParaModelo(p) {
   };
 }
 /* o mesmo trilho da geração automática (direcao.mjs): aqui a sessão escreve a tipografia, então ela vai junto */
-const identidadeFixada = t => (t ? { tema: t.tema, cor_de_destaque: TEMPERATURAS[t.temperatura], tipografia: t.tipografia } : null);
+const identidadeFixada = t => (t ? { tema: t.tema, cor_de_destaque: TEMPERATURAS[t.temperatura], tipografia: t.tipografia, molde_x_nao_y: t.contraste ? 'no máximo um título' : 'nenhum título' } : null);
 /* o arquivo inteiro que o modelo lê: o pedido sem contato + as instruções da geração automática */
 export const montarArquivoPedido = p => ({ ...pedidoParaModelo(p), instrucoes: { sistema: SISTEMA_GERACAO, esquema: ESQUEMA_DIRECAO, estrategias: ESTRATEGIAS } });
 
