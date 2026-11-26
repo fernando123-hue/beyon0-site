@@ -53,18 +53,27 @@ export function trilhoDaDirecao(briefing, estrategia, semente = '') {
   const i = ORDEM_ESTRATEGIAS.indexOf(estrategia);
   if (i < 0) return null;
   const n = briefing && typeof briefing === 'object' && briefing.negocio && typeof briefing.negocio === 'object' ? briefing.negocio : {};
-  const h = hash(typeof semente === 'string' && semente ? semente : textoSeguro(n.nome) + '|' + textoSeguro(n.segmento));
+  const chave = typeof semente === 'string' && semente ? semente : textoSeguro(n.nome) + '|' + textoSeguro(n.segmento);
+  const h = hash(chave);
   const titulos = TITULOS[PERMUTACOES[h % 6][i]];
   const temperatura = Object.keys(TEMPERATURAS)[PERMUTACOES[(h >>> 3) % 6][i]];
   return {
     tipografia: { titulos, texto: TEXTO_DO_TITULO[titulos][(h >>> (6 + i)) & 1] },
     tema: (h >>> 9) % 3 === i ? 'escuro' : 'claro',
-    temperatura
+    temperatura,
+    /* o molde "X, não Y" só numa das três (26/11: dois modelos abriam com a mesma ideia, "feito para a sua festa, não para a vitrine").
+       Hash próprio (revisão do #271): com os bits 11+ do mesmo h, o molde caía no modelo escuro em 50% das vezes, não em 33% */
+    contraste: hash('molde|' + chave) % 3 === i
   };
 }
 /* o trecho do pedido que leva o trilho ao modelo (fora do briefing: é do código) */
+const fraseDoMolde = t => (t.contraste ? 'no máximo um título no molde "X, não Y"' : 'nenhum título no molde "X, não Y" (outro modelo do cliente usa esse recurso)');
 export const pedidoDoTrilho = t => (t ? '\n\nIDENTIDADE FIXADA PELO CÓDIGO (os três modelos do cliente nunca saem iguais): tema ' + t.tema +
-  ' (a paleta inteira segue o tema); a cor de destaque na ' + TEMPERATURAS[t.temperatura] + ', no tom que combina com este negócio. A tipografia o código aplica.' : '');
+  ' (a paleta inteira segue o tema); a cor de destaque na ' + TEMPERATURAS[t.temperatura] + ', no tom que combina com este negócio; ' + fraseDoMolde(t) + '. A tipografia o código aplica.' : '');
+/* quantos títulos de seção estão no molde de contraste ("X, não Y", também com travessão); "Não espere..." no começo não conta, e
+   travessão ou hífen só valem com espaço antes ("Pós-não sei" não é contraste) */
+const MOLDE_CONTRASTE = /(?:[,;]|\s[—–-])\s*n[aã]o\s/i;
+export const titulosNoMolde = d => (d && Array.isArray(d.secoes) ? d.secoes.filter(s => typeof s?.titulo === 'string' && MOLDE_CONTRASTE.test(s.titulo)).length : 0);
 /* o que ocupa o lugar de um número que o briefing não trouxe (o renderer o desenha como espaço reservado) */
 export const NUMERO_A_CONFIRMAR = '[Número a confirmar]';
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -216,7 +225,9 @@ export function higienizar(bruta, estrategia, opcoes) {
     rodape: { texto: t(d.rodape?.texto, 200) }
   };
   if (LOREM.test(JSON.stringify(direcao))) return { erro: 'texto de preenchimento (lorem ipsum)' };
-  /* o tema não se força (a paleta do modelo é feita para o tema dele): só se anota o desvio, para a medição ver se o modelo obedece */
-  if (trilhoValido && (trilho.tema === 'escuro' || trilho.tema === 'claro') && trilho.tema !== direcao.identidade.estilo.tema) return { direcao, ajustes: [...ajustes, 'tema_fora_do_trilho'] };
-  return { direcao, ajustes };
+  /* o tema e o molde não se forçam (a paleta do modelo é feita para o tema dele; reescrever título é do modelo): só se anota o desvio,
+     para a medição ver se o modelo obedece */
+  const temaFora = trilhoValido && (trilho.tema === 'escuro' || trilho.tema === 'claro') && trilho.tema !== direcao.identidade.estilo.tema;
+  const moldeFora = trilhoValido && trilho.contraste === false && titulosNoMolde(direcao) > 0;
+  return { direcao, ajustes: [...ajustes, ...(temaFora ? ['tema_fora_do_trilho'] : []), ...(moldeFora ? ['molde_x_nao_y'] : [])] };
 }
