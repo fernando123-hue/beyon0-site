@@ -54,6 +54,8 @@
 .orc-aj__botoes:has(.orc-aj__tile) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; width: 100%; }
 .orc-aj .orc-aj__tile { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: .6rem; height: auto; min-height: 4.6rem; padding: .8rem .7rem; border: 1px solid var(--stroke); border-radius: 16px; background: var(--s1); color: var(--t1); font-size: 1rem; line-height: 1.25; text-align: left; }
 .orc-aj__tile:hover { border-color: var(--t1); }
+/* (lapidação 26/11, achado 22) o raio de pílula dos botões da página (orcamento-palco.css) virava oval nestes cartões de 2 linhas: raio de cartão */
+.orc__main .orc-aj .orc-aj__tile { border-radius: 16px; }
 .orc-aj__tile:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 .orc-aj__tile[aria-disabled="true"] { opacity: .55; }
 .orc-aj__tile .orc-ic { flex: none; width: 1.6rem; height: 1.6rem; fill: none; stroke: var(--ac); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
