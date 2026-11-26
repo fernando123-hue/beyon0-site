@@ -63,8 +63,9 @@ const ENFEITE = /[!?]|\p{Extended_Pictographic}/u;
 export function fielAoTexto(anotacao, texto) {
   const base = semAcento(texto);
   const numeros = String(anotacao).match(/\d+(?:[.,]\d+)?/g) || [];
-  if (numeros.some(n => !base.includes(n))) return false;
-  const palavras = String(anotacao).split(/[\s,;:()"'/]+/).filter(Boolean);
+  /* (revisão do PR #274, achados 3 e 4) o número vale inteiro ("20" não está em "2015"); o nome com hífen se confere por partes ("Niterói-RJ") */
+  if (numeros.some(n => !new RegExp('(^|\\D)' + n.replace(/[.]/g, '\\.') + '($|\\D)').test(base))) return false;
+  const palavras = String(anotacao).split(/[\s,;:()"'/-]+/).filter(Boolean);
   return palavras.every((p, i) => {
     if (i === 0 || !/^\p{Lu}/u.test(p)) return true;
     const w = semAcento(p).replace(/[.-]+$/, '');

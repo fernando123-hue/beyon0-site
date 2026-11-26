@@ -249,7 +249,13 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
         tokens_saida: r.uso?.saida ?? null, ferramentas: (r.chamadas || []).map(c => c.nome), ms: Date.now() - t0 });
       return r;
     } catch (e) {
-      chamadas.push({ papel: PAPEL_NO_REGISTRO[p.papel] ?? p.papel, erro: e instanceof ErroIA ? e.motivo : 'interno', custo_usd: abaterDoProvisorio(p.papel, (e && e.custo_usd) || 0), ms: Date.now() - t0 });
+      const custo = abaterDoProvisorio(p.papel, (e && e.custo_usd) || 0);
+      /* (revisão do PR #274, achado 1) o disjuntor (vendas_ia_disponivel) lê as 5 últimas linhas da organização SEM olhar o papel: a falha da
+         reação (muitas por minuto, prazo de 4 s) não pode fechá-lo para o Zero inteiro. Falha dela sem custo não vira linha; com custo, vira
+         linha sem erro, só para o gasto do dia enxergar. O efeito inverso (reações boas escondendo uma queda do Sonnet/Opus) fica até a
+         migration que faz o disjuntor ignorar 'extracao' (pendência anotada no PR; a reação fica desligada em produção até lá) */
+      if (p.papel === 'reacao') { if (custo > 0) chamadas.push({ papel: PAPEL_NO_REGISTRO.reacao, custo_usd: custo, ms: Date.now() - t0 }); }
+      else chamadas.push({ papel: PAPEL_NO_REGISTRO[p.papel] ?? p.papel, erro: e instanceof ErroIA ? e.motivo : 'interno', custo_usd: custo, ms: Date.now() - t0 });
       throw e;
     }
   } };
@@ -476,7 +482,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     ...criarAcoesDoLink({ banco, visitante, visitantes, segredoFreio, env }),
     ...criarAcoesDaPrevia({ banco, visitante, estado, env }),
     ...criarAcoesDoRecado({ banco, visitantes, segredoFreio, env, segundoPlano }),
-    ...criarAcoesDaReacao({ ia, env, visitante, donoDaConversa, etapas: CONVERSA_ABERTA, gravarChamadas, somarCusto, segundoPlano, requestId }),
+    ...criarAcoesDaReacao({ ia, env, custoDoDia: () => banco('vendas_custo_dia', { org_slug: ORG }).then(d => d.custo_usd), visitante, donoDaConversa, etapas: CONVERSA_ABERTA, gravarChamadas, somarCusto, segundoPlano, requestId }),
 
     /* começar: cria o visitante anônimo e a conversa, com a origem da visita (das métricas, sem dado pessoal) */
     async sessao({ corpo }) {

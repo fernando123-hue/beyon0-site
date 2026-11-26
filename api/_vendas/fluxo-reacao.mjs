@@ -4,14 +4,15 @@
    IP, 12 por conversa) → teto do dia → Haiku → conferência. Tudo o que não é erro de quem chama volta como "sem reação" (200, reacao: null):
    a tela fica a da fase 1a, sem mensagem de erro. Nada do texto vai ao banco ou ao log: o registro do custo (app.ia_chamadas, com o papel
    'extracao', que o banco aceita) e a soma no custo da conversa saem em segundo plano, fora do caminho da resposta.
-   Limite conhecido: os freios e o teto de US$ 1 são por isolado do Worker (como os freios de simular/confirmar); o custo entra no custo da
-   conversa e no registro do dia, então o teto do Zero (TETOS em fluxo.mjs) continua enxergando tudo.
+   Limite conhecido: os freios e o teto de US$ 1 são por isolado do Worker (como os freios de simular/confirmar); por cima deles vale o teto do
+   dia do Zero inteiro (TETOS.dia_usd, lido do banco), e o custo entra no custo da conversa e no registro do dia.
    ========================================================================== */
 import { Recusa } from './recusa.mjs';
 import { ehUuid } from '../_valida-app.mjs';
 import { criarFreio, ipDe } from '../_freio.mjs';
 import { criarGastoLocal } from '../_classificador/sombra.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
+import { TETOS } from '../_ia/config.mjs';
 import { reacaoLigada, LIMITES_REACAO, textoParaReacao, montarPedidoReacao, conferirReacao } from './reacao.mjs';
 
 const exigir = (cond, status, msg) => { if (!cond) throw new Recusa(status, msg); };
@@ -29,7 +30,7 @@ const FREIOS = criarFreiosDaReacao();
 const GASTO = criarGastoLocal();
 const logPadrao = dados => console.error(JSON.stringify({ origem: 'reacao', ...dados }));
 
-export function criarAcoesDaReacao({ ia, env, visitante, donoDaConversa, etapas, gravarChamadas, somarCusto, segundoPlano, requestId = null,
+export function criarAcoesDaReacao({ ia, env, custoDoDia, visitante, donoDaConversa, etapas, gravarChamadas, somarCusto, segundoPlano, requestId = null,
   freios = FREIOS, gasto = GASTO, hoje = hojeEmBrasilia, log = logPadrao }) {
   const sem = (seq, motivo) => ({ reacao: null, seq, motivo });
   /* o registro e o custo, sem segurar a resposta; falhar aqui só vira log (o gasto local já contou) */
@@ -48,6 +49,10 @@ export function criarAcoesDaReacao({ ia, env, visitante, donoDaConversa, etapas,
     if (!texto) return sem(seq, 'trava');
     if (freios.visitante(vid) || freios.ip(request ? ipDe(request) : 'sem-ip') || freios.conversa(corpo.conversa_id)) return sem(seq, 'limite');
     if (gasto.de(hoje()) >= LIMITES_REACAO.dia_usd) return sem(seq, 'teto');
+    /* (revisão do PR #274, achado 2) o teto de US$ 1 acima é do isolado; o do Zero inteiro (TETOS.dia_usd, lido do banco como em dentroDoCusto) vale
+       para todos os isolados: bateu, a reação some antes do Zero. Consulta que falha = sem reação (a reação é enfeite, na dúvida não gasta) */
+    const dia = await Promise.resolve().then(() => custoDoDia()).catch(() => NaN);
+    if (!(Number(dia) < TETOS.dia_usd)) return sem(seq, 'teto');
     const t0 = Date.now();
     let r;
     try { r = await ia.mensagem(montarPedidoReacao(texto)); }
