@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { dataPorExtenso as dataDoServidor } from '../../api/_material/prazo.mjs';
+import { criarDoc, tique } from './_dom-falso.mjs';
 
 const ler = f => fs.readFileSync(new URL('../../' + f, import.meta.url), 'utf8');
 const FONTE = ler('js/orcamento-entrega.js');
@@ -108,7 +109,7 @@ test('o link no e-mail (19/11): a página não pede para gerar outro (o que revo
   assert.equal(B.modoDoCartao({ codigo: null, guardado: false, linkPedido: false, noEmail: true }), 'nenhum', 'sem link vivo, o do e-mail não conta');
   assert.match(FONTE, /e\.link_no_email/, 'lê o estado do servidor');
   assert.match(FONTE, /\$\('o-link-gerar'\)\.hidden = copiar;/, 'no modo e-mail o "Gerar o link e guardar" continua: o e-mail pode não ter chegado');
-  assert.match(B.TEXTO_EMAIL, /e-mail/); assert.doesNotMatch(B.TEXTO_EMAIL + B.TITULO_EMAIL, /c[óo]digo|!|—/);
+  for (const t of [B.textoEmail('f***@gmail.com'), B.textoEmail(null)]) { assert.match(t, /e-mail/); assert.doesNotMatch(t + B.TITULO_EMAIL, /c[óo]digo|!|—/); }
   const { linkDoPedido } = await import('../../api/_pagamentos/confirmacao.mjs');
   const X = 'AbCdEfGhIjKlMnOpQrStUvWxYz012345';
   assert.equal(linkDoPedido(X), B.linkDoPedido('https://beyonzero.com.br', X), 'o e-mail e a página montam o mesmo link');
@@ -184,4 +185,62 @@ test('o orcamento-entrega.js liga a tela da prévia (BZPreviaEntrega; BZPrevia �
   const js = semComentario(FONTE);
   assert.match(js, /window\.BZPreviaEntrega/); assert.doesNotMatch(js, /window\.BZPrevia\b(?!Entrega)/); assert.match(js, /prev\.atualizar\(E\)/);
   assert.equal((js.match(/\$\('o-previa'\)\.hidden = true/g) || []).length, 2, 'os dois return antecipados (interruptor desligado e sem entrega pronta)');
+});
+
+/* ---------- o cartão do link, com um DOM de mentira (revisões de 26/11: S1, T2, T3) ---------- */
+const IDS = ['o-pedido', 'o-material', 'o-previa', 'o-noar', 'o-fim', 'o-ped-codigo', 'o-ped-agenda', 'o-agenda', 'o-link', 'o-link-titulo', 'o-link-texto',
+  'o-link-campo', 'o-link-acoes', 'o-link-gerar', 'o-link-enviar', 'o-link-copiar', 'o-link-novo', 'o-link-outro', 'o-link-sair', 'o-link-aviso', 'o-link-outro-campo'];
+function montarCartao({ linkPedido = async () => ({ criado: true, codigo: 'C'.repeat(32) }) } = {}) {
+  const doc = criarDoc();
+  doc.querySelector = () => null;
+  const el = {};
+  for (const id of IDS) { el[id] = doc.createElement('div'); el[id].id = id; el[id].dataset = {}; }
+  el['o-link-gerar'].textContent = 'Gerar o link e guardar';
+  const passos = doc.createElement('ol'); passos.id = 'o-ped-passos';
+  for (let i = 0; i < 4; i++) { const li = doc.createElement('li'); for (let j = 0; j < 4; j++) li.appendChild(doc.createElement('span')); passos.appendChild(li); }
+  const chamadas = [];
+  const API = { linkPedido: novo => { chamadas.push(novo); return linkPedido(novo); } };
+  const win = {};
+  new Function('window', 'document', 'localStorage', 'location', 'navigator', FONTE)(win, doc, { getItem: () => null, setItem() {}, removeItem() {} }, { origin: 'https://beyonzero.com.br' }, {});
+  const tela = win.BZEntrega.criar({ API, dinheiro: v => 'R$ ' + v });
+  const estado = entrega => ({ conversa: { id: 'c1', etapa: 'em_producao' }, entrega_ligada: true, pedido: { codigo: 'BZ-1' },
+    entrega: { id: 'e1', passo: 'material', entrega_ate: null, material: { status: 'rascunho' }, ...entrega } });
+  return { el, tela, estado, chamadas };
+}
+
+test('S1: no modo e-mail o cartão mostra PARA ONDE o link foi, mascarado e por textContent; sem o dado, a frase geral', async () => {
+  const m = montarCartao();
+  m.tela.atualizar(m.estado({ link_pedido: true, link_no_email: true, link_no_email_para: 'f***@gmail.com' }));
+  await tique();
+  assert.equal(m.el['o-link'].hidden, false);
+  assert.equal(m.el['o-link-titulo'].textContent, B.TITULO_EMAIL);
+  assert.match(m.el['o-link-texto'].textContent, /f\*\*\*@gmail\.com/);
+  assert.equal(m.chamadas.length, 0, 'o link existe: a página não pede outro');
+  const n = montarCartao();
+  n.tela.atualizar(n.estado({ link_pedido: true, link_no_email: true, link_no_email_para: null }));
+  assert.match(n.el['o-link-texto'].textContent, /o e-mail que você usou no pagamento/);
+});
+
+test('T3: no modo e-mail, "Gerar o link e guardar" pede confirmação (o do e-mail deixa de valer); o 2º toque gera', async () => {
+  const m = montarCartao();
+  m.tela.atualizar(m.estado({ link_pedido: true, link_no_email: true, link_no_email_para: 'f***@gmail.com' }));
+  await m.el['o-link-gerar'].onclick();
+  assert.deepEqual(m.chamadas, [], 'o 1º toque não revoga nada');
+  assert.match(m.el['o-link-aviso'].textContent, /e-mail/);
+  await m.el['o-link-gerar'].onclick();
+  assert.deepEqual(m.chamadas, [true], 'o 2º toque gera o novo');
+  assert.equal(m.el['o-link-campo'].hidden, false, 'e mostra o link novo para copiar');
+  /* no modo "gerar" de sempre (o link existe e não foi por e-mail), um toque basta, como antes */
+  const g = montarCartao();
+  g.tela.atualizar(g.estado({ link_pedido: true, link_no_email: false }));
+  await g.el['o-link-gerar'].onclick();
+  assert.deepEqual(g.chamadas, [true]);
+});
+
+test('T2: a corrida com o link do e-mail (o estado ainda sem link, o servidor diz que já existe): o cartão não some', async () => {
+  const m = montarCartao({ linkPedido: async () => ({ criado: false }) });
+  m.tela.atualizar(m.estado({ link_pedido: false, link_no_email: false }));
+  for (let i = 0; i < 3; i++) await tique();
+  assert.deepEqual(m.chamadas, [false]);
+  assert.equal(m.el['o-link'].hidden, false, 'o link existe: o cartão aparece (gerar), em vez de sumir');
 });
