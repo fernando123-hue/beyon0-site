@@ -40,6 +40,16 @@
     return e;
   }
 
+  /* (lapidação 26/11, achado 4 dos modelos) a palavra com hífen não se parte no hífen ("ar- / condicionado"): ela vai inteira num span que não
+     quebra. As outras quebras ficam com o text-wrap do css/previa.css (balance nos títulos, pretty no texto) */
+  var COM_HIFEN = /([A-Za-zÀ-ÿ]+(?:-[A-Za-zÀ-ÿ]+)+)/;
+  function semPartir(alvo, texto) {
+    texto.split(COM_HIFEN).forEach(function (p, k) {
+      if (!p) return;
+      if (k % 2) { var s = document.createElement('span'); s.className = 'pv-inteira'; s.textContent = p; alvo.appendChild(s); }
+      else alvo.appendChild(document.createTextNode(p));
+    });
+  }
   /* texto com os espaços reservados marcados */
   function escrever(alvo, s) {
     str(s).split(RESERVADO).forEach(function (parte) {
@@ -50,7 +60,7 @@
         r.title = 'Espaço reservado: entra o dado real do seu negócio';
         alvo.appendChild(r);
       } else {
-        alvo.appendChild(document.createTextNode(parte));
+        semPartir(alvo, parte);
       }
     });
   }
@@ -102,6 +112,7 @@
     return svg;
   }
 
+  var SEM_NUMERO = /^\s*(?:passo\s+)?\d{1,2}\s*[.):–—-]\s*/i;
   function titulado(li, i) {
     if (i.titulo) li.appendChild(el('h5', 'pv-item__t', i.titulo));
     if (i.texto) li.appendChild(el('p', 'pv-item__x', i.texto));
@@ -137,7 +148,8 @@
         var num = el('span', 'pv-passo__n', String(n + 1));
         num.setAttribute('aria-hidden', 'true');
         li.appendChild(num);
-        titulado(li, i);
+        /* (achado 11 dos modelos) a numeração é do desenho: o "1." que o modelo escreveu no título sai (o círculo já diz 1) */
+        titulado(li, { titulo: str(i.titulo).replace(SEM_NUMERO, ''), texto: i.texto });
       } else if (modo === 'linhas') {
         li.className = 'pv-item pv-linha';
         var marca = icone(i.icone);   /* com ícone, ele ocupa o lugar do índice numérico */

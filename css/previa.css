@@ -207,3 +207,9 @@
   .pv-hero--faixa .pv-arte { border-color: var(--pv-dest-texto); }
   .pv-hero--centro .pv-arte { height: 360px; max-width: 960px; margin: 0 auto; border: 2px solid var(--pv-texto); }
 }
+
+/* (lapidação 26/11, achado 4 dos modelos) a quebra cai no sentido: títulos equilibrados, texto sem palavra sozinha na última linha, e a palavra
+   com hífen inteira (js/previa.js, semPartir) */
+.pv h1, .pv h2, .pv h3, .pv h4, .pv h5, .pv-marca { text-wrap: balance; }
+.pv p, .pv blockquote, .pv li { text-wrap: pretty; }
+.pv-inteira { white-space: nowrap; }

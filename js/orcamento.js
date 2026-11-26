@@ -912,7 +912,9 @@
     var caixa = $('o-recomenda');
     if (!caixa) return;
     var r = E.recomendacao;
-    var mostra = !!(r && typeof r.texto === 'string' && recomendadaId() && !escolhidaId() && podeEscolher());
+    /* (achado 14 dos modelos) só com o modelo recomendado PRONTO: "Eu iria no 1" com o 1 ainda em produção apontava para um cartão vazio */
+    var pronta = (E.direcoes || []).some(function (d) { return d.id === recomendadaId() && d.status === 'pronta'; });
+    var mostra = !!(r && typeof r.texto === 'string' && recomendadaId() && pronta && !escolhidaId() && podeEscolher());
     if (!mudou('recomenda', [mostra, mostra ? r.texto : ''])) return;
     caixa.textContent = '';
     caixa.hidden = !mostra;

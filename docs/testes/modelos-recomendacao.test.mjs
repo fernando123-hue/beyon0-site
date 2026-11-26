@@ -124,3 +124,10 @@ test('o estado traz a recomendação com os modelos prontos, e escolher continua
   assert.deepEqual(ev.map((d) => d.estrategia), ['experiencia', 'autoridade']);
   assert.deepEqual(Object.keys(ev[1]).sort(), ['estrategia', 'geracao', 'numero'], 'o evento é o de sempre');
 });
+
+test('a recomendação só aparece com o modelo recomendado PRONTO (lapidação 26/11, achado 14 dos modelos)', () => {
+  const js = ler('js/orcamento.js');
+  const corpo = js.slice(js.indexOf('function recomendacao()'), js.indexOf('function focoNaLista'));
+  assert.match(corpo, /d\.id === recomendadaId\(\) && d\.status === 'pronta'/);
+  assert.match(corpo, /recomendadaId\(\) && pronta && !escolhidaId\(\)/);
+});

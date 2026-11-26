@@ -485,3 +485,23 @@ test('régua do topo com itens: o ul do topo usa margem (a régua vai de borda a
   assert.ok(/\.pv-sec--hero \.pv-itens\s*\{[^}]*margin:\s*0 20px[^}]*\}/.test(css) && !/\.pv-sec--hero \.pv-itens\s*\{[^}]*padding:\s*0 20px/.test(css));
   assert.ok(/@container[\s\S]*\.pv-sec--hero \.pv-itens\s*\{[^}]*margin:\s*0/.test(css));
 });
+
+test('quebras no sentido (lapidação 26/11, achado 4 dos modelos): a palavra com hífen vai inteira num span que não quebra; títulos com balance', () => {
+  const P = carregar();
+  const raiz = P.desenhar(direcao({ secoes: [{ tipo: 'hero', variante: 'split', rotulo: '', titulo: 'Conserto de ar-condicionado em casa', subtitulo: '', texto: '', itens: [], cta: 'Chamar' }] }));
+  const inteiras = comClasse(raiz, 'pv-inteira');
+  assert.equal(inteiras.length, 1);
+  assert.equal(inteiras[0].textContent, 'ar-condicionado');
+  assert.ok(todos(raiz, n => /^h[1-5]$/.test(n.tag)).some(h => h.textContent === 'Conserto de ar-condicionado em casa'), 'o texto lido é o mesmo');
+  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.pv h1[^{]*\{[^}]*text-wrap:\s*balance/);
+  assert.match(css, /\.pv-inteira\s*\{[^}]*white-space:\s*nowrap/);
+});
+
+test('passos (achado 11 dos modelos): o "1." que o modelo escreveu sai do título; o círculo do desenho é a numeração', () => {
+  const P = carregar();
+  const raiz = P.desenhar(direcao({ secoes: [{ tipo: 'processo', variante: 'linha_do_tempo', rotulo: '', titulo: 'Como funciona', subtitulo: '', texto: '',
+    itens: [{ titulo: '1. A conversa', texto: 'a' }, { titulo: 'Passo 2 - O desenho', texto: 'b' }, { titulo: '3) A entrega', texto: 'c' }, { titulo: '24 horas de suporte', texto: 'd' }], cta: '' }] }));
+  const titulos = comClasse(raiz, 'pv-item__t').map(t => t.textContent);
+  assert.deepEqual(titulos, ['A conversa', 'O desenho', 'A entrega', '24 horas de suporte'], 'número sem pontuação depois (24 horas) fica');
+});
