@@ -112,7 +112,7 @@
     haltere: [['path', { d: 'M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12' }]],
     talher: [['path', { d: 'M6 3v6a2.5 2.5 0 0 0 5 0V3M8.5 3v18' }], ['path', { d: 'M17 21V3c2 1.2 3 4 3 8h-3' }]],
     camera: [['rect', { x: 3, y: 7, width: 18, height: 13, rx: 2 }], ['path', { d: 'M8 7l1.5-3h5L16 7' }], ['circle', { cx: 12, cy: 13.5, r: 3.5 }]],
-    carro: [['path', { d: 'M5 17H3v-4l2-5h14l2 5v4h-2M9 17h6M3 13h18' }], ['circle', { cx: 7, cy: 17, r: 2 }], ['circle', { cx: 17, cy: 17, r: 2 }]],
+    carro: [['path', { d: 'M5 17H3v-3.5l2.5-1L8 8h7.5l3 4.5 2.5 1V17h-2M9 17h6' }], ['path', { d: 'M8.5 12.5h9' }], ['circle', { cx: 7, cy: 17, r: 2 }], ['circle', { cx: 17, cy: 17, r: 2 }]],
     livro: [['path', { d: 'M4 19V5a2 2 0 0 1 2-2h14v15H6a2 2 0 0 0 0 4h14v-4' }], ['path', { d: 'M8 7h8' }]],
     martelo: [['path', { d: 'M11 6l3-3 7 7-3 3z' }], ['path', { d: 'M12.5 8.5L4 17a2.1 2.1 0 0 0 3 3l8.5-8.5' }]],
     balanca: [['path', { d: 'M12 3v18M7 21h10M5 7h14' }], ['path', { d: 'M5 7l-3 7a3 3 0 0 0 6 0zM19 7l-3 7a3 3 0 0 0 6 0z' }]],
