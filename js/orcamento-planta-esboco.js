@@ -35,7 +35,7 @@
 
   function criar(win) {
     var doc = win.document;
-    var st = { carga: 'nao', elementos: {}, E: null, item: null, esb: null, largura: 0, timer: 0, ouveResize: false, nasceuPronta: null, consagrado: false };
+    var st = { carga: 'nao', elementos: {}, E: null, item: null, esb: null, largura: 0, timer: 0, ouveResize: false, nasceuPronta: null, consagrado: false, pronta: false };
     var $ = function (id) { return doc.getElementById(id); };
     function aviso(e) {
       try { if (win.console && win.console.warn) win.console.warn('[beyon] planta: ' + (e && e.message ? e.message : e)); } catch (x) { /* sem console */ }
@@ -73,9 +73,12 @@
     /* ---- o cartão ---- */
     function largura() { return st.item ? st.item.clientWidth : 0; }
     function novoEsboco(inicial) {
-      var op = { rolagem: $('o-log-caixa'), som: function (nome) { if (win.BZPlantaSom) win.BZPlantaSom.tocar(nome); } };
+      var caixa = $('o-log-caixa'), op = { rolagem: caixa, som: function (nome) { if (win.BZPlantaSom) win.BZPlantaSom.tocar(nome); } };
+      /* a caixa que rola e corta (computador): o esboço compacto, que cabe inteiro nela (achado 18) */
+      op.compacto = !!caixa && !!win.getComputedStyle && win.getComputedStyle(caixa).overflowY !== 'visible';
       if (inicial) op.inicial = inicial;
       st.esb = win.BZPlantaEsboco.criar(st.item, op);
+      if (st.pronta) st.esb.marcarPronta(true);   /* (refeito numa largura nova: a planta continua pronta na faixa) */
       st.largura = largura();
     }
     function colocar() {
@@ -108,7 +111,7 @@
       st.esb = null;
       if (st.item && st.item.parentNode) st.item.parentNode.removeChild(st.item);
       if ($('o-log-caixa')) $('o-log-caixa').classList.remove('com-planta');
-      st.item = null; st.largura = 0; st.consagrado = false;
+      st.item = null; st.largura = 0; st.consagrado = false;   /* (st.pronta fica: quem a desmarca é a faixa, quando a planta sai do estado) */
     }
 
     /* ---- a consagração (js/orcamento-planta.js monta o desenho final do módulo real) ---- */
@@ -154,6 +157,14 @@
         if (!(q.height > 0) || vis < q.height * FRACAO_VOO) return null;
         return pontosDoEsboco(plano, { left: 0, top: 0 });
       };
+    }
+    /* COMPUTADOR: a planta ficou pronta na faixa (true) ou saiu dela (false). O esboço que segue na conversa deixa de estar "em construção" e imprime
+       o que esperava na fila (achado 18, 26/11: em 1366x768 ele ficava "em construção" para sempre, com o objetivo preso fora da vista da caixa) */
+    function pronta(sim) {
+      try {
+        st.pronta = !!sim;
+        if (st.esb && typeof st.esb.marcarPronta === 'function') st.esb.marcarPronta(st.pronta);
+      } catch (e) { aviso(e); }
     }
     /* a planta saiu do estado (ou o desenho recusou): o cartão volta a ser o esboço, já pronto */
     function devolver() {
@@ -219,7 +230,7 @@
       }
     }
 
-    return { atualizar: atualizar, paraConsagrar: paraConsagrar, pontosAVista: pontosAVista, devolver: devolver };
+    return { atualizar: atualizar, paraConsagrar: paraConsagrar, pontosAVista: pontosAVista, devolver: devolver, pronta: pronta };
   }
 
   return { criar: criar, MODULOS: MODULOS, CSS: CSS };

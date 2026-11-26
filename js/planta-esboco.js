@@ -22,21 +22,25 @@
   var NS = 'http://www.w3.org/2000/svg', Pecas = window.BZPlantaPecas, Cresce = window.BZPlantaCresce, Relogio = window.BZPlantaRelogio;
   if (!Pecas || !Cresce || !Relogio) return null;
 
-  /* a geometria do esboço (px). RX = o trilho; P = o passo entre estações; C = o chip */
-  var RX = 26, NY = 26, NR = 20, P = 58, C = 36, Y0 = 66, LR = 20, TX = RX + C / 2 + 14, CHAMFRO = 7;
+  /* a geometria do esboço (px). RX = o trilho; C = o chip; o passo entre estações (p), o alto do 1º chip (y0) e o da caixa de texto (th) vêm da largura */
+  var RX = 26, NY = 26, NR = 20, C = 36, LR = 20, TX = RX + C / 2 + 14, CHAMFRO = 7;
+  /* COMPACTO (opcoes.compacto: a caixa da conversa que ROLA e corta, a do computador, >= 900 px): lá o título cabe numa linha (o que passar dela
+     termina em reticências, css/planta-esboco.css) e o passo encolhe, para o cartão (rótulo + quadro + legenda, 428 px) caber INTEIRO na caixa
+     (min(60vh, 620px): 459 px numa janela de 768 de alto). Com o passo do celular ele tinha 506 px: o objetivo e a legenda ficavam fora e o objetivo,
+     fora da vista, esperava na fila para sempre (achado 18, 26/11). Onde a caixa não corta (celular, tablet), a geometria é a de sempre */
+  var NORMAL = { y0: 66, p: 58, th: 52 }, COMPACTO = { y0: 58, p: 44, th: 40 };
   var T = { luz: 350, chip: 300, texto: 250, entre: 160, repouso: 6000 };
 
   var r1 = function (n) { return Math.round(n * 10) / 10; };
-  var cy = function (i) { return Y0 + i * P + C / 2; };
-  var LEDY = cy(4) + P;
-  var ALTURA = LEDY + LR + 14;
   var chipD = function (x, y, s) { return 'M' + (x + CHAMFRO) + ' ' + y + 'H' + (x + s) + 'V' + (y + s) + 'H' + x + 'V' + (y + CHAMFRO) + 'Z'; };
 
-  function geometria(W) {
-    var larg = Math.max(220, W), estacoes = [], i;
-    for (i = 0; i < 5; i++) estacoes.push({ cx: RX, cy: cy(i), texto: { x: TX, y: cy(i) - 26, w: larg - TX - 8, h: 52 } });
-    return { W: larg, H: ALTURA, nucleo: { cx: RX, cy: NY, r: NR }, estacoes: estacoes, led: { cx: RX, cy: LEDY, r: LR, texto: { x: TX, y: LEDY - 26, w: larg - TX - 8, h: 52 } } };
+  function geometria(W, compacto) {
+    var larg = Math.max(220, W), m = compacto ? COMPACTO : NORMAL, estacoes = [], i;
+    var cyDe = function (k) { return m.y0 + k * m.p + C / 2; }, ledY = cyDe(4) + m.p;
+    for (i = 0; i < 5; i++) estacoes.push({ cx: RX, cy: cyDe(i), texto: { x: TX, y: cyDe(i) - m.th / 2, w: larg - TX - 8, h: m.th } });
+    return { W: larg, H: ledY + LR + 14, nucleo: { cx: RX, cy: NY, r: NR }, estacoes: estacoes, led: { cx: RX, cy: ledY, r: LR, texto: { x: TX, y: ledY - m.th / 2, w: larg - TX - 8, h: m.th } } };
   }
+  var ALTURA = geometria(0).H;   /* (a do celular) */
 
   function reduzido() {
     var m = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -67,10 +71,11 @@
 
   function criar(raiz, opcoes) {
     var op = opcoes || {}, som = op.som || function () {}, inst;
-    var W = Math.round(op.largura || raiz.clientWidth || 320), g = geometria(W);
+    var W = Math.round(op.largura || raiz.clientWidth || 320), g = geometria(W, op.compacto);
+    var cy = function (i) { return g.estacoes[i].cy; }, LEDY = g.led.cy;
 
     /* ---------- o cartão ---------- */
-    var card = H('section', 'lv'), topo = H('p', 'lv-kicker', null, card);
+    var card = H('section', op.compacto ? 'lv lv--compacto' : 'lv'), topo = H('p', 'lv-kicker', null, card);
     card.setAttribute('aria-label', 'A planta do seu site');
     H('span', '', 'Planta', topo); var estadoTopo = H('b', '', ' · nasce com a conversa', topo);
     var quadro = H('div', 'lv-quadro', null, card);
@@ -209,7 +214,7 @@
     function semear(animar) {
       inst.semeado = true;
       card.classList.remove('is-dormente'); card.classList.add('is-semeado');
-      inst.estadoTopo.textContent = ' · em construção';
+      inst.estadoTopo.textContent = inst.pronta ? ' · pronta' : ' · em construção';
       if (!animar) return 0;
       tracar(aroN, 0, 600);
       anim(gira, [{ opacity: 0, transform: 'rotate(-30deg)' }, { opacity: 1, transform: 'rotate(0deg)' }], { duration: 700, delay: 150, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'backwards' });
@@ -262,7 +267,7 @@
         Array.prototype.forEach.call(alvo.ic.childNodes, function (p, q) { tracar(p, chega + 40 + q * 45, T.chip); });
       }
       varrer(alvo.varre, chega + T.chip - 60);
-      depois(chega, function () { som(refeita ? 'refaz' : 'estacao'); ler(tag, frase, true); });
+      depois(chega, function () { if (!inst.pronta) som(refeita ? 'refaz' : 'estacao'); ler(tag, frase, true); });
       return chega + T.chip + T.texto;
     }
 
@@ -278,12 +283,12 @@
     /* ---------- a fila: as mudanças de um turno tocam uma depois da outra, só com a estação na tela (a planta nunca rola a página) ---------- */
     function andar() {
       if (inst.ocupado || inst.parado) return;
-      var animar = !reduzido(), it, houve = '';
+      var animar = !reduzido() && !inst.pronta, it, houve = '';
       while (!animar && inst.fila.length) {   /* sem movimento: tudo de uma vez, na mesma tarefa, com UM som só */
         it = inst.fila.shift();
         if (it.lugar === '__semente') semear(false); else { imprimir(it, false); houve = houve === 'estacao' || it.tipo === 'nova' ? 'estacao' : 'refaz'; }
       }
-      if (houve) som(houve);
+      if (houve && !inst.pronta) som(houve);
       if (!inst.fila.length) { repouso(); return; }
       if (!inst.visivel || document.hidden || !alvoVisivel(inst.fila[0])) return;
       var item = inst.fila.shift(), dura;
@@ -326,6 +331,22 @@
     inst.aoToque = function () { if (inst.semeado && inst.ocupado === false && !inst.fila.length && !repousando()) repouso(); };
     card.addEventListener('pointerdown', inst.aoToque);
 
+    /* a planta ficou pronta fora do cartão (a faixa larga do computador, js/orcamento-planta.js): o esboço deixa de estar "em construção" e o que
+       esperava na fila (a estação fora da vista da caixa) imprime de uma vez, sem som nem animação (o som e a luz são os da faixa); o que a conversa
+       ainda trouxer também entra assim. false: a planta saiu do estado, e ele volta a crescer ao vivo */
+    function marcarPronta(sim) {
+      if (inst.parado) return;
+      inst.pronta = !!sim;
+      if (inst.semeado) inst.estadoTopo.textContent = inst.pronta ? ' · pronta' : ' · em construção';
+      /* uma estação no meio (às vezes PARADA: a página foi até a faixa e o esboço saiu da tela, o relógio pausou) termina já: o relógio é trocado e
+         as classes que ela já pôs são o quadro final */
+      if (inst.pronta && inst.ocupado) {
+        inst.rel.parar(); inst.rel = Relogio.criar(); inst.repouso = []; inst.ocupado = false;
+        if (!inst.visivel || document.hidden) inst.rel.pausar();
+      }
+      andar();   /* (pronta, a fila sai de uma vez pelo mesmo caminho do movimento reduzido, mesmo fora da tela) */
+    }
+
     function parar() {
       inst.parado = true;
       inst.rel.parar();
@@ -345,7 +366,7 @@
     }
 
     inst.parar = parar; inst.ocioso = function () { return !inst.ocupado && !inst.fila.length; };
-    return { crescer: crescer, parar: parar, interno: inst, ocioso: inst.ocioso };
+    return { crescer: crescer, parar: parar, marcarPronta: marcarPronta, interno: inst, ocioso: inst.ocioso };
   }
 
   return { criar: criar, geometria: geometria, ALTURA: ALTURA, semViuva: semViuva };

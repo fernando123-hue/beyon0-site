@@ -127,7 +127,7 @@
       var faixa = $('o-planta');
       var d = desenhoMontado();
       if (st.naTela && d && d.parar) { try { d.parar(); } catch (e) { aviso(e); } }
-      if (st.lugar === 'cartao') devolverCartao();
+      if (st.lugar === 'cartao') noEsboco('devolver');
       if (faixa) faixa.hidden = true;
       st.naTela = false; st.pendente = false; st.recolhida = false; st.lugar = ''; st.raiz = null;
     }
@@ -138,7 +138,9 @@
     /* abaixo de 960 px, com o esboço na página: a planta vai para o cartão. Sem ele (ou no computador), a faixa de sempre */
     var noCartao = function () { return !computador() && !!esboco(); };
     function tocar(nome) { if (win.BZPlantaSom && typeof win.BZPlantaSom.tocar === 'function') win.BZPlantaSom.tocar(nome); }
-    function devolverCartao() { var e = esboco(); if (e && e.devolver) { try { e.devolver(); } catch (x) { aviso(x); } } }
+    /* avisa o esboço da conversa: 'devolver' (celular: o cartão volta a ser esboço) ou 'pronta' (computador: a planta está pronta na faixa, true, ou saiu
+       dela, false; o esboço deixa "em construção", achado 18) */
+    function noEsboco(metodo, arg) { var e = esboco(); if (e && e[metodo]) { try { e[metodo](arg); } catch (x) { aviso(x); } } }
     function marcarMao() { st.maoNaCaixa = Date.now(); }
     var GESTOS_NA_CAIXA = ['wheel', 'touchstart', 'touchmove', 'pointerdown', 'keydown'];
     function ouvirCaixa() {
@@ -211,7 +213,7 @@
       else { c = null; faixa.hidden = false; if (esboco() && esboco().pontosAVista) op.esboco = esboco().pontosAVista(p.plano); }
       try { r = D.montar(c ? c.raiz : faixa, p.plano, op); } catch (e) { aviso(e); }
       if (!r || !r.ok) {
-        if (c) devolverCartao(); else faixa.hidden = true;
+        if (c) noEsboco('devolver'); else faixa.hidden = true;
         st.recusas++;
         if (r) aviso('montar recusou (' + (r.motivos || []).join(',') + ')');
         /* uma recusa pode ser só uma janela sem largura; na 2a (ou se lançou) o botão que leva a uma faixa que não nasce sai, e os gestos deixam de tentar */
@@ -219,7 +221,7 @@
         return false;
       }
       st.naTela = true; st.pendente = false; st.lugar = c ? 'cartao' : 'faixa'; st.raiz = c ? c.raiz : faixa; st.conj = st.v;
-      if (c) { ouvirCaixa(); talvezRolarAoCartao(); } else ouvirFormulario();
+      if (c) { ouvirCaixa(); talvezRolarAoCartao(); } else { ouvirFormulario(); noEsboco('pronta', true); }
       st.assin = st.versao + '|' + p.origem + '|' + (E.planta_editavel === true) + '|' + st.json; st.mostrada = p.versao;
       soltarGestos();
       return true;
@@ -398,8 +400,9 @@
       var r = D.atualizar(p.plano, opcoes(E, p, nova));
       if (r && r.ok === false) aviso('atualizar recusou (' + (r.motivos || []).join(',') + ')');
     }
-    /* esconde e tira o botão, mas lembra o que já foi julgado (planta recusada não é revalidada nem avisada de novo) */
-    function recolher() { esconder(); tirarBotao(); }
+    /* esconde e tira o botão, mas lembra o que já foi julgado (planta recusada não é revalidada nem avisada de novo); o esboço volta a "em construção"
+       (só aqui, não em esconder(): na troca v2 -> v3 a planta continua pronta) */
+    function recolher() { esconder(); tirarBotao(); noEsboco('pronta', false); }
     /* a planta saiu do estado: esquece tudo o que valia para ela */
     function sumir() {
       recolher();
