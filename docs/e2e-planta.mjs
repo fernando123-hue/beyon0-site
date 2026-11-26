@@ -196,6 +196,41 @@ for (const [larg, alt] of [[1366, 768], [1366, 650], [1280, 650], [930, 768]]) {
   await ctx.close();
 }
 
+/* ---------- a legenda do esboço, só a frase (26/11): a mais longa cabe na altura dela, no celular primeiro ---------- */
+/* todas as frases que js/planta-cresce.js produz: as fixas do arquivo, as duas da página (tratamento/serviço) e toda chegada de até 3 origens (o
+   mesmo "juntar" do módulo), medidas no cartão de verdade (#o-log) com o CSS do esboço */
+{
+  const fonte = await readFile(new URL('../js/planta-cresce.js', import.meta.url), 'utf8');
+  const { PELO } = (await import('node:module')).createRequire(import.meta.url)('../js/mapa-saber.js');
+  const juntar = (l, e) => l.length < 2 ? l.join('') : l.slice(0, -1).join(', ') + ' ' + e + ' ' + l[l.length - 1];
+  const frases = new Set([...fonte.matchAll(/frase: '([^']+)'/g)].map((m) => m[1]).concat(['A planta começa quando você me contar do seu negócio.'],
+    ['tratamento', 'serviço'].map((c) => 'Quem chega acha logo o ' + c + ' que procura, explicado em palavras simples.')));
+  const ks = Object.keys(PELO);
+  for (const a of ks) { frases.add('A pessoa chega ' + PELO[a] + '.'); for (const b of ks) for (const c of ks) if (new Set([a, b, c]).size === 3) frases.add('A pessoa chega ' + juntar([PELO[a], PELO[b], PELO[c]], 'ou') + '.'); }
+  for (const [larg, alt] of [[320, 640], [390, 844], [930, 768], [1366, 650]]) {
+    console.log('\n== a legenda do esboço, ' + larg + 'x' + alt + ' (' + frases.size + ' frases) ==');
+    const { ctx, page } = await abrir(ON, { larg, alt });
+    await page.goto(ON + '/orcamento', { waitUntil: 'load', timeout: 90000 });
+    await esperarToques(page);
+    await page.addStyleTag({ url: '/css/planta-esboco.css' });
+    await page.evaluate(() => document.fonts.ready);
+    const r = await page.evaluate(({ lista }) => {
+      const semViuva = (t) => { const s = String(t || '').replace(/\s+$/, ''), m = s.match(/(\S+)\s+(\S+)$/); if (!m || s.split(/\s+/).length < 3 || m[1].length + m[2].length > 17) return s; return s.slice(0, s.length - m[0].length) + m[1] + '\u00a0' + m[2]; };
+      const li = document.createElement('li'); li.className = 'lv-item'; li.setAttribute('data-fica', '');
+      const sec = document.createElement('section'); sec.className = 'lv'; li.appendChild(sec);
+      const p = document.createElement('p'); p.className = 'lv-leitura'; sec.appendChild(p);
+      const t = document.createElement('span'); t.className = 'lv-leitura__txt'; p.appendChild(t);
+      document.getElementById('o-log').appendChild(li);
+      let pior = { sobra: 1e9 };
+      for (const f of lista) { t.textContent = semViuva(f); const sobra = p.clientHeight - t.offsetHeight; if (sobra < pior.sobra) pior = { sobra, frase: f, alto: t.offsetHeight, caixa: p.clientHeight }; }
+      return { pior, lateral: document.documentElement.scrollWidth - innerWidth, largura: Math.round(p.getBoundingClientRect().width) };
+    }, { lista: [...frases] });
+    ok(r.pior.sobra >= 0, 'a frase mais alta cabe na legenda (' + JSON.stringify(r) + ')');
+    ok(r.lateral <= 1, 'sem rolagem lateral');
+    await ctx.close();
+  }
+}
+
 /* ---------- regressão do v2 (plano antigo gravado numa conversa) ---------- */
 console.log('\n== regressão: um plano v2 desenha com o módulo antigo ==');
 {

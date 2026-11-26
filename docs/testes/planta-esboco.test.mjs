@@ -5,6 +5,7 @@
    node --test docs/testes/planta-esboco.test.mjs */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { criarJanela, textosDe } from './planta-dom-falso.mjs';
 
@@ -132,7 +133,8 @@ test('o relógio solta as animações canceladas (não guarda para sempre o que 
 /* achado 18 (26/11): no computador o cartão do esboço (rótulo 24 + quadro 408 + legenda 74 = 506 px) não cabia na caixa da conversa, que lá ROLA e
    corta (min(60vh, 620px): 459 px numa tela de 768, 431 de conteúdo tirando o respiro de 14 + 14). Medido em 1366x768: 76 px do quadro e a legenda
    inteira fora, e o objetivo preso na fila (fora da vista da caixa) mesmo depois de o mapa ficar pronto na faixa */
-const CAIXA_768 = 459 - 28, ROTULO = 24, LEGENDA_COMPUTADOR = 64 + 10;
+/* (26/11, dono: a legenda sem o rótulo repetido; no computador ela tem 2 linhas, 42 px, mais a margem de 10) */
+const CAIXA_768 = 459 - 28, ROTULO = 24, LEGENDA_COMPUTADOR = 42 + 10;
 test('computador: o esboço compacto (a caixa que rola e corta) cabe inteiro na caixa de uma janela de 768 de alto; onde a caixa não corta, nada muda', () => {
   for (const larg of [470, 535, 620]) {
     const g = ambiente().E.geometria(larg, CAIXA_768 - ROTULO - LEGENDA_COMPUTADOR);
@@ -188,7 +190,7 @@ test('marcarPronta com uma estação no meio e o esboço fora da tela (o relógi
    cartão de 428 voltava a cortar. O passo do compacto sai da altura útil da caixa, entre 44 e 36; o chip encolhe junto, sem encostar no vizinho */
 test('computador: o passo do compacto sai da altura da caixa (44 a 36); se nem no 36 couber, fica no 36, com o objetivo ainda à vista', () => {
   const { E } = ambiente();
-  for (const [util, fora] of [[431, 98], [431, 118], [400, 98], [362, 98], [362, 118], [250, 98]]) {
+  for (const [util, fora] of [[431, 76], [431, 97], [412, 76], [400, 76], [362, 76], [362, 97], [250, 76]]) {
     const g = E.geometria(600, util - fora), cartao = g.H + fora;
     assert.ok(g.passo <= 44 && g.passo >= 36, 'passo ' + g.passo);
     assert.ok(cartao <= util || g.passo === 36, util + ' úteis, ' + fora + ' de rótulo e legenda: cartão ' + cartao + ' com passo ' + g.passo);
@@ -201,8 +203,9 @@ test('computador: o passo do compacto sai da altura da caixa (44 a 36); se nem n
     assert.ok(g.estacoes[0].texto.h >= 36, 'cabe o verbo e uma linha de título');
     if (util >= 362) assert.ok(24 + g.led.cy + g.led.r <= util, 'o objetivo (o LED) fica dentro da caixa (num notebook de 768 com o navegador)');
   }
-  assert.ok(E.geometria(600, 431 - 98).passo === 44, 'com folga, o passo de 44');
-  assert.ok(E.geometria(600, 362 - 98).passo < 44, 'na caixa de 362, o passo encolhe');
+  assert.ok(E.geometria(600, 431 - 76).passo === 44, 'com folga, o passo de 44');
+  assert.ok(E.geometria(600, 362 - 76).passo < 44, 'na caixa de 362, o passo encolhe');
+  assert.ok(E.geometria(600, 412 - 76).passo === 44, 'na caixa de 68vh numa janela de 650 (412 úteis), sem a linha do rótulo na legenda, o passo de 44');
 });
 
 test('marcarPronta interrompendo uma estação no meio: a legenda termina com a estação que estava sendo impressa (o ler() dela era um timer do relógio velho)', () => {
@@ -222,4 +225,24 @@ test('marcarPronta interrompendo uma estação no meio: a legenda termina com a 
   assert.notEqual(chegada, antes);
   assert.equal(legenda(), E.semViuva(chegada), 'a legenda é a da chegada refeita, não a do objetivo');
   esb.parar();
+});
+
+/* 26/11, dono: "OBJETIVO" aparecia duas vezes, no nó e na legenda logo abaixo. A legenda explica a estação que acabou de aparecer: repetir o nome dela
+   não acrescenta nada. Fica só a frase, e a legenda encolhe para a altura dela (3 linhas no celular, 2 no computador, de 21 px: Sora 14/1.5) */
+test('a legenda é só a frase: sem o rótulo da estação (o nó já diz qual é), e com a altura das linhas da frase', () => {
+  const { w, E, raiz } = ambiente({ largura: 346 });
+  const esb = E.criar(raiz, {});
+  assert.equal(raiz.porClasse('lv-leitura__tag').length, 0, 'sem o rótulo na legenda');
+  esb.crescer(Cresce.derivar(BRIEFING_CHEIO));
+  w.mostrar(1);
+  w.avancar(30000);
+  const esboco = Cresce.derivar(BRIEFING_CHEIO);
+  assert.equal(raiz.porClasse('lv-leitura__txt')[0].textContent, E.semViuva(esboco.objetivo.frase), 'a frase da última estação');
+  assert.equal(raiz.porClasse('lv-leitura')[0].attrs['aria-hidden'], 'true', 'segue fora do leitor de tela (o anúncio é o role=status)');
+  assert.match(raiz.porClasse('lv-sr')[0].textContent, /Nova etapa na planta: /, 'o leitor de tela recebe o mesmo anúncio de antes');
+  esb.parar();
+  const css = fs.readFileSync(new URL('../../css/planta-esboco.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/lv-leitura__tag/.test(css), 'nada do rótulo no CSS');
+  assert.match(css, /\.lv-leitura\s*\{[^}]*\bheight:\s*63px/, 'celular: 3 linhas de 21 px');
+  assert.match(css, /@media \(min-width: 960px\)\s*\{[^@]*\.lv-leitura\s*\{\s*height:\s*42px/, 'computador: 2 linhas');
 });
