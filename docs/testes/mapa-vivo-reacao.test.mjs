@@ -128,3 +128,25 @@ test('fonte e página: ES5, sem innerHTML, script antes do orcamento.js, chamada
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.orc-reacao__peca\.is-nova[^}]*animation:\s*none/);
   assert.ok(!/\.orc-reacao[^{]*\{[^}]*(blur|shadow|filter)/.test(css), 'sem blur nem sombra');
 });
+
+test('as peças chegam DEPOIS do render (o esboço as baixa na mesma hora): a fileira nasce quando elas chegam, sem esperar outro turno', () => {
+  const a = ambiente({ comPecas: false });
+  a.api.atualizar(LIGADA);
+  assert.equal(a.fila(), null, 'ainda sem as peças');
+  a.w.BZPlantaPecas = Pecas; a.w.BZMapaSaber = Saber;
+  a.w.avancar(1000);
+  assert.ok(a.fila(), 'nasceu quando as peças chegaram');
+  a.digitar('pelo instagram');
+  a.w.avancar(300);
+  assert.deepEqual(a.pecas(), ['instagram']);
+  const b = ambiente({ comPecas: false });
+  b.api.atualizar(LIGADA);
+  b.w.avancar(30000);
+  assert.equal(b.w.timers.length, 0, 'sem as peças, desiste depois de um tempo (nada fica rodando)');
+  const c = ambiente({ comPecas: false });
+  c.api.atualizar(LIGADA);
+  c.api.atualizar({ mensagens: [] });
+  c.w.BZPlantaPecas = Pecas; c.w.BZMapaSaber = Saber;
+  c.w.avancar(2000);
+  assert.equal(c.fila(), null, 'a flag sumiu antes de as peças chegarem: não nasce');
+});

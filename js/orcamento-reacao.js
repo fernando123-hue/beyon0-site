@@ -23,7 +23,7 @@
 
   function criar(win) {
     var doc = win.document;
-    var st = { carga: 'nao', fila: null, campo: null, timer: 0, ouvindo: false, falhou: false };
+    var st = { carga: 'nao', fila: null, campo: null, timer: 0, ouvindo: false, falhou: false, E: null, espera: 0, tentativas: 0 };
     var $ = function (id) { return doc.getElementById(id); };
 
     function falhar(e) {
@@ -104,11 +104,25 @@
       return true;
     }
 
+    /* as peças e os canais chegam pelo esboço, que os baixa no MESMO render da 1ª fala do Zero: com a flag ligada e sem eles ainda, confere de
+       novo a cada ESPERA_PECAS ms, até TENTATIVAS vezes (~10 s); a flag que some no meio cancela */
+    var ESPERA_PECAS = 400, TENTATIVAS = 25;
+    function esperarPecas(E) {
+      win.clearTimeout(st.espera);
+      if (st.tentativas >= TENTATIVAS) return;
+      st.tentativas++;
+      st.espera = win.setTimeout(function () { if (st.E === E) atualizar(E); }, ESPERA_PECAS);
+    }
+
     function atualizar(E) {
       if (st.falhou) return;
+      if (E !== st.E) st.tentativas = 0;   /* um render novo (outro turno) ganha as tentativas de volta; a reconferência repete o mesmo E */
+      st.E = E;
       try {
-        /* precisa da flag e das peças e dos canais que o esboço já trouxe; sem isso, a página de hoje */
-        if (!ligada(E) || !win.BZPlantaPecas || !win.BZMapaSaber) { tirar(); return; }
+        if (!ligada(E)) { win.clearTimeout(st.espera); st.tentativas = 0; tirar(); return; }
+        /* precisa das peças e dos canais que o esboço traz; sem eles (ainda), a página de hoje */
+        if (!win.BZPlantaPecas || !win.BZMapaSaber) { tirar(); esperarPecas(E); return; }
+        win.clearTimeout(st.espera);
         if (!st.fila && !montar()) return;
         carregarLeitor();
         if (!st.campo.value.trim()) { while (st.fila.firstChild) st.fila.removeChild(st.fila.firstChild); }
