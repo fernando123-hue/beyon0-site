@@ -14,13 +14,13 @@ const PROPOSTA = { valor_total: 3000, sinal_percentual: 40, prazo_dias: 8 };
 
 function elemento() { return { textContent: '', hidden: true }; }
 function docDeMentira() {
-  const por = { 'o-esc-numero': elemento(), 'o-esc-total': elemento(), 'o-esc-entrada': elemento(), 'o-esc-entrada-caixa': elemento(), 'o-esc-prazo': elemento(), 'o-esc-prazo-caixa': elemento() };
+  const por = { 'o-esc-numero': elemento(), 'o-esc-total': elemento(), 'o-esc-entrada': elemento(), 'o-esc-entrada-caixa': elemento(), 'o-esc-restante': elemento(), 'o-esc-restante-caixa': elemento(), 'o-esc-prazo': elemento(), 'o-esc-prazo-caixa': elemento() };
   return { por, getElementById: id => por[id] || null };
 }
 
 test('fatos: o total, a entrada (conta do banco) e o prazo saem da proposta', () => {
   const f = R.fatos(PROPOSTA, Pix, dinheiro);
-  assert.deepEqual(f, { total: 'R$ 3000', entrada: 'R$ 1200', pct: 40, prazo: '8 dias úteis' });
+  assert.deepEqual(f, { total: 'R$ 3000', entrada: 'R$ 1200', restante: 'R$ 1800', pct: 40, prazo: '8 dias úteis' });
 });
 
 test('fatos: um dia útil no singular; prazo ausente ou inválido não inventa número', () => {
@@ -31,6 +31,7 @@ test('fatos: um dia útil no singular; prazo ausente ou inválido não inventa n
 test('fatos: sem percentual na proposta não há entrada (a tela não chuta número); sem total não há cartão', () => {
   const f = R.fatos({ valor_total: 3000, prazo_dias: 8 }, Pix, dinheiro);
   assert.equal(f.entrada, '');
+  assert.equal(f.restante, '');
   assert.equal(f.pct, null);
   assert.equal(R.fatos({ prazo_dias: 8, sinal_percentual: 40 }, Pix, dinheiro), null);
   assert.equal(R.fatos({ valor_total: 0 }, Pix, dinheiro), null);
@@ -52,11 +53,14 @@ test('pintar: mostra o cartão com os três fatos por textContent e esconde o qu
   assert.equal(d.por['o-esc-numero'].hidden, false);
   assert.equal(d.por['o-esc-total'].textContent, 'R$ 3000');
   assert.equal(d.por['o-esc-entrada'].textContent, 'R$ 1200');
+  assert.equal(d.por['o-esc-restante'].textContent, 'R$ 1800', 'o restante no cartão (lapidação 26/11)');
+  assert.equal(d.por['o-esc-restante-caixa'].hidden, false);
   assert.equal(d.por['o-esc-prazo'].textContent, '8 dias úteis');
   assert.equal(d.por['o-esc-entrada-caixa'].hidden, false);
   assert.equal(d.por['o-esc-prazo-caixa'].hidden, false);
   R.pintar(d, R.fatos({ valor_total: 3000, prazo_dias: 0 }, Pix, dinheiro));
   assert.equal(d.por['o-esc-entrada-caixa'].hidden, true, 'sem entrada, a caixa some');
+  assert.equal(d.por['o-esc-restante-caixa'].hidden, true, 'sem entrada, sem restante');
   assert.equal(d.por['o-esc-prazo-caixa'].hidden, true, 'sem prazo, a caixa some');
   R.pintar(d, null);
   assert.equal(d.por['o-esc-numero'].hidden, true, 'sem fatos, o cartão esconde e zera');

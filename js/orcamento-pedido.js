@@ -14,7 +14,8 @@
   if (!R || !T || !T.kit || !API || !$('o-log')) return;
   var K = T.kit;
 
-  var REDES = [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['tiktok', 'TikTok'], ['youtube', 'YouTube'], ['linkedin', 'LinkedIn']];
+  var REDES = [['instagram', 'Instagram', '@seu_perfil'], ['facebook', 'Facebook', 'facebook.com/sua_pagina'], ['tiktok', 'TikTok', '@seu_perfil'],
+    ['youtube', 'YouTube', '@seu_canal'], ['linkedin', 'LinkedIn', 'linkedin.com/company/sua_empresa']];
   var OPCIONAIS = [
     { chave: 'nome', toque: 'Como quer ser chamado', pergunta: 'Como você quer que a gente te chame?', max: 60, mostra: 'Como quer ser chamado' },
     { chave: 'admira', toque: 'Um site que eu admiro', pergunta: 'Qual site você admira? Pode ser o endereço ou só o nome.', max: 60, mostra: 'Site que admira' },
@@ -166,6 +167,16 @@
       K.bolha(o.toque);
       if (v === 'redes') passoRedes(); else passoOpcional(o);
     }, { falaId: K.ultimaFala() });
+    /* (lapidação 26/11, achado 19) a saída não é mais uma opção igual às outras: vira o botão principal, numa linha própria */
+    var sair = [].filter.call(grupo.querySelectorAll('button'), function (b) { return b.getAttribute('data-valor') === 'seguir'; })[0];
+    if (sair) {
+      var ops = sair.parentNode, tinhaFoco = doc.activeElement === sair;
+      sair.className = 'btn btn--primary btn--sm orc-toque__seguir';
+      grupo.appendChild(sair);   /* (sai do grupo das opções, fica no fim do passo) */
+      /* (revisão do #254) com todos os opcionais já contados, o grupo ficava vazio e o foco se perdia na mudança */
+      if (ops && ops !== grupo && !ops.children.length && typeof ops.remove === 'function') ops.remove();
+      if (tinhaFoco) sair.focus();
+    }
     abrir(pergunta, grupo);
   }
   function preenchido(chave) { return chave === 'redes' ? Object.keys(p.d.redes).length > 0 : !!p.d[chave]; }
@@ -184,11 +195,12 @@
     REDES.forEach(function (r) {
       var rotulo = K.el('label', 'orc-toque__rede'), nome = K.el('span', 'orc-toque__titulo', r[1]), c = K.el('input', 'orc-toque__campo');
       c.type = 'text'; c.maxLength = 120; c.autocomplete = 'off'; c.value = p.d.redes[r[0]] || '';
+      c.placeholder = r[2];   /* (lapidação 26/11, achado 19: um exemplo do que escrever) */
       rotulo.appendChild(nome); rotulo.appendChild(c);
       caixas[r[0]] = c;
       li.appendChild(rotulo);
     });
-    var autoriza = K.el('button', 'orc-op orc-op--toque', 'Autorizo a Beyon Zero a olhar essas redes para preparar os modelos');
+    var autoriza = K.el('button', 'orc-op orc-op--toque orc-toque__autoriza','Autorizo a Beyon Zero a olhar essas redes para preparar os modelos');
     autoriza.type = 'button';
     autoriza.setAttribute('aria-pressed', String(!!p.d.autoriza_redes));
     autoriza.addEventListener('click', function () {
@@ -234,7 +246,9 @@
       itens.push([o.chave, o.mostra, o.chave === 'redes' ? REDES.filter(function (r) { return p.d.redes[r[0]]; }).map(function (r) { return r[1]; }).join(', ') : p.d[o.chave]]);
     });
     itens.forEach(function (it) {
-      var item = K.el('li', 'orc-aceite__item'), texto = K.el('span', '', it[1] + ': ' + it[2]), corrigir = K.el('button', 'orc-toque__naosei', 'Corrigir');
+      var item = K.el('li', 'orc-aceite__item'), texto = K.el('span', '', it[1] + ': '), corrigir = K.el('button', 'orc-toque__naosei', 'Corrigir');
+      /* (lapidação 26/11) o número do WhatsApp não se parte no meio ("(21) / 91439-8532" a 320 px); o texto lido é o mesmo */
+      texto.appendChild(K.el('span', it[0] === 'telefone' ? 'orc-sem-quebra' : '', it[2]));
       corrigir.type = 'button';
       corrigir.setAttribute('aria-label', 'Corrigir ' + it[1].toLowerCase());
       corrigir.addEventListener('click', function () { if (li.hasAttribute('data-feito') || p.enviando) return; K.fechar(li, null); p.corrigindo = true; corrigirCampo(it[0]); });

@@ -230,6 +230,12 @@
     fala(s.consultor ? FALAS.dor : FALAS.dorSem);
     opcoesDor([]);
   }
+  /* (lapidação 26/11, achado 24) os toques viram uma frase de gente: "Pelo Instagram, me chamam no WhatsApp e respondo preço e horário na mão"
+     (antes: "Pelo Instagram; Me chamam no WhatsApp", com ponto e vírgula e maiúscula no meio). O briefing segue pelos códigos, não por esta frase */
+  function frase(rotulos) {
+    var r = rotulos.map(function (t, i) { return i ? t.charAt(0).toLowerCase() + t.slice(1) : t; });
+    return r.length < 2 ? r.join('') : r.slice(0, -1).join(', ') + ' e ' + r[r.length - 1];
+  }
   function opcoesDor(marcados) {
     var ramo = s.respostas.ramo && R.SUGESTOES_POR_RAMO[s.respostas.ramo] ? s.respostas.ramo : 'outro';
     var itens = R.SUGESTOES_POR_RAMO[ramo].map(function (c) { return { valor: c, rotulo: R.SUGESTOES[c].rotulo }; });
@@ -240,11 +246,11 @@
         var c = window.BZOrcConversa;
         if (!c || typeof c.enviar !== 'function') return;
         /* (o envio não entrou: a conversa estava ocupada ou a falha não gravou. As sugestões voltam, com o que ela tinha marcado) */
-        Promise.resolve(c.enviar(rotulos.join('; '))).then(function (entrou) { if (entrou === false && !s.entregue) opcoesDor(s.situacao); }, function () { if (!s.entregue) opcoesDor(s.situacao); });
+        Promise.resolve(c.enviar(frase(rotulos))).then(function (entrou) { if (entrou === false && !s.entregue) opcoesDor(s.situacao); }, function () { if (!s.entregue) opcoesDor(s.situacao); });
         focarSaida();
         return;
       }
-      bolha(rotulos && rotulos.length ? rotulos.join(' · ') : NAO_SEI);
+      bolha(rotulos && rotulos.length ? frase(rotulos) : NAO_SEI);
       resumoSemConsultor();
     }, { multi: true, naoSei: !consultor, focar: !consultor, semFoco: consultor, falaId: ultimaFala, marcados: marcados, grupo: 'dor' });
     /* com o consultor, escrever é o caminho principal da dor: o foco (do teclado, do grupo que saiu de cena ou do mouse) vai à caixa de texto */

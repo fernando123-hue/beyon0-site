@@ -43,6 +43,19 @@
   function marcarInvalido(id) {
     CAMPOS_FORM.forEach(function (c) { if (c === id) { $(c).setAttribute('aria-invalid', 'true'); $(c).setAttribute('aria-describedby', 'o-pag-erro'); } else desmarcar(c); });
   }
+  /* (lapidação 26/11, achado 17) o erro da conferência local aparece logo embaixo do campo que errou ("Informe o nome." saía abaixo do CPF,
+     três campos depois); os erros do servidor e do cartão voltam ao lugar de sempre, antes do botão. É o MESMO elemento (#o-pag-erro): o
+     aria-describedby e o role="alert" seguem valendo */
+  var casaDoErro = null;
+  function erroJunto(idCampo) {
+    var erro = $('o-pag-erro'), campo = idCampo ? $(idCampo) : null;
+    if (!casaDoErro) casaDoErro = { pai: erro.parentNode, depois: erro.nextSibling };
+    /* (Nome e Sobrenome lado a lado, a partir de 420 px: o erro vai para baixo do par, senão o campo dele subia e os dois desalinhavam) */
+    var par = campo && campo.parentNode && campo.parentNode.parentNode;
+    if (par && par.classList && par.classList.contains('pag-par') && window.matchMedia && window.matchMedia('(min-width: 420px)').matches) campo = par;
+    if (campo && campo.parentNode) campo.parentNode.insertBefore(erro, campo.nextSibling);
+    else if (erro.parentNode !== casaDoErro.pai || erro.nextSibling !== casaDoErro.depois) casaDoErro.pai.insertBefore(erro, casaDoErro.depois);
+  }
   CAMPOS_FORM.forEach(function (c) { $(c).addEventListener('input', function () { if ($(c).getAttribute('aria-invalid') === 'true') desmarcar(c); }); });
   /* (dedo: "toque e segure"; teclado: Ctrl+C) */
   var toque = function () { return !!(window.matchMedia && matchMedia('(pointer: coarse)').matches); };
@@ -85,6 +98,7 @@
       mostrar('o-pag-cartao', m === 'cartao');
       $('o-pag-enviar').textContent = m === 'pix' ? 'Gerar o Pix de ' + o.dinheiro(valor) : 'Pagar ' + o.dinheiro(valor) + ' no cartão';
       $('o-pag-erro').textContent = '';
+      erroJunto(null);
       marcarInvalido(null);
       if (m === 'cartao') prepararCartao();
     }
@@ -168,7 +182,7 @@
           ((opcoes[0] && opcoes[0].payer_costs) || []).filter(function (c) { return c.installments <= 12; }).forEach(function (c) {
             var op = el('option', '', c.recommended_message); op.value = String(c.installments); sel.appendChild(op);
           });
-        } catch (e) { $('o-pag-erro').textContent = ERRO_CARTAO; }
+        } catch (e) { erroJunto(null); $('o-pag-erro').textContent = ERRO_CARTAO; }
       });
     }
     function parcelasLocais() {
@@ -205,8 +219,9 @@
       ev.preventDefault();
       if (enviando) return;
       var erro = $('o-pag-erro'), pagador = pagadorDoFormulario(), ruim = validarLocal(pagador);
-      if (ruim) { erro.textContent = ruim[1]; marcarInvalido(ruim[0]); $(ruim[0]).focus(); return; }
+      if (ruim) { erro.textContent = ruim[1]; erroJunto(ruim[0]); marcarInvalido(ruim[0]); $(ruim[0]).focus(); return; }
       erro.textContent = '';
+      erroJunto(null);
       marcarInvalido(null);
       /* (aria-disabled, não disabled: o botão desligado com foco jogava o foco no body, A3; o "enviando" já protege) */
       enviando = true; $('o-pag-enviar').setAttribute('aria-disabled', 'true'); $('o-pag-form').setAttribute('aria-busy', 'true');

@@ -25,9 +25,12 @@
     if (!pr || typeof pr.valor_total !== 'number' || !isFinite(pr.valor_total) || pr.valor_total <= 0) return null;
     var pct = pix && pix.percentuais ? pix.percentuais(pr) : null;
     var entrada = pix && pix.valorDaEntrada ? pix.valorDaEntrada(pr) : null;
+    /* (lapidação 26/11, achado 15) o restante também no cartão: total menos a entrada, em centavos inteiros (a mesma conta do pagamento) */
+    var restante = entrada == null ? null : Math.round(Math.round(pr.valor_total * 100) - Math.round(entrada * 100)) / 100;
     return {
       total: dinheiro(pr.valor_total),
       entrada: entrada == null ? '' : dinheiro(entrada),
+      restante: restante == null || restante <= 0 ? '' : dinheiro(restante),
       pct: pct ? pct.entrada : null,
       prazo: diasUteis(pr.prazo_dias)
     };
@@ -42,8 +45,10 @@
     mostrar(doc, 'o-esc-numero', !!f);
     texto(doc, 'o-esc-total', f ? f.total : '');
     texto(doc, 'o-esc-entrada', f ? f.entrada : '');
+    texto(doc, 'o-esc-restante', f ? f.restante : '');
     texto(doc, 'o-esc-prazo', f ? f.prazo : '');
     mostrar(doc, 'o-esc-entrada-caixa', !!(f && f.entrada));
+    mostrar(doc, 'o-esc-restante-caixa', !!(f && f.restante));
     mostrar(doc, 'o-esc-prazo-caixa', !!(f && f.prazo));
   }
 

@@ -42,6 +42,19 @@ test('pendentes: os toques (e, no passo da dor, responde dor e as sugestões) se
   assert.equal(p.abertos().length, 0, 'as perguntas fixas que faltavam saem de cena');
 });
 
+test('a dor com vários toques vai como uma frase de gente: vírgula, "e" no fim e sem maiúscula no meio (lapidação 26/11)', async () => {
+  const p = montar();
+  p.T.iniciar({ consultor: true });
+  await ate(p, ...ATE_DOR);
+  p.tocar('Pelo Instagram');
+  p.tocar('Me chamam no WhatsApp');
+  p.tocar('Respondo preço e horário na mão');
+  p.tocar('Pronto');
+  await tique();
+  assert.deepEqual(p.enviados, ['Pelo Instagram, me chamam no WhatsApp e respondo preço e horário na mão']);
+  assert.deepEqual(puro(p.T.pendentes().situacao), ['instagram', 'whatsapp', 'responde_na_mao'], 'o briefing segue pelos códigos');
+});
+
 test('"Pronto" vazio: focável e lido (aria-disabled), diz o que falta e não fecha o grupo', async () => {
   const p = montar();
   p.T.iniciar();

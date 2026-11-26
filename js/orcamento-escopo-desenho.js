@@ -31,6 +31,7 @@
   /* o círculo inteiro a partir do topo, no sentido horário (o progresso) */
   function volta(r) { return 'M' + C + ' ' + (C - r) + 'A' + r + ' ' + r + ' 0 1 1 ' + (C - 0.01) + ' ' + (C - r) + 'Z'; }
   /* quanto do aro o marco desenha: até o nó do marco atual; o anel fecha só na proposta confirmada */
+  var MARCOS_TOTAL = 5;   /* (Briefing, Análise, Estimativa, Proposta, Confirmada: js/orcamento-escopo-estado.js MARCOS) */
   function fracao(marco, ouro) { return ouro ? 1 : Math.max(0, Math.min(4, marco)) * PASSO_MARCO / 360; }
 
   function el(doc, nome, at, pai) {
@@ -102,12 +103,16 @@
     el(doc, 'circle', { cx: 20, cy: 20, r: 17, 'class': 'rde-anel__trilho' }, svg);
     /* (círculo girado -90°: começa no topo e anda no sentido horário, como o aro do radar) */
     var p = el(doc, 'circle', { cx: 20, cy: 20, r: 17, transform: 'rotate(-90 20 20)', 'class': 'rde-anel__progresso', pathLength: 1, 'stroke-dasharray': '1 1', 'stroke-dashoffset': 1 }, svg);
-    return { svg: svg, progresso: p };
+    /* (lapidação 26/11, achado 30) a etapa escrita no miolo ("3/5"): o arco curto sozinho parecia um "carregando" */
+    var num = el(doc, 'text', { x: 20, y: 20, 'class': 'rde-anel__num', 'text-anchor': 'middle', 'dominant-baseline': 'central' }, svg);
+    return { svg: svg, progresso: p, num: num };
   }
   function aplicarAnel(anel, st) {
     var fr = fracao(st.marco, st.ouro);
     anel.progresso.setAttribute('stroke-dashoffset', f((1 - fr) * 1000) / 1000);
     anel.svg.setAttribute('class', 'rde-anel' + (st.ouro ? ' is-ouro' : '') + (fr > 0 ? '' : ' is-vazio'));
+    /* (revisão do #254) o 5/5 só com o ouro: em confirmação o arco ainda está aberto */
+    if (anel.num) anel.num.textContent = (st.ouro ? MARCOS_TOTAL : Math.max(0, Math.min(MARCOS_TOTAL - 2, st.marco || 0)) + 1) + '/' + MARCOS_TOTAL;
   }
 
   return { montar: montar, aplicar: aplicar, montarAnel: montarAnel, aplicarAnel: aplicarAnel, fracao: fracao, ponto: ponto, arco: arco, DIMS: DIMS, R: { C: C, EXT: R_EXT, DIM: R_DIM, MIOLO: R_MIOLO } };

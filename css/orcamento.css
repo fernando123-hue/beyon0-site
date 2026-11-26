@@ -251,7 +251,9 @@ html.orc-retomando .orc-lead, html.orc-retomando .orc-etapas, html.orc-retomando
 .orc-aviso:focus { outline: none; }
 .orc-aviso:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 
-.orc-escopo { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: var(--fs-s); line-height: 1.7; color: var(--t1); background: var(--s1); border: 1px solid var(--line); border-radius: var(--raio); padding: 1rem; max-height: 60vh; overflow-y: auto; margin-bottom: 1rem; }
+/* (lapidação 26/11, achado 15) o texto que a pessoa confirma em Sora, no tamanho de leitura e com linha de até ~70 caracteres (em mono miúdo
+   parecia letra miúda de contrato); o texto em si é o do servidor, inteiro */
+.orc-escopo { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--sans); font-size: var(--fs-b); line-height: 1.65; max-width: 72ch; color: var(--t1); background: var(--s1); border: 1px solid var(--line); border-radius: var(--raio); padding: 1rem; max-height: 60vh; overflow-y: auto; margin-bottom: 1rem; }
 .orc-escopo:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 /* (19/11) no celular o escopo rola com a página: a caixa com rolagem própria cortava uma linha ao meio e escondia que havia mais texto */
 @media (max-width: 599px) { .orc-escopo { max-height: none; overflow-y: visible; } }
@@ -387,10 +389,12 @@ html.menos-movimento .recibo.is-chegando, html.menos-movimento .recibo.is-chegan
 .visor__fechar { order: 2; flex: none; width: 44px; height: 44px; margin-left: auto; border: 1px solid var(--stroke); border-radius: 50%; background: transparent; color: var(--t1); font-size: 1.4rem; line-height: 1; cursor: pointer; }
 .visor__fechar:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 .visor__aparelho { order: 3; display: flex; gap: .35rem; flex-basis: 100%; }
-.visor .chip { min-height: 40px; padding: .3rem .8rem; }
-.visor__abas .chip { min-width: 40px; }
+.visor .chip { min-height: 44px; padding: .3rem .8rem; }
+.visor__abas .chip { min-width: 44px; }   /* (lapidação 26/11, achado 25: alvo de toque de 44 px) */
 .visor__rodape { display: flex; padding: .5rem var(--pad) calc(.5rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
 .visor__rodape .btn { flex: 1 1 auto; }
+/* (lapidação 26/11, achado 26) o "Escolher este modelo" do visor com a mesma roupa do "Escolher este" dos cartões: Sora, frase normal, pílula */
+.visor__rodape .btn { border-radius: 999px; font-family: var(--sans); font-size: 1rem; font-weight: 600; letter-spacing: normal; text-transform: none; }
 .visor__palco { flex: 1; overflow: auto; padding: 0; background: var(--s1); }
 .visor__palco:focus-visible { outline: 2px solid var(--ac); outline-offset: -2px; }
 .visor__janela { position: relative; margin: 0 auto; overflow: hidden; }
@@ -454,6 +458,11 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .pag-par { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
 .pag-par > div { min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: .4rem; }   /* (19/11) o rótulo que quebra em 2 linhas ("Sobrenome (obrigatório)" a 390 px) não desalinha os campos: eles assentam embaixo */
 .pag-par label, .pag-par .pag-rotulo { margin-top: .5rem; }
+/* (lapidação 26/11, achado 17) Nome e Sobrenome empilhados no celular estreito (o rótulo do sobrenome quebrava em 2 linhas); o campo focado
+   para abaixo do menu fixo com o rótulo à vista; o erro da conferência aparece logo embaixo do campo (js/orcamento-pagamento.js) */
+@media (max-width: 419px) { .pag-par:has(#o-pag-nome) { grid-template-columns: minmax(0, 1fr); } }
+.pag-grupo input { scroll-margin-top: calc(var(--nav-h, 64px) + 3.5rem); }
+.pag-grupo .orc-erro { margin: .2rem 0 0; }
 .pag select { width: 100%; min-height: 52px; padding: .7rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); color: var(--t1); font: inherit; font-size: 1rem; }
 .pag select:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; border-color: var(--ac); }
 /* o contêiner do iframe do Mercado Pago: a borda e a altura são nossas, o campo é deles */
@@ -640,9 +649,15 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .orc-toque__erro-campo { margin: 0; font-size: var(--fs-b); color: rgb(var(--aviso-rgb)); }
 .orc-toque__erro-campo:empty { display: none; }
 .orc-toque__rede { display: grid; gap: .3rem; font-size: var(--fs-b); }
+/* (lapidação 26/11, achado 19) os campos das redes na largura cheia; a saída "Não, pode seguir" numa linha própria, como botão principal */
+.orc-toque__rede { justify-self: stretch; }   /* (o justify-items: start de .orc-log__lista > .orc-toque vencia o stretch das redes) */
+.orc-toque__rede .orc-toque__campo { width: 100%; }
+.orc-toque__campo::placeholder { color: var(--t3); opacity: 1; }
+.orc-toque > .orc-toque__seguir { justify-self: start; margin-top: .4rem; }
 .orc-log__lista > .orc-toque--aceite { justify-items: stretch; gap: .8rem; padding: .9rem; border: 1px solid var(--line-hi); border-radius: var(--raio); }
 .orc-aceite__resumo { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
-.orc-aceite__item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .2rem .8rem; overflow-wrap: anywhere; }
+/* (lapidação 26/11, achado 21) grade fixa: o texto à esquerda, o "Corrigir" sempre no mesmo lugar à direita */
+.orc-aceite__item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: .2rem .8rem; overflow-wrap: anywhere; }
 .orc-aceite__texto { margin: 0; font-size: var(--fs-b); line-height: 1.5; color: var(--t2); }
 .orc-aceite__link { justify-self: start; font-size: var(--fs-b); color: var(--t1); text-decoration: underline; text-underline-offset: 4px; }
 .orc-aceite__concordo { justify-self: start; font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
