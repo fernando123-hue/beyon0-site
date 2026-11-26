@@ -35,7 +35,7 @@
 
   function criar(win) {
     var doc = win.document;
-    var st = { carga: 'nao', elementos: {}, E: null, item: null, esb: null, largura: 0, timer: 0, ouveResize: false, nasceuPronta: null, consagrado: false, pronta: false };
+    var st = { carga: 'nao', elementos: {}, E: null, item: null, esb: null, largura: 0, timer: 0, ouveResize: false, nasceuPronta: null, consagrado: false, pronta: false, altura: 0 };
     var $ = function (id) { return doc.getElementById(id); };
     function aviso(e) {
       try { if (win.console && win.console.warn) win.console.warn('[beyon] planta: ' + (e && e.message ? e.message : e)); } catch (x) { /* sem console */ }
@@ -72,14 +72,20 @@
 
     /* ---- o cartão ---- */
     function largura() { return st.item ? st.item.clientWidth : 0; }
+    /* a caixa que rola e corta (computador): a altura útil MÁXIMA dela (o max-height menos borda e respiro; a altura de agora cresce com a conversa),
+       para o esboço compacto caber inteiro (achado 18). Onde a caixa não corta (celular, tablet): 0, a geometria de sempre */
+    function alturaCaixa() {
+      var caixa = $('o-log-caixa'), cs = caixa && win.getComputedStyle ? win.getComputedStyle(caixa) : null;
+      if (!cs || cs.overflowY === 'visible') return 0;
+      var n = function (k) { return parseFloat(cs[k]) || 0; }, h = n('maxHeight') - n('borderTopWidth') - n('borderBottomWidth') - n('paddingTop') - n('paddingBottom');
+      return h > 0 ? h : 1e4;
+    }
     function novoEsboco(inicial) {
-      var caixa = $('o-log-caixa'), op = { rolagem: caixa, som: function (nome) { if (win.BZPlantaSom) win.BZPlantaSom.tocar(nome); } };
-      /* a caixa que rola e corta (computador): o esboço compacto, que cabe inteiro nela (achado 18) */
-      op.compacto = !!caixa && !!win.getComputedStyle && win.getComputedStyle(caixa).overflowY !== 'visible';
+      var op = { rolagem: $('o-log-caixa'), compacto: alturaCaixa(), som: function (nome) { if (win.BZPlantaSom) win.BZPlantaSom.tocar(nome); } };
       if (inicial) op.inicial = inicial;
       st.esb = win.BZPlantaEsboco.criar(st.item, op);
       if (st.pronta) st.esb.marcarPronta(true);   /* (refeito numa largura nova: a planta continua pronta na faixa) */
-      st.largura = largura();
+      st.largura = largura(); st.altura = op.compacto;
     }
     function colocar() {
       var log = $('o-log');
@@ -111,7 +117,7 @@
       st.esb = null;
       if (st.item && st.item.parentNode) st.item.parentNode.removeChild(st.item);
       if ($('o-log-caixa')) $('o-log-caixa').classList.remove('com-planta');
-      st.item = null; st.largura = 0; st.consagrado = false;   /* (st.pronta fica: quem a desmarca é a faixa, quando a planta sai do estado) */
+      st.item = null; st.largura = 0; st.altura = 0; st.consagrado = false;   /* (st.pronta fica: quem a desmarca é a faixa, quando a planta sai do estado) */
     }
 
     /* ---- a consagração (js/orcamento-planta.js monta o desenho final do módulo real) ---- */
@@ -182,7 +188,8 @@
         try {
           if (!st.esb || !st.item) return;
           var l = largura();
-          if (l <= 0 || Math.abs(l - st.largura) <= TOLERANCIA_LARGURA) return;
+          /* (no computador a altura da janela também muda a caixa, e com ela o passo do esboço) */
+          if (l <= 0 || (Math.abs(l - st.largura) <= TOLERANCIA_LARGURA && Math.round(alturaCaixa()) === Math.round(st.altura))) return;
           var feito = st.esb.interno.esboco;
           st.esb.parar();
           while (st.item.firstChild) st.item.removeChild(st.item.firstChild);

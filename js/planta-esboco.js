@@ -24,22 +24,29 @@
 
   /* a geometria do esboço (px). RX = o trilho; C = o chip; o passo entre estações (p), o alto do 1º chip (y0) e o da caixa de texto (th) vêm da largura */
   var RX = 26, NY = 26, NR = 20, C = 36, LR = 20, TX = RX + C / 2 + 14, CHAMFRO = 7;
-  /* COMPACTO (opcoes.compacto: a caixa da conversa que ROLA e corta, a do computador, >= 900 px): lá o título cabe numa linha (o que passar dela
-     termina em reticências, css/planta-esboco.css) e o passo encolhe, para o cartão (rótulo + quadro + legenda, 428 px) caber INTEIRO na caixa
-     (min(60vh, 620px): 459 px numa janela de 768 de alto). Com o passo do celular ele tinha 506 px: o objetivo e a legenda ficavam fora e o objetivo,
-     fora da vista, esperava na fila para sempre (achado 18, 26/11). Onde a caixa não corta (celular, tablet), a geometria é a de sempre */
-  var NORMAL = { y0: 66, p: 58, th: 52 }, COMPACTO = { y0: 58, p: 44, th: 40 };
+  /* COMPACTO (opcoes.compacto = a altura útil da caixa da conversa que ROLA e corta, a do computador, >= 900 px): lá o título cabe numa linha (o que
+     passar dela termina em reticências, css/planta-esboco.css) e o passo é o MAIOR entre 44 e 36 com que o cartão (rótulo + quadro + legenda) cabe
+     INTEIRO na caixa (min(60vh, 620px): 431 px úteis numa janela de 768 de alto, ~362 num notebook de 768 com o navegador). Abaixo de 42 o chip
+     encolhe junto (6 px de vão). Se nem no passo 36 couber, fica no 36 (o marcarPronta garante o fim). Com o passo do celular o cartão tinha 506 px:
+     o objetivo e a legenda ficavam fora e o objetivo, fora da vista, esperava na fila para sempre (achado 18, 26/11). Onde a caixa não corta
+     (celular, tablet), a geometria é a de sempre */
+  var NORMAL = { y0: 66, p: 58, th: 52, c: C }, PASSO_MAX = 44, PASSO_MIN = 36;
+  function compacto(p) { var c = Math.min(C, p - 6); return { y0: 54, p: p, th: Math.min(40, p), c: c }; }
   var T = { luz: 350, chip: 300, texto: 250, entre: 160, repouso: 6000 };
 
   var r1 = function (n) { return Math.round(n * 10) / 10; };
   var chipD = function (x, y, s) { return 'M' + (x + CHAMFRO) + ' ' + y + 'H' + (x + s) + 'V' + (y + s) + 'H' + x + 'V' + (y + CHAMFRO) + 'Z'; };
 
-  function geometria(W, compacto) {
-    var larg = Math.max(220, W), m = compacto ? COMPACTO : NORMAL, estacoes = [], i;
-    var cyDe = function (k) { return m.y0 + k * m.p + C / 2; }, ledY = cyDe(4) + m.p;
+  /* altura: o quadro que cabe (compacto) ou nada (a geometria de sempre) */
+  function geometria(W, altura) {
+    var larg = Math.max(220, W), m = NORMAL, estacoes = [], i, p;
+    if (altura > 0) for (p = PASSO_MAX; p >= PASSO_MIN; p--) { m = compacto(p); if (medir(m).H <= altura) break; }
+    var g = medir(m);
+    var cyDe = function (k) { return m.y0 + k * m.p + m.c / 2; };
     for (i = 0; i < 5; i++) estacoes.push({ cx: RX, cy: cyDe(i), texto: { x: TX, y: cyDe(i) - m.th / 2, w: larg - TX - 8, h: m.th } });
-    return { W: larg, H: ledY + LR + 14, nucleo: { cx: RX, cy: NY, r: NR }, estacoes: estacoes, led: { cx: RX, cy: ledY, r: LR, texto: { x: TX, y: ledY - m.th / 2, w: larg - TX - 8, h: m.th } } };
+    return { W: larg, H: g.H, passo: m.p, chip: m.c, nucleo: { cx: RX, cy: NY, r: NR }, estacoes: estacoes, led: { cx: RX, cy: g.ledY, r: LR, texto: { x: TX, y: g.ledY - m.th / 2, w: larg - TX - 8, h: m.th } } };
   }
+  function medir(m) { var ledY = m.y0 + 4 * m.p + m.c / 2 + m.p; return { ledY: ledY, H: ledY + LR + 14 }; }
   var ALTURA = geometria(0).H;   /* (a do celular) */
 
   function reduzido() {
@@ -71,21 +78,25 @@
 
   function criar(raiz, opcoes) {
     var op = opcoes || {}, som = op.som || function () {}, inst;
-    var W = Math.round(op.largura || raiz.clientWidth || 320), g = geometria(W, op.compacto);
-    var cy = function (i) { return g.estacoes[i].cy; }, LEDY = g.led.cy;
+    var W = Math.round(op.largura || raiz.clientWidth || 320);
 
     /* ---------- o cartão ---------- */
     var card = H('section', op.compacto ? 'lv lv--compacto' : 'lv'), topo = H('p', 'lv-kicker', null, card);
     card.setAttribute('aria-label', 'A planta do seu site');
     H('span', '', 'Planta', topo); var estadoTopo = H('b', '', ' · nasce com a conversa', topo);
     var quadro = H('div', 'lv-quadro', null, card);
-    quadro.style.height = g.H + 'px';
-    var svg = S('svg', { viewBox: '0 0 ' + g.W + ' ' + g.H, width: g.W, height: g.H, 'aria-hidden': 'true', focusable: 'false' }, quadro, 'lv-svg');
-    var lista = H('ol', 'lv-lista', null, quadro); lista.setAttribute('aria-label', 'A planta até aqui');
     var leitura = H('p', 'lv-leitura', null, card); leitura.setAttribute('aria-hidden', 'true');
     var leTag = H('b', 'lv-leitura__tag', 'Zero', leitura), leTxt = H('span', 'lv-leitura__txt', 'A planta começa quando você me contar do seu negócio.', leitura);
     var leVarre = H('span', 'lv-varre', null, leitura);
     var status = H('p', 'lv-sr', '', card); status.setAttribute('role', 'status');
+    /* compacto: o quadro fica com o que sobra da caixa depois do rótulo e da legenda, medidos já na página (a legenda tem 84 px abaixo de 960 e 64 acima) */
+    raiz.appendChild(card);
+    var fora = op.compacto > 0 ? card.offsetHeight - quadro.offsetHeight : 0;   /* (só mede no compacto: no celular não força o layout) */
+    var g = geometria(W, op.compacto > 0 ? Math.max(1, op.compacto - (fora > 0 ? fora : 98)) : 0);
+    var cy = function (i) { return g.estacoes[i].cy; }, LEDY = g.led.cy, C = g.chip;
+    quadro.style.height = g.H + 'px';
+    var svg = S('svg', { viewBox: '0 0 ' + g.W + ' ' + g.H, width: g.W, height: g.H, 'aria-hidden': 'true', focusable: 'false' }, quadro, 'lv-svg');
+    var lista = H('ol', 'lv-lista', null, quadro); lista.setAttribute('aria-label', 'A planta até aqui');
 
     var grade = '', x, y;
     for (x = 24; x < g.W; x += 24) grade += 'M' + x + ' 0V' + g.H;
@@ -120,7 +131,7 @@
       var e = g.estacoes[k], gg = S('g', { transform: 'translate(' + (RX - C / 2) + ' ' + (e.cy - C / 2) + ')' }, gNos, 'lv-est');
       S('path', { d: chipD(0, 0, C) }, gg, 'lv-chip-fundo');
       var chip = S('path', { d: chipD(0, 0, C), pathLength: 1 }, gg, 'lv-chip');
-      var ic = S('g', { transform: 'translate(6 6) scale(.6)' }, gg, 'lv-icone');
+      var ic = S('g', { transform: 'translate(' + r1(C / 6) + ' ' + r1(C / 6) + ') scale(' + r1(C / 6) / 10 + ')' }, gg, 'lv-icone');
       var li = H('li', 'lv-txt is-fantasma', null, lista);
       li.setAttribute('aria-hidden', 'true');   /* o lugar vazio não é lido; acender() o devolve ao leitor de tela */
       li.style.left = e.texto.x + 'px'; li.style.top = e.texto.y + 'px'; li.style.width = e.texto.w + 'px'; li.style.height = e.texto.h + 'px';
@@ -152,7 +163,6 @@
 
     var cabeca = S('path', { d: 'M0 0', pathLength: 1 }, gLuz, 'lv-cab');
     var ponto = S('circle', { r: 2.4 }, gLuz, 'lv-ponto');
-    raiz.appendChild(card);
 
     inst = {
       card: card, quadro: quadro, svg: svg, g: g, est: est, led: led, nucleo: { g: gN, li: liN, cx: RX, cy: NY }, estadoTopo: estadoTopo, topo: topo,
@@ -254,6 +264,7 @@
         acenderTrilhoAte(k, animar);
       }
       inst.status.textContent = (refeita ? 'A planta mudou: ' : 'Nova etapa na planta: ') + (alvo.est ? alvo.est.titulo : led.objetivo.titulo) + '.';
+      inst.ultima = [tag, frase];   /* (a legenda certa se a estação for interrompida: marcarPronta) */
       if (!animar) { ler(tag, frase, false); return 0; }
       luz(alvo.cy - (alvo === led ? LR * 0.63 : C / 2), 0);
       var chega = T.luz;
@@ -267,7 +278,7 @@
         Array.prototype.forEach.call(alvo.ic.childNodes, function (p, q) { tracar(p, chega + 40 + q * 45, T.chip); });
       }
       varrer(alvo.varre, chega + T.chip - 60);
-      depois(chega, function () { if (!inst.pronta) som(refeita ? 'refaz' : 'estacao'); ler(tag, frase, true); });
+      depois(chega, function () { som(refeita ? 'refaz' : 'estacao'); ler(tag, frase, true); });
       return chega + T.chip + T.texto;
     }
 
@@ -343,6 +354,7 @@
       if (inst.pronta && inst.ocupado) {
         inst.rel.parar(); inst.rel = Relogio.criar(); inst.repouso = []; inst.ocupado = false;
         if (!inst.visivel || document.hidden) inst.rel.pausar();
+        if (inst.ultima) ler(inst.ultima[0], inst.ultima[1], false);   /* o ler() dela estava num timer do relógio velho */
       }
       andar();   /* (pronta, a fila sai de uma vez pelo mesmo caminho do movimento reduzido, mesmo fora da tela) */
     }
