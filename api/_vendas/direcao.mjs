@@ -20,7 +20,8 @@ export const FONTES = ['sans_geometrica', 'sans_humanista', 'serif_classica', 's
 /* O ÍCONE de cada item: lista FECHADA (o renderer, js/previa.js, desenha cada nome com traço próprio; nenhum nome fora dela chega à tela).
    O modelo escolhe pelo serviço ("raio" para elétrica, "bolo" para confeitaria); "nenhum" quando nenhum serve. Direção gravada antes do ícone
    não tem a chave e continua válida. */
-export const ICONES = ['nenhum', 'calendario', 'relogio', 'local', 'mensagem', 'telefone', 'escudo', 'estrela', 'coracao', 'casa', 'raio', 'folha', 'gota', 'floco', 'sol', 'bolo', 'documento', 'caixa', 'equipe', 'check', 'lampada', 'regua'];
+export const ICONES = ['nenhum', 'calendario', 'relogio', 'local', 'mensagem', 'telefone', 'escudo', 'estrela', 'coracao', 'casa', 'raio', 'folha', 'gota', 'floco', 'sol', 'bolo', 'documento', 'caixa', 'equipe', 'check', 'lampada', 'regua',
+  'dente', 'tesoura', 'ferramenta', 'pata', 'haltere', 'talher', 'camera', 'carro', 'livro', 'martelo', 'balanca', 'pincel', 'cifrao', 'musica', 'saude'];
 /* O topo de cada estratégia (a regra do dono: os três modelos de um cliente nunca abrem do mesmo jeito): o código fixa, o modelo não escolhe */
 export const TOPO_DA_ESTRATEGIA = { conversao: 'split', autoridade: 'centro', experiencia: 'faixa' };
 /* o que ocupa o lugar de um número que o briefing não trouxe (o renderer o desenha como espaço reservado) */
