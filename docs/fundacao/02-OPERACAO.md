@@ -5,7 +5,7 @@ Como montar, mudar, testar, proteger e recuperar o banco. A arquitetura e o porq
 ## 1. Migrations
 
 - Ficam em `supabase/migrations/`, no formato do Supabase CLI: `AAAAMMDDHHMMSS_nome.sql`. Rodam em ordem de nome, uma vez cada.
-- **Toda mudança de estrutura é uma migration nova.** Nunca se edita uma migration já aplicada, e nada se muda à mão no painel do Supabase (a única exceção é rodar no SQL Editor de produção, inteira e sem alteração, uma migration já mesclada na `main`: `docs/PROCESSO.md`, item 5 do passo a passo de produção).
+- **Toda mudança de estrutura é uma migration nova.** Nunca se edita uma migration já aplicada, e nada se muda à mão no painel do Supabase (a única exceção é rodar no SQL Editor de produção, inteira e sem alteração, uma migration já mesclada na `main`, e o registro dela no histórico, com as travas de `docs/PROCESSO.md`, item 5 do passo a passo de produção).
 - Hoje são seis:
 
 | Arquivo | O que cria |
