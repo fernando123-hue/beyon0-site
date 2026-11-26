@@ -128,3 +128,58 @@ test('o relógio solta as animações canceladas (não guarda para sempre o que 
   assert.equal(rel.quantas(), 1, 'a cancelada saiu');
   void a;
 });
+
+/* achado 18 (26/11): no computador o cartão do esboço (rótulo 24 + quadro 408 + legenda 74 = 506 px) não cabia na caixa da conversa, que lá ROLA e
+   corta (min(60vh, 620px): 459 px numa tela de 768, 431 de conteúdo tirando o respiro de 14 + 14). Medido em 1366x768: 76 px do quadro e a legenda
+   inteira fora, e o objetivo preso na fila (fora da vista da caixa) mesmo depois de o mapa ficar pronto na faixa */
+const CAIXA_768 = 459 - 28, ROTULO = 24, LEGENDA_COMPUTADOR = 64 + 10;
+test('computador: o esboço compacto (a caixa que rola e corta) cabe inteiro na caixa de uma janela de 768 de alto; onde a caixa não corta, nada muda', () => {
+  for (const larg of [470, 535, 620]) {
+    const g = ambiente().E.geometria(larg, true);
+    assert.ok(ROTULO + g.H + LEGENDA_COMPUTADOR <= CAIXA_768, larg + ' px: o cartão tem ' + (ROTULO + g.H + LEGENDA_COMPUTADOR) + ' px, a caixa ' + CAIXA_768);
+    g.estacoes.forEach((e, k) => { if (k) assert.ok(e.texto.y >= g.estacoes[k - 1].texto.y + g.estacoes[k - 1].texto.h, 'os textos não se sobrepõem'); });
+    assert.ok(g.led.cy + g.led.r <= g.H, 'o objetivo cabe no quadro');
+  }
+  for (const larg of [276, 346, 800]) assert.equal(ambiente().E.geometria(larg).H, 408, larg + ' px: celular e tablet (a caixa não corta), a geometria de sempre');
+  const { E, raiz } = ambiente({ largura: 620 });
+  E.criar(raiz, { compacto: true }).parar();
+  assert.ok(raiz.porClasse('lv')[0]._classes.has('lv--compacto'), 'a classe do título numa linha (reticências no CSS)');
+});
+
+test('marcarPronta: a planta ficou pronta (a faixa do computador): o que esperava na fila imprime de uma vez, sem som nem animação, e o rótulo deixa "em construção"', () => {
+  const { w, E, raiz } = ambiente({ largura: 620 });
+  const sons = [];
+  /* a caixa mostra só o alto do quadro: o objetivo e as últimas estações esperam na fila (o que se mediu em 1366x768) */
+  const esb = E.criar(raiz, { rolagem: caixaDe(0, 150), som: (n) => sons.push(n), compacto: true });
+  esb.crescer(Cresce.derivar(BRIEFING_CHEIO));
+  w.mostrar(1);
+  w.avancar(20000);
+  const kicker = () => raiz.porClasse('lv-kicker')[0].textContent;
+  assert.ok(acesas(raiz) < 6 && /em construção/.test(kicker()), 'antes: estações na fila e "em construção"');
+  const nSons = sons.length, nAnim = w.document.animacoes.length;
+  esb.marcarPronta(true);
+  assert.equal(acesas(raiz), 6, 'as cinco estações e o objetivo');
+  assert.ok(!/em construção/.test(kicker()) && /pronta/.test(kicker()), 'o rótulo: ' + kicker());
+  assert.equal(sons.length, nSons, 'sem som (o ouro da faixa é o som da consagração)');
+  assert.equal(w.document.animacoes.filter((a, i) => i >= nAnim && a.opcoes.iterations !== 10).length, 0, 'sem animação de estação');
+  assert.equal(esb.ocioso(), true);
+  esb.marcarPronta(false);
+  assert.ok(/em construção/.test(kicker()), 'a planta saiu: volta a "em construção"');
+  esb.parar();
+});
+
+test('marcarPronta com uma estação no meio e o esboço fora da tela (o relógio pausado: a página foi até a faixa): a fila sai assim mesmo', () => {
+  const { w, E, raiz } = ambiente({ largura: 620 });
+  const esb = E.criar(raiz, { compacto: true });
+  esb.crescer(Cresce.derivar(BRIEFING_CHEIO));
+  w.mostrar(1);
+  w.avancar(100);   /* a semente no meio */
+  w.mostrar(0);     /* a pessoa foi até a faixa: o esboço sai da tela e o relógio pausa */
+  w.avancar(20000);
+  assert.ok(acesas(raiz) < 6, 'parado no meio');
+  esb.marcarPronta(true);
+  assert.equal(acesas(raiz), 6, 'as cinco estações e o objetivo, mesmo fora da tela');
+  assert.equal(esb.ocioso(), true);
+  assert.ok(/pronta/.test(raiz.porClasse('lv-kicker')[0].textContent));
+  esb.parar();
+});

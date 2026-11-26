@@ -258,3 +258,20 @@ test('a planta consagrada fica onde nasceu ao cruzar 960 px (no cartão continua
   assert.ok(plv(li), 'segue no cartão');
   assert.equal(amb.faixa.hidden, true);
 });
+
+/* achado 18 (26/11): no computador a planta ficava pronta na faixa e o esboço da conversa seguia "Planta · em construção" para sempre, com o
+   objetivo preso na fila (fora da vista da caixa, medido em 1366x768) */
+test('computador: com a planta pronta na faixa, o esboço da conversa deixa "em construção" e imprime o que esperava; a planta some, ele volta', () => {
+  const amb = ambiente({ largura: 1280 });
+  amb.w.getComputedStyle = (el) => ({ overflowY: el === amb.caixa ? 'auto' : 'visible' });   /* a caixa do computador rola e corta */
+  comEsboco(amb);
+  assert.ok(cartao(amb).porClasse('lv')[0]._classes.has('lv--compacto'), 'na caixa que corta, o esboço compacto');
+  const lv = () => cartao(amb).porClasse('lv-kicker')[0].textContent;
+  assert.ok(/em construção/.test(lv()), 'enquanto conversa: em construção');
+  amb.render(estado(3, true)); ate(amb, 20); amb.render(estado(3, true));
+  assert.equal(amb.faixa.hidden, false, 'a faixa abriu');
+  assert.ok(!/em construção/.test(lv()) && /pronta/.test(lv()), 'com o mapa na faixa: ' + lv());
+  assert.ok(cartao(amb).porClasse('lv-txt--led')[0]._classes.has('is-aceso'), 'o objetivo impresso no esboço');
+  amb.render(estado(3)); ate(amb, 20);
+  assert.ok(/em construção/.test(lv()), 'a planta saiu do estado: em construção de novo');
+});
