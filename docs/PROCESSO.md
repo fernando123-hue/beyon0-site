@@ -114,8 +114,12 @@ desta seção).
    desfaz migration**. Voltar para uma versão sem a API tira do ar o `/orcamento`, o aviso do Mercado Pago e as
    rotinas: um Pix pago nesse intervalo só é aplicado depois de publicar de novo e a reconciliação rodar. Com
    clientes pagando, voltar só para uma versão que já tenha a API.
-5. Migration de banco: **antes** do passo 4, pelo dono, no roteiro de `docs/fundacao/02-OPERACAO.md`
-   (o código novo nunca vai ao ar antes da migration que ele usa).
+5. Migration de banco: **antes** do passo 4, pelo agente (dono, 2026-11-26: a migration que passou pelo processo,
+   revisada e mesclada, vai ao banco de produção sem pedir o "sim" dele), pelo SQL Editor do Supabase de produção, no
+   roteiro de `docs/fundacao/02-OPERACAO.md`: conferir antes que ela ainda não foi aplicada, rodar o arquivo inteiro da
+   `main` sem mudar nada, conferir depois (colunas, funções e permissões que ela cria). O código novo nunca vai ao ar
+   antes da migration que ele usa (ou, se for, tem de funcionar sem ela). Só o login do painel com verificação em duas
+   etapas é do dono.
 
 **O risco que fica (dito como é; decisão do dono, 2026-10-21, uma conta só até a 1ª venda).** O Builds do Worker de
 prévias roda o código de **toda** branch empurrada (`npm ci`, o Build command, o `wrangler` lendo o `wrangler.jsonc`)
@@ -145,7 +149,7 @@ para `beyonzero.com.br`. Nada novo é promovido na Vercel.
 ## Sempre pedir o dono
 
 Apagar dado, trocar segredo, publicar ao vivo por qualquer caminho que não seja o PR "Promover para produção" do passo 4,
-migration no banco real, decisão de negócio, e mexer em qualquer ajuste de domínio, zona ou produção da Cloudflare (e da Vercel, enquanto ela existir).
+mudança no banco real fora de migration que passou pelo processo (item 5 do passo a passo de produção), decisão de negócio, e mexer em qualquer ajuste de domínio, zona ou produção da Cloudflare (e da Vercel, enquanto ela existir).
 
 ## Limites (ditos como são)
 
