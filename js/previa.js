@@ -103,7 +103,23 @@
     equipe: [['circle', { cx: 9, cy: 8, r: 3 }], ['path', { d: 'M3 20a6 6 0 0 1 12 0' }], ['circle', { cx: 17, cy: 9, r: 2.5 }], ['path', { d: 'M17 14a5 5 0 0 1 4 5' }]],
     check: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M8 12l3 3 5-6' }]],
     lampada: [['path', { d: 'M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3z' }], ['path', { d: 'M10 19h4M10.5 21h3' }]],
-    regua: [['path', { d: 'M3 15L15 3l6 6L9 21z' }], ['path', { d: 'M7 11l2 2M10 8l2 2M13 5l2 2' }]]
+    regua: [['path', { d: 'M3 15L15 3l6 6L9 21z' }], ['path', { d: 'M7 11l2 2M10 8l2 2M13 5l2 2' }]],
+    /* (lapidação 26/11) os ramos mais comuns, para a arte do topo e os cartões não caírem em ícone genérico */
+    dente: [['path', { d: 'M7.5 3.5C5 3.5 4 5.5 4 7.5c0 3 1.2 5.2 2 8.5l.8 3.6c.3 1.2 1.9 1.2 2.2 0l.9-3.9c.3-1.2.9-1.7 2.1-1.7s1.8.5 2.1 1.7l.9 3.9c.3 1.2 1.9 1.2 2.2 0l.8-3.6c.8-3.3 2-5.5 2-8.5 0-2-1-4-3.5-4-1.9 0-2.9 1-4.5 1s-2.6-1-4.5-1z' }]],
+    tesoura: [['circle', { cx: 6, cy: 6.5, r: 2.5 }], ['circle', { cx: 6, cy: 17.5, r: 2.5 }], ['path', { d: 'M8.2 7.8L20 17M8.2 16.2L20 7' }]],
+    ferramenta: [['path', { d: 'M14.7 3.3a5 5 0 0 0-4.4 6.9L3.6 17a2 2 0 0 0 2.8 2.8l6.8-6.7a5 5 0 0 0 6.9-4.4l-3 3-2.8-.8-.8-2.8z' }]],
+    pata: [['circle', { cx: 6.5, cy: 10, r: 1.8 }], ['circle', { cx: 10, cy: 6, r: 1.8 }], ['circle', { cx: 14, cy: 6, r: 1.8 }], ['circle', { cx: 17.5, cy: 10, r: 1.8 }], ['path', { d: 'M12 12c-3 0-5.5 3.4-5.5 6 0 1.6 1.2 2.5 2.7 2.5 1.2 0 1.8-.6 2.8-.6s1.6.6 2.8.6c1.5 0 2.7-.9 2.7-2.5 0-2.6-2.5-6-5.5-6z' }]],
+    haltere: [['path', { d: 'M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12' }]],
+    talher: [['path', { d: 'M6 3v6a2.5 2.5 0 0 0 5 0V3M8.5 3v18' }], ['path', { d: 'M17 21V3c2 1.2 3 4 3 8h-3' }]],
+    camera: [['rect', { x: 3, y: 7, width: 18, height: 13, rx: 2 }], ['path', { d: 'M8 7l1.5-3h5L16 7' }], ['circle', { cx: 12, cy: 13.5, r: 3.5 }]],
+    carro: [['path', { d: 'M5 17H3v-4l2-5h14l2 5v4h-2M9 17h6M3 13h18' }], ['circle', { cx: 7, cy: 17, r: 2 }], ['circle', { cx: 17, cy: 17, r: 2 }]],
+    livro: [['path', { d: 'M4 19V5a2 2 0 0 1 2-2h14v15H6a2 2 0 0 0 0 4h14v-4' }], ['path', { d: 'M8 7h8' }]],
+    martelo: [['path', { d: 'M11 6l3-3 7 7-3 3z' }], ['path', { d: 'M12.5 8.5L4 17a2.1 2.1 0 0 0 3 3l8.5-8.5' }]],
+    balanca: [['path', { d: 'M12 3v18M7 21h10M5 7h14' }], ['path', { d: 'M5 7l-3 7a3 3 0 0 0 6 0zM19 7l-3 7a3 3 0 0 0 6 0z' }]],
+    pincel: [['path', { d: 'M19 3l2 2-8.5 8.5-2-2z' }], ['path', { d: 'M10.5 11.5c-2.5-.5-5 1.2-5 4 0 1.8-1 3-2.5 3.5 3.5 1.5 8 .5 9.2-2 .8-1.7.5-3.6-1.7-5.5z' }]],
+    cifrao: [['path', { d: 'M12 3v18M17 7.5C16.2 6 14.3 5 12 5c-3 0-5 1.5-5 3.5 0 4.5 10 2.5 10 7 0 2-2 3.5-5 3.5-2.3 0-4.2-1-5-2.5' }]],
+    musica: [['path', { d: 'M9 18V5.5l11-2V16' }], ['circle', { cx: 6, cy: 18, r: 3 }], ['circle', { cx: 17, cy: 16, r: 3 }]],
+    saude: [['path', { d: 'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z' }]]
   };
   function icone(nome) {
     if (typeof nome !== 'string' || !Object.prototype.hasOwnProperty.call(ICONES_SVG, nome)) return null;

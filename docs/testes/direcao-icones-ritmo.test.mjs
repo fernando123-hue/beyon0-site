@@ -111,3 +111,9 @@ test('o prompt ensina o ícone (a lista inteira), o número só do briefing e o 
   assert.match(SISTEMA_GERACAO, /dois blocos (iguais|parecidos) (em sequência|seguidos)/i);
   assert.match(SISTEMA_GERACAO, /números? .*briefing/i);
 });
+
+test('ícones para os ramos mais comuns (lapidação 26/11): saúde, beleza, oficina, pet, academia, comida, foto, carro, educação, obra, jurídico, finanças, música', () => {
+  for (const nome of ['dente', 'tesoura', 'ferramenta', 'pata', 'haltere', 'talher', 'camera', 'carro', 'livro', 'martelo', 'balanca', 'pincel', 'cifrao', 'musica', 'saude'])
+    assert.ok(ICONES.includes(nome), 'falta o ícone ' + nome);
+  assert.match(SISTEMA_GERACAO, /dente para odontologia/, 'o prompt dá exemplos dos ramos novos');
+});
