@@ -23,7 +23,7 @@
 
   function criar(win) {
     var doc = win.document;
-    var st = { carga: 'nao', fila: null, campo: null, timer: 0, ouvindo: false, falhou: false, E: null, espera: 0, tentativas: 0 };
+    var st = { carga: 'nao', fila: null, campo: null, timer: 0, ouvindo: false, falhou: false, E: null, espera: 0, tentativas: 0, novas: [] };
     var $ = function (id) { return doc.getElementById(id); };
 
     function falhar(e) {
@@ -37,6 +37,8 @@
       if (st.campo && st.ouvindo) st.campo.removeEventListener('input', aoDigitar);
       st.ouvindo = false;
       win.clearTimeout(st.timer);
+      st.novas.forEach(function (id) { win.clearTimeout(id); });   /* (os timers da peça nova saem com a fileira) */
+      st.novas = [];
     }
     /* uma peça: o ícone de js/planta-pecas.js (traço) e o nome curto */
     function pecaEl(p) {
@@ -71,7 +73,8 @@
           var li = pecaEl(p);
           li.classList.add('is-nova');
           st.fila.appendChild(li);
-          win.setTimeout(function () { li.classList.remove('is-nova'); }, NOVA_MS);
+          var id = win.setTimeout(function () { li.classList.remove('is-nova'); st.novas = st.novas.filter(function (x) { return x !== id; }); }, NOVA_MS);
+          st.novas.push(id);
         });
       } catch (e) { falhar(e); }
     }
@@ -123,9 +126,15 @@
         /* precisa das peças e dos canais que o esboço traz; sem eles (ainda), a página de hoje */
         if (!win.BZPlantaPecas || !win.BZMapaSaber) { tirar(); esperarPecas(E); return; }
         win.clearTimeout(st.espera);
+        /* a caixa refeita por outro código: a fileira e o ouvinte vão para a nova */
+        if (st.fila && st.campo !== $('o-texto')) tirar();
         if (!st.fila && !montar()) return;
         carregarLeitor();
-        if (!st.campo.value.trim()) { while (st.fila.firstChild) st.fila.removeChild(st.fila.firstChild); }
+        /* a fileira acompanha a caixa: conversa fechada (form escondido) ou passo que recolhe a caixa (is-recolhido) a escondem */
+        var form = $('o-form');
+        var semCaixa = !form || form.hidden || form.classList.contains('is-recolhido');
+        if (st.fila.hidden !== semCaixa) st.fila.hidden = semCaixa;
+        if (semCaixa || !st.campo.value.trim()) { while (st.fila.firstChild) st.fila.removeChild(st.fila.firstChild); }
       } catch (e) { falhar(e); }
     }
 

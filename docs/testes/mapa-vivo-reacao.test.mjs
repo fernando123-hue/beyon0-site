@@ -127,6 +127,9 @@ test('fonte e página: ES5, sem innerHTML, script antes do orcamento.js, chamada
   assert.match(css, /\.orc-reacao\s*\{/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.orc-reacao__peca\.is-nova[^}]*animation:\s*none/);
   assert.ok(!/\.orc-reacao[^{]*\{[^}]*(blur|shadow|filter)/.test(css), 'sem blur nem sombra');
+  assert.match(css, /\.orc-reacao\s*\{[^}]*min-height:\s*32px/, 'altura reservada: a 1ª peça não empurra a caixa (revisão do #265)');
+  assert.match(css, /\.orc-reacao\[hidden\]\s*\{\s*display:\s*none/, 'o hidden vence o display: flex');
+  assert.match(css, /html\.menos-movimento \.orc-reacao__peca\s*\{\s*transition:\s*none/);
 });
 
 test('as peças chegam DEPOIS do render (o esboço as baixa na mesma hora): a fileira nasce quando elas chegam, sem esperar outro turno', () => {
@@ -149,4 +152,33 @@ test('as peças chegam DEPOIS do render (o esboço as baixa na mesma hora): a fi
   c.w.BZPlantaPecas = Pecas; c.w.BZMapaSaber = Saber;
   c.w.avancar(2000);
   assert.equal(c.fila(), null, 'a flag sumiu antes de as peças chegarem: não nasce');
+});
+
+test('a caixa some (conversa fechada ou passo que recolhe a caixa): a fileira some junto e volta com ela (revisão do #265)', () => {
+  const a = ambiente();
+  a.api.atualizar(LIGADA);
+  a.digitar('pelo instagram');
+  a.w.avancar(300);
+  assert.deepEqual(a.pecas(), ['instagram']);
+  a.form.hidden = true;
+  a.api.atualizar({ ...LIGADA });
+  assert.equal(a.fila().hidden, true, 'form escondido: fileira escondida');
+  a.form.hidden = false;
+  a.form.classList.add('is-recolhido');
+  a.api.atualizar({ ...LIGADA });
+  assert.equal(a.fila().hidden, true, 'caixa recolhida: fileira escondida');
+  a.form.classList.remove('is-recolhido');
+  a.api.atualizar({ ...LIGADA });
+  assert.equal(a.fila().hidden, false, 'a caixa voltou: a fileira volta');
+});
+
+test('renders seguidos com estado novo (um por turno) não duplicam ouvinte nem fileira; os timers da peça nova saem com a fileira', () => {
+  const a = ambiente();
+  for (let i = 0; i < 6; i++) a.api.atualizar({ ...LIGADA });
+  assert.equal((a.campo.ouvintes.input || []).length, 1);
+  assert.equal(a.coluna.children.filter((n) => n.classList.contains('orc-reacao')).length, 1);
+  a.digitar('pelo instagram e whatsapp');
+  a.w.avancar(300);
+  a.api.atualizar({ mensagens: [] });
+  assert.equal(a.w.timers.length, 0, 'nenhum timer solto depois de tirar a fileira');
 });

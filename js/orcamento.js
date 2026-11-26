@@ -976,8 +976,8 @@
     arrumarParaOPasso();
     window.BZDetalhes.atualizar(E);   /* os detalhes, o pedido recebido ou o pedido encerrado (js/orcamento-detalhes.js) */
     if (window.BZOrcPlanta) window.BZOrcPlanta.atualizar(E, { rolarAte: rolarAte, enviar: enviar });   /* a planta do site (js/orcamento-planta.js): só age com E.planta (flag BZ_PLANTA); sem o módulo a tela segue igual */
-    if (window.BZOrcEsboco) window.BZOrcEsboco.atualizar(E);
-    if (window.BZOrcReacao) window.BZOrcReacao.atualizar(E);   /* o mapa vivo, fase 1a (js/orcamento-reacao.js): as peças acendem ao digitar; só com a flag BZ_PLANTA e com as peças do esboço já na página */   /* a planta viva v2, o esboço que cresce na conversa (js/orcamento-planta-esboco.js): só age com a flag BZ_PLANTA; sem o módulo a tela segue igual */
+    if (window.BZOrcEsboco) window.BZOrcEsboco.atualizar(E);   /* a planta viva v2, o esboço que cresce na conversa (js/orcamento-planta-esboco.js): só age com a flag BZ_PLANTA; sem o módulo a tela segue igual */
+    if (window.BZOrcReacao) window.BZOrcReacao.atualizar(E);   /* o mapa vivo, fase 1a (js/orcamento-reacao.js): as peças acendem ao digitar; só com a flag BZ_PLANTA e com as peças do esboço já na página */
     if (window.BZOrcEscopo) window.BZOrcEscopo.atualizar(E);   /* o radar do escopo (js/orcamento-escopo.js): só lê o estado; sem o módulo a tela segue igual */
     if (window.BZPainel) window.BZPainel.atualizar(E.painel);   /* as peças da conversa: notas, ficha e caso (js/orcamento-painel.js); sem o módulo a tela segue igual */
     extrasNaConversa();
