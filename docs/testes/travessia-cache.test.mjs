@@ -33,7 +33,7 @@ test('cache: /js/* e /css/* com max-age curto, um valor só', () => {
 const SO_COM_O_PAI = ['/js/nucleo/cena.js', '/js/nucleo/gesto.js', '/js/nucleo/spec.js', '/js/nucleo/pecas.js', '/js/nucleo/coroa.js',
   '/js/nucleo/shaders.js', '/js/orcamento-planta-forma.js', '/js/planta-pecas.js', '/js/planta-layout.js', '/js/planta-desenho.js', '/css/orcamento-planta.css',
   '/js/planta-cresce.js', '/js/planta-relogio.js', '/js/planta-som.js', '/js/planta-esboco.js', '/css/planta-esboco.css',
-  '/js/mapa-saber.js', '/js/orcamento-mapa-forma.js', '/js/mapa-layout.js', '/js/mapa-desenho.js', '/css/orcamento-mapa.css'];
+  '/js/mapa-saber.js', '/js/orcamento-mapa-forma.js', '/js/mapa-layout.js', '/js/mapa-desenho.js', '/css/orcamento-mapa.css', '/js/mapa-vivo-ler.js'];
 test('cache: os módulos do reator 3D e da planta (pedidos por JS sem ?v) revalidam sempre: nunca peça velha com página nova', () => {
   for (const c of SO_COM_O_PAI) assert.equal(cc(c), REVALIDA, c);
   for (const a of versionados().filter(a => /^js\/nucleo\/.+\.js$/.test(a) && !/\/(boot|lab)\.js$/.test(a)))
@@ -173,7 +173,9 @@ const SEM_V = [
   'js/planta-desenho.js → ./orcamento-planta-forma.js ./planta-layout.js ./planta-pecas.js (só o require do Node nos testes)',
   'js/planta-cresce.js → ./mapa-saber.js ./orcamento-rotulos.js (só o require do Node nos testes)',
   'js/mapa-layout.js → ./orcamento-mapa-forma.js (só o require do Node nos testes)',
-  'js/orcamento-planta-esboco.js → js/planta-pecas.js js/mapa-saber.js js/planta-cresce.js js/planta-relogio.js js/planta-som.js js/planta-esboco.js css/planta-esboco.css (revalidam sempre)'
+  'js/orcamento-planta-esboco.js → js/planta-pecas.js js/mapa-saber.js js/planta-cresce.js js/planta-relogio.js js/planta-som.js js/planta-esboco.js css/planta-esboco.css (revalidam sempre)',
+  'js/orcamento-reacao.js → js/mapa-vivo-ler.js (o leitor do mapa vivo, fase 1a; revalida sempre)',
+  'js/mapa-vivo-ler.js → ./mapa-saber.js (só o require do Node nos testes)'
 ];
 test('os JS/CSS pedidos por JS sem ?v são exatamente os conhecidos (SEM_V)', () => {
   const achados = [];
@@ -182,7 +184,7 @@ test('os JS/CSS pedidos por JS sem ?v são exatamente os conhecidos (SEM_V)', ()
     const codigo = fs.readFileSync(path.join(RAIZ, a), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
     for (const [, u] of codigo.matchAll(LITERAL)) achados.push(a + ' ' + u);
   }
-  const conhecidos = new Set(['js/nucleo/boot.js /js/nucleo/cena.js', 'js/nucleo/boot.js /js/nucleo/gesto.js', 'js/nucleo/boot.js /js/nucleo/spec.js',
+  const conhecidos = new Set(['js/orcamento-reacao.js js/mapa-vivo-ler.js', 'js/mapa-vivo-ler.js ./mapa-saber.js', 'js/nucleo/boot.js /js/nucleo/cena.js', 'js/nucleo/boot.js /js/nucleo/gesto.js', 'js/nucleo/boot.js /js/nucleo/spec.js',
     'js/nucleo/boot.js /js/nucleo/pecas.js', 'js/nucleo/boot.js /js/nucleo/coroa.js', 'js/nucleo/boot.js /js/nucleo/shaders.js',
     'js/nucleo/boot.js /vendor/three/three-nucleo.min.js', 'js/nucleo/cena.js ../../vendor/three/three-nucleo.min.js', 'js/nucleo/cena.js ./spec.js',
     'js/nucleo/cena.js ./pecas.js', 'js/nucleo/gesto.js ./spec.js', 'js/nucleo/pecas.js ./coroa.js', 'js/nucleo/pecas.js ./shaders.js',

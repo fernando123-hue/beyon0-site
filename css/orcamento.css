@@ -425,7 +425,14 @@ html.visor-aberto { overflow: hidden; }
   .orc-mesa { grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); align-items: start; }
   .orc-painel { position: sticky; top: calc(var(--nav-h) + 1rem); }
   .orc-conversa { padding: 1.4rem; }
-  .orc-log { max-height: min(60vh, 620px); }
+  /* 60vh, e nunca menos que 426 px, mas sem passar por baixo da nav: a caixa cresce SÓ onde falta (dono, 26/11: a planta caber no notebook baixo,
+     não a caixa maior em toda tela). Num notebook de 768 de verdade a janela útil tem ~650 e com 60vh a caixa tinha 390 px: o quadro do esboço não
+     cabia. A página guarda a caixa de digitar no lugar, e a caixa termina 152 px acima do fim da janela (18 de vão + a caixa de digitar + o fim,
+     medido; em rem, 9.5rem, porque a caixa de digitar cresce com a fonte do navegador: em 125% o px fixo deixava a pergunta 24 px por baixo da nav); com a nav (72, ou 64
+     entre 900 e 980), a caixa só cabe inteira abaixo dela até 100vh - nav - 9.5rem (224 em 72 com a fonte padrão). Acima disso o topo dela (a pergunta do Zero) passa por baixo
+     da nav. 426 = esse teto numa janela de 650; o passo do esboço se ajusta à caixa (js/planta-esboco.js). De ~710 px para cima vale o 60vh de
+     sempre (a página não se mexe); abaixo de ~560 o teto deixa a caixa um pouco menor que 60vh, para a pergunta não passar por baixo da nav */
+  .orc-log { max-height: min(max(60vh, 426px), 620px, calc(100vh - var(--nav-h) - 9.5rem)); }
   .orc-dirs { grid-template-columns: repeat(3, 1fr); }
   .visor__aparelho { order: 2; flex-basis: auto; margin-left: auto; }
   .visor__fechar { order: 3; margin-left: .4rem; }
@@ -675,3 +682,23 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .pix__relogio.is-curto .pix__tempo { color: rgb(var(--aviso-rgb)); }
 @media (prefers-reduced-motion: reduce) { .pix__anel-vivo { transition: none; } }
 html.menos-movimento .pix__anel-vivo { transition: none; }
+
+/* MAPA VIVO v2, fase 1a (js/orcamento-reacao.js): as peças do que a pessoa conta acendem numa fileira logo acima da caixa enquanto ela digita.
+   Só existe com a flag BZ_PLANTA (hoje só na prévia). Traço nítido, sem sombra nem desfoque; a peça nova chega com a borda acesa e sobe 4 px. */
+/* (revisão do #265) UMA linha, de altura reservada desde que nasce: a peça nova nunca empurra a caixa no meio da digitação (medido: em 320 px
+   a 2ª linha empurrava 38 px). Quando os nomes não cabem, ficam só os ícones (is-compacta, js/orcamento-reacao.js): nenhuma peça cortada na
+   borda; o overflow-x é só a última rede (a página nunca ganha rolagem lateral) */
+.orc-reacao { list-style: none; display: flex; flex-wrap: nowrap; gap: .4rem; margin: .9rem 0 0; padding: 0; height: 32px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.orc-reacao::-webkit-scrollbar { display: none; }
+.orc-reacao.is-compacta .orc-reacao__nome { display: none; }
+.orc-reacao.is-compacta .orc-reacao__peca { padding: 0 .35rem; }
+.orc-reacao__peca { flex: none; }
+.orc-reacao[hidden] { display: none; }
+.orc-reacao__peca { display: inline-flex; align-items: center; gap: .4rem; height: 32px; padding: 0 .7rem 0 .35rem; border: 1px solid var(--stroke); border-radius: 999px; font-family: var(--mono); font-size: var(--fs-ctrl); color: var(--t2); transition: border-color .6s var(--ease-micro), color .6s var(--ease-micro); }
+.orc-reacao__peca svg { width: 22px; height: 22px; flex: none; fill: none; stroke: var(--t1); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.orc-reacao__peca svg .ac { stroke: var(--ac); }
+.orc-reacao__peca.is-nova { border-color: var(--ac); color: var(--t1); animation: orc-reacao-chega .22s cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes orc-reacao-chega { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .orc-reacao__peca.is-nova { animation: none; } .orc-reacao__peca { transition: none; } }
+html.menos-movimento .orc-reacao__peca.is-nova { animation: none; }
+html.menos-movimento .orc-reacao__peca { transition: none; }

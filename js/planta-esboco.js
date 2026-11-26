@@ -26,7 +26,7 @@
   var RX = 26, NY = 26, NR = 20, C = 36, LR = 20, TX = RX + C / 2 + 14, CHAMFRO = 7;
   /* COMPACTO (opcoes.compacto = a altura útil da caixa da conversa que ROLA e corta, a do computador, >= 900 px): lá o título cabe numa linha (o que
      passar dela termina em reticências, css/planta-esboco.css) e o passo é o MAIOR entre 44 e 36 com que o cartão (rótulo + quadro + legenda) cabe
-     INTEIRO na caixa (min(60vh, 620px): 431 px úteis numa janela de 768 de alto, ~362 num notebook de 768 com o navegador). Abaixo de 42 o chip
+     INTEIRO na caixa (min(max(60vh, 426px), 620px, 100vh - nav - 9.5rem), css/orcamento.css: 426 px úteis numa janela de 650 de alto, a de um notebook de 768 com o navegador). Abaixo de 42 o chip
      encolhe junto (6 px de vão). Se nem no passo 36 couber, fica no 36 (o marcarPronta garante o fim). Com o passo do celular o cartão tinha 506 px:
      o objetivo e a legenda ficavam fora e o objetivo, fora da vista, esperava na fila para sempre (achado 18, 26/11). Onde a caixa não corta
      (celular, tablet), a geometria é a de sempre */
@@ -86,13 +86,20 @@
     H('span', '', 'Planta', topo); var estadoTopo = H('b', '', ' · nasce com a conversa', topo);
     var quadro = H('div', 'lv-quadro', null, card);
     var leitura = H('p', 'lv-leitura', null, card); leitura.setAttribute('aria-hidden', 'true');
-    var leTag = H('b', 'lv-leitura__tag', 'Zero', leitura), leTxt = H('span', 'lv-leitura__txt', 'A planta começa quando você me contar do seu negócio.', leitura);
+    /* só a frase (dono, 26/11): o nó logo acima já diz qual estação é; repetir o nome dela ("OBJETIVO" duas vezes) confundia */
+    var leTxt = H('span', 'lv-leitura__txt', 'A planta começa quando você me contar do seu negócio.', leitura);
     var leVarre = H('span', 'lv-varre', null, leitura);
     var status = H('p', 'lv-sr', '', card); status.setAttribute('role', 'status');
-    /* compacto: o quadro fica com o que sobra da caixa depois do rótulo e da legenda, medidos já na página (a legenda tem 84 px abaixo de 960 e 64 acima) */
+    /* compacto: o quadro fica com o que sobra da caixa depois do rótulo e da legenda, medidos já na página (a legenda tem 63 px, 3 linhas, abaixo de 960
+       e 42 acima), ou do rótulo e das falas acima do cartão (opcoes.acima: o quadro inteiro à vista com a pergunta do Zero no topo da caixa), o que for maior */
     raiz.appendChild(card);
-    var fora = op.compacto > 0 ? card.offsetHeight - quadro.offsetHeight : 0;   /* (só mede no compacto: no celular não força o layout) */
-    var g = geometria(W, op.compacto > 0 ? Math.max(1, op.compacto - (fora > 0 ? fora : 98)) : 0);
+    var fora = 0;
+    if (op.compacto > 0) {   /* (só mede no compacto: no celular não força o layout) */
+      var medido = (card.offsetHeight - quadro.offsetHeight) || 0;
+      /* (sem layout, a reserva de 97, o rótulo e a legenda de 3 linhas, e o rótulo de 24) */
+      fora = Math.max(medido > 0 ? medido : 97, (medido > 0 ? quadro.offsetTop : 24) + (op.acima || 0));
+    }
+    var g = geometria(W, op.compacto > 0 ? Math.max(1, op.compacto - fora) : 0);
     var cy = function (i) { return g.estacoes[i].cy; }, LEDY = g.led.cy, C = g.chip;
     quadro.style.height = g.H + 'px';
     var svg = S('svg', { viewBox: '0 0 ' + g.W + ' ' + g.H, width: g.W, height: g.H, 'aria-hidden': 'true', focusable: 'false' }, quadro, 'lv-svg');
@@ -166,7 +173,7 @@
 
     inst = {
       card: card, quadro: quadro, svg: svg, g: g, est: est, led: led, nucleo: { g: gN, li: liN, cx: RX, cy: NY }, estadoTopo: estadoTopo, topo: topo,
-      leitura: leitura, leTag: leTag, leTxt: leTxt, status: status, trilhoFan: trilhoFan, trechos: trechos,
+      leitura: leitura, leTxt: leTxt, status: status, trilhoFan: trilhoFan, trechos: trechos,
       semeado: false, esboco: null, fila: [], ocupado: false, repouso: [], visivel: !window.IntersectionObserver, parado: false, rel: Relogio.criar()
     };
     card.classList.add('is-dormente');
@@ -200,8 +207,8 @@
         anim(inst.trechos[t], [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: Math.max(40, T.luz * (pb - pa)), delay: T.luz * pa, easing: 'linear', fill: 'backwards' });
       }
     }
-    function ler(tag, txt, animar) {
-      inst.leTag.textContent = tag; inst.leTxt.textContent = semViuva(txt);
+    function ler(txt, animar) {
+      inst.leTxt.textContent = semViuva(txt);
       if (animar) varrer(leVarre, 0);
     }
 
@@ -250,22 +257,22 @@
       acender(x);
     }
     function imprimir(item, animar) {
-      var refeita = item.tipo === 'refeita', alvo, tag, frase;
+      var refeita = item.tipo === 'refeita', alvo, frase;
       if (item.lugar === 'objetivo') {
         var o = inst.esboco.objetivo;
         led.conhecido = true; led.objetivo = o; led.tit.textContent = semViuva(o.titulo);
         acender(led);
-        alvo = led; tag = 'Objetivo'; frase = o.frase;
+        alvo = led; frase = o.frase;
         acenderTrilhoAte(5, animar);
       } else {
         var k = Cresce.LUGARES.indexOf(item.lugar), e = inst.esboco.estacoes[k];
         alvo = est[k]; pintarEstacao(alvo, e);
-        tag = e.verbo; frase = e.frase;
+        frase = e.frase;
         acenderTrilhoAte(k, animar);
       }
       inst.status.textContent = (refeita ? 'A planta mudou: ' : 'Nova etapa na planta: ') + (alvo.est ? alvo.est.titulo : led.objetivo.titulo) + '.';
-      inst.ultima = [tag, frase];   /* (a legenda certa se a estação for interrompida: marcarPronta) */
-      if (!animar) { ler(tag, frase, false); return 0; }
+      inst.ultima = frase;   /* (a legenda certa se a estação for interrompida: marcarPronta) */
+      if (!animar) { ler(frase, false); return 0; }
       luz(alvo.cy - (alvo === led ? LR * 0.63 : C / 2), 0);
       var chega = T.luz;
       if (alvo === led) {
@@ -278,7 +285,7 @@
         Array.prototype.forEach.call(alvo.ic.childNodes, function (p, q) { tracar(p, chega + 40 + q * 45, T.chip); });
       }
       varrer(alvo.varre, chega + T.chip - 60);
-      depois(chega, function () { som(refeita ? 'refaz' : 'estacao'); ler(tag, frase, true); });
+      depois(chega, function () { som(refeita ? 'refaz' : 'estacao'); ler(frase, true); });
       return chega + T.chip + T.texto;
     }
 
@@ -354,7 +361,7 @@
       if (inst.pronta && inst.ocupado) {
         inst.rel.parar(); inst.rel = Relogio.criar(); inst.repouso = []; inst.ocupado = false;
         if (!inst.visivel || document.hidden) inst.rel.pausar();
-        if (inst.ultima) ler(inst.ultima[0], inst.ultima[1], false);   /* o ler() dela estava num timer do relógio velho */
+        if (inst.ultima) ler(inst.ultima, false);   /* o ler() dela estava num timer do relógio velho */
       }
       andar();   /* (pronta, a fila sai de uma vez pelo mesmo caminho do movimento reduzido, mesmo fora da tela) */
     }

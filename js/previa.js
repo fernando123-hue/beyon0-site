@@ -205,7 +205,8 @@
       var f = [];
       for (var i = 0; i <= 13; i++) f.push(['line', { x1: i * 30, y1: 0, x2: i * 30, y2: 300 }, i % 4 === 0 ? 'a-forte' : 'a-fraco']);
       for (var j = 0; j <= 10; j++) f.push(['line', { x1: 0, y1: j * 30, x2: 390, y2: j * 30 }, j % 4 === 0 ? 'a-forte' : 'a-fraco']);
-      f.push(['rect', { x: 150, y: 90, width: 120, height: 120 }, 'a-cheio'], ['rect', { x: 162, y: 102, width: 120, height: 120 }, 'a-vazio']);
+      /* (achado 3 dos modelos) o quadrado cheio lia como foto que não carregou: virou dois contornos deslocados */
+      f.push(['rect', { x: 150, y: 90, width: 120, height: 120 }, 'a-forte'], ['rect', { x: 162, y: 102, width: 120, height: 120 }, 'a-vazio']);
       return f;
     },
     function diagonais() {
@@ -235,23 +236,78 @@
     for (var i = 0; i < texto.length; i++) h = ((h * 33) ^ texto.charCodeAt(i)) >>> 0;
     return h;
   }
-  function arteDoTopo(d) {
-    var marca = str(d && d.navegacao && d.navegacao.marca);
-    var ordem = Math.max(0, ESTRATEGIAS.indexOf(d && d.estrategia));
-    var formas = MOTIVOS[(hash(marca) + ordem) % MOTIVOS.length]();
-    var svg = document.createElementNS(SVG, 'svg');
-    svg.setAttribute('viewBox', '0 0 390 300');
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-    svg.setAttribute('aria-hidden', 'true');
+  /* ---------- (lapidação 26/11, achados 2 e 3 dos modelos) a arte nasce do NEGÓCIO: os ícones que a IA escolheu para os itens dele
+     (bolo, régua, floco...) entram grandes, em traço, com um eco deslocado; o FUNDO vem da estratégia (vender mais = diagonais, autoridade =
+     trama, encantar = ondas). Assim a confeitaria nunca recebe os veios da marcenaria. Sem ícone nenhum, o desenho antigo (por marca) segue.
+     As formas ficam na faixa y 90–210 e x 25–365: é o que sobra visível na tira do celular e no topo largo (slice). */
+  var GENERICOS = ['check', 'estrela', 'mensagem', 'telefone', 'calendario', 'relogio', 'local', 'documento', 'equipe'];
+  var FUNDO_DA_ESTRATEGIA = { conversao: 3, autoridade: 2, experiencia: 4 };   /* índices de MOTIVOS: diagonais, trama, ondas */
+  /* [x, y] do canto do principal, do 2º e do 3º ícone: vender mais = principal à direita (o olho vai ao botão); autoridade = principal no
+     centro, os outros nas laterais (simetria, ordem); encantar = principal à esquerda, os outros soltos à direita */
+  var COMPOSICAO = {
+    conversao: [[200, 90], [70, 96], [96, 162]],
+    autoridade: [[135, 90], [48, 120], [302, 126]],
+    experiencia: [[52, 90], [236, 100], [300, 164]]
+  };
+  function iconesDoNegocio(d) {
+    var vistos = [];
+    ((d && d.secoes) || []).forEach(function (s) {
+      ((s && s.itens) || []).forEach(function (i) {
+        var nome = i && i.icone;
+        if (typeof nome === 'string' && Object.prototype.hasOwnProperty.call(ICONES_SVG, nome) && vistos.indexOf(nome) < 0) vistos.push(nome);
+      });
+    });
+    var doOficio = vistos.filter(function (n) { return GENERICOS.indexOf(n) < 0; });
+    return doOficio.concat(vistos.filter(function (n) { return GENERICOS.indexOf(n) >= 0; })).slice(0, 3);
+  }
+  /* um ícone da grade de 24 como grupo da arte, na posição e no tamanho pedidos; a cor vem da classe (a CSP proíbe style="") */
+  function iconeNaArte(nome, x, y, escala, classe, papel) {
+    var g = document.createElementNS(SVG, 'g');
+    g.setAttribute('transform', 'translate(' + x + ' ' + y + ') scale(' + escala + ')');
+    g.setAttribute('class', classe);
+    g.setAttribute('data-icone', nome);
+    g.setAttribute('data-papel', papel);
+    ICONES_SVG[nome].forEach(function (f) {
+      var e = document.createElementNS(SVG, f[0]);
+      Object.keys(f[1]).forEach(function (k) { e.setAttribute(k, String(f[1][k])); });
+      e.setAttribute('class', classe);
+      g.appendChild(e);
+    });
+    return g;
+  }
+  function formasNaArte(svg, formas) {
     formas.forEach(function (f) {
       var n = document.createElementNS(SVG, f[0]);
       Object.keys(f[1]).forEach(function (k) { n.setAttribute(k, f[1][k]); });
       n.setAttribute('class', f[2]);
       svg.appendChild(n);
     });
+  }
+  function arteDoTopo(d) {
+    var marca = str(d && d.navegacao && d.navegacao.marca);
+    var ordem = Math.max(0, ESTRATEGIAS.indexOf(d && d.estrategia));
+    var icones = iconesDoNegocio(d);
+    var svg = document.createElementNS(SVG, 'svg');
+    svg.setAttribute('viewBox', '0 0 390 300');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    svg.setAttribute('aria-hidden', 'true');
+    if (!icones.length) {
+      formasNaArte(svg, MOTIVOS[(hash(marca) + ordem) % MOTIVOS.length]());
+    } else {
+      /* a estratégia vem da IA: só uma das 3 da lista ("__proto__" ou "constructor" achariam o Object e quebrariam a prévia) */
+      var est = ESTRATEGIAS.indexOf(d && d.estrategia) >= 0 ? d.estrategia : 'conversao';
+      /* o fundo só com traço (as formas chapadas dos motivos saem: com o ícone na frente, elas brigariam com ele) */
+      formasNaArte(svg, MOTIVOS[FUNDO_DA_ESTRATEGIA[est]]().filter(function (f) { return f[2] === 'a-fraco'; }));
+      /* a composição também muda com a estratégia (nunca o mesmo arranjo nos três): o principal de 120 px, o eco fino 8 px atrás,
+         os outros menores (60 e 48 px) */
+      var c = COMPOSICAO[est];
+      svg.appendChild(iconeNaArte(icones[0], c[0][0] + 8, c[0][1] + 8, 5, 'a-fraco', 'pv-arte__icone--eco'));
+      svg.appendChild(iconeNaArte(icones[0], c[0][0], c[0][1], 5, 'a-forte', 'pv-arte__icone--grande'));
+      if (icones[1]) svg.appendChild(iconeNaArte(icones[1], c[1][0], c[1][1], 2.5, 'a-forte', 'pv-arte__icone'));
+      if (icones[2]) svg.appendChild(iconeNaArte(icones[2], c[2][0], c[2][1], 2, 'a-vazio', 'pv-arte__icone'));
+    }
     var arte = el('div', 'pv-arte');
     arte.appendChild(svg);
-    arte.appendChild(el('span', 'pv-arte__leg', 'Aqui entra a foto do seu negócio'));   /* o lugar da imagem do cliente */
     return arte;
   }
 
