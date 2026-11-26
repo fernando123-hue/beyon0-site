@@ -93,9 +93,12 @@
     /* compacto: o quadro fica com o que sobra da caixa depois do rótulo e da legenda, medidos já na página (a legenda tem 63 px, 3 linhas, abaixo de 960
        e 42 acima), ou do rótulo e das falas acima do cartão (opcoes.acima: o quadro inteiro à vista com a pergunta do Zero no topo da caixa), o que for maior */
     raiz.appendChild(card);
-    var fora = op.compacto > 0 ? (card.offsetHeight - quadro.offsetHeight) || 0 : 0;   /* (só mede no compacto: no celular não força o layout) */
-    /* (sem layout, a reserva de 97: o rótulo e a legenda de 3 linhas) */
-    fora = Math.max(fora > 0 ? fora : 97, (quadro.offsetTop || 24) + (op.acima || 0));
+    var fora = 0;
+    if (op.compacto > 0) {   /* (só mede no compacto: no celular não força o layout) */
+      var medido = (card.offsetHeight - quadro.offsetHeight) || 0;
+      /* (sem layout, a reserva de 97, o rótulo e a legenda de 3 linhas, e o rótulo de 24) */
+      fora = Math.max(medido > 0 ? medido : 97, (medido > 0 ? quadro.offsetTop : 24) + (op.acima || 0));
+    }
     var g = geometria(W, op.compacto > 0 ? Math.max(1, op.compacto - fora) : 0);
     var cy = function (i) { return g.estacoes[i].cy; }, LEDY = g.led.cy, C = g.chip;
     quadro.style.height = g.H + 'px';
