@@ -428,10 +428,11 @@ html.visor-aberto { overflow: hidden; }
   /* 60vh, e nunca menos que 426 px, mas sem passar por baixo da nav: a caixa cresce SÓ onde falta (dono, 26/11: a planta caber no notebook baixo,
      não a caixa maior em toda tela). Num notebook de 768 de verdade a janela útil tem ~650 e com 60vh a caixa tinha 390 px: o quadro do esboço não
      cabia. A página guarda a caixa de digitar no lugar, e a caixa termina 152 px acima do fim da janela (18 de vão + a caixa de digitar + o fim,
-     medido); com a nav (72, ou 64 entre 900 e 980), a caixa só cabe inteira abaixo dela até 100vh - nav - 152px (224 em 72). Acima disso o topo dela (a pergunta do Zero) passa por baixo
+     medido; em rem, 9.5rem, porque a caixa de digitar cresce com a fonte do navegador: em 125% o px fixo deixava a pergunta 24 px por baixo da nav); com a nav (72, ou 64
+     entre 900 e 980), a caixa só cabe inteira abaixo dela até 100vh - nav - 9.5rem (224 em 72 com a fonte padrão). Acima disso o topo dela (a pergunta do Zero) passa por baixo
      da nav. 426 = esse teto numa janela de 650; o passo do esboço se ajusta à caixa (js/planta-esboco.js). De ~710 px para cima vale o 60vh de
      sempre (a página não se mexe); abaixo de ~560 o teto deixa a caixa um pouco menor que 60vh, para a pergunta não passar por baixo da nav */
-  .orc-log { max-height: min(max(60vh, 426px), 620px, calc(100vh - var(--nav-h) - 152px)); }
+  .orc-log { max-height: min(max(60vh, 426px), 620px, calc(100vh - var(--nav-h) - 9.5rem)); }
   .orc-dirs { grid-template-columns: repeat(3, 1fr); }
   .visor__aparelho { order: 2; flex-basis: auto; margin-left: auto; }
   .visor__fechar { order: 3; margin-left: .4rem; }

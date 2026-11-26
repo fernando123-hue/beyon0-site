@@ -130,7 +130,7 @@ test('o relógio solta as animações canceladas (não guarda para sempre o que 
 });
 
 /* achado 18 (26/11): no computador o cartão do esboço (rótulo 24 + quadro 408 + legenda 74 = 506 px) não cabia na caixa da conversa, que lá ROLA e
-   corta (era min(60vh, 620px): 459 px numa tela de 768, 431 de conteúdo tirando o respiro de 14 + 14; desde 26/11 é min(max(60vh, 426px), 620px, calc(100vh - 224px)): o mesmo 431 em 768, 396 em 650). Medido em 1366x768: 76 px do quadro e a legenda
+   corta (era min(60vh, 620px): 459 px numa tela de 768, 431 de conteúdo tirando o respiro de 14 + 14; desde 26/11 é min(max(60vh, 426px), 620px, calc(100vh - var(--nav-h) - 9.5rem)): o mesmo 431 em 768, 396 em 650). Medido em 1366x768: 76 px do quadro e a legenda
    inteira fora, e o objetivo preso na fila (fora da vista da caixa) mesmo depois de o mapa ficar pronto na faixa */
 /* (26/11, dono: a legenda sem o rótulo repetido; no computador ela tem 2 linhas, 42 px, mais a margem de 10) */
 const CAIXA_768 = 459 - 28, ROTULO = 24, LEGENDA_COMPUTADOR = 42 + 10;   /* (a caixa de 60vh numa janela de 768: 431 úteis, medido no E2E) */
