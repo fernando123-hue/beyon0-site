@@ -35,11 +35,15 @@
   var FRASE_DESLIGADA = 'Recebemos a sua entrada. A Beyon Zero entra em contato com você para o próximo passo.';   /* = api/_material/interruptor.mjs */
   var TEXTO_COPIAR = 'Se o celular apagar os dados do site, é por este link que você volta ao pedido. Mande para você mesmo no WhatsApp ou salve nos favoritos.';
   var TEXTO_GERAR = 'Por segurança, o link só aparece uma vez, e este aparelho não o guardou. Gere um novo e guarde: o anterior deixa de valer.';
-  /* o que o cartão do link mostra (M4): copiar o código que está na página; gerar outro se o link existe mas o código se perdeu; nada se já guardou */
+  /* (19/11) o link foi no e-mail da confirmação da entrada (api/_pagamentos/confirmacao.mjs): a página não pede para gerar outro, que revogaria o do e-mail */
+  var TITULO_EMAIL = 'O link do seu pedido está no seu e-mail';
+  var TEXTO_EMAIL = 'Mandamos para o e-mail que você usou no pagamento. Por ele você volta ao pedido de qualquer aparelho. Se não encontrar o e-mail, gere o link aqui: o do e-mail deixa de valer.';
+  /* o que o cartão do link mostra (M4): copiar o código que está na página; avisar que ele está no e-mail; gerar outro se o link existe mas o código se perdeu; nada se já guardou */
   function modoDoCartao(o) {
     if (o.guardado) return 'nenhum';
     if (o.codigo) return 'copiar';
-    return o.linkPedido ? 'gerar' : 'nenhum';
+    if (!o.linkPedido) return 'nenhum';
+    return o.noEmail ? 'email' : 'gerar';
   }
 
   /* I1 (revisão final): o lead do recibo de cima (a frase do HTML, a protegida) fala do próximo passo; "mandar o material, logo abaixo" só vale enquanto o material é o próximo passo.
@@ -90,7 +94,7 @@
 
   function criar(o) {
     var API = o.API, dinheiro = o.dinheiro;
-    var falhasLink = 0, codigo = null, pedindo = false, tentou = false, guardado = false, confirmando = null, jaTem = false, conversaId = null, marcaLida = false, prev = null;
+    var falhasLink = 0, codigo = null, pedindo = false, tentou = false, guardado = false, confirmando = null, jaTem = false, noEmail = false, conversaId = null, marcaLida = false, prev = null;
     var rest = window.BZRestante ? window.BZRestante.criar({ dinheiro: dinheiro, telaPagamento: o.telaPagamento }) : null;   /* (3b-3c) o passo 4: o site no ar, o Pix do restante, o fim */
     /* (20/11) "Preciso desistir da compra": o link discreto e o painel de confirmação (js/orcamento-desistencia.js); o servidor diz se a opção existe (entrega.pode_desistir). Depois do cancelamento, relê o pedido e leva o foco ao fim dele */
     var desiste = window.BZDesistencia ? window.BZDesistencia.criar({ API: API, aoCancelar: async function () {
@@ -128,13 +132,13 @@
       return legado();
     }
     function mostrarCartao() {
-      var modo = modoDoCartao({ codigo: codigo, guardado: guardado, linkPedido: jaTem });
+      var modo = modoDoCartao({ codigo: codigo, guardado: guardado, linkPedido: jaTem, noEmail: noEmail });
       $('o-link').hidden = modo === 'nenhum';
       if (modo === 'nenhum') return;
-      var copiar = modo === 'copiar';
-      $('o-link-titulo').textContent = copiar ? 'Guarde o link do seu pedido' : 'Você ainda não guardou o link do seu pedido';
-      $('o-link-texto').textContent = copiar ? TEXTO_COPIAR : TEXTO_GERAR;
-      $('o-link-campo').hidden = !copiar; $('o-link-acoes').hidden = !copiar; $('o-link-gerar').hidden = copiar;
+      var copiar = modo === 'copiar', email = modo === 'email';
+      $('o-link-titulo').textContent = copiar ? 'Guarde o link do seu pedido' : email ? TITULO_EMAIL : 'Você ainda não guardou o link do seu pedido';
+      $('o-link-texto').textContent = copiar ? TEXTO_COPIAR : email ? TEXTO_EMAIL : TEXTO_GERAR;
+      $('o-link-campo').hidden = !copiar; $('o-link-acoes').hidden = !copiar; $('o-link-gerar').hidden = copiar;   /* (no modo e-mail o botão fica: o e-mail pode não ter chegado ou ter ido para outro endereço) */
       if (copiar) {
         $('o-link-campo').value = linkDoPedido(location.origin, codigo);
         $('o-link-enviar').hidden = typeof navigator.share !== 'function';
@@ -229,7 +233,7 @@
       if (lead && lead.dataset.padrao) lead.textContent = leadDoRecibo(e ? e.passo : null, lead.dataset.padrao);
       var terminou = rest ? rest.atualizar(E) : false;   /* (o site no ar e o Pix do restante, ou o pedido concluído/encerrado: ela mesma esconde o que não é da etapa) */
       if (terminou || !pronto) { $('o-pedido').hidden = true; $('o-material').hidden = true; $('o-previa').hidden = true; return; }
-      jaTem = !!e.link_pedido; conversaId = E.conversa.id;
+      jaTem = !!e.link_pedido; noEmail = !!e.link_no_email; conversaId = E.conversa.id;
       if (!marcaLida) { marcaLida = true; guardado = lerMarca(); }
       $('o-pedido').hidden = false;
       $('o-ped-codigo').textContent = E.pedido ? E.pedido.codigo : '';
@@ -256,5 +260,5 @@
   }
 
   window.BZEntrega = { criar: criar, passos: passos, leadDoRecibo: leadDoRecibo, dataPorExtenso: dataPorExtenso, diaDoInstante: diaDoInstante, arquivoCalendario: arquivoCalendario, linkDoPedido: linkDoPedido,
-    modoDoCartao: modoDoCartao, promessasVisiveis: promessasVisiveis, FRASE_DESLIGADA: FRASE_DESLIGADA };
+    modoDoCartao: modoDoCartao, promessasVisiveis: promessasVisiveis, FRASE_DESLIGADA: FRASE_DESLIGADA, TITULO_EMAIL: TITULO_EMAIL, TEXTO_EMAIL: TEXTO_EMAIL };
 })();

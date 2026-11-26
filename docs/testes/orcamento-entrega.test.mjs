@@ -101,6 +101,19 @@ test('M4: o cartão do link — copiar quando o código está na página e não 
   assert.match(api, /acao === 'abrir-pedido'/, 'abrir pelo link grava a marca (quem abriu pelo link já o tem)');
 });
 
+test('o link no e-mail (19/11): a página não pede para gerar outro (o que revogaria o do e-mail); diz que ele está no e-mail; o formato é o mesmo do servidor', async () => {
+  assert.equal(B.modoDoCartao({ codigo: null, guardado: false, linkPedido: true, noEmail: true }), 'email', 'o link existe e foi por e-mail: nada de "gerar"');
+  assert.equal(B.modoDoCartao({ codigo: 'x', guardado: false, linkPedido: true, noEmail: false }), 'copiar', 'gerou um novo aqui: copiar, como sempre');
+  assert.equal(B.modoDoCartao({ codigo: null, guardado: true, linkPedido: true, noEmail: true }), 'nenhum', 'abriu pelo link do e-mail: já o tem');
+  assert.equal(B.modoDoCartao({ codigo: null, guardado: false, linkPedido: false, noEmail: true }), 'nenhum', 'sem link vivo, o do e-mail não conta');
+  assert.match(FONTE, /e\.link_no_email/, 'lê o estado do servidor');
+  assert.match(FONTE, /\$\('o-link-gerar'\)\.hidden = copiar;/, 'no modo e-mail o "Gerar o link e guardar" continua: o e-mail pode não ter chegado');
+  assert.match(B.TEXTO_EMAIL, /e-mail/); assert.doesNotMatch(B.TEXTO_EMAIL + B.TITULO_EMAIL, /c[óo]digo|!|—/);
+  const { linkDoPedido } = await import('../../api/_pagamentos/confirmacao.mjs');
+  const X = 'AbCdEfGhIjKlMnOpQrStUvWxYz012345';
+  assert.equal(linkDoPedido(X), B.linkDoPedido('https://beyonzero.com.br', X), 'o e-mail e a página montam o mesmo link');
+});
+
 test('entrega desligada (M5): a frase do recibo é a do servidor', async () => {
   const { FRASE_DESLIGADA } = await import('../../api/_material/interruptor.mjs');
   assert.equal(B.FRASE_DESLIGADA, FRASE_DESLIGADA);
