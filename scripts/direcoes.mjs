@@ -32,7 +32,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomInt } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
-import { higienizar, ESTRATEGIAS, ESQUEMA_DIRECAO } from '../api/_vendas/direcao.mjs';
+import { higienizar, ESTRATEGIAS, ESQUEMA_DIRECAO, trilhoDaDirecao, TEMPERATURAS } from '../api/_vendas/direcao.mjs';
 import { SISTEMA_GERACAO, REGRA_BRIEFING, briefingDelimitado, briefingParaGeracao } from '../api/_vendas/gerador.mjs';
 import { redigir } from '../api/_vendas/seguranca.mjs';
 import { configSessao, comandoSessao, instrucoesSessao, linhaDoDono } from './sessao-isolada.mjs';
@@ -216,9 +216,12 @@ export function pedidoParaModelo(p) {
     regra: REGRA_BRIEFING,
     briefing: briefingDelimitado(limparProfundo(briefingParaGeracao(p.briefing), apagador(p.contato))),
     formato_e_escopo: { formato: p.fatores?.formato || null, paginas: p.fatores?.paginas || null, adicionais: p.fatores?.adicionais || {} },
-    direcoes: (p.direcoes || []).map(d => ({ id: d.id, numero: d.numero, estrategia: d.estrategia, status: d.status, instrucao: ESTRATEGIAS[d.estrategia] || null }))
+    direcoes: (p.direcoes || []).map(d => ({ id: d.id, numero: d.numero, estrategia: d.estrategia, status: d.status, instrucao: ESTRATEGIAS[d.estrategia] || null,
+      identidade_fixada: identidadeFixada(trilhoDaDirecao(p.briefing, d.estrategia)) }))
   };
 }
+/* o mesmo trilho da geração automática (direcao.mjs): aqui a sessão escreve a tipografia, então ela vai junto */
+const identidadeFixada = t => (t ? { tema: t.tema, cor_de_destaque: TEMPERATURAS[t.temperatura], tipografia: t.tipografia } : null);
 /* o arquivo inteiro que o modelo lê: o pedido sem contato + as instruções da geração automática */
 export const montarArquivoPedido = p => ({ ...pedidoParaModelo(p), instrucoes: { sistema: SISTEMA_GERACAO, esquema: ESQUEMA_DIRECAO, estrategias: ESTRATEGIAS } });
 

@@ -24,6 +24,44 @@ export const ICONES = ['nenhum', 'calendario', 'relogio', 'local', 'mensagem', '
   'dente', 'tesoura', 'ferramenta', 'pata', 'haltere', 'talher', 'camera', 'carro', 'livro', 'martelo', 'balanca', 'pincel', 'cifrao', 'musica', 'saude'];
 /* O topo de cada estratégia (a regra do dono: os três modelos de um cliente nunca abrem do mesmo jeito): o código fixa, o modelo não escolhe */
 export const TOPO_DA_ESTRATEGIA = { conversao: 'split', autoridade: 'centro', experiencia: 'faixa' };
+/* O TRILHO de identidade (achado 1 da lapidação de 25/11; regra do dono de 20/11, nunca padronizar): as três chamadas da geração correm
+   separadas e uma não vê a outra, então saíam com a mesma fonte, o mesmo tema claro e a mesma família de cor. O código reparte antes:
+   títulos em três fontes diferentes, um só modelo escuro e o destaque de cada um numa família de cor diferente. A divisão gira pelo nome
+   e o segmento do negócio, para dois clientes também não saírem iguais. As fontes o código fixa (como o topo); tema e cor vão ao modelo
+   no pedido, porque a paleta inteira tem de combinar com eles. */
+export const TEMPERATURAS = {
+  quente: 'família quente (vermelhos, laranjas, corais, dourados)',
+  fria: 'família fria (azuis, verdes, turquesas, violetas)',
+  terrosa: 'família terrosa ou neutra (marrons, ocres, oliva, grafite, areia)'
+};
+/* para cada fonte de título, o texto que contrasta com ela (o 2º número do hash escolhe qual) */
+const TEXTO_DO_TITULO = { serif_moderna: ['sans_humanista', 'sans_geometrica'], sans_geometrica: ['serif_classica', 'sans_humanista'], serif_classica: ['sans_geometrica', 'sans_humanista'] };
+const TITULOS = Object.keys(TEXTO_DO_TITULO);
+const PERMUTACOES = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+const ORDEM_ESTRATEGIAS = ['conversao', 'autoridade', 'experiencia'];
+const textoSeguro = v => (typeof v === 'string' ? v.trim().toLowerCase() : '');
+/* FNV-1a de 32 bits: estável entre servidor, testes e reexecuções (o mesmo briefing dá sempre o mesmo trilho) */
+function hash(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h;
+}
+export function trilhoDaDirecao(briefing, estrategia) {
+  const i = ORDEM_ESTRATEGIAS.indexOf(estrategia);
+  if (i < 0) return null;
+  const n = briefing && typeof briefing === 'object' && briefing.negocio && typeof briefing.negocio === 'object' ? briefing.negocio : {};
+  const h = hash(textoSeguro(n.nome) + '|' + textoSeguro(n.segmento));
+  const titulos = TITULOS[PERMUTACOES[h % 6][i]];
+  const temperatura = Object.keys(TEMPERATURAS)[PERMUTACOES[(h >>> 3) % 6][i]];
+  return {
+    tipografia: { titulos, texto: TEXTO_DO_TITULO[titulos][(h >>> (6 + i)) & 1] },
+    tema: (h >>> 9) % 3 === i ? 'escuro' : 'claro',
+    temperatura
+  };
+}
+/* o trecho do pedido que leva o trilho ao modelo (fora do briefing: é do código) */
+export const pedidoDoTrilho = t => (t ? '\n\nIDENTIDADE FIXADA PELO CÓDIGO (os três modelos do cliente nunca saem iguais): tema ' + t.tema +
+  ' (a paleta inteira segue o tema); a cor de destaque na ' + TEMPERATURAS[t.temperatura] + ', no tom que combina com este negócio. A tipografia o código aplica.' : '');
 /* o que ocupa o lugar de um número que o briefing não trouxe (o renderer o desenha como espaço reservado) */
 export const NUMERO_A_CONFIRMAR = '[Número a confirmar]';
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -116,9 +154,10 @@ function numeroInventado(texto, digitosDoBriefing) {
 
 /* opcoes (só a GERAÇÃO passa; ajuste do cliente, fila manual e painel chamam sem elas e nada muda para eles):
    briefing  = o briefing da geração, para a conferência do número;
-   fixarTopo = o topo (hero) é o da estratégia (TOPO_DA_ESTRATEGIA), não o que o modelo escolheu. */
+   fixarTopo = o topo (hero) é o da estratégia (TOPO_DA_ESTRATEGIA), não o que o modelo escolheu;
+   trilho    = as fontes são as do trilho (trilhoDaDirecao), não as do modelo; trilho com fonte fora da lista não vale. */
 export function higienizar(bruta, estrategia, opcoes) {
-  const { briefing, fixarTopo } = opcoes || {};
+  const { briefing, fixarTopo, trilho } = opcoes || {};
   if (!bruta || typeof bruta !== 'object') return { erro: 'direção vazia' };
   /* só a geração (api/_vendas/gerador.mjs) tem o briefing e o passa; a fila manual (o POST do painel que grava a direção) não o tem: lá o número
      do arquivo da sessão do dono segue como veio (a conferência da sessão e a revisão dela cobrem esse caminho) */
@@ -137,7 +176,9 @@ export function higienizar(bruta, estrategia, opcoes) {
   if (contraste(paleta.texto_suave, paleta.fundo) < 3) { paleta.texto_suave = paleta.texto; ajustes.push('texto_suave'); }
   if (contraste(paleta.destaque_texto, paleta.destaque) < 4.5) { paleta.destaque_texto = legivelSobre(paleta.destaque); ajustes.push('destaque_texto'); }
 
-  const tip = d.identidade?.tipografia || {}, est = d.identidade?.estilo || {};
+  const tipT = trilho?.tipografia;
+  const trilhoValido = tipT && FONTES.includes(tipT.titulos) && FONTES.includes(tipT.texto);
+  const tip = trilhoValido ? tipT : (d.identidade?.tipografia || {}), est = d.identidade?.estilo || {};
   const secoes = (Array.isArray(d.secoes) ? d.secoes : []).filter(x => x && TIPOS_SECAO.includes(x.tipo)).slice(0, MAX_SECOES).map(x => ({
     tipo: x.tipo,
     variante: VARIANTES.includes(x.variante) ? x.variante : 'centro',
