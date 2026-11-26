@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Laboratório · Mapa vivo v2 (fase 0)</title>
+  <link rel="preload" href="/assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/css/tokens.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/orcamento.css" />
+  <link rel="stylesheet" href="/css/orcamento-palco.css" />
+  <link rel="stylesheet" href="/docs/lab-mapa-vivo.css" />
+  <script src="/js/mapa-saber.js" defer></script>
+  <script src="/js/planta-pecas.js" defer></script>
+  <script src="/docs/lab-mapa-vivo-ler.js" defer></script>
+  <script src="/docs/lab-mapa-vivo.js" defer></script>
+</head>
+<body>
+  <!-- Laboratório do Mapa vivo v2, fase 0 (fora do deploy: docs/ não entra em cloudflare/montar-publico.mjs). Nenhuma chamada de IA: a anotação
+       é GRAVADA e chega com o atraso de ?latencia=ms (padrão: a estimativa da especificação, a medir). Parâmetros: ?caso=clinica|loja
+       &auto=1 (o roteiro digita sozinho) &captura=1 (sem os controles) &teclado=1 (o teclado do celular aberto) &lento=N (relógios N vezes mais
+       devagar, para o vídeo) &parar=digitando|anotou|enviou (o roteiro para naquele ponto, para os quadros) &estatico=1 (menos movimento) &semreacao=1 (hoje) -->
+  <header class="lab-barra" id="lab-barra">
+    <p class="lab-kicker">Laboratório · Mapa vivo v2 · fase 0</p>
+    <div class="lab-ctrl" role="group" aria-label="Controles do laboratório">
+      <button type="button" class="chip" data-caso="clinica">Clínica</button>
+      <button type="button" class="chip" data-caso="loja">Loja</button>
+      <button type="button" class="chip" data-acao="auto">Digitar sozinho</button>
+    </div>
+  </header>
+  <p class="mv-relogio" id="mv-relogio" aria-hidden="true"></p>
+  <main id="conteudo" class="orc__main mv-main">
+    <div class="orc-mesa">
+      <section class="orc-conversa" aria-labelledby="mv-titulo">
+        <h2 id="mv-titulo" class="orc-rotulo">Zero, assistente virtual (IA) da Beyon Zero</h2>
+        <div class="orc-log" id="o-log-caixa">
+          <ol class="orc-log__lista" id="o-log">
+            <li class="msg msg--agente"><p>Agora me conta como os clientes chegam até você hoje e o que mais dá trabalho no dia a dia. Pode escrever do seu jeito.</p></li>
+          </ol>
+        </div>
+        <p class="mv-anota" id="mv-anota" role="status" hidden><span class="mv-anota__quem">O Zero (IA) anotou:</span> <span class="mv-anota__texto" id="mv-anota-texto"></span></p>
+        <form class="orc-envio" id="o-form" novalidate>
+          <label class="sr-only" for="o-texto">Sua mensagem</label>
+          <div class="orc-campo">
+            <textarea id="o-texto" rows="3" maxlength="2000" placeholder="Ou conte do seu jeito:&#10;o que você faz&#10;e do que precisa" autocomplete="off"></textarea>
+          </div>
+          <ul class="mv-pecas" id="mv-pecas" aria-hidden="true"></ul>
+          <button class="btn btn--primary orc-enviar" type="submit" id="o-enviar">Enviar</button>
+        </form>
+        <p class="orc-nota mv-aviso">O Zero lê o que você digita para ir anotando. Nada é guardado até você enviar.</p>
+      </section>
+    </div>
+  </main>
+  <div class="mv-teclado" id="mv-teclado" aria-hidden="true" hidden></div>
+</body>
+</html>

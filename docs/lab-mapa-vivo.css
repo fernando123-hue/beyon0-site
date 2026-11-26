@@ -1,0 +1,40 @@
+/* Laboratório do Mapa vivo v2 (fase 0). Só o que é novo: a linha "anotou", a fileira de peças, o cartão de espera com o que já se sabe,
+   o relógio e o teclado de mentira. Sem blur, sem brilho; movimento só por transform, opacity e stroke-dashoffset uma vez. */
+html { background: var(--bg); }
+body { margin: 0; background: var(--bg); color: var(--t1); font-family: var(--sans); }
+.lab-barra { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 12px var(--pad); border-bottom: 1px solid var(--line); }
+.lab-kicker { margin: 0; font: 500 var(--fs-rotulo)/1.3 var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.lab-ctrl { display: flex; flex-wrap: wrap; gap: 6px; }
+html.captura .lab-barra { display: none; }
+.mv-main { max-width: 560px; min-height: 100vh; box-sizing: border-box; margin: 0 auto; padding: 16px var(--pad) 24px; }
+.mv-main .orc-log { max-height: none; overflow: visible; }
+
+/* o relógio (honestidade: o vídeo mostra quanto tempo cada coisa leva) */
+.mv-relogio { position: fixed; top: 8px; right: 10px; z-index: 50; margin: 0; padding: 3px 8px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--s1); font: 500 11px/1.2 var(--mono); color: var(--t2); }
+.mv-relogio:empty { display: none; }
+
+/* a linha "O Zero (IA) anotou:", colada em cima da caixa */
+.mv-anota { margin: 10px 0 8px; padding: 0 2px; font-size: .9375rem; line-height: 1.45; color: var(--t1); text-wrap: pretty; }
+.mv-anota__quem { display: block; margin-bottom: 2px; font: 500 var(--fs-rotulo)/1.3 var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac); }
+
+/* a fileira de peças, colada embaixo da caixa: ícone de 24 px num chip de 1 px e o nome curto */
+.mv-pecas { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; flex: 1 1 100%; min-height: 34px; }
+.mv-pecas:empty { min-height: 0; }
+.mv-peca { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px 0 6px; border: 1px solid var(--line-2); border-radius: 999px; font: 500 12px/1 var(--mono); color: var(--t2); }
+.mv-peca svg { width: 24px; height: 24px; flex: none; fill: none; stroke: var(--t1); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mv-peca svg .ac { stroke: var(--ac); }
+.mv-peca.is-nova { border-color: var(--ac); color: var(--t1); }
+
+/* o cartão de espera, depois do Enter: o que já se sabe no lugar do vazio */
+.mv-espera { align-self: stretch; padding: 12px 14px; border: 1px solid var(--line-2); border-radius: 14px; }
+.mv-espera__rot { margin: 0 0 6px; font: 500 var(--fs-rotulo)/1.3 var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.mv-espera__txt { margin: 0 0 10px; font-size: .9375rem; line-height: 1.45; }
+.mv-espera .mv-pecas { min-height: 0; }
+
+.mv-aviso { margin-top: 10px; }
+
+/* o teclado do celular aberto (de mentira, só para os quadros) */
+.mv-teclado { position: fixed; left: 0; right: 0; bottom: 0; height: 290px; z-index: 40; background: #2A2D2F; border-top: 1px solid #3A3E41; }
+.mv-teclado::before { content: "teclado"; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: #8A9094; }
+html.tem-teclado body { padding-bottom: 290px; }
+.mv-main .orc-mesa { display: block; }   /* (no computador a mesa é uma grade com a coluna do preço, que o laboratório não tem) */
