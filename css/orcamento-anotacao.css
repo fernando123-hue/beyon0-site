@@ -1,6 +1,7 @@
 /* MAPA VIVO v2, fase 1b: a anotação curta da IA acima da caixa (js/orcamento-anotacao.js).
-   O lugar tem ALTURA FIXA: o aviso e a anotação (até 90 caracteres + o rótulo) cabem no mesmo espaço, e a linha que chega depois da pausa não
-   empurra a caixa (CLS 0). Desligada, o lugar encolhe para uma linha, por um toque da pessoa (mudança por interação não conta no CLS).
+   O lugar tem altura mínima de 3 linhas: o aviso e a anotação (até 90 caracteres + o rótulo) cabem no mesmo espaço, e a linha que chega depois da pausa não
+   empurra a caixa (CLS 0). Ele entra na página quando a pessoa toca a caixa; desligado, encolhe para uma linha: as duas mudanças vêm de uma ação
+   dela (não contam no CLS).
    Mono só no rótulo e nos controles; a frase em Sora. Sem desfoque. */
 .orc-anota { margin: .9rem 0 0; }
 .orc-anota[hidden] { display: none; }
@@ -12,9 +13,12 @@
 .orc-anota__acao:focus-visible { outline: 1px solid var(--ac); outline-offset: 2px; }
 /* abaixo de 360 px o rótulo e os dois botões não cabem numa linha no tamanho de controle (medido em 320: "anotou:" caía sozinho na linha de baixo) */
 @media (max-width: 359px) { .orc-anota__acao { padding: 0 .3rem; font-size: var(--fs-rotulo); } }
-/* três linhas reservadas (medido em 390 e 320 com docs/olhar-anotacao.mjs: duas cortavam a anotação de 90 caracteres em 390) */
-.orc-anota__texto { text-wrap: pretty; height: calc(3 * 1.4em); margin: .15rem 0 0; overflow: hidden; font-size: var(--fs-s); line-height: 1.4; color: var(--t3); }
+/* três linhas reservadas (medido em 390 e 320 com docs/olhar-anotacao.mjs: duas cortavam a anotação de 90 caracteres em 390). MIN-height, sem
+   corte: com a fonte do navegador maior, o aviso de privacidade cresce em vez de sumir pela metade (revisão técnica do #276, achado 6) */
+.orc-anota__texto { text-wrap: pretty; min-height: calc(3 * 1.4em); margin: .15rem 0 0; font-size: var(--fs-s); line-height: 1.4; color: var(--t3); }
 .orc-anota__texto.is-anota { color: var(--t1); }
+.orc-anota__quem { font-family: var(--mono); font-size: var(--fs-ctrl); color: var(--t2); }   /* o rótulo de IA abre a frase */
+@media (max-width: 359px) { .orc-anota__texto { min-height: calc(4 * 1.4em); } }   /* (o aviso com "telefone e e-mail" pede 4 linhas em 320) */
 /* a anotação no cartão de espera: a 1ª linha dele, acima do "Analisando o seu caso…" */
-.orc-pensando:has(> .orc-pensando__anota) { flex-wrap: wrap; }   /* (só o cartão com a anotação quebra a linha; os outros cartões "pensando" ficam como estão) */
+.orc-pensando.tem-anotacao { flex-wrap: wrap; }   /* (só o cartão com a anotação quebra a linha; a classe vem do JS: vale também em navegador sem o seletor has) */
 .orc-pensando__anota { flex: 1 0 100%; font-family: var(--sans); font-size: var(--fs-s); color: var(--t1); }

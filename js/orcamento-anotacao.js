@@ -7,7 +7,8 @@
      a anotação é rotulada como IA e entra só por textContent.
    - O porteiro é regra de código: texto com 25 caracteres ou mais, 700 ms de pausa, 15 caracteres novos desde a última chamada, até 3 chamadas por
      mensagem e 12 por conversa (o servidor também conta as 12). Resposta velha (seq menor que uma já respondida) não troca a linha.
-   - O lugar tem altura fixa (o aviso e a anotação cabem no mesmo espaço): a linha chega sem empurrar a caixa.
+   - O lugar tem altura mínima (o aviso e a anotação cabem no mesmo espaço): a linha chega sem empurrar a caixa. Ele entra na página quando a pessoa
+     toca a caixa (o deslocamento cola numa ação dela); sem armazenamento que funcione, não entra (o Desligar não teria como persistir).
    - No envio (bz:pensando), a anotação vira a 1ª linha do cartão "Analisando o seu caso…" e o lugar volta ao aviso.
    - Falha fechada: qualquer erro tira a linha, com aviso "[beyon] anotacao". ES5. */
 (function (raiz, fabrica) {
@@ -17,12 +18,12 @@
   if (raiz) raiz.BZOrcAnotacao = api.criar(raiz);
 })(typeof window !== 'undefined' ? window : null, function () {
   'use strict';
-  var MINIMO = 25, PAUSA = 700, NOVOS = 15, POR_MENSAGEM = 3, POR_CONVERSA = 12, FINAL = 400, LETRA_MS = 18, ANOTACAO_MAX = 120;
+  var MINIMO = 25, PAUSA = 700, NOVOS = 15, POR_MENSAGEM = 3, POR_CONVERSA = 12, FINAL = 400, LETRA_MS = 18, ANOTACAO_MAX = 90;   /* (90 = o teto do servidor, ANOTACAO_MAX em api/_vendas/reacao.mjs, e o que a altura do lugar foi medida para caber) */
   var CHAVE = 'bz-anotacao', DESLIGADA = 'desligada';
   var TEXTOS = {
     rotuloAviso: 'Anotação ao vivo',
-    /* (espaços que não quebram, \u00a0, prendem os trechos de sentido: a linha nunca quebra em 'lê o / que você escreve', medido em 320 e 390) */
-    aviso: 'Uma IA da Anthropic, fora\u00a0do\u00a0Brasil, lê\u00a0o\u00a0que\u00a0você\u00a0escreve. Não guardamos o\u00a0texto, e\u00a0contatos viram\u00a0marcadores.',
+    /* (espaços que não quebram, \u00a0, e o \u2060 depois do hífen de e-mail prendem os trechos de sentido: a linha nunca quebra em 'lê o / que você escreve', medido em 320 e 390) */
+    aviso: 'Uma IA da Anthropic, fora\u00a0do\u00a0Brasil, lê\u00a0o\u00a0que\u00a0você\u00a0escreve. Não\u00a0guardamos\u00a0o\u00a0texto, e\u00a0telefone e\u00a0e-\u2060mail viram\u00a0marcadores.',
     rotulo: 'O Zero (IA) anotou:',
     desligada: 'Anotação ao vivo desligada.',
     saiba: 'Saiba mais', naoEIsso: 'Não é isso', desligar: 'Desligar', ligar: 'Ligar'
@@ -34,17 +35,22 @@
 
   function criar(win) {
     var doc = win.document;
-    var st = { caixa: null, campo: null, timer: 0, letras: 0, ouvindo: false, falhou: false, desligadaAqui: false, pensando: false, modo: '', noCartao: null,
+    var st = { caixa: null, campo: null, timer: 0, letras: 0, ouvindo: false, falhou: false, desligadaAqui: false, pensando: false, modo: '', noCartao: null, corpo: null, esperando: null, ligadaAgora: false,
       seq: 0, respondido: 0, mensagem: 0, porMensagem: 0, porConversa: 0, conversa: null, ultimo: '', anotacao: '' };
     var $ = function (id) { return doc.getElementById(id); };
 
+    /* FALHA FECHADA (revisão de segurança do #276, achado 2): sem armazenamento que funcione (bloqueado, modo privado), a escolha "Desligar"
+       não teria como persistir; então a anotação nem aparece e nada é chamado. Leitura que lança conta como desligada */
+    function armazemFunciona() {
+      try { var k = CHAVE + '-teste'; win.localStorage.setItem(k, '1'); win.localStorage.removeItem(k); return true; } catch (e) { return false; }
+    }
     function desligada() {
       if (st.desligadaAqui) return true;
-      try { return win.localStorage.getItem(CHAVE) === DESLIGADA; } catch (e) { return false; }
+      try { return win.localStorage.getItem(CHAVE) === DESLIGADA; } catch (e) { return true; }
     }
     function guardar(sim) {
-      st.desligadaAqui = sim;   /* (sem armazenamento no aparelho, vale ao menos nesta página) */
-      try { if (sim) win.localStorage.setItem(CHAVE, DESLIGADA); else win.localStorage.removeItem(CHAVE); } catch (e) { /* idem */ }
+      st.desligadaAqui = sim;
+      try { if (sim) win.localStorage.setItem(CHAVE, DESLIGADA); else win.localStorage.removeItem(CHAVE); } catch (e) { st.desligadaAqui = true; }
     }
     function falhar(e) {
       st.falhou = true;
@@ -53,12 +59,26 @@
     }
     function pararLetras() { win.clearTimeout(st.letras); st.letras = 0; }
     function tirarDoCartao() {
-      if (st.noCartao && st.noCartao.parentNode) st.noCartao.parentNode.removeChild(st.noCartao);
+      if (st.noCartao && st.noCartao.parentNode) {
+        if (st.noCartao.parentNode.classList) st.noCartao.parentNode.classList.remove('tem-anotacao');
+        st.noCartao.parentNode.removeChild(st.noCartao);
+      }
       st.noCartao = null;
     }
+    /* a região viva repete só a anotação que está na tela: rejeitada, desligada ou enviada, ela sai também (revisão técnica do #276, achado 4) */
+    function limparViva() { var viva = $('o-anota-viva'); if (viva) viva.textContent = ''; }
+    var GATILHOS = ['focus', 'keydown', 'pointerdown'];
+    function soltarGatilhos() {
+      if (st.esperando) GATILHOS.forEach(function (t) { st.esperando.removeEventListener(t, aoTocarCaixa); });
+      st.esperando = null;
+    }
     function tirar() {
+      soltarGatilhos();
       if (st.caixa && st.caixa.parentNode) st.caixa.parentNode.removeChild(st.caixa);
       st.caixa = null;
+      st.corpo = null;
+      var viva = $('o-anota-viva');
+      if (viva && viva.parentNode) viva.parentNode.removeChild(viva);
       if (st.campo && st.ouvindo) st.campo.removeEventListener('input', aoDigitar);
       st.ouvindo = false;
       win.clearTimeout(st.timer);
@@ -66,6 +86,7 @@
       tirarDoCartao();
       st.anotacao = '';
       st.modo = '';
+      st.seq++; st.respondido = st.seq;   /* (resposta antiga pendente não aparece num lugar remontado) */
     }
 
     function el(tag, classe, texto) {
@@ -80,54 +101,60 @@
       b.addEventListener('click', function () { try { aoTocar(); } catch (e) { falhar(e); } });
       return b;
     }
-    /* o foco estava num botão que vai sumir: passa para o que fica no lugar (sem ele, o foco cairia no body) */
+    /* o foco estava num controle que vai sumir: passa para o 1º controle do lugar novo, nunca direto para "Desligar" (sem isso, o foco cairia
+       no body; revisão técnica do #276, achado 5) */
     function focar(n) { if (n && n.focus) n.focus({ preventScroll: true }); }
 
-    /* desenha o lugar: 'aviso' (antes de qualquer anotação), 'anota' (a frase) ou 'desligada' */
+    /* desenha o lugar: 'aviso' (antes de qualquer anotação), 'anota' (a frase) ou 'desligada'. Uma anotação nova sobre outra troca SÓ a frase:
+       os botões ficam no DOM, e o toque que começou num deles não se perde (revisão técnica do #276, achado 4) */
     function desenhar(modo) {
-      var c = st.caixa, tinhaFoco = !!doc.activeElement && c.contains && c.contains(doc.activeElement);
+      var c = st.caixa;
+      if (modo === 'anota' && st.modo === 'anota' && st.corpo) { pararLetras(); escrever(st.corpo, st.anotacao); return; }
+      var tinhaFoco = !!doc.activeElement && !!c.contains && c.contains(doc.activeElement);
       pararLetras();
       while (c.firstChild) c.removeChild(c.firstChild);
       st.modo = modo;
+      st.corpo = null;
       c.classList.toggle('is-desligada', modo === 'desligada');
       var topo = el('p', 'orc-anota__topo'), acoes = el('span', 'orc-anota__acoes'), primeiro = null;
-      if (modo === 'desligada') {
-        topo.appendChild(el('span', 'orc-anota__rotulo', TEXTOS.desligada));
-        acoes.appendChild(primeiro = botao(TEXTOS.ligar, ligar));
-        topo.appendChild(acoes);
-        c.appendChild(topo);
-        if (tinhaFoco) focar(primeiro);
-        return;
-      }
-      topo.appendChild(el('span', 'orc-anota__rotulo', modo === 'anota' ? TEXTOS.rotulo : TEXTOS.rotuloAviso));
-      if (modo === 'anota') acoes.appendChild(botao(TEXTOS.naoEIsso, naoEIsso));
+      topo.appendChild(el('span', 'orc-anota__rotulo', modo === 'desligada' ? TEXTOS.desligada : TEXTOS.rotuloAviso));
+      if (modo === 'desligada') acoes.appendChild(primeiro = botao(TEXTOS.ligar, ligar));
+      else if (modo === 'anota') acoes.appendChild(primeiro = botao(TEXTOS.naoEIsso, naoEIsso));
       else {
-        var a = el('a', 'orc-anota__acao', TEXTOS.saiba);
-        a.setAttribute('href', SAIBA_URL);
-        a.setAttribute('target', '_blank');
-        a.setAttribute('rel', 'noopener');
-        acoes.appendChild(a);
+        primeiro = el('a', 'orc-anota__acao', TEXTOS.saiba);
+        primeiro.setAttribute('href', SAIBA_URL);
+        primeiro.setAttribute('target', '_blank');
+        primeiro.setAttribute('rel', 'noopener');
+        acoes.appendChild(primeiro);
       }
-      acoes.appendChild(primeiro = botao(TEXTOS.desligar, desligar));
+      if (modo !== 'desligada') acoes.appendChild(botao(TEXTOS.desligar, desligar));
       topo.appendChild(acoes);
       c.appendChild(topo);
-      var corpo = el('p', 'orc-anota__texto' + (modo === 'anota' ? ' is-anota' : ''));
-      c.appendChild(corpo);
-      if (modo === 'anota') escrever(corpo, st.anotacao);
-      else corpo.textContent = TEXTOS.aviso;
+      if (modo !== 'desligada') {
+        st.corpo = el('p', 'orc-anota__texto' + (modo === 'anota' ? ' is-anota' : ''));
+        c.appendChild(st.corpo);
+        if (modo === 'anota') escrever(st.corpo, st.anotacao);
+        else st.corpo.textContent = TEXTOS.aviso;
+      }
       if (tinhaFoco) focar(primeiro);
     }
     /* letra a letra; com movimento reduzido, de uma vez. O leitor de tela recebe a frase inteira, uma vez (a região viva) */
+    /* o rótulo "O Zero (IA) anotou:" abre a PRÓPRIA frase (como na especificação): onde a frase aparece, o rótulo de IA aparece junto, mesmo
+       quando a caixa cresce e a linha de cima passa por trás do topo fixo (medido em 320x400) */
     function escrever(corpo, frase) {
       var viva = $('o-anota-viva');
       if (viva) viva.textContent = TEXTOS.rotulo + ' ' + frase;
       corpo.setAttribute('aria-hidden', 'true');
+      while (corpo.firstChild) corpo.removeChild(corpo.firstChild);
+      corpo.appendChild(el('span', 'orc-anota__quem', TEXTOS.rotulo + ' '));
+      var texto = el('span', 'orc-anota__frase');
+      corpo.appendChild(texto);
       var reduzido = !!(win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
-      if (reduzido) { corpo.textContent = frase; return; }
+      if (reduzido) { texto.textContent = frase; return; }
       var i = 0;
       (function passo() {
         i++;
-        corpo.textContent = frase.slice(0, i);
+        texto.textContent = frase.slice(0, i);
         if (i < frase.length) st.letras = win.setTimeout(passo, LETRA_MS);
       })();
     }
@@ -138,18 +165,24 @@
       st.ultimo = '';
       st.anotacao = '';
       win.clearTimeout(st.timer);
+      limparViva();
       if (st.caixa && st.modo === 'anota') desenhar('aviso');
     }
+    /* o que ainda está a caminho não aparece mais */
+    function esquecerEmVoo() { st.seq++; st.respondido = st.seq; }
     function naoEIsso() {
+      esquecerEmVoo();   /* (a frase rejeitada não volta pela resposta que já tinha saído; revisão técnica do #276, achado 1) */
       st.anotacao = '';
+      limparViva();
       desenhar('aviso');
       focar(st.campo);
     }
     function desligar() {
       guardar(true);
-      st.seq++; st.respondido = st.seq;   /* (o que ainda está a caminho não aparece mais) */
+      esquecerEmVoo();
       st.anotacao = '';
       win.clearTimeout(st.timer);
+      limparViva();
       desenhar('desligada');
     }
     function ligar() { guardar(false); desenhar('aviso'); }
@@ -195,12 +228,45 @@
           tirarDoCartao();
           st.noCartao = el('span', 'orc-pensando__anota', TEXTOS.rotulo + ' ' + st.anotacao);
           cartao.insertBefore(st.noCartao, cartao.firstChild);
+          if (cartao.classList) cartao.classList.add('tem-anotacao');   /* (classe, não :has(): vale em navegador antigo; achado 7) */
         }
         novaMensagem();
       } catch (e) { falhar(e); }
     }
     if (doc.addEventListener) doc.addEventListener('bz:pensando', aoPensar);
+    /* outra aba desligou ou ligou: esta acompanha na tela (as chamadas já respeitavam, porque desligada() lê o armazenamento a cada vez;
+       revisão de segurança do #276, achado 3) */
+    if (win.addEventListener) win.addEventListener('storage', function (ev) {
+      try {
+        if (!st.caixa || (ev && ev.key !== CHAVE && ev.key !== null)) return;
+        var agora = desligada() ? 'desligada' : 'aviso';
+        if (agora === 'desligada' || st.modo === 'desligada') { esquecerEmVoo(); st.anotacao = ''; limparViva(); desenhar(agora); }
+      } catch (e) { falhar(e); }
+    });
 
+    /* o lugar entra na página só quando a pessoa vai à caixa (toque, tecla ou foco): o deslocamento acontece colado a uma ação dela, e não conta
+       como CLS. Montado num render qualquer, ele empurraria a caixa ~90 px sem ninguém ter feito nada (revisão técnica do #276, achado 3).
+       Como nenhuma chamada sai antes de a pessoa digitar, o aviso continua na tela antes da 1ª */
+    function aoTocarCaixa() {
+      try {
+        soltarGatilhos();
+        if (!st.caixa && st.ligadaAgora) montar();
+      } catch (e) { falhar(e); }
+    }
+    function esperarToque(campo) {
+      if (st.esperando === campo) return;
+      soltarGatilhos();
+      st.esperando = campo;
+      GATILHOS.forEach(function (t) { campo.addEventListener(t, aoTocarCaixa); });
+    }
+
+    /* a caixa fica onde a pessoa tocou: a página rola o que o lugar ocupou, e quem sobe é o que está acima dele (medido em 390x508 e 320x400:
+       sem isto, a caixa descia ~90 px e saía de baixo da tela com o teclado aberto). Rolagem não é deslocamento de layout */
+    function manterCaixa(topoAntes) {
+      if (!st.campo.getBoundingClientRect || !win.scrollBy) return;
+      var desceu = st.campo.getBoundingClientRect().top - topoAntes;
+      if (desceu > 0) win.scrollBy(0, desceu);
+    }
     function montar() {
       var form = $('o-form');
       st.campo = $('o-texto');
@@ -219,21 +285,32 @@
       }
       st.campo.addEventListener('input', aoDigitar);
       st.ouvindo = true;
+      var topoAntes = st.campo.getBoundingClientRect ? st.campo.getBoundingClientRect().top : 0;
       desenhar(desligada() ? 'desligada' : 'aviso');
+      manterCaixa(topoAntes);
       return true;
     }
 
     function atualizar(E) {
       if (st.falhou) return;
       try {
-        if (!ligada(E)) { tirar(); return; }
+        st.ligadaAgora = ligada(E) && armazemFunciona();
+        if (!st.ligadaAgora) { tirar(); return; }
+        /* outra conversa (Recomeçar): a anotação, as cotas e o que estava a caminho são da conversa velha (revisão técnica do #276, achado 2) */
         var conversa = E.conversa && E.conversa.id ? E.conversa.id : null;
-        if (conversa !== st.conversa) { st.conversa = conversa; st.porConversa = 0; }
-        if (st.caixa && st.campo !== $('o-texto')) tirar();
-        if (!st.caixa && !montar()) return;
+        if (conversa !== st.conversa) {
+          if (st.conversa !== null) { esquecerEmVoo(); novaMensagem(); }
+          st.conversa = conversa; st.porConversa = 0;
+        }
+        var campo = $('o-texto');
+        if (st.caixa && st.campo !== campo) tirar();
+        if (!st.caixa) { if (campo) esperarToque(campo); return; }
+        /* a caixa esvaziada por código (sem evento input): a anotação da mensagem velha sai */
+        if (st.modo === 'anota' && !String(st.campo.value || '').trim()) novaMensagem();
         var form = $('o-form');
         var semCaixa = !form || form.hidden || form.classList.contains('is-recolhido');
         if (st.caixa.hidden !== semCaixa) st.caixa.hidden = semCaixa;
+        if (semCaixa) { win.clearTimeout(st.timer); pararLetras(); }
       } catch (e) { falhar(e); }
     }
 
