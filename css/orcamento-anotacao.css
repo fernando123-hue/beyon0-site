@@ -1,0 +1,20 @@
+/* MAPA VIVO v2, fase 1b: a anotação curta da IA acima da caixa (js/orcamento-anotacao.js).
+   O lugar tem ALTURA FIXA: o aviso e a anotação (até 90 caracteres + o rótulo) cabem no mesmo espaço, e a linha que chega depois da pausa não
+   empurra a caixa (CLS 0). Desligada, o lugar encolhe para uma linha, por um toque da pessoa (mudança por interação não conta no CLS).
+   Mono só no rótulo e nos controles; a frase em Sora. Sem desfoque. */
+.orc-anota { margin: .9rem 0 0; }
+.orc-anota[hidden] { display: none; }
+.orc-anota__topo { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 28px; margin: 0; }
+.orc-anota__rotulo { font-family: var(--mono); font-size: var(--fs-ctrl); color: var(--t2); white-space: nowrap; }
+.orc-anota__acoes { display: inline-flex; flex: none; gap: .1rem; }
+.orc-anota__acao { display: inline-flex; align-items: center; min-height: 28px; padding: 0 .45rem; border: 0; background: none; font-family: var(--mono); font-size: var(--fs-ctrl); color: var(--t2); text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+.orc-anota__acao:hover { color: var(--t1); }
+.orc-anota__acao:focus-visible { outline: 1px solid var(--ac); outline-offset: 2px; }
+/* abaixo de 360 px o rótulo e os dois botões não cabem numa linha no tamanho de controle (medido em 320: "anotou:" caía sozinho na linha de baixo) */
+@media (max-width: 359px) { .orc-anota__acao { padding: 0 .3rem; font-size: var(--fs-rotulo); } }
+/* três linhas reservadas (medido em 390 e 320 com docs/olhar-anotacao.mjs: duas cortavam a anotação de 90 caracteres em 390) */
+.orc-anota__texto { text-wrap: pretty; height: calc(3 * 1.4em); margin: .15rem 0 0; overflow: hidden; font-size: var(--fs-s); line-height: 1.4; color: var(--t3); }
+.orc-anota__texto.is-anota { color: var(--t1); }
+/* a anotação no cartão de espera: a 1ª linha dele, acima do "Analisando o seu caso…" */
+.orc-pensando:has(> .orc-pensando__anota) { flex-wrap: wrap; }   /* (só o cartão com a anotação quebra a linha; os outros cartões "pensando" ficam como estão) */
+.orc-pensando__anota { flex: 1 0 100%; font-family: var(--sans); font-size: var(--fs-s); color: var(--t1); }
