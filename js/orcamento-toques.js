@@ -414,6 +414,15 @@
     reterValor: reterValor,
     liberarValor: liberarValor,
     reabrir: reabrir,
+    /* (mapa vivo, fase 4) a pergunta de coerência tocou "Sim, ajuste": troca SÓ o ramo, pelo mesmo caminho do "Pronto" do mudar (a fala montada vai
+       ao servidor, que confere o molde, grava e conta na MUDAR_MAX). false: não deu para trocar daqui (sem consultor, conversa ainda não entregue,
+       ramo fora da lista ou o mesmo de agora) */
+    trocarRamo: function (ramo) {
+      if (!s.consultor || !s.entregue || typeof ramo !== 'string' || ramo === 'outro' || !Object.prototype.hasOwnProperty.call(R.RAMOS, ramo)) return false;
+      if (s.respostas && s.respostas.ramo === ramo) return false;
+      concluirMudanca(comCampo(semCampo(s.respostas, 'outro'), 'ramo', ramo));
+      return true;
+    },
     /* "Seguir tocando nas opções" (a IA caiu): daqui em diante, sem consultor. A dor que ainda não foi volta por toques (sem repetir a pergunta);
        a que já foi por escrito leva direto ao resumo fixo */
     semConsultor: function () {
