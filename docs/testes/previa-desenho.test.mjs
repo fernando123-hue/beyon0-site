@@ -598,7 +598,11 @@ test('cabeçalho: o botão não quebra linha nem encolhe; quem cede espaço é o
   const estreito = css.slice(0, css.indexOf('@container'));
   assert.ok(/\.pv-btn--nav\s*\{[^}]*white-space:\s*nowrap/.test(estreito), 'botão do cabeçalho em 1 linha');
   assert.ok(/\.pv-btn--nav\s*\{[^}]*flex:\s*none/.test(estreito), 'botão do cabeçalho não encolhe');
-  assert.ok(/\.pv-marca\s*\{[^}]*min-width:\s*0/.test(estreito), 'o nome pode encolher e quebrar');
+  /* revisão técnica: com min-width 0 a palavra longa do nome passava por baixo do botão; o nome nunca quebra palavra e, se nem a maior
+     palavra couber ao lado do botão, o botão desce inteiro para a linha de baixo */
+  assert.ok(/\.pv-nav\s*\{[^}]*flex-wrap:\s*wrap/.test(estreito), 'o cabeçalho pode ter 2 linhas: o botão desce em vez de sobrepor');
+  assert.ok(/\.pv-marca\s*\{[^}]*flex:\s*1 1 0[^}]*min-width:\s*min-content/.test(estreito), 'o nome ocupa o que sobra e nunca fica mais estreito que a maior palavra');
+  assert.ok(!/\.pv-marca\s*\{[^}]*min-width:\s*0/.test(estreito), 'sem min-width 0 (a palavra vazava por baixo do botão)');
 });
 
 test('título longo do topo ganha a classe pv-h1--longo e uma fonte menor só no celular; título curto não', () => {
@@ -606,6 +610,8 @@ test('título longo do topo ganha a classe pv-h1--longo e uma fonte menor só no
   const h1De = titulo => comClasse(carregar().desenhar(direcao({ secoes: [{ ...direcao().secoes[0], titulo }, ...direcao().secoes.slice(1)] })), 'pv-h1')[0];
   assert.ok(!h1De('Bolos feitos sob encomenda')._classe.split(' ').includes('pv-h1--longo'), '26 caracteres: tamanho normal');
   assert.ok(h1De('Banho e tosa com busca e entrega em Floripa')._classe.split(' ').includes('pv-h1--longo'), '43 caracteres: longo');
+  assert.ok(!h1De('a'.repeat(38))._classe.split(' ').includes('pv-h1--longo'), '38 caracteres: ainda normal');
+  assert.ok(h1De('a'.repeat(39))._classe.split(' ').includes('pv-h1--longo'), '39 caracteres: longo');
   const estreito = css.slice(0, css.indexOf('@container'));
   const regra = /\.pv-sec--hero \.pv-h1--longo\s*\{[^}]*font-size:\s*clamp\((\d+)px,[^)]*,\s*(\d+)px\)/.exec(estreito);
   assert.ok(regra, 'regra do título longo no celular');
