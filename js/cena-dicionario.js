@@ -110,8 +110,11 @@
       var t = O.semAcento(texto), maior = 0, i;
       if (!t) return null;
       for (i = 0; i < EQUIPE.length; i++) {
-        var m = O.achaSemNegar(t, EQUIPE[i][0], NAO_E_HOJE), n = m ? EQUIPE[i][1](m) : 0;
-        if (n >= 1 && n <= 999 && n > maior) maior = n;
+        var achadas = O.todasSemNegar(t, EQUIPE[i][0], NAO_E_HOJE), j;
+        for (j = 0; j < achadas.length; j++) {
+          var n = EQUIPE[i][1](achadas[j]);
+          if (n >= 1 && n <= 999 && n > maior) maior = n;
+        }
       }
       return maior || null;
     } catch (x) { return null; }
