@@ -24,6 +24,7 @@
   var TIPOS = ['hero', 'servicos', 'sobre', 'diferenciais', 'processo', 'depoimentos', 'numeros', 'galeria', 'faq', 'cta', 'contato', 'equipe', 'destaque', 'localizacao'];
   var VARIANTES = ['split', 'centro', 'cartoes', 'lista', 'faixa', 'grade', 'linha_do_tempo'];
   var VARIANTES_TOPO = ['split', 'centro', 'faixa'];
+  var TITULO_LONGO = 38;   /* acima disso o título do topo usa a fonte menor no celular (pv-h1--longo) */
   var ESTRATEGIAS = ['conversao', 'autoridade', 'experiencia'];
   var SVG = 'http://www.w3.org/2000/svg';
   var HEX = /^#[0-9a-fA-F]{6}$/;
@@ -274,7 +275,11 @@
       });
     });
     var doOficio = vistos.filter(function (n) { return GENERICOS.indexOf(n) < 0; });
-    return doOficio.concat(vistos.filter(function (n) { return GENERICOS.indexOf(n) >= 0; })).slice(0, 3);
+    /* (achado 2 dos 8 ramos, 27/11) cada estratégia começa num ícone diferente do ofício: as 3 direções do mesmo negócio não repetem o
+       ícone grande; com mais de 3 do ofício, o trio também muda. Rodízio fixo pela posição da estratégia: mesma entrada, mesmo desenho */
+    var giro = doOficio.length ? Math.max(0, ESTRATEGIAS.indexOf(d && d.estrategia)) % doOficio.length : 0;
+    var girados = doOficio.slice(giro).concat(doOficio.slice(0, giro));
+    return girados.concat(vistos.filter(function (n) { return GENERICOS.indexOf(n) >= 0; })).slice(0, 3);
   }
   /* um ícone da grade de 24 como grupo da arte, na posição e no tamanho pedidos; a cor vem da classe (a CSP proíbe style="") */
   function iconeNaArte(nome, x, y, escala, classe, papel) {
@@ -338,7 +343,7 @@
       rot.appendChild(el('span', 'pv-rotulo__t', s.rotulo));
       cab.appendChild(rot);
     }
-    if (s.titulo) cab.appendChild(el(primeira ? 'h3' : 'h4', primeira ? 'pv-h1' : 'pv-h2', s.titulo));
+    if (s.titulo) cab.appendChild(el(primeira ? 'h3' : 'h4', primeira ? 'pv-h1' + (str(s.titulo).length > TITULO_LONGO ? ' pv-h1--longo' : '') : 'pv-h2', s.titulo));
     if (s.subtitulo) cab.appendChild(el('p', 'pv-sub', s.subtitulo));
     if (s.texto) cab.appendChild(el('p', 'pv-texto', s.texto));
     if (s.cta) cab.appendChild(el('span', 'pv-btn', s.cta));
