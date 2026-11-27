@@ -644,5 +644,5 @@ test('arte do topo: as 3 estratégias do mesmo negócio põem ícones diferentes
     const r = D.desenhar(comIcones(cinco, { estrategia: e }));
     return [...papelNaArte(r, 'pv-arte__icone--grande'), ...papelNaArte(r, 'pv-arte__icone')].sort().join(',');
   });
-  assert.ok(new Set(trios).size >= 2, 'trios: ' + trios.join(' | '));
+  assert.equal(new Set(trios).size, 3, 'os 3 trios diferentes: ' + trios.join(' | '));
 });
