@@ -132,4 +132,10 @@ test('rótulo comprido: corta no último trecho inteiro, sem palavra partida nem
     assert.doesNotMatch(cortado, /(\s(e|em|de|do|da|dos|das|para|com|por)|[,·–-])$/i, 'sem conectivo nem separador no fim: ' + cortado);
   }
   assert.match(SISTEMA_GERACAO, /rótulo[^.\n]*40 caracteres/i);
+  /* revisão técnica de 27/11: "Plano A" não perde o A; o espaço reservado entre colchetes nunca fica aberto */
+  assert.equal(rotulo('Seguros de vida e saúde para o Plano A total'), 'Seguros de vida e saúde para o Plano A');
+  assert.equal(rotulo('Clínica de [nome da especialidade principal da clínica]'), 'Clínica');
+  const reservado = rotulo('[Depoimento de um paciente sobre o atendimento]');
+  assert.ok(reservado.startsWith('[') && reservado.endsWith(']') && reservado.length <= 40, reservado);
+  assert.equal(rotulo('Supercalifragilisticexpialidociousmaisumpouco'), 'Supercalifragilisticexpialidociousmaisum', 'palavra única maior que o limite: corta no limite');
 });
