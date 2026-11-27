@@ -88,6 +88,12 @@ for (const [ramo, texto] of FALSOS_ALARMES_DA_REVISAO) {
   });
 }
 
+test('revisão técnica, 2ª rodada: "para o meu restaurante" é o negócio dela, não o cliente; lista de clientes mais longa segue do cliente', () => {
+  assert.deepEqual(Coerencia.conferirCoerencia({ ramo: 'saude' }, 'cardapio digital para o meu restaurante'), { ok: false, duvida: 'ramo', palpite: 'alimentacao' });
+  assert.deepEqual(Coerencia.conferirCoerencia({ ramo: 'servicos' }, 'para a minha padaria quero um site bonito'), { ok: false, duvida: 'ramo', palpite: 'alimentacao' });
+  assert.deepEqual(Coerencia.conferirCoerencia({ ramo: 'servicos' }, 'atendo clientes da padaria e da pizzaria'), { ok: true });
+});
+
 test('negação DEPOIS da palavra, na mesma oração ("padaria não, é consultoria")', () => {
   assert.deepEqual(Coerencia.conferirCoerencia({ ramo: 'servicos' }, 'padaria nao, faço consultoria de gestão'), { ok: true });
   assert.deepEqual(Coerencia.conferirCoerencia({ ramo: 'servicos' }, 'padaria eu nunca tive, faço consultoria'), { ok: true });

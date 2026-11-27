@@ -50,8 +50,11 @@
     [/\b(?:associac\w*|ongs?|igrejas?|sindicatos?|cooperativas?|fundac\w*|projetos? sociais?|sem fins lucrativos)\b/g, ['associacao'], F]
   ];
   /* a palavra logo depois de "para", "pra", "atendo" ou "clientes" é o CLIENTE dela, não o negócio ("identidade visual para restaurantes",
-     "atendo clientes nos bares e restaurantes"): não conta para nenhum lado */
-  var DO_CLIENTE = /\b(?:para|pra|atendo|atendemos|atende|clientes?)(?: \w+){0,3}$/;
+     "atendo clientes nos bares e restaurantes"): não conta para nenhum lado. Com "meu", "minha", "nosso", "nossa" no meio é o negócio
+     dela ("cardápio para o meu restaurante"), e conta (2ª rodada da revisão técnica, 27/11) */
+  var DO_CLIENTE = /\b(?:para|pra|atendo|atendemos|atende|clientes?)(?: \w+){0,5}$/;
+  var DELA = /\b(?:meus?|minhas?|nossos?|nossas?)\b/;
+  var doCliente = function (oracao) { var m = oracao.match(DO_CLIENTE); return !!m && !DELA.test(m[0]); };
   /* a negação ANTES da palavra, na mesma oração, até 3 palavras antes; e DEPOIS, até 2 (o mesmo jeito de js/mapa-saber.js) */
   var NEGACAO = /\b(?:nao|nunca|nem|sem|nada de)(?: \w+){0,3}$/;
   var NEGACAO_DEPOIS = /^ *(?:(?!(?:e|ou) )\w+ +){0,2}(?:nao|nunca)\b/;
@@ -67,7 +70,7 @@
       while ((m = re.exec(texto))) {
         var oracao = texto.slice(0, m.index).split(FIM_DA_ORACAO).pop().trim();
         var resto = texto.slice(m.index + m[0].length).split(FIM_DA_ORACAO)[0];
-        if (!NEGACAO.test(oracao) && !NEGACAO_DEPOIS.test(resto) && !DO_CLIENTE.test(oracao)) {
+        if (!NEGACAO.test(oracao) && !NEGACAO_DEPOIS.test(resto) && !doCliente(oracao)) {
           grupos.push({ ramos: PALAVRAS[i][1], forte: PALAVRAS[i][2] });
           break;
         }
