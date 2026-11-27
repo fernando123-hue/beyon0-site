@@ -117,3 +117,25 @@ test('ícones para os ramos mais comuns (lapidação 26/11): saúde, beleza, ofi
     assert.ok(ICONES.includes(nome), 'falta o ícone ' + nome);
   assert.match(SISTEMA_GERACAO, /dente para odontologia/, 'o prompt dá exemplos dos ramos novos');
 });
+
+/* 27/11, rodada com IA real em 8 ramos: o rótulo acima do título saía cortado no meio ("Advocacia trabalhista e previdenciária e",
+   "Confeitaria artesanal por encomenda · Ca"): o higienizar fatiava em 40 caracteres e o prompt não dizia o limite ao modelo. */
+test('rótulo comprido: corta no último trecho inteiro, sem palavra partida nem conectivo pendurado; o prompt diz o limite', () => {
+  const rotulo = r => higienizar(base([sec('hero', { variante: 'split', rotulo: r }), tres[1], tres[2]]), 'conversao').direcao.secoes[0].rotulo;
+  assert.equal(rotulo('Confeitaria artesanal por encomenda · Campinas'), 'Confeitaria artesanal por encomenda');
+  assert.equal(rotulo('Advocacia trabalhista e previdenciária em Recife'), 'Advocacia trabalhista e previdenciária');
+  assert.equal(rotulo('Ar-condicionado e elétrica em Goiânia'), 'Ar-condicionado e elétrica em Goiânia', 'o que cabe fica igual');
+  for (const r of ['Clínica odontológica geral e de implantes dentários', 'Oficina mecânica de suspensão, freios, motor e câmbio']) {
+    const cortado = rotulo(r);
+    assert.ok(cortado.length <= 40 && cortado.length > 0, cortado);
+    assert.ok(r.startsWith(cortado) && /[\s,·]/.test(r[cortado.length] ?? ' '), 'corta entre palavras: ' + cortado);
+    assert.doesNotMatch(cortado, /(\s(e|em|de|do|da|dos|das|para|com|por)|[,·–-])$/i, 'sem conectivo nem separador no fim: ' + cortado);
+  }
+  assert.match(SISTEMA_GERACAO, /rótulo[^.\n]*40 caracteres/i);
+  /* revisão técnica de 27/11: "Plano A" não perde o A; o espaço reservado entre colchetes nunca fica aberto */
+  assert.equal(rotulo('Seguros de vida e saúde para o Plano A total'), 'Seguros de vida e saúde para o Plano A');
+  assert.equal(rotulo('Clínica de [nome da especialidade principal da clínica]'), 'Clínica');
+  const reservado = rotulo('[Depoimento de um paciente sobre o atendimento]');
+  assert.ok(reservado.startsWith('[') && reservado.endsWith(']') && reservado.length <= 40, reservado);
+  assert.equal(rotulo('Supercalifragilisticexpialidociousmaisumpouco'), 'Supercalifragilisticexpialidociousmaisum', 'palavra única maior que o limite: corta no limite');
+});

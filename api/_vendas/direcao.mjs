@@ -130,6 +130,28 @@ export function cortarNaFrase(s, max) {
   const espaco = pedaco.lastIndexOf(' ');
   return (espaco > 0 ? pedaco.slice(0, espaco) : pedaco).replace(/[,;:(\-–]+$/, '').trim();
 }
+/* o rótulo curto acima do título (40 caracteres, dito ao modelo no SISTEMA_GERACAO): passou do limite, corta entre palavras e tira o
+   que ficou pendurado no fim (separador ou conectivo), para nunca sair "previdenciária e" nem "· Ca" (27/11, rodada real em 8 ramos) */
+export const MAX_ROTULO = 40;
+/* sem "a"/"o" soltos na lista: apagariam o fim de "Plano A" (revisão técnica de 27/11) */
+const PENDURADO = /(?:[\s,;:·–-]+|\s(?:e|ou|em|de|do|da|dos|das|no|na|nos|nas|para|com|por))$/i;
+function cortarRotulo(v) {
+  const s = t(v, Infinity);
+  if (s.length <= MAX_ROTULO) return s;
+  const espaco = s.lastIndexOf(' ', MAX_ROTULO);
+  const corte = semPendurado(/\s/.test(s[MAX_ROTULO]) || espaco <= 0 ? s.slice(0, MAX_ROTULO) : s.slice(0, espaco));
+  /* o espaço reservado entre colchetes ("[Depoimento de um paciente ...]") nunca fica aberto: sai o pedaço do colchete, ou, se
+     o rótulo era só ele, o colchete fecha */
+  const aberto = corte.lastIndexOf('[');
+  if (aberto < 0 || corte.indexOf(']', aberto) >= 0) return corte;
+  return semPendurado(corte.slice(0, aberto)) || corte.slice(0, MAX_ROTULO - 1).trimEnd() + ']';
+}
+function semPendurado(texto) {
+  let r = texto;
+  while (PENDURADO.test(r)) r = r.replace(PENDURADO, '');
+  return r.trim();
+}
+
 /* o que cada modelo diz de si na tela: até 2 frases e 180 caracteres (as pessoas não gostam de ler) */
 export const MAX_RESUMO = 180;
 export function resumoCurto(s) {
@@ -194,7 +216,7 @@ export function higienizar(bruta, estrategia, opcoes) {
   const secoes = (Array.isArray(d.secoes) ? d.secoes : []).filter(x => x && TIPOS_SECAO.includes(x.tipo)).slice(0, MAX_SECOES).map(x => ({
     tipo: x.tipo,
     variante: VARIANTES.includes(x.variante) ? x.variante : 'centro',
-    rotulo: t(x.rotulo, 40), titulo: t(x.titulo, 120), subtitulo: t(x.subtitulo, 220), texto: t(x.texto, 700),
+    rotulo: cortarRotulo(x.rotulo), titulo: t(x.titulo, 120), subtitulo: t(x.subtitulo, 220), texto: t(x.texto, 700),
     itens: (Array.isArray(x.itens) ? x.itens : []).slice(0, 8).map(i => {
       const item = { titulo: t(i?.titulo, 80), texto: t(i?.texto, 300) };
       if (x.tipo === 'numeros') {   /* o número e o rótulo dele: um "300 clientes" no rótulo também é número inventado */
