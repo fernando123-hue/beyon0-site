@@ -47,7 +47,8 @@ function wrangler(args, cwd) {
 }
 
 /* os arquivos de js/ que a API e o Worker importam, achados no próprio código (a lista escrita à mão esqueceu o orcamento-coerencia.js no
-   PR #291: a fumaça falhou no CI com "Could not resolve"); nenhum deles importa outro de js/ hoje */
+   PR #291: a fumaça falhou no CI com "Could not resolve"); segue também os require('./x.js') de dentro de js/ (o dicionário da cena da Fase 2
+   requer a forma e a oração) */
 function jsQueAApiImporta() {
   const achados = new Set();
   const varrer = dir => {
@@ -59,6 +60,14 @@ function jsQueAApiImporta() {
     }
   };
   ['api', 'cloudflare'].forEach(varrer);
+  const fila = [...achados];
+  while (fila.length) {
+    const rel = fila.shift();
+    for (const m of fs.readFileSync(path.join(RAIZ, rel), 'utf8').matchAll(/require\(\s*['"]\.\/([\w.-]+\.js)['"]\s*\)/g)) {
+      const dep = 'js/' + m[1];
+      if (!achados.has(dep)) { achados.add(dep); fila.push(dep); }
+    }
+  }
   return [...achados].sort();
 }
 
