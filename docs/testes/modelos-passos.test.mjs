@@ -66,3 +66,25 @@ test('fila manual: a identidade fixada diz se a direção pode ter o passo a pas
   assert.equal(p.direcoes.filter(d => d.identidade_fixada.passo_a_passo === 'uma seção processo, se servir').length, 1);
   assert.equal(p.direcoes.filter(d => d.identidade_fixada.passo_a_passo === 'nenhum (sem processo e sem linha_do_tempo)').length, 2);
 });
+
+/* pedidos das revisões do PR (técnica e segurança, 27/11) */
+test('passos: trilho antigo, sem a chave passos (direção já gravada, reserva), não ganha frase nenhuma nem anotação', () => {
+  const antigo = { tipografia: { titulos: 'serif_classica', texto: 'sans_geometrica' }, tema: 'claro', temperatura: 'fria', contraste: false };
+  const p = pedidoDoTrilho(antigo);
+  assert.doesNotMatch(p, /processo|linha_do_tempo|passo a passo/);
+  const bruta = { navegacao: { marca: 'M' }, secoes: [{ tipo: 'hero', titulo: 'a' }, { tipo: 'processo', titulo: 'b', itens: [{ titulo: 'x', texto: 'y' }] }, { tipo: 'cta', titulo: 'c' }] };
+  assert.ok(!higienizar(bruta, 'conversao', { trilho: antigo }).ajustes.includes('passos_fora_do_trilho'));
+});
+
+test('higienizar: uma seção de outro tipo na variante linha_do_tempo também conta como passo a passo fora do trilho', () => {
+  const tip = { titulos: 'serif_classica', texto: 'sans_geometrica' };
+  const bruta = { navegacao: { marca: 'M' }, secoes: [{ tipo: 'hero', titulo: 'a' }, { tipo: 'sobre', variante: 'linha_do_tempo', titulo: 'Nossa história', itens: [{ titulo: '2010', texto: 'abrimos' }] }, { tipo: 'cta', titulo: 'c' }] };
+  assert.ok(higienizar(bruta, 'experiencia', { trilho: { tipografia: tip, passos: false } }).ajustes.includes('passos_fora_do_trilho'));
+});
+
+test('passos: independe do tema escuro (o modelo escuro não leva sempre o passo a passo)', () => {
+  let comPassos = 0, escuro = 0;
+  for (let k = 0; k < 6000; k++) for (const t of tres('pedido-' + k)) if (t.passos) { comPassos++; if (t.tema === 'escuro') escuro++; }
+  const p = escuro / comPassos;
+  assert.ok(p > 0.29 && p < 0.38, 'P(escuro | passos) = ' + p.toFixed(3) + ' (esperado ~0,33)');
+});
