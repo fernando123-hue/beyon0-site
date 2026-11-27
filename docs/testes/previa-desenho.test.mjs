@@ -590,3 +590,59 @@ test('arte do topo: nas 3 composições os ícones ficam na faixa que aparece na
     }
   }
 });
+
+/* achados 4 e 5 da rodada com IA real em 8 ramos (27/11): o botão do cabeçalho quebrava em 2 linhas ("Agendar / banho") quando o nome
+   do negócio também ocupava 2; o título do topo com mais de ~38 caracteres saía em 4 linhas no 390 com fonte larga */
+test('cabeçalho: o botão não quebra linha nem encolhe; quem cede espaço é o nome do negócio', () => {
+  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const estreito = css.slice(0, css.indexOf('@container'));
+  assert.ok(/\.pv-btn--nav\s*\{[^}]*white-space:\s*nowrap/.test(estreito), 'botão do cabeçalho em 1 linha');
+  assert.ok(/\.pv-btn--nav\s*\{[^}]*flex:\s*none/.test(estreito), 'botão do cabeçalho não encolhe');
+  /* revisão técnica: com min-width 0 a palavra longa do nome passava por baixo do botão; o nome nunca quebra palavra e, se nem a maior
+     palavra couber ao lado do botão, o botão desce inteiro para a linha de baixo */
+  assert.ok(/\.pv-nav\s*\{[^}]*flex-wrap:\s*wrap/.test(estreito), 'o cabeçalho pode ter 2 linhas: o botão desce em vez de sobrepor');
+  assert.ok(/\.pv-marca\s*\{[^}]*flex:\s*1 1 0[^}]*min-width:\s*min-content/.test(estreito), 'o nome ocupa o que sobra e nunca fica mais estreito que a maior palavra');
+  assert.ok(!/\.pv-marca\s*\{[^}]*min-width:\s*0/.test(estreito), 'sem min-width 0 (a palavra vazava por baixo do botão)');
+});
+
+test('título longo do topo ganha a classe pv-h1--longo e uma fonte menor só no celular; título curto não', () => {
+  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const h1De = titulo => comClasse(carregar().desenhar(direcao({ secoes: [{ ...direcao().secoes[0], titulo }, ...direcao().secoes.slice(1)] })), 'pv-h1')[0];
+  assert.ok(!h1De('Bolos feitos sob encomenda')._classe.split(' ').includes('pv-h1--longo'), '26 caracteres: tamanho normal');
+  assert.ok(h1De('Banho e tosa com busca e entrega em Floripa')._classe.split(' ').includes('pv-h1--longo'), '43 caracteres: longo');
+  assert.ok(!h1De('a'.repeat(38))._classe.split(' ').includes('pv-h1--longo'), '38 caracteres: ainda normal');
+  assert.ok(h1De('a'.repeat(39))._classe.split(' ').includes('pv-h1--longo'), '39 caracteres: longo');
+  const estreito = css.slice(0, css.indexOf('@container'));
+  const regra = /\.pv-sec--hero \.pv-h1--longo\s*\{[^}]*font-size:\s*clamp\((\d+)px,[^)]*,\s*(\d+)px\)/.exec(estreito);
+  assert.ok(regra, 'regra do título longo no celular');
+  assert.ok(Number(regra[2]) < 44 && Number(regra[1]) >= 28, 'menor que o normal (44) e nunca abaixo de 28 px');
+  assert.ok(estreito.indexOf('.pv-sec--hero .pv-h1--longo') > estreito.indexOf('.pv-hero--centro .pv-h1'), 'vem depois do topo centrado (mesma força, ganha pela ordem)');
+  const largo = css.slice(css.indexOf('@container'));
+  assert.ok(!/pv-h1--longo/.test(largo), 'no container largo vale o tamanho de sempre');
+});
+
+/* achado 2 dos 8 ramos (27/11): as 3 direções do mesmo negócio saíam com o MESMO ícone grande na arte do topo (pet: a gota nas três),
+   só o fundo e o arranjo mudavam. Agora cada estratégia põe na frente um ícone diferente do ofício (rodízio fixo: mesma entrada, mesmo
+   desenho), e com mais de 3 ícones do ofício o trio também muda. Genérico nunca vira o principal. */
+const papelNaArte = (raiz, papel) => todos(comClasse(raiz, 'pv-arte')[0], n => n.tag === 'g' && n.attrs['data-papel'] === papel).map(g => g.attrs['data-icone']);
+test('arte do topo: as 3 estratégias do mesmo negócio põem ícones diferentes na frente, sempre do ofício', () => {
+  const D = carregar();
+  const principal = (icones, estrategia) => papelNaArte(D.desenhar(comIcones(icones, { estrategia })), 'pv-arte__icone--grande')[0];
+  const tres = ['tesoura', 'gota', 'folha'];
+  const escolhidos = ['conversao', 'autoridade', 'experiencia'].map(e => principal(tres, e));
+  assert.equal(new Set(escolhidos).size, 3, 'três principais diferentes: ' + escolhidos.join(', '));
+  assert.equal(principal(tres, 'autoridade'), principal(tres, 'autoridade'), 'a mesma entrada dá o mesmo desenho');
+  /* com 2 do ofício e 1 genérico: o genérico nunca é o principal */
+  const comGenerico = ['check', 'tesoura', 'gota'];
+  for (const e of ['conversao', 'autoridade', 'experiencia']) assert.notEqual(principal(comGenerico, e), 'check', e + ': genérico na frente');
+  assert.notEqual(principal(comGenerico, 'conversao'), principal(comGenerico, 'autoridade'), 'os 2 do ofício se revezam');
+  /* um ícone só do ofício: ele é o principal nas três (não há outro para trocar) */
+  for (const e of ['conversao', 'autoridade', 'experiencia']) assert.equal(principal(['check', 'bolo'], e), 'bolo');
+  /* com 5 do ofício, o trio desenhado não é o mesmo nas 3 */
+  const cinco = ['tesoura', 'gota', 'folha', 'pata', 'casa'];
+  const trios = ['conversao', 'autoridade', 'experiencia'].map(e => {
+    const r = D.desenhar(comIcones(cinco, { estrategia: e }));
+    return [...papelNaArte(r, 'pv-arte__icone--grande'), ...papelNaArte(r, 'pv-arte__icone')].sort().join(',');
+  });
+  assert.equal(new Set(trios).size, 3, 'os 3 trios diferentes: ' + trios.join(' | '));
+});
