@@ -1067,6 +1067,10 @@ export const SABOTAGENS = [
     de: "if (!fielAoTexto(a, texto)) return { anotacao: null, motivo: 'fidelidade' };", para: '/* sabotagem: sem fidelidade */' },
   { nome: '(mapa vivo 1b) a anotação sem a trava de preço e promessa', fonte: 'api/_vendas/reacao.mjs', testes: ['docs/testes/reacao.test.mjs'],
     de: "if (semPrecoNoTexto(a) !== a.normalize('NFKC') || PROMESSA.test(a) || OFERTA.test(a)) return { anotacao: null, motivo: 'trava' };", para: '/* sabotagem: sem trava */' },
+  { nome: '(mapa vivo 1b, tela) desligada, a página ainda chama reagir (LGPD)', fonte: 'js/orcamento-anotacao.js', testes: ['docs/testes/orcamento-anotacao.test.mjs'],
+    de: "if (!st.caixa || desligada() || st.pensando || st.modo === 'desligada' ||", para: 'if (!st.caixa || st.pensando ||' },
+  { nome: '(mapa vivo 1b, tela) resposta velha (seq menor) troca a linha', fonte: 'js/orcamento-anotacao.js', testes: ['docs/testes/orcamento-anotacao.test.mjs'],
+    de: 'mensagem !== st.mensagem || seq < st.respondido) return;', para: 'mensagem !== st.mensagem) return;' },
 ];
 
 /* MUTACAO_FATIA=i/N (CI em paralelo): a rodada de N máquinas, cada uma com a sua fatia. A fatia i fica com as sabotagens de
