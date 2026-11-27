@@ -175,7 +175,8 @@ const SEM_V = [
   'js/mapa-layout.js → ./orcamento-mapa-forma.js (só o require do Node nos testes)',
   'js/orcamento-planta-esboco.js → js/planta-pecas.js js/mapa-saber.js js/planta-cresce.js js/planta-relogio.js js/planta-som.js js/planta-esboco.js css/planta-esboco.css (revalidam sempre)',
   'js/orcamento-reacao.js → js/mapa-vivo-ler.js (o leitor do mapa vivo, fase 1a; revalida sempre)',
-  'js/mapa-vivo-ler.js → ./mapa-saber.js (só o require do Node nos testes)'
+  'js/mapa-vivo-ler.js → ./mapa-saber.js (só o require do Node nos testes)',
+  'js/cena-dicionario.js → ./oracao.js ./orcamento-cena-forma.js (só o require do Node nos testes e no servidor; na tela, os dois scripts vêm antes)'
 ];
 test('os JS/CSS pedidos por JS sem ?v são exatamente os conhecidos (SEM_V)', () => {
   const achados = [];
@@ -195,7 +196,8 @@ test('os JS/CSS pedidos por JS sem ?v são exatamente os conhecidos (SEM_V)', ()
     'js/orcamento-planta-esboco.js js/planta-pecas.js', 'js/orcamento-planta-esboco.js js/planta-cresce.js', 'js/orcamento-planta-esboco.js js/planta-relogio.js',
     'js/orcamento-planta-esboco.js js/planta-som.js', 'js/orcamento-planta-esboco.js js/planta-esboco.js', 'js/orcamento-planta-esboco.js css/planta-esboco.css',
     'js/orcamento-planta-esboco.js js/mapa-saber.js', 'js/orcamento-planta.js js/planta-relogio.js', 'js/orcamento-planta.js js/mapa-saber.js', 'js/orcamento-planta.js js/orcamento-mapa-forma.js',
-    'js/orcamento-planta.js js/mapa-layout.js', 'js/mapa-layout.js ./orcamento-mapa-forma.js', 'js/orcamento-planta.js js/mapa-desenho.js', 'js/orcamento-planta.js css/orcamento-mapa.css', 'js/planta-cresce.js ./mapa-saber.js', 'js/planta-cresce.js ./orcamento-rotulos.js']);
+    'js/orcamento-planta.js js/mapa-layout.js', 'js/mapa-layout.js ./orcamento-mapa-forma.js', 'js/orcamento-planta.js js/mapa-desenho.js', 'js/orcamento-planta.js css/orcamento-mapa.css', 'js/planta-cresce.js ./mapa-saber.js', 'js/planta-cresce.js ./orcamento-rotulos.js',
+    'js/cena-dicionario.js ./oracao.js', 'js/cena-dicionario.js ./orcamento-cena-forma.js']);
   assert.deepEqual([...new Set(achados)].filter(x => !conhecidos.has(x)), [], 'carregamento novo sem ?v: avalie o risco e some em SEM_V:\n' + SEM_V.join('\n'));
 });
 test('nenhum JS procura <link>/<script> pelo FIM do endereço ([href$=] / [src$=]): com ?v o fim é o hash', () => {
