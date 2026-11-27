@@ -238,3 +238,14 @@ test('trocarRamo recusa sem mandar nada: "Mudar" aberto, outra mudança a caminh
   assert.equal(r.enviados.length, 0);
   assert.equal(p.enviados.length, 0);
 });
+
+test('trocarRamo que não entrou: a fala montada não fica na caixa de texto (a conversa a devolve lá quando o envio falha sem gravar)', async () => {
+  let p;
+  p = retomada({ enviar: async t => { p.texto.value = t; return false; } });
+  assert.equal(await p.T.trocarRamo('alimentacao'), false);
+  assert.equal(p.texto.value, '', 'a fala de mudança não fica para ir como texto solto');
+  let q;
+  q = retomada({ enviar: async () => { q.texto.value = 'o que ela escreveu'; return false; } });
+  await q.T.trocarRamo('alimentacao');
+  assert.equal(q.texto.value, 'o que ela escreveu', 'o texto dela fica');
+});

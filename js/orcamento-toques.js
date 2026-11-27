@@ -430,7 +430,14 @@
       var minha = { respostas: soMudanca(novas) };
       s.aEnviar = minha;
       focarSaida();
-      var largar = function () { if (s.aEnviar === minha) s.aEnviar = null; return false; };
+      /* não entrou: a mudança não fica pendurada e a fala montada não fica na caixa (a conversa a devolve lá quando o envio falha sem gravar; iria
+         depois como texto solto, sem mudar nada); o que ela mesma escreveu fica */
+      var largar = function () {
+        if (s.aEnviar === minha) s.aEnviar = null;
+        var caixa = $('o-texto');
+        if (caixa && caixa.value === texto) caixa.value = '';
+        return false;
+      };
       return Promise.resolve(C.enviar(texto)).then(function (entrou) {
         if (entrou === false) return largar();
         s.respostas = novas;
