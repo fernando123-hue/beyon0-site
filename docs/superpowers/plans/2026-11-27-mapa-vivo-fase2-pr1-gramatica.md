@@ -218,7 +218,7 @@ test('fonte ES5 (sem let, const, =>), sem DOM nem innerHTML', () => {
   var CAMPOS = congelar(['lugar', 'gente', 'canais', 'oferta', 'destaque']);
   var PROIBIDO = /[<>]/;
 
-  var ehObjeto = function (v) { return !!v && typeof v === 'object' && !(v instanceof Array); };
+  var ehObjeto = function (v) { return !!v && typeof v === 'object' && !Array.isArray(v); };
   var naLista = function (lista, v) { return typeof v === 'string' && lista.indexOf(v) >= 0; };
 
   /* um código de lista: '' se bom, senão o código do erro */
@@ -229,7 +229,7 @@ test('fonte ES5 (sem let, const, =>), sem DOM nem innerHTML', () => {
     return naLista(lista, v) ? '' : 'fora_da_lista';
   }
   function conferirCanais(v, erros) {
-    if (!(v instanceof Array)) { erros.push({ caminho: 'canais', codigo: 'tipo' }); return; }
+    if (!Array.isArray(v)) { erros.push({ caminho: 'canais', codigo: 'tipo' }); return; }
     if (v.length > CANAIS_MAX) { erros.push({ caminho: 'canais', codigo: 'fora_do_limite' }); return; }
     for (var i = 0; i < v.length; i++) {
       var e = conferirCodigo(CANAIS, v[i], true);
@@ -434,7 +434,7 @@ test('fontes ES5 sem DOM; nenhuma página carrega os módulos novos ainda (PR 2 
 
   var tabela = function (o) { var t = Object.create(null), k; for (k in o) if (Object.prototype.hasOwnProperty.call(o, k)) t[k] = o[k]; return Object.freeze(t); };
   var tem = function (o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); };
-  var lista = function (v) { return v instanceof Array ? v : []; };
+  var lista = function (v) { return Array.isArray(v) ? v : []; };
 
   var LUGAR_DO_RAMO = tabela({
     servicos: 'escritorio', saude: 'consultorio', beleza: 'salao', alimentacao: 'cozinha', comercio: 'loja', educacao: 'sala_aula', associacao: 'sede', outro: 'escritorio'
@@ -543,7 +543,7 @@ test('fontes ES5 sem DOM; nenhuma página carrega os módulos novos ainda (PR 2 
   /* cenaDoCaso({ ramo, texto, canais, objetivos, regulado }) -> a cena congelada (BZCenaForma.validar) ou null */
   function cenaDoCaso(caso) {
     try {
-      if (!caso || typeof caso !== 'object' || caso instanceof Array) return null;
+      if (!caso || typeof caso !== 'object' || Array.isArray(caso)) return null;
       var lugar = lugarDoCaso(caso.ramo, caso.texto);
       if (!lugar) return null;
       var equipe = equipeDoTexto(caso.texto), canais = [], c = lista(caso.canais), i;

@@ -21,7 +21,7 @@
   var CAMPOS = congelar(['lugar', 'gente', 'canais', 'oferta', 'destaque']);
   var PROIBIDO = /[<>]/;
 
-  var ehObjeto = function (v) { return !!v && typeof v === 'object' && !(v instanceof Array); };
+  var ehObjeto = function (v) { return !!v && typeof v === 'object' && !Array.isArray(v); };
   var naLista = function (lista, v) { return typeof v === 'string' && lista.indexOf(v) >= 0; };
 
   /* um código de lista: '' se bom, senão o código do erro */
@@ -32,7 +32,7 @@
     return naLista(lista, v) ? '' : 'fora_da_lista';
   }
   function conferirCanais(v, erros) {
-    if (!(v instanceof Array)) { erros.push({ caminho: 'canais', codigo: 'tipo' }); return; }
+    if (!Array.isArray(v)) { erros.push({ caminho: 'canais', codigo: 'tipo' }); return; }
     if (v.length > CANAIS_MAX) { erros.push({ caminho: 'canais', codigo: 'fora_do_limite' }); return; }
     for (var i = 0; i < v.length; i++) {
       var e = conferirCodigo(CANAIS, v[i], true);
