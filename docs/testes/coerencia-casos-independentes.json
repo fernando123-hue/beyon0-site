@@ -1,0 +1,122 @@
+[
+  {
+    "ramo": "servicos",
+    "texto": "Tenho uma padaria artesanal no bairro, fazemos pão de fermentação natural todo dia",
+    "espera": "alimentacao",
+    "por_que": "Padaria é claramente alimentação e o texto não cita nada de serviços nem outro ramo."
+  },
+  {
+    "ramo": "comercio",
+    "texto": "Sou dentista, atendo em consultório próprio com duas cadeiras",
+    "espera": "saude",
+    "por_que": "Dentista e consultório apontam só para saúde, nada confirma comércio."
+  },
+  {
+    "ramo": "alimentacao",
+    "texto": "Salao de cabeleireiro com 3 profissionais, corte e coloraçao",
+    "espera": "beleza",
+    "por_que": "Mesmo sem acento e com erro leve, salão de cabeleireiro é só beleza."
+  },
+  {
+    "ramo": "beleza",
+    "texto": "Escola de inglês para crianças e adultos, turmas pequenas",
+    "espera": "educacao",
+    "por_que": "Escola de idiomas é educação e o texto não fala de nada de beleza."
+  },
+  {
+    "ramo": "saude",
+    "texto": "Loja de roupas femininas no centro, vendemos tambem pelo instagram",
+    "espera": "comercio",
+    "por_que": "Loja de roupas é comércio, um único ramo diferente do tocado."
+  },
+  {
+    "ramo": "educacao",
+    "texto": "Associacao de moradores do bairro, organizamos eventos e cobramos mensalidade",
+    "espera": "associacao",
+    "por_que": "Associação de moradores é o ramo associação e nada no texto fala de ensino."
+  },
+  {
+    "ramo": "saude",
+    "texto": "Escritorio de contabilidade, atendemos empresas do simples nacional",
+    "espera": "servicos",
+    "por_que": "Contabilidade é serviço e não há palavra de saúde nem de outro ramo."
+  },
+  {
+    "ramo": "saude",
+    "texto": "Clínica do Pão: padaria e confeitaria, café da manhã e bolos por encomenda",
+    "espera": "alimentacao",
+    "por_que": "Caso difícil: \"Clínica\" está só no nome fantasia e a descrição inteira é de padaria, então o justo é não tratar o nome como confirmação de saúde e perguntar por alimentação."
+  },
+  {
+    "ramo": "saude",
+    "texto": "padaria",
+    "espera": null,
+    "por_que": "Texto com menos de 15 caracteres, curto demais para julgar."
+  },
+  {
+    "ramo": "servicos",
+    "texto": "Pizzaria top",
+    "espera": null,
+    "por_que": "Tem 12 caracteres, abaixo do mínimo de 15, então fica quieta mesmo citando outro ramo."
+  },
+  {
+    "ramo": "outro",
+    "texto": "Vendo pão caseiro e marmitas na minha rua pelo whatsapp",
+    "espera": null,
+    "por_que": "Ramo tocado é outro, e nesse caso a regra nunca pergunta."
+  },
+  {
+    "ramo": "servicos",
+    "texto": "Trabalho sozinho ha 10 anos e quero aparecer mais no Google",
+    "espera": null,
+    "por_que": "Não há palavra de ramo nenhum no texto."
+  },
+  {
+    "ramo": "beleza",
+    "texto": "Clínica de estética com limpeza de pele, drenagem e depilação a laser",
+    "espera": null,
+    "por_que": "\"Clínica\" lembra saúde, mas estética confirma o ramo beleza tocado."
+  },
+  {
+    "ramo": "comercio",
+    "texto": "Loja de bolos e doces, vendemos no balcão e por encomenda",
+    "espera": null,
+    "por_que": "Bolos lembram alimentação, mas \"loja\" confirma o ramo comércio tocado."
+  },
+  {
+    "ramo": "servicos",
+    "texto": "Restaurante no térreo e uma loja de presentes no mesmo prédio",
+    "espera": null,
+    "por_que": "Aponta para dois ramos diferentes do tocado (alimentação e comércio), ambíguo demais para perguntar."
+  },
+  {
+    "ramo": "comercio",
+    "texto": "Padaria que também dá aulas de confeitaria aos sábados",
+    "espera": null,
+    "por_que": "Padaria aponta alimentação e aulas apontam educação, dois ramos fora do tocado, então fica quieta."
+  },
+  {
+    "ramo": "servicos",
+    "texto": "Conserto celular em casa, sem delivery e sem loja fisica",
+    "espera": null,
+    "por_que": "Delivery e loja aparecem negados com \"sem\" na mesma oração, então não contam."
+  },
+  {
+    "ramo": "servicos",
+    "texto": "Sou fotografo de casamento, nao tenho estudio nem escola de fotografia",
+    "espera": null,
+    "por_que": "A única palavra de outro ramo (escola) vem negada na mesma oração."
+  },
+  {
+    "ramo": "alimentacao",
+    "texto": "Clínica do Pão, padaria de bairro com pão francês saindo toda hora",
+    "espera": null,
+    "por_que": "Caso difícil: o nome tem \"Clínica\", mas padaria confirma o ramo alimentação tocado, então não pergunta."
+  },
+  {
+    "ramo": "beleza",
+    "texto": "Doce Beleza Estúdio, design de sobrancelha e cílios fio a fio",
+    "espera": null,
+    "por_que": "Caso difícil: \"Doce\" no nome poderia sugerir alimentação, mas sobrancelha e cílios confirmam beleza."
+  }
+]
