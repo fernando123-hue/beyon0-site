@@ -1336,6 +1336,9 @@ import './reacao.test.mjs';
 import './coerencia.test.mjs';
 import './coerencia-servidor.test.mjs';
 import './coerencia-tela.test.mjs';
+import './oracao.test.mjs';
+import './cena-forma.test.mjs';
+import './cena-dicionario.test.mjs';
 /* o guarda da suíte também daqui (também em geracao.test.mjs): só some se os dois imports saírem */
 import './suite-completa.test.mjs';
 import './planta-todos.test.mjs';
