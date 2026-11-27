@@ -193,3 +193,48 @@ test('o "Outro": a escrita curta, limpa e no tamanho do servidor; vazio diz o qu
   assert.deepEqual(p.bolhas(), ['pet shop b']);
   assert.deepEqual(p.definidos.at(-1), { ramo: 'outro', outro: 'pet shop b', objetivos: [] });
 });
+
+/* (mapa vivo, fase 4, parte 2; revisão técnica do ramo mapa-vivo-coerencia-tela) o "Sim, ajuste" da pergunta de coerência: trocarRamo devolve a
+   promessa do envio; o ramo da tela só muda depois que o envio ENTROU; se não entrou, nada muda e o bloco do "Mudar" não abre sozinho; com o
+   bloco aberto ou outra mudança a caminho, recusa sem mandar nada */
+const RETOMADA = { conversa: { briefing: { fluxo_conversa: true, fluxo_toques: { ramo: 'saude', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' } } }, mensagens: [{ papel: 'visitante', conteudo: 'x' }] };
+const retomada = o => { const p = montar(o); p.T.configurar({ consultor: true }); p.T.atualizar(RETOMADA); return p; };
+
+test('trocarRamo: o envio entrou, o ramo muda (fala montada, só o ramo); a promessa diz true', async () => {
+  let soltar;
+  const p = retomada({ enviar: () => new Promise(r => { soltar = r; }) });
+  const promessa = p.T.trocarRamo('alimentacao');
+  assert.ok(promessa && typeof promessa.then === 'function', 'devolve a promessa do envio');
+  assert.deepEqual(p.enviados, ['Mudei minhas respostas: Alimentação · Agendamentos · Só o Instagram · Logo e textos: tenho']);
+  assert.equal(puro(p.T.pendentes()).ramo, 'alimentacao', 'a mudança segue com o envio');
+  assert.equal(p.T.respostas().ramo, 'saude', 'antes de o envio entrar, a tela não muda');
+  soltar(true);
+  assert.equal(await promessa, true);
+  assert.equal(p.T.respostas().ramo, 'alimentacao');
+  assert.equal(p.definidos.at(-1).ramo, 'alimentacao');
+});
+
+test('trocarRamo: o envio NÃO entrou (limite de mudanças, conversa ocupada) ou falhou: nada muda, nada pendurado, o "Mudar" não abre sozinho', async () => {
+  for (const enviar of [async () => false, async () => { throw new Error('rede'); }]) {
+    const p = retomada({ enviar });
+    assert.equal(await p.T.trocarRamo('alimentacao'), false);
+    assert.equal(p.T.respostas().ramo, 'saude');
+    assert.equal(p.T.pendentes(), null);
+    assert.equal(p.log.querySelectorAll('.orc-toque--mudar').length, 0);
+    assert.ok(!p.definidos.some(d => d.ramo === 'alimentacao'));
+  }
+});
+
+test('trocarRamo recusa sem mandar nada: "Mudar" aberto, outra mudança a caminho, o mesmo ramo, "outro", fora da lista, sem consultor', async () => {
+  const p = retomada({ enviar: () => new Promise(() => {}) });
+  p.T.reabrir();
+  assert.equal(await p.T.trocarRamo('alimentacao'), false, 'bloco do Mudar aberto');
+  const q = retomada({ enviar: () => new Promise(() => {}) });
+  q.T.trocarRamo('alimentacao');
+  assert.equal(await q.T.trocarRamo('beleza'), false, 'outra mudança a caminho');
+  assert.equal(q.enviados.length, 1);
+  const r = retomada();
+  for (const ramo of ['saude', 'outro', 'banco', '__proto__', 42]) assert.equal(await r.T.trocarRamo(ramo), false, String(ramo));
+  assert.equal(r.enviados.length, 0);
+  assert.equal(p.enviados.length, 0);
+});

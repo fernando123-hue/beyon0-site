@@ -415,13 +415,28 @@
     liberarValor: liberarValor,
     reabrir: reabrir,
     /* (mapa vivo, fase 4) a pergunta de coerência tocou "Sim, ajuste": troca SÓ o ramo, pelo mesmo caminho do "Pronto" do mudar (a fala montada vai
-       ao servidor, que confere o molde, grava e conta na MUDAR_MAX). false: não deu para trocar daqui (sem consultor, conversa ainda não entregue,
-       ramo fora da lista ou o mesmo de agora) */
+       ao servidor, que confere o molde, grava e conta na MUDAR_MAX). Devolve a PROMESSA do envio: true só quando entrou; false quando não deu
+       (sem consultor, conversa ainda não entregue, ramo fora da lista ou o mesmo de agora, o bloco do "Mudar" aberto, outra mudança a caminho, o
+       servidor recusou ou a rede falhou). Revisão técnica: o ramo da tela só muda DEPOIS que o envio entrou (no limite de mudanças, a tela e o
+       servidor ficariam diferentes) e, se não entrou, o bloco do "Mudar" não abre sozinho: quem perguntou diz o que fazer */
     trocarRamo: function (ramo) {
-      if (!s.consultor || !s.entregue || typeof ramo !== 'string' || ramo === 'outro' || !Object.prototype.hasOwnProperty.call(R.RAMOS, ramo)) return false;
-      if (s.respostas && s.respostas.ramo === ramo) return false;
-      concluirMudanca(comCampo(semCampo(s.respostas, 'outro'), 'ramo', ramo));
-      return true;
+      var nao = Promise.resolve(false);
+      if (!s.consultor || !s.entregue || typeof ramo !== 'string' || ramo === 'outro' || !Object.prototype.hasOwnProperty.call(R.RAMOS, ramo)) return nao;
+      if ((s.respostas && s.respostas.ramo === ramo) || s.aEnviar || $('o-log').querySelector('.orc-toque--mudar:not([data-feito])')) return nao;
+      var C = window.BZOrcConversa;
+      if (!C || typeof C.enviar !== 'function') return nao;
+      var novas = comCampo(semCampo(s.respostas, 'outro'), 'ramo', ramo), texto = R.falaDoMudar(novas);
+      if (!texto) return nao;
+      var minha = { respostas: soMudanca(novas) };
+      s.aEnviar = minha;
+      focarSaida();
+      var largar = function () { if (s.aEnviar === minha) s.aEnviar = null; return false; };
+      return Promise.resolve(C.enviar(texto)).then(function (entrou) {
+        if (entrou === false) return largar();
+        s.respostas = novas;
+        contar();
+        return true;
+      }, largar);
     },
     /* "Seguir tocando nas opções" (a IA caiu): daqui em diante, sem consultor. A dor que ainda não foi volta por toques (sem repetir a pergunta);
        a que já foi por escrito leva direto ao resumo fixo */

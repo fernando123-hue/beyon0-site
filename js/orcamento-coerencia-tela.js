@@ -47,20 +47,40 @@
       '. ' + juntar('Quer que eu ajuste?');
   }
 
-  /* o estado chegou (js/orcamento.js, a cada render). Pergunta no máximo uma vez por conversa; sem tudo certo, não faz nada */
+  /* o Zero já respondeu ao menos uma vez: a pergunta vem DEPOIS da resposta dele, nunca no meio do turno (revisão técnica) */
+  function zeroRespondeu(E) {
+    var m = E.mensagens, i;
+    if (!(m instanceof Array)) return false;
+    for (i = 0; i < m.length; i++) if (ehObjeto(m[i]) && m[i].papel === 'agente') return true;
+    return false;
+  }
+  /* o ramo que está na tela agora (ela pode ter trocado sozinha pelo "Mudar" antes de o servidor reler) */
+  function ramoAgora(T) {
+    try { var r = typeof T.respostas === 'function' ? T.respostas() : null; return ehObjeto(r) ? r.ramo : null; } catch (e) { return null; }
+  }
+  /* "Sim, ajuste": trocarRamo devolve a promessa do envio (true só quando entrou); não entrou ou falhou, a fala diz como ajustar */
+  function ajustar(T, kit, palpite) {
+    var naoDeu = function () { kit.fala(NAO_DEU); };
+    var r;
+    try { r = T.trocarRamo(palpite); } catch (e) { naoDeu(); return; }
+    Promise.resolve(r).then(function (entrou) { if (entrou !== true) naoDeu(); }, naoDeu);
+  }
+
+  /* o estado chegou (js/orcamento.js, a cada render). Pergunta no máximo uma vez por conversa (marcada quando pergunta; recarregar a página na
+     mesma aba não pergunta de novo, por desenho); sem tudo certo, não faz nada e não marca */
   function atualizar(E) {
     var w = raiz || {}, T = w.BZToques, C = w.BZOrcCoerencia;
     if (!ehObjeto(E) || E.reacao !== true || !ehObjeto(E.coerencia) || !T || !T.kit || !C || !C.NOMES) return false;
     if (typeof T.comConsultor === 'function' && !T.comConsultor()) return false;
     var c = E.coerencia, id = ehObjeto(E.conversa) && typeof E.conversa.id === 'string' ? E.conversa.id : null;
-    if (!id || !tem(C.NOMES, c.palpite) || c.palpite === 'outro' || jaPerguntou(id)) return false;
+    if (!id || !tem(C.NOMES, c.palpite) || c.palpite === 'outro' || !zeroRespondeu(E) || ramoAgora(T) === c.palpite || jaPerguntou(id)) return false;
     marcar(id);
     var nome = C.NOMES[c.palpite], texto = pergunta(nome, nomeDaTabela(C, c.tocado)), kit = T.kit;
     var f = kit.fala(texto);
     var falaId = f && f.firstChild && f.firstChild.id ? f.firstChild.id : null;
     kit.opcoes(texto, [{ valor: 'sim', rotulo: SIM }, { valor: 'nao', rotulo: NAO }], function (v) {
-      if (v === 'sim' && !T.trocarRamo(c.palpite)) kit.fala(NAO_DEU);
-      else if (v !== 'sim' && typeof kit.focarSaida === 'function') kit.focarSaida();
+      if (v === 'sim') ajustar(T, kit, c.palpite);
+      else if (typeof kit.focarSaida === 'function') kit.focarSaida();
     }, falaId ? { falaId: falaId } : {});
     return true;
   }
