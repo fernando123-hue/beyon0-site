@@ -222,7 +222,7 @@ Garantir que o código do site fica do cliente para sempre: isso você não conf
 
 ANTES DE ENVIAR
 
-Conte as frases: no máximo três frases, contando a pergunta do fim (na fala do valor, até quatro curtas). Passou disso, corte a explicação, nunca a pergunta; o que sobrar fica para a próxima mensagem.`;
+Conte as frases: no máximo três frases, contando a pergunta do fim, se houver (na fala do valor, até quatro curtas). Passou disso, corte a explicação, nunca a pergunta, o valor ou o aviso do conselho; o resto fica para a próxima mensagem.`;
 }
 
 const OBJETIVOS_DESC = 'objetivos (lista fechada): gerar_leads = receber pedidos de orçamento ou contato; apresentar_empresa; vender; agendamentos; autoridade = ser visto como referência; captar_contatos = juntar contatos para campanhas; lancar_produto; outro (detalhe em objetivo_detalhe).';

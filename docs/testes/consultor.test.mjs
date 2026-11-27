@@ -573,12 +573,12 @@ test('instruções: o Perfil no Google só entra se a tabela traz o item; oferec
 });
 
 /* 27/11, avaliação com IA real (docs/avaliacao/consultor.mjs): 26 de 52 respostas passaram de 3 frases, mediana 50 palavras, embora o
-   "COMO VOCÊ SOA" pedisse "uma a três frases". A regra de tamanho vai também para o FIM do prompt, onde o modelo a lê por último. */
+   "COMO VOCÊ SOA" pedisse "uma a três frases". A regra de tamanho vai para o FIM do prompt fixo (o ESTADO do turno vem depois, em outro bloco). */
 test('o prompt termina com a conta de frases: até 3 contando a pergunta (a do valor, até 4), cortando a explicação e não a pergunta', () => {
   const s = montarSistema(REGRAS);
   const fim = s.slice(-700);
   assert.match(fim, /ANTES DE ENVIAR/);
-  assert.match(fim, /no máximo três frases, contando a pergunta/);
+  assert.match(fim, /no máximo três frases, contando a pergunta do fim, se houver/);
   assert.match(fim, /fala do valor[^.]*quatro/);
-  assert.match(fim, /corte a explicação, nunca a pergunta/);
+  assert.match(fim, /corte a explicação, nunca a pergunta, o valor ou o aviso do conselho/);
 });
