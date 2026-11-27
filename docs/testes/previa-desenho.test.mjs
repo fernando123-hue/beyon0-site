@@ -620,3 +620,29 @@ test('título longo do topo ganha a classe pv-h1--longo e uma fonte menor só no
   const largo = css.slice(css.indexOf('@container'));
   assert.ok(!/pv-h1--longo/.test(largo), 'no container largo vale o tamanho de sempre');
 });
+
+/* achado 2 dos 8 ramos (27/11): as 3 direções do mesmo negócio saíam com o MESMO ícone grande na arte do topo (pet: a gota nas três),
+   só o fundo e o arranjo mudavam. Agora cada estratégia põe na frente um ícone diferente do ofício (rodízio fixo: mesma entrada, mesmo
+   desenho), e com mais de 3 ícones do ofício o trio também muda. Genérico nunca vira o principal. */
+const papelNaArte = (raiz, papel) => todos(comClasse(raiz, 'pv-arte')[0], n => n.tag === 'g' && n.attrs['data-papel'] === papel).map(g => g.attrs['data-icone']);
+test('arte do topo: as 3 estratégias do mesmo negócio põem ícones diferentes na frente, sempre do ofício', () => {
+  const D = carregar();
+  const principal = (icones, estrategia) => papelNaArte(D.desenhar(comIcones(icones, { estrategia })), 'pv-arte__icone--grande')[0];
+  const tres = ['tesoura', 'gota', 'folha'];
+  const escolhidos = ['conversao', 'autoridade', 'experiencia'].map(e => principal(tres, e));
+  assert.equal(new Set(escolhidos).size, 3, 'três principais diferentes: ' + escolhidos.join(', '));
+  assert.equal(principal(tres, 'autoridade'), principal(tres, 'autoridade'), 'a mesma entrada dá o mesmo desenho');
+  /* com 2 do ofício e 1 genérico: o genérico nunca é o principal */
+  const comGenerico = ['check', 'tesoura', 'gota'];
+  for (const e of ['conversao', 'autoridade', 'experiencia']) assert.notEqual(principal(comGenerico, e), 'check', e + ': genérico na frente');
+  assert.notEqual(principal(comGenerico, 'conversao'), principal(comGenerico, 'autoridade'), 'os 2 do ofício se revezam');
+  /* um ícone só do ofício: ele é o principal nas três (não há outro para trocar) */
+  for (const e of ['conversao', 'autoridade', 'experiencia']) assert.equal(principal(['check', 'bolo'], e), 'bolo');
+  /* com 5 do ofício, o trio desenhado não é o mesmo nas 3 */
+  const cinco = ['tesoura', 'gota', 'folha', 'pata', 'casa'];
+  const trios = ['conversao', 'autoridade', 'experiencia'].map(e => {
+    const r = D.desenhar(comIcones(cinco, { estrategia: e }));
+    return [...papelNaArte(r, 'pv-arte__icone--grande'), ...papelNaArte(r, 'pv-arte__icone')].sort().join(',');
+  });
+  assert.ok(new Set(trios).size >= 2, 'trios: ' + trios.join(' | '));
+});

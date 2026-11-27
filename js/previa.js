@@ -275,7 +275,11 @@
       });
     });
     var doOficio = vistos.filter(function (n) { return GENERICOS.indexOf(n) < 0; });
-    return doOficio.concat(vistos.filter(function (n) { return GENERICOS.indexOf(n) >= 0; })).slice(0, 3);
+    /* (achado 2 dos 8 ramos, 27/11) cada estratégia começa num ícone diferente do ofício: as 3 direções do mesmo negócio não repetem o
+       ícone grande; com mais de 3 do ofício, o trio também muda. Rodízio fixo pela posição da estratégia: mesma entrada, mesmo desenho */
+    var giro = doOficio.length ? Math.max(0, ESTRATEGIAS.indexOf(d && d.estrategia)) % doOficio.length : 0;
+    var girados = doOficio.slice(giro).concat(doOficio.slice(0, giro));
+    return girados.concat(vistos.filter(function (n) { return GENERICOS.indexOf(n) >= 0; })).slice(0, 3);
   }
   /* um ícone da grade de 24 como grupo da arte, na posição e no tamanho pedidos; a cor vem da classe (a CSP proíbe style="") */
   function iconeNaArte(nome, x, y, escala, classe, papel) {
