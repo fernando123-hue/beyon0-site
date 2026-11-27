@@ -31,10 +31,10 @@
 
 .pv h3, .pv h4, .pv h5, .pv-marca, .pv-numero { font-family: var(--pv-f-tit); color: var(--pv-texto); }
 .pv-nav { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-bottom: 1px solid color-mix(in srgb, var(--pv-texto) 12%, transparent); }
-.pv-marca { font-weight: 600; font-size: 19px; letter-spacing: -.01em; margin-right: auto; }
+.pv-marca { font-weight: 600; font-size: 19px; letter-spacing: -.01em; margin-right: auto; min-width: 0; }   /* o nome cede espaço e quebra; o botão ao lado fica em 1 linha (achado 4 dos 8 ramos, 27/11) */
 .pv-menu { display: none; list-style: none; gap: 20px; font-size: 14px; color: var(--pv-suave); }
 .pv-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 18px; border-radius: var(--pv-raio); background: var(--pv-dest); color: var(--pv-dest-texto); font-weight: 600; font-size: 15px; font-family: var(--pv-f-txt); }
-.pv-btn--nav { min-height: 36px; padding: 6px 14px; font-size: 13px; }
+.pv-btn--nav { min-height: 36px; padding: 6px 14px; font-size: 13px; white-space: nowrap; flex: none; }
 
 .pv-sec { padding: var(--pv-esp) 20px; display: flex; flex-direction: column; gap: 24px; }
 .pv-sec:nth-of-type(even) { background: var(--pv-sup); }
@@ -62,6 +62,7 @@
 .pv-sec--hero .pv-btn::after { content: '\2192'; margin-left: 12px; }
 .pv-hero--centro .pv-cab { align-items: center; text-align: center; margin: 0 auto; }
 .pv-hero--centro .pv-h1 { font-size: clamp(32px, 10.2cqw, 40px); }
+.pv-sec--hero .pv-h1--longo { font-size: clamp(30px, 9.6cqw, 38px); }   /* título com mais de 38 caracteres: 3 linhas no 390 mesmo com fonte larga (achado 5 dos 8 ramos, 27/11); no container largo vale o 68 */
 .pv-hero--centro .pv-sub { margin: 0 auto; }
 .pv-hero--faixa, .pv-hero--faixa.pv-sec:nth-of-type(even) { background: var(--pv-dest); }
 .pv-hero--faixa .pv-h1, .pv-hero--faixa .pv-sub, .pv-hero--faixa .pv-rotulo { color: var(--pv-dest-texto); }

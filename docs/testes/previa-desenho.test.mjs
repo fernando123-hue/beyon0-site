@@ -590,3 +590,27 @@ test('arte do topo: nas 3 composições os ícones ficam na faixa que aparece na
     }
   }
 });
+
+/* achados 4 e 5 da rodada com IA real em 8 ramos (27/11): o botão do cabeçalho quebrava em 2 linhas ("Agendar / banho") quando o nome
+   do negócio também ocupava 2; o título do topo com mais de ~38 caracteres saía em 4 linhas no 390 com fonte larga */
+test('cabeçalho: o botão não quebra linha nem encolhe; quem cede espaço é o nome do negócio', () => {
+  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const estreito = css.slice(0, css.indexOf('@container'));
+  assert.ok(/\.pv-btn--nav\s*\{[^}]*white-space:\s*nowrap/.test(estreito), 'botão do cabeçalho em 1 linha');
+  assert.ok(/\.pv-btn--nav\s*\{[^}]*flex:\s*none/.test(estreito), 'botão do cabeçalho não encolhe');
+  assert.ok(/\.pv-marca\s*\{[^}]*min-width:\s*0/.test(estreito), 'o nome pode encolher e quebrar');
+});
+
+test('título longo do topo ganha a classe pv-h1--longo e uma fonte menor só no celular; título curto não', () => {
+  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const h1De = titulo => comClasse(carregar().desenhar(direcao({ secoes: [{ ...direcao().secoes[0], titulo }, ...direcao().secoes.slice(1)] })), 'pv-h1')[0];
+  assert.ok(!h1De('Bolos feitos sob encomenda')._classe.split(' ').includes('pv-h1--longo'), '26 caracteres: tamanho normal');
+  assert.ok(h1De('Banho e tosa com busca e entrega em Floripa')._classe.split(' ').includes('pv-h1--longo'), '43 caracteres: longo');
+  const estreito = css.slice(0, css.indexOf('@container'));
+  const regra = /\.pv-sec--hero \.pv-h1--longo\s*\{[^}]*font-size:\s*clamp\((\d+)px,[^)]*,\s*(\d+)px\)/.exec(estreito);
+  assert.ok(regra, 'regra do título longo no celular');
+  assert.ok(Number(regra[2]) < 44 && Number(regra[1]) >= 28, 'menor que o normal (44) e nunca abaixo de 28 px');
+  assert.ok(estreito.indexOf('.pv-sec--hero .pv-h1--longo') > estreito.indexOf('.pv-hero--centro .pv-h1'), 'vem depois do topo centrado (mesma força, ganha pela ordem)');
+  const largo = css.slice(css.indexOf('@container'));
+  assert.ok(!/pv-h1--longo/.test(largo), 'no container largo vale o tamanho de sempre');
+});
