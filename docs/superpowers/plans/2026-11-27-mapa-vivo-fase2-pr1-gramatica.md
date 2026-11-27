@@ -647,6 +647,8 @@ Herdados e só registrados (a mesma regra do mapa do caso): "sem dúvida somos 5
 - Passado e intenção ANTES do número não contam ("já tive 10 funcionários, hoje sou só eu" = 1; "quero contratar 5" = nada). Para isso, `achaSemNegar` ganhou a recusa opcional.
 - Depois de "somos N", lugar ou canal solto não confirma gente ("somos 3 em Curitiba", "no Instagram", "15 no mercado"). Só vale "na/no" + o lugar de trabalho.
 
+**3ª rodada (técnica, APROVA COM RESSALVAS):** a recusa olhava a oração inteira e apagava o presente ("Quero um site e somos 4", "antes era sozinha e agora somos 4"). Agora só o verbo colado ao número (até 2 palavras no meio) recusa; 16 frases de antes e depois no teste.
+
 Regra registrada: "N funcionários" = N (o que ela disse).
 
 **Para o PR 2 (servidor e tela):**

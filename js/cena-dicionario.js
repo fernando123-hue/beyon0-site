@@ -84,8 +84,10 @@
      lugar ou canal solto: "somos 3 em Curitiba", "somos 3 no Instagram", "somos 15 no mercado"; 2ª rodada da revisão técnica) */
   var GENTE_DEPOIS = '(?=$|[,;.!?\\n]| (?:e|aqui|ao todo|pessoas|socios|socias|irmaos|irmas|amigos|amigas|trabalhando|profissionais|funcionari\\w*|colaborador\\w*' +
     '|(?:na|no|nesta|neste) (?:equipe|time|total|loja|salao|empresa|escritorio|clinica|consultorio|cozinha|oficina|atendimento|estudio|obra|negocio))\\b)';
-  /* passado e intenção na oração, ANTES do número, não contam: "já tive 10 funcionários", "quero contratar 5", "preciso de 3 atendentes" */
-  var NAO_E_HOJE = /\b(?:tive|tinha|tivemos|tinhamos|teve|era|eramos|fomos|quero|queremos|queria|queriamos|pretendo|pretendemos|preciso|precisamos|planejo|planejamos|vou|vamos|contratar|chegar a)\b/;
+  /* passado e intenção COLADOS ao número (no máximo 2 palavras no meio) não contam: "já tive 10 funcionários", "quero contratar 5", "preciso
+     de 3 atendentes". Só o verbo perto: o da oração inteira apagava o presente ("Quero um site e somos 4", "antes era sozinha e agora somos 4";
+     3ª rodada da revisão técnica) */
+  var NAO_E_HOJE = /\b(?:tive|tinha|tivemos|tinhamos|teve|era|eramos|fomos|quero|queremos|queria|queriamos|pretendo|pretendemos|preciso|precisamos|planejo|planejamos|vou|vamos|contratar|chegar a)(?: \w+){0,2}$/;
   var grupo = function (m) { return numero(m[1]); };
   /* [regex, a conta a partir do achado] */
   var EQUIPE = [

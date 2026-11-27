@@ -189,3 +189,14 @@ test('equipe (2ª rodada da revisão técnica): passado e intenção não contam
   ];
   for (const [t, n] of casos) assert.equal(D.equipeDoTexto(t), n, t);
 });
+
+test('equipe (3ª rodada da revisão técnica): a recusa olha só o verbo colado ao número; "antes… agora/hoje…" vale o de hoje', () => {
+  const casos = [
+    ['Quero um site e somos 4 aqui', 4], ['Quero que saibam que somos 4', 4], ['Preciso de site pois tenho 5 funcionarios', 5], ['Vamos lá: somos 3 sócios', 3],
+    ['Antes era sozinha e agora somos 4', 4], ['Eu era sozinha e hoje tenho 3 funcionários', 3], ['Já tive 10 funcionários e hoje tenho 2 funcionários', 2],
+    ['Fomos 5 e hoje somos 3', 3], ['O site que vou usar é para minha equipe de 8 funcionários', 8], ['Vendemos para empresas, preciso de agenda e temos 4 dentistas', 4],
+    ['Tenho 3 funcionarios e pretendo contratar 4 funcionarios', 3], ['Somos 4 e vamos crescer', 4],
+    ['Já tive 10 funcionários, hoje sou só eu', 1], ['Quero contratar 5 funcionários', null], ['Preciso de 3 atendentes', null], ['Vou ter uma equipe de 8', null]
+  ];
+  for (const [t, n] of casos) assert.equal(D.equipeDoTexto(t), n, t);
+});
