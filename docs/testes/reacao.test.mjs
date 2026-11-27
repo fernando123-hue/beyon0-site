@@ -285,3 +285,41 @@ test('segurança A4: chamada que estoura o prazo sem custo conta um mínimo no t
   assert.equal(gasto.de('2026-11-26'), LIMITES_REACAO.custo_minimo_usd);
   assert.ok(LIMITES_REACAO.custo_minimo_usd > 0);
 });
+
+/* ============ migration 20261127120000: o disjuntor ignora as reações (papel extracao) ============ */
+test('reações boas (extracao) depois de 5 falhas do Zero em 2 conversas não escondem a queda: o disjuntor fica fechado', async () => {
+  const { ORG } = await import('../../api/_vendas/org.mjs');
+  const ins = (conversa, papel, erro) => local.db.query(
+    "insert into app.ia_chamadas (org_id, conversa_id, papel, erro) select id, $1::uuid, $2, $3 from app.organizacoes where slug = $4",
+    [conversa, papel, erro, ORG]);
+  const c1 = '11111111-1111-4111-8111-111111111111';
+  const c2 = '22222222-2222-4222-8222-222222222222';
+  for (const conv of [c1, c2, c1, c2, c1]) await ins(conv, 'conversa', 'tempo');
+  for (let i = 0; i < 3; i++) await ins(c1, 'extracao', null);
+  assert.equal((await local.rpc('vendas_ia_disponivel', { org_slug: ORG })).disponivel, false);
+});
+
+test('o disjuntor segue abrindo quando a última chamada do Zero deu certo, mesmo com reações falhando', async () => {
+  const { ORG } = await import('../../api/_vendas/org.mjs');
+  const ins = (conversa, papel, erro) => local.db.query(
+    "insert into app.ia_chamadas (org_id, conversa_id, papel, erro) select id, $1::uuid, $2, $3 from app.organizacoes where slug = $4",
+    [conversa, papel, erro, ORG]);
+  const c1 = '33333333-3333-4333-8333-333333333333';
+  const c2 = '44444444-4444-4444-8444-444444444444';
+  for (const conv of [c1, c2, c1, c2]) await ins(conv, 'conversa', 'tempo');
+  await ins(c1, 'conversa', null);
+  for (let i = 0; i < 5; i++) await ins(i % 2 ? c1 : c2, 'extracao', 'tempo');
+  assert.equal((await local.rpc('vendas_ia_disponivel', { org_slug: ORG })).disponivel, true);
+});
+
+test('borda: só 4 falhas do Zero na janela, mais reações, não fecham o disjuntor (precisa de 5 do Zero)', async () => {
+  const { ORG } = await import('../../api/_vendas/org.mjs');
+  const ins = (conversa, papel, erro) => local.db.query(
+    "insert into app.ia_chamadas (org_id, conversa_id, papel, erro) select id, $1::uuid, $2, $3 from app.organizacoes where slug = $4",
+    [conversa, papel, erro, ORG]);
+  const c1 = '55555555-5555-4555-8555-555555555555';
+  const c2 = '66666666-6666-4666-8666-666666666666';
+  for (const conv of [c1, c2, c1, c2]) await ins(conv, 'conversa', 'tempo');
+  for (let i = 0; i < 4; i++) await ins(i % 2 ? c1 : c2, 'extracao', 'tempo');
+  assert.equal((await local.rpc('vendas_ia_disponivel', { org_slug: ORG })).disponivel, true);
+});

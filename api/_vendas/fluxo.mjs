@@ -250,10 +250,11 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       return r;
     } catch (e) {
       const custo = abaterDoProvisorio(p.papel, (e && e.custo_usd) || 0);
-      /* (revisão do PR #274, achado 1) o disjuntor (vendas_ia_disponivel) lê as 5 últimas linhas da organização SEM olhar o papel: a falha da
+      /* (revisão do PR #274, achado 1) o disjuntor (vendas_ia_disponivel) lia as 5 últimas linhas da organização SEM olhar o papel: a falha da
          reação (muitas por minuto, prazo de 4 s) não pode fechá-lo para o Zero inteiro. Falha dela sem custo não vira linha; com custo, vira
-         linha sem erro, só para o gasto do dia enxergar. O efeito inverso (reações boas escondendo uma queda do Sonnet/Opus) fica até a
-         migration que faz o disjuntor ignorar 'extracao' (pendência anotada no PR; a reação fica desligada em produção até lá) */
+         linha sem erro, só para o gasto do dia enxergar. O efeito inverso (reações boas escondendo uma queda do Sonnet/Opus) é
+         fechado pela migration 20261127120000_disjuntor_sem_reacao (o disjuntor ignora 'extracao'); BZ_REACAO em produção só
+         depois de ela estar aplicada no banco de produção */
       if (p.papel === 'reacao') { if (custo > 0) chamadas.push({ papel: PAPEL_NO_REGISTRO.reacao, custo_usd: custo, ms: Date.now() - t0 }); }
       else chamadas.push({ papel: PAPEL_NO_REGISTRO[p.papel] ?? p.papel, erro: e instanceof ErroIA ? e.motivo : 'interno', custo_usd: custo, ms: Date.now() - t0 });
       throw e;
