@@ -231,3 +231,14 @@ test('voz da empresa: o contrato e /condicoes usam a mesma voz no plural', () =>
     assert.match(t, /O site só vai ao ar com o restante pago\./);   /* (19/11, a ordem nova: os 3 dias e os lembretes saíram junto com o site no ar antes do restante) */
   }
 });
+
+test('26/11 (dono): /condicoes diz, logo depois do encerramento por restante não pago, que dá para retomar em até 6 meses pagando só o restante, com mudanças à parte e recomeço depois', () => {
+  const html = readFileSync(new URL('../../condicoes.html', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const pagamento = html.slice(html.indexOf('<h2>Pagamento</h2>'), html.indexOf('<h2>O que está incluso</h2>'));
+  const enc = pagamento.indexOf('Sem o pagamento nesse prazo, encerramos o projeto.');
+  const ret = pagamento.indexOf('Se a entrada ficou com a gente e você quiser retomar, dá para voltar em até 6 meses depois do encerramento.');
+  assert.ok(enc > 0 && ret > enc, 'a retomada vem logo depois do encerramento, em "Pagamento"');
+  assert.match(pagamento, /Você paga só o restante do mesmo pedido\./);
+  assert.match(pagamento, /O que mudar em relação a ele é cobrado à parte/);
+  assert.match(pagamento, /Passados os 6 meses, o projeto recomeça do zero, com um orçamento novo\./);
+});
