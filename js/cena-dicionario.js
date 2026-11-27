@@ -80,8 +80,12 @@
   var GENTE = '(?:funcionari[oa]s|colaborador(?:es|as)|profissionais|atendentes|dentistas|cabeleireir[oa]s|professor(?:es|as))';
   var GENTE_UM = '(?:funcionari[oa]|colaborador(?:a)?|profissional|atendente|dentista|cabeleireir[oa]|professor(?:a)?)';
   var PARENTE = '(?:o |a )?(?:meu |minha )?(?:socio|socia|espos[oa]|marido|mulher|irma|irmao|filh[oa]|mae|pai|namorad[oa])';
-  /* depois do número de "somos": fim da oração, "e", ou palavra de gente (nunca "anos", "mil", "clientes") */
-  var GENTE_DEPOIS = '(?=$|[,;.!?\\n]| (?:e|aqui|ao todo|no total|na|no|nesta|neste|em|pessoas|socios|socias|irmaos|irmas|amigos|amigas|trabalhando|profissionais|funcionari\\w*|colaborador\\w*)\\b)';
+  /* depois do número de "somos": fim da oração, "e", palavra de gente ou "na/no" + o lugar de trabalho (nunca "anos", "mil", "clientes", nem
+     lugar ou canal solto: "somos 3 em Curitiba", "somos 3 no Instagram", "somos 15 no mercado"; 2ª rodada da revisão técnica) */
+  var GENTE_DEPOIS = '(?=$|[,;.!?\\n]| (?:e|aqui|ao todo|pessoas|socios|socias|irmaos|irmas|amigos|amigas|trabalhando|profissionais|funcionari\\w*|colaborador\\w*' +
+    '|(?:na|no|nesta|neste) (?:equipe|time|total|loja|salao|empresa|escritorio|clinica|consultorio|cozinha|oficina|atendimento|estudio|obra|negocio))\\b)';
+  /* passado e intenção na oração, ANTES do número, não contam: "já tive 10 funcionários", "quero contratar 5", "preciso de 3 atendentes" */
+  var NAO_E_HOJE = /\b(?:tive|tinha|tivemos|tinhamos|teve|era|eramos|fomos|quero|queremos|queria|queriamos|pretendo|pretendemos|preciso|precisamos|planejo|planejamos|vou|vamos|contratar|chegar a)\b/;
   var grupo = function (m) { return numero(m[1]); };
   /* [regex, a conta a partir do achado] */
   var EQUIPE = [
@@ -104,7 +108,7 @@
       var t = O.semAcento(texto), maior = 0, i;
       if (!t) return null;
       for (i = 0; i < EQUIPE.length; i++) {
-        var m = O.achaSemNegar(t, EQUIPE[i][0]), n = m ? EQUIPE[i][1](m) : 0;
+        var m = O.achaSemNegar(t, EQUIPE[i][0], NAO_E_HOJE), n = m ? EQUIPE[i][1](m) : 0;
         if (n >= 1 && n <= 999 && n > maior) maior = n;
       }
       return maior || null;

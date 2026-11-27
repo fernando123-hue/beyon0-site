@@ -50,3 +50,11 @@ test('segurança: o corte de 2000 vale DEPOIS de normalizar; texto enorme com oc
   assert.ok((performance.now() - t0) / 20 < 1.5, 'menos de 1,5 ms por chamada');
   assert.equal(O.achaSemNegar(O.semAcento(negadas + ', somos 9'), /\bsomos (\d+)\b/g)[1], '9');
 });
+
+test('achaSemNegar com recusa: pula a ocorrência cuja oração (antes dela) casa a recusa, e acha a seguinte', () => {
+  const re = /\b(\d+) funcionarios\b/g, recusa = /\b(?:tive|quero)\b/;
+  assert.equal(O.achaSemNegar('ja tive 10 funcionarios', re, recusa), null);
+  assert.equal(O.achaSemNegar('ja tive 10 funcionarios, hoje 2 funcionarios', re, recusa)[1], '2');
+  assert.equal(O.achaSemNegar('tenho 3 funcionarios', re, recusa)[1], '3');
+  assert.equal(O.achaSemNegar('tenho 3 funcionarios', re, 'nao é regex')[1], '3', 'recusa inválida é ignorada');
+});

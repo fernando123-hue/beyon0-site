@@ -642,3 +642,13 @@ Revisões técnica e de segurança: APROVAM COM RESSALVAS. Tratado, cada item co
 - **SEM_V:** inclui os dois `require` do dicionário.
 
 Herdados e só registrados (a mesma regra do mapa do caso): "sem dúvida somos 5" fica negado; "loja física nao vendo online" nega a loja.
+
+**2ª rodada:** segurança APROVA; técnica APROVA COM RESSALVAS. Tratado com teste visto vermelho:
+- Passado e intenção ANTES do número não contam ("já tive 10 funcionários, hoje sou só eu" = 1; "quero contratar 5" = nada). Para isso, `achaSemNegar` ganhou a recusa opcional.
+- Depois de "somos N", lugar ou canal solto não confirma gente ("somos 3 em Curitiba", "no Instagram", "15 no mercado"). Só vale "na/no" + o lugar de trabalho.
+
+Regra registrada: "N funcionários" = N (o que ela disse).
+
+**Para o PR 2 (servidor e tela):**
+- `regulado` vem do ramo e de `nichoReguladoDaSessao`, NUNCA do corpo da requisição. Passar `false` explícito só quando o nicho não é regulado.
+- Medir uma vez o custo de `cenaDoCaso` dentro do próprio Worker (no Node: 0,1 a 2 ms; 10 ms na 1ª chamada).

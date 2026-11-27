@@ -23,8 +23,9 @@
   function semAcento(t) {
     return typeof t === 'string' ? t.slice(0, 2 * TEXTO_MAX).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').slice(0, TEXTO_MAX) : '';
   }
-  /* a 1ª ocorrência de re (flag g) que não está negada na sua oração, ou null. texto: já passado por semAcento */
-  function achaSemNegar(texto, re) {
+  /* a 1ª ocorrência de re (flag g) que não está negada na sua oração, ou null. texto: já passado por semAcento. recusa (opcional, RegExp sem
+     flag g): a ocorrência cuja oração, ANTES dela, casa a recusa também é pulada ("já tive 10 funcionários", "quero contratar 5") */
+  function achaSemNegar(texto, re, recusa) {
     if (typeof texto !== 'string' || !(re instanceof RegExp) || !re.global) return null;
     var m, achou = null;
     re.lastIndex = 0;
@@ -32,7 +33,8 @@
       var fim = m.index + m[0].length;
       var antes = texto.slice(Math.max(0, m.index - JANELA_ANTES), m.index).split(FIM_DA_ORACAO).pop().trim();
       var depois = texto.slice(fim, fim + JANELA_DEPOIS).split(FIM_DA_ORACAO)[0];
-      if (!NEGACAO.test(antes) && !NEGACAO_DEPOIS.test(depois)) { achou = m; break; }
+      var recusada = recusa instanceof RegExp && !recusa.global && recusa.test(antes);
+      if (!recusada && !NEGACAO.test(antes) && !NEGACAO_DEPOIS.test(depois)) { achou = m; break; }
       if (m[0] === '') re.lastIndex++;
     }
     re.lastIndex = 0;

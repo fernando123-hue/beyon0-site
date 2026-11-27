@@ -178,3 +178,14 @@ test('na tela sem os dois scripts antes (revisão técnica 10): carrega sem lan�
   assert.equal(D2.cenaDoCaso({ ramo: 'beleza', texto: 'somos 2', canais: [], objetivos: [] }), null);
   assert.equal(D2.equipeDoTexto('somos 2'), null);
 });
+
+test('equipe (2ª rodada da revisão técnica): passado e intenção não contam; depois de "somos N", lugar ou canal solto não confirma gente', () => {
+  const casos = [
+    ['Já tive 10 funcionários, hoje sou só eu', 1], ['Quero contratar 5 funcionários', null], ['queremos chegar a 10 funcionários', null],
+    ['Preciso de 3 atendentes', null], ['tinha 4 funcionários antes da pandemia', null], ['Pretendo ter 8 colaboradores', null],
+    ['somos 3 no Instagram', null], ['Somos 3 em Curitiba', null], ['Somos 15 no mercado desde 2010', null],
+    ['Somos 9 na cozinha', 9], ['somos 4 no salão', 4], ['somos 5 na equipe', 5], ['somos 4 no total', 4], ['Somos em 3 irmãos', 3],
+    ['Temos 3 funcionários e quero contratar mais 2', 3]
+  ];
+  for (const [t, n] of casos) assert.equal(D.equipeDoTexto(t), n, t);
+});
