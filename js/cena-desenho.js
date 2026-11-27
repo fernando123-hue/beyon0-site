@@ -26,6 +26,7 @@
       var svg = doc.createElementNS(NS, 'svg');
       svg.setAttribute('class', 'cena');
       svg.setAttribute('viewBox', '0 0 320 120');
+      svg.setAttribute('width', '100%');   /* (o CSS manda quando chega; antes dele, nem 300x150 nem mancha preta) */
       svg.setAttribute('aria-hidden', 'true');
       svg.setAttribute('focusable', 'false');
       for (var i = 0; i < desenho.grupos.length; i++) {
@@ -43,6 +44,7 @@
           if (!tr || typeof tr.d !== 'string' || !CAMINHO.test(tr.d)) continue;
           var p = doc.createElementNS(NS, 'path');
           p.setAttribute('d', tr.d);
+          p.setAttribute('fill', 'none');
           if (tr.ac === true) p.setAttribute('class', 'cena__ac');
           dentro.appendChild(p);
         }

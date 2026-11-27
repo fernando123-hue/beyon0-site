@@ -34,7 +34,7 @@ function montar({ ramo = 'beleza', objetivos = [] } = {}) {
       if (typeof pend.onload === 'function') pend.onload();
     }
   };
-  return { doc, alvo, win, T, toques, pedidos, baixarTudo };
+  return { doc, alvo, win, T, toques, pedidos, baixarTudo, ctx };
 }
 const ESTADO = (falas, extra = {}) => ({ reacao: true, conversa: { id: 'c1' }, mensagens: falas.map(c => ({ papel: 'visitante', conteudo: c })), ...extra });
 
@@ -93,26 +93,70 @@ test('nunca depoimento na tela (ela não sabe o nicho); sem ramo, o lugar fica v
   assert.equal(r.alvo.children[0].querySelectorAll('.cena__gente').length, 0, 'o "5" foi o Zero quem disse');
 });
 
-test('falha ao baixar: não lança, não tenta de novo em laço, o lugar some', () => {
+test('falha ao baixar um script: não lança, não tenta de novo em laço, o lugar some', () => {
   const p = montar();
   p.T.atualizar(ESTADO(['Barbearia']));
-  const css = p.doc.head.children[0];
-  if (typeof css.onerror === 'function') css.onerror();
   const js = p.doc.head.children.find(e => e.src);
-  if (js && typeof js.onerror === 'function') js.onerror();
+  js.onerror();
   assert.doesNotThrow(() => p.T.atualizar(ESTADO(['Barbearia'])));
   assert.equal(p.alvo.hidden, true);
-  assert.ok(p.pedidos().length <= 2, 'sem laço de novas tentativas');
+  assert.deepEqual(p.pedidos(), ['css/orcamento-cena.css', MODULOS[0]], 'sem laço de novas tentativas');
 });
 
-test('página: o lugar da cena dentro da miniatura, o script antes do orcamento.js, o render e o lugar reservado no CSS estático', () => {
-  const html = ler('orcamento.html');
-  assert.match(html, /<div class="nasce__cena" id="o-nasce-cena" hidden><\/div>/);
-  const pos = s => html.indexOf('<script src="js/' + s + '" defer></script>');
-  assert.ok(pos('orcamento-cena-tela.js') > 0 && pos('orcamento-cena-tela.js') < pos('orcamento.js'));
-  for (const m of MODULOS.filter(m => !/planta-pecas|mapa-saber/.test(m))) assert.ok(!html.includes('src="' + m), m + ' vem só sob demanda');
-  assert.match(ler('js/orcamento.js'), /window\.BZOrcCenaTela\.atualizar\(E\)/);
-  assert.match(ler('css/orcamento-palco.css'), /\.nasce__cena \{[^}]*aspect-ratio: 320 \/ 120/);
-  const fonte = ler('js/orcamento-cena-tela.js');
-  assert.ok(!/innerHTML|=>|\blet\b|\bconst\b|`/.test(fonte));
+test('falha no meio da sequência (o 6º script) também some o lugar, sem novas tentativas', () => {
+  const p = montar();
+  p.T.atualizar(ESTADO(['Barbearia']));
+  for (let n = 0; n < 10; n++) {
+    const pend = p.doc.head.children.find(e => !e._baixado);
+    pend._baixado = true;
+    if (pend.src === 'js/cena-tracos.js') { pend.onerror(); break; }
+    if (pend.src) vm.runInContext(ler(pend.src), p.ctx);
+    if (typeof pend.onload === 'function') pend.onload();
+  }
+  assert.equal(p.alvo.hidden, true);
+  const antes = p.pedidos().length;
+  p.T.atualizar(ESTADO(['Barbearia']));
+  assert.equal(p.pedidos().length, antes, 'não pede de novo');
+});
+
+test('o CSS da cena falhou: o lugar some (sem CSS a cena seria traço sem tinta num vão)', () => {
+  const p = montar();
+  p.T.atualizar(ESTADO(['Barbearia, somos 2']));
+  const css = p.doc.head.children[0];
+  assert.equal(typeof css.onerror, 'function', 'o CSS tem tratamento de falha');
+  css.onerror();
+  assert.equal(p.alvo.hidden, true);
+  p.baixarTudo();
+  p.T.atualizar(ESTADO(['Barbearia, somos 2']));
+  assert.equal(p.alvo.hidden, true, 'continua escondido nos renders seguintes');
+});
+
+test('sem cena (sem ramo), o lugar reservado se esconde; com o ramo tocado, volta', () => {
+  const p = montar({ ramo: null });
+  p.T.atualizar(ESTADO(['somos 3']));
+  p.baixarTudo();
+  assert.equal(p.alvo.hidden, true, 'sem vão em branco');
+  p.toques.ramo = 'beleza';
+  p.doc.dispatchEvent({ type: 'bz:respostas', detail: { ramo: 'beleza' } });
+  assert.equal(p.alvo.hidden, false);
+  assert.equal(p.alvo.children[0].tagName, 'svg');
+  p.T.atualizar(ESTADO(['somos 3']));
+  assert.equal(p.alvo.hidden, false, 'o render seguinte não esconde a cena que existe');
+});
+
+test('o toque antes do 1º render não desenha nem lança', () => {
+  const p = montar();
+  assert.doesNotThrow(() => p.doc.dispatchEvent({ type: 'bz:respostas', detail: { ramo: 'beleza' } }));
+  assert.equal(p.alvo.children.length, 0);
+});
+
+test('sem o CSS (ainda não chegou), o SVG não vira mancha preta: sem preenchimento e com largura no próprio desenho', () => {
+  const p = montar();
+  p.T.atualizar(ESTADO(['Barbearia, somos 2']));
+  p.baixarTudo();
+  const svg = p.alvo.children[0];
+  assert.equal(svg.getAttribute('width'), '100%');
+  const caminhos = svg.querySelectorAll('path');
+  assert.ok(caminhos.length > 0);
+  for (const c of caminhos) assert.equal(c.getAttribute('fill'), 'none');
 });

@@ -5,7 +5,9 @@
    - Ligado: o lugar é reservado na hora (aspect-ratio no CSS estático, sem empurrar a página depois) e os 7 módulos e o CSS da cena vêm sob
      demanda, uma vez, em ordem, de URL CONSTANTE (padrão de js/orcamento-reacao.js). Falhou ao baixar: o lugar some, sem novas tentativas.
    - Depoimento nunca aparece aqui: a tela não sabe se o nicho é regulado (regulado vai sem valor, e o dicionário falha fechado).
-   - O desenho só se refaz quando a cena muda (não reanima a cada render); o toque novo (bz:respostas) redesenha com o último estado.
+   - O desenho só se refaz quando a cena muda (não reanima a cada render); o toque novo (bz:respostas) redesenha com o último estado: o ramo
+     e os objetivos já são os novos, as falas são as do render anterior; se o render seguinte mudar a cena (ex.: a equipe), ela entra de novo
+     (aceito: o toque responde na hora, sem esperar o servidor).
    Decorativo (o SVG é aria-hidden). ES5: window.BZOrcCenaTela; nunca lança. */
 (function (raiz, fabrica) {
   'use strict';
@@ -29,11 +31,12 @@
   function prontos(w) { for (var i = 0; i < MODULOS.length; i++) if (!w[MODULOS[i][1]]) return false; return true; }
 
   /* baixa, um de cada vez, o que ainda falta; aoFim(true) com tudo pronto, aoFim(false) se algum falhou */
-  function baixar(w, doc, aoFim) {
+  function baixar(w, doc, aoFim, aoFalharCss) {
     var i = 0;
     var link = doc.createElement('link');
     link.rel = 'stylesheet';
     link.href = CSS;
+    link.onerror = aoFalharCss;   /* sem o CSS a cena é traço sem tinta: falha como os scripts */
     doc.head.appendChild(link);
     function proximo() {
       while (i < MODULOS.length && w[MODULOS[i][1]]) i++;
@@ -50,17 +53,22 @@
   function carregar(w, doc, alvo) {
     if (st.carga !== 'nao') return;
     st.carga = 'baixando';
+    function falhou() { st.carga = 'falhou'; alvo.hidden = true; }
     baixar(w, doc, function (ok) {
-      st.carga = ok ? 'pronta' : 'falhou';
-      if (!ok) { alvo.hidden = true; return; }
+      if (st.carga === 'falhou') return;
+      if (!ok) { falhou(); return; }
+      st.carga = 'pronta';
       desenhar(w, doc, alvo, st.ultimoE);
-    });
+    }, falhou);
   }
 
   /* o que ela escreveu: só as falas DELA (o que o Zero disse não conta), as últimas TEXTO_MAX letras */
   function falasDela(E) {
-    var m = Array.isArray(E.mensagens) ? E.mensagens : [], partes = [], i;
-    for (i = 0; i < m.length; i++) if (ehObjeto(m[i]) && m[i].papel === 'visitante' && typeof m[i].conteudo === 'string') partes.push(m[i].conteudo);
+    /* de trás para frente, parando ao juntar TEXTO_MAX letras (o custo não cresce com a conversa) */
+    var m = Array.isArray(E.mensagens) ? E.mensagens : [], partes = [], total = 0, i;
+    for (i = m.length - 1; i >= 0 && total < TEXTO_MAX; i--) {
+      if (ehObjeto(m[i]) && m[i].papel === 'visitante' && typeof m[i].conteudo === 'string') { partes.unshift(m[i].conteudo); total += m[i].conteudo.length + 2; }
+    }
     var t = partes.join('. ');
     return t.length > TEXTO_MAX ? t.slice(t.length - TEXTO_MAX) : t;
   }
@@ -73,9 +81,11 @@
       regulado: undefined   /* (a tela não sabe o nicho: depoimento nunca na tela) */
     });
   }
+  /* sem cena (sem ramo ainda), o lugar se esconde: nada de vão em branco na miniatura */
   function desenhar(w, doc, alvo, E) {
     if (!E || !prontos(w)) return false;
     var cena = cenaDoEstado(w, E), assinatura = JSON.stringify(cena);
+    alvo.hidden = !cena;
     if (assinatura === st.assinatura) return !!cena;
     st.assinatura = assinatura;
     if (!cena) { while (alvo.firstChild) alvo.removeChild(alvo.firstChild); return false; }
