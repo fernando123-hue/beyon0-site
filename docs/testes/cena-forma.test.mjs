@@ -59,3 +59,15 @@ test('fonte ES5 (sem let, const, =>), sem DOM nem innerHTML', () => {
   const fonte = fs.readFileSync(new URL('../../js/orcamento-cena-forma.js', import.meta.url), 'utf8');
   assert.ok(!/\blet\b|\bconst\b|=>|`|innerHTML|document\./.test(fonte));
 });
+
+/* (revisão de segurança e técnica 11) cada campo é lido UMA vez e só o próprio; o herdado não vale */
+test('validar lê cada campo uma vez só (getter que muda não engana) e ignora campo herdado', () => {
+  let n = 0;
+  const muda = { gente: 1, canais: [], oferta: null, destaque: null };
+  Object.defineProperty(muda, 'lugar', { get() { n++; return n === 1 ? 'loja' : '<img>'; }, enumerable: true });
+  const r = F.validar(muda);
+  assert.equal(n, 1);
+  assert.ok(!r.ok || r.cena.lugar === 'loja');
+  const herdado = Object.assign(Object.create({ lugar: 'loja' }), { gente: 1, canais: [], oferta: null, destaque: null });
+  assert.deepEqual(codigos(F.validar(herdado)), ['lugar:obrigatorio']);
+});

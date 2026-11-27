@@ -32,7 +32,7 @@ test('aceite 2: equipe só quando ela diz; negação apaga; por extenso; fora do
   ];
   for (const [t, n] of casos) assert.equal(D.equipeDoTexto(t), n, String(t));
   assert.equal(D.equipeDoTexto('não sei, mas somos 4'), 4, 'a vírgula fecha a oração da negação');
-  assert.equal(D.equipeDoTexto('somos 3 sócios e temos 8 funcionários'), 3, 'a mais à esquerda vale');
+  assert.equal(D.equipeDoTexto('somos 3 sócios e temos 8 funcionários'), 8, 'a maior quantidade dita vale');
 });
 
 test('oferta: a 1ª palavra do texto; senão o objetivo; senão nada', () => {
@@ -111,7 +111,7 @@ test('o caminho do navegador: os três scripts juntos, na ordem, sem require, d�
   assert.deepEqual(JSON.parse(JSON.stringify(ctx.window.BZCenaDicionario.cenaDoCaso(caso))), JSON.parse(JSON.stringify(D.cenaDoCaso(caso))));
 });
 
-test('fontes ES5 sem DOM; nenhuma página carrega os módulos novos ainda (PR 2 liga)', () => {
+test('fontes com sintaxe ES5 e sem DOM; nenhuma página carrega os módulos novos ainda (PR 2 liga)', () => {
   for (const f of ['oracao.js', 'cena-dicionario.js']) {
     const fonte = fs.readFileSync(new URL('../../js/' + f, import.meta.url), 'utf8');
     assert.ok(!/\blet\b|\bconst\b|=>|`|innerHTML|document\./.test(fonte), f);
@@ -119,4 +119,62 @@ test('fontes ES5 sem DOM; nenhuma página carrega os módulos novos ainda (PR 2 
   for (const p of fs.readdirSync(new URL('../../', import.meta.url)).filter(n => n.endsWith('.html'))) {
     assert.ok(!/cena-dicionario|orcamento-cena-forma|oracao\.js/.test(fs.readFileSync(new URL('../../' + p, import.meta.url), 'utf8')), p);
   }
+});
+
+/* ---------- revisões técnica e de segurança do PR 1 (ramo mapa-vivo-cena-forma) ---------- */
+test('equipe (revisão técnica 1 a 3): "somos um/uma …", anos, mil e clientes não viram gente; o número vale com palavra de gente ou fim da oração', () => {
+  const casos = [
+    ['Somos uma clínica de odontologia', null], ['Somos um escritório de contabilidade', null], ['Somos uma empresa familiar', null],
+    ['Somos 5 anos no mercado', null], ['somos 10 mil clientes', null], ['somos 4 e atendemos o bairro todo', 4], ['somos 4 no salão', 4], ['Somos 3 irmãs que amamos bolo', 3],
+    ['Somos em 3 irmãos', 3], ['somos 4 aqui', 4], ['somos 6.', 6], ['somos mais de 50', 50],
+    ['Só eu e minha mãe', 2], ['sou só eu e meu marido', 2], ['Trabalho sozinha, mas tenho 3 funcionários', 3],
+    ['Tenho um funcionário', 1], ['tenho 1 funcionario', 1], ['Eu e mais duas funcionárias', 3], ['Eu e meu sócio e mais 4 funcionários', 6],
+    ['Não tenho funcionários, somos eu e minha sócia', 2], ['Nao tenho funcionario nenhum somos 3', null]
+  ];
+  for (const [t, n] of casos) assert.equal(D.equipeDoTexto(t), n, t);
+});
+
+test('palavras (revisão técnica 4 e 5): reforma tributária, "mercado" de trabalho e "meu projeto" não decidem lugar nem oferta', () => {
+  assert.equal(D.lugarDoCaso('servicos', 'Faço reforma tributária e contabilidade'), 'escritorio');
+  assert.equal(D.lugarDoCaso('servicos', 'Faço reformas de casas e apartamentos'), 'obra');
+  assert.equal(D.lugarDoCaso('alimentacao', 'Estou no mercado há 10 anos, faço bolos'), 'cozinha');
+  assert.equal(D.lugarDoCaso('comercio', 'Tenho um minimercado no bairro'), 'loja');
+  assert.equal(D.ofertaDoCaso('meu projeto de abrir uma loja', []), null);
+  assert.equal(D.ofertaDoCaso('móveis sob medida', []), 'projeto');
+  assert.equal(D.ofertaDoCaso('faço projetos de arquitetura', []), 'projeto');
+});
+
+test('regulado (revisões técnica 6 e de segurança): depoimentos só com regulado === false; qualquer outro valor bloqueia', () => {
+  for (const regulado of [true, undefined, null, 'sim', 'true', 1, {}]) {
+    assert.equal(D.destaqueDoCaso('quero depoimentos', [], regulado), null, String(regulado));
+    const c = D.cenaDoCaso({ ramo: 'saude', texto: 'quero depoimentos', canais: [], objetivos: [], regulado });
+    assert.notEqual(c.destaque, 'depoimentos', String(regulado));
+  }
+  assert.equal(D.destaqueDoCaso('quero depoimentos', [], false), 'depoimentos');
+});
+
+test('aceite 5, par a par: mesma área, respostas que diferem num campo só dão cenas diferentes', () => {
+  const base = { ramo: 'beleza', texto: 'Barbearia, somos 2', canais: ['instagram'], objetivos: ['agendamentos'], regulado: false };
+  const c = o => JSON.stringify(D.cenaDoCaso({ ...base, ...o }));
+  assert.notEqual(c({}), c({ texto: 'Barbearia, somos 3' }), 'só a equipe');
+  assert.notEqual(c({}), c({ canais: ['whatsapp'] }), 'só o canal');
+  assert.notEqual(c({}), c({ objetivos: ['apresentar'] }), 'só o objetivo');
+});
+
+test('segurança: canais e objetivos enormes são cortados (20) antes de qualquer conta; nunca lança', () => {
+  const muitos = Array.from({ length: 100000 }, (_, i) => 'x' + i);
+  const t0 = performance.now();
+  const c = D.cenaDoCaso({ ramo: 'beleza', texto: 'salão', canais: muitos.concat(['instagram']), objetivos: muitos.concat(['apresentar']), regulado: false });
+  assert.ok(performance.now() - t0 < 50, 'sem percorrer as listas inteiras');
+  assert.deepEqual([...c.canais], [], 'o canal depois do corte não entra');
+  assert.equal(c.destaque, null, 'o objetivo depois do corte não entra');
+});
+
+test('na tela sem os dois scripts antes (revisão técnica 10): carrega sem lançar e devolve null', () => {
+  const ctx = { window: {} };
+  ctx.window.window = ctx.window;
+  assert.doesNotThrow(() => vm.runInNewContext(fs.readFileSync(new URL('../../js/cena-dicionario.js', import.meta.url), 'utf8'), ctx));
+  const D2 = ctx.window.BZCenaDicionario;
+  assert.equal(D2.cenaDoCaso({ ramo: 'beleza', texto: 'somos 2', canais: [], objetivos: [] }), null);
+  assert.equal(D2.equipeDoTexto('somos 2'), null);
 });

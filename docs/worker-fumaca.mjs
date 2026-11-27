@@ -65,7 +65,10 @@ function jsQueAApiImporta() {
     const rel = fila.shift();
     for (const m of fs.readFileSync(path.join(RAIZ, rel), 'utf8').matchAll(/require\(\s*['"]\.\/([\w.-]+\.js)['"]\s*\)/g)) {
       const dep = 'js/' + m[1];
-      if (!achados.has(dep)) { achados.add(dep); fila.push(dep); }
+      if (achados.has(dep)) continue;
+      if (!fs.existsSync(path.join(RAIZ, dep))) throw new Error(`fumaça: ${rel} requer ./${m[1]}, que não existe em js/`);
+      achados.add(dep);
+      fila.push(dep);
     }
   }
   return [...achados].sort();

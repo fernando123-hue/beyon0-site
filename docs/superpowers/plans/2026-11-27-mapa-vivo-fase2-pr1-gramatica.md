@@ -619,3 +619,26 @@ import './cena-dicionario.test.mjs';
 - Nenhum texto em `innerHTML`, class, id ou seletor: os módulos não tocam o DOM, e os testes de fonte provam (aceite 7, parte do PR 1).
 - Fica para o PR 2: o desenho (`js/cena-desenho.js`), os limites de tela (uma cena, 6 bonequinhos + "+N", altura reservada ≈ 120 px a 390), o movimento reduzido (aceite 6), a ligação com a miniatura `.nasce` e com a conversa, o campo `negocio.equipe` no briefing, a parte da chamada da 1b que devolve `lugar`/`oferta` quando o código não sabe, e as medidas (% de cenas, tempo de desenho).
 - Decisão aberta do dono que NÃO trava este PR: item 3 da seção 5 (toque opcional "Quantas pessoas trabalham aí?"). Este PR só lê o que ela escreve.
+
+## Depois das revisões (27/11)
+
+Revisões técnica e de segurança: APROVAM COM RESSALVAS. Tratado, cada item com teste visto vermelho:
+- **Equipe:**
+  - "somos um/uma…", "somos 5 anos" e "somos 10 mil clientes" não contam. O número de "somos" exige palavra de gente, "e", "na/no/em" ou fim da oração.
+  - "só eu" não ganha de "eu e minha mãe". Vale a MAIOR quantidade dita, e "eu e mais N" = N + 1.
+  - "um funcionário" conta só depois de "tenho/temos/com".
+- **Palavras:**
+  - "reforma tributária" não é obra;
+  - "mercado" sozinho não é loja;
+  - "meu projeto de…" não é oferta.
+- **Depoimentos:** só com `regulado === false` explícito; qualquer outro valor bloqueia.
+- **Listas recebidas:** cortadas em 20.
+- **No navegador, sem os dois scripts antes:** o dicionário carrega e devolve `null`.
+- **`validar`:** lê cada campo próprio uma vez só; o herdado não vale.
+- **`semAcento`:** corta em 2000 DEPOIS de normalizar.
+- **`achaSemNegar`:** usa janelas fixas (custo linear).
+- **Mesma regra nos três arquivos:** um teste prende a regra de oração e negação igual em `oracao.js`, `mapa-saber.js` e `orcamento-coerencia.js`.
+- **Fumaça:** dá mensagem clara para `require` de arquivo inexistente.
+- **SEM_V:** inclui os dois `require` do dicionário.
+
+Herdados e só registrados (a mesma regra do mapa do caso): "sem dúvida somos 5" fica negado; "loja física nao vendo online" nega a loja.

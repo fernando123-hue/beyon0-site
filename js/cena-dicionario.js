@@ -13,9 +13,17 @@
 })(typeof window !== 'undefined' ? window : null, function (O, F) {
   'use strict';
 
+  /* na tela sem js/oracao.js ou js/orcamento-cena-forma.js antes: carrega sem lançar e nunca desenha (revisão técnica 10) */
+  if (!O || !F) {
+    var nada = function () { return null; };
+    return Object.freeze({ LUGAR_DO_RAMO: Object.freeze(Object.create(null)), lugarDoCaso: nada, ofertaDoCaso: nada, destaqueDoCaso: nada, equipeDoTexto: nada, cenaDoCaso: nada });
+  }
+
   var tabela = function (o) { var t = Object.create(null), k; for (k in o) if (Object.prototype.hasOwnProperty.call(o, k)) t[k] = o[k]; return Object.freeze(t); };
   var tem = function (o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); };
-  var lista = function (v) { return Array.isArray(v) ? v : []; };
+  /* as listas recebidas (canais, objetivos) são cortadas antes de qualquer conta (revisão de segurança) */
+  var LISTA_MAX = 20;
+  var lista = function (v) { return Array.isArray(v) ? v.slice(0, LISTA_MAX) : []; };
 
   var LUGAR_DO_RAMO = tabela({
     servicos: 'escritorio', saude: 'consultorio', beleza: 'salao', alimentacao: 'cozinha', comercio: 'loja', educacao: 'sala_aula', associacao: 'sede', outro: 'escritorio'
@@ -28,12 +36,14 @@
   /* palavra -> lugar (minúsculas, sem acento), na ordem de preferência */
   var LUGAR_POR_PALAVRA = [
     ['oficina', /\b(?:oficina|mecanic\w*|funilaria|borracharia|autoeletrica|auto eletrica)\b/g],
-    ['obra', /\b(?:obras?|reformas?|construc\w*|pedreir\w*|marcenari\w*|marceneir\w*|eletricist\w*|encanador\w*)\b/g],
+    /* (revisão técnica 4) "reforma tributária/administrativa…" não é obra; "construção" só a civil */
+    ['obra', /\b(?:obras?|reformas?(?! (?:tributari|administrativ|previdenciari|trabalhist|politic|fiscal)\w*)|construtora|construcao civil|construcoes|pedreir\w*|marcenari\w*|marceneir\w*|eletricist\w*|encanador\w*)\b/g],
     ['estudio', /\b(?:estudio|academia|pilates|crossfit|yoga|fotograf\w*|tatuage\w*|tattoo)\b/g],
     ['salao', /\b(?:barbearia|barbeir\w*|salao|manicure|cabeleireir\w*)\b/g],
     ['consultorio', /\b(?:consultorio|clinica|odonto\w*|dentist\w*|psicolog\w*|fisioterap\w*|nutricionist\w*)\b/g],
     ['cozinha', /\b(?:padaria|confeitaria|restaurante|lanchonete|hamburgueria|pizzaria|marmit\w*|doceria|cozinha)\b/g],
-    ['loja', /\b(?:loja|boutique|mercado|mercearia|papelaria|petshop|pet shop)\b/g],
+    /* (revisão técnica 5) "mercado" sozinho é quase sempre o de trabalho ("estou no mercado há 10 anos") */
+    ['loja', /\b(?:loja|boutique|supermercado|minimercado|mercadinho|mercado de bairro|mercearia|papelaria|petshop|pet shop)\b/g],
     ['sala_aula', /\b(?:escola|cursos?|aulas?|professor\w*|reforco)\b/g],
     ['escritorio', /\b(?:escritorio|advocacia|advogad\w*|contabil\w*|consultoria|imobiliaria)\b/g]
   ];
@@ -50,40 +60,54 @@
     ['aulas', /\b(?:aulas?|turmas?|matricul\w*)\b/g],
     ['galeria', /\b(?:portfolio|trabalhos feitos|galeria)\b/g],
     ['loja_online', /\b(?:loja (?:online|virtual)|vender online|e-?commerce|pagamento online)\b/g],
-    ['projeto', /\b(?:projetos?|sob medida)\b/g]
+    /* (revisão técnica 4) "meu projeto de abrir…" não é o que se vende */
+    ['projeto', /\b(?:projetos? (?:de arquitetura|arquitetonic\w*|personalizad\w*|de interiores|de engenharia)|sob medida)\b/g]
   ];
   var OFERTA_DO_OBJETIVO = tabela({ agendamentos: 'agenda', vender_online: 'loja_online' });
   var DEPOIMENTO = /\b(?:depoimentos?|avaliac\w*|o que (?:os )?clientes dizem)\b/g;
 
-  /* ---------- equipe ---------- */
+  /* ---------- equipe ----------
+     A conta é a quantidade que ela DISSE: "N funcionários" = N; "somos N" = N; "eu e minha sócia" = 2; "eu e mais N" = N + 1 (ela conta);
+     "só eu"/"sozinha" = 1. Com mais de uma afirmação, vale a MAIOR ("sozinha, mas tenho 3 funcionários" = 3). Revisão técnica do PR 1: "somos
+     uma clínica", "somos 5 anos no mercado" e "somos 10 mil clientes" não são gente; o número de "somos" vale com palavra de gente depois ou no
+     fim da oração; "um/uma" só com "tenho/temos/com um funcionário" */
   var EXTENSO = tabela({
     um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, onze: 11, doze: 12, quinze: 15, vinte: 20, trinta: 30
   });
-  var N = '(\\d{1,3}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta)';
+  var MAIS_DE_UM = '(\\d{1,3}|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta)';
+  var QUALQUER = '(\\d{1,3}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta)';
   var CERCA = '(?:uns |umas |cerca de |quase |mais de )?';
   var GENTE = '(?:funcionari[oa]s|colaborador(?:es|as)|profissionais|atendentes|dentistas|cabeleireir[oa]s|professor(?:es|as))';
-  /* [regex, número fixo ou null = o grupo 1] */
+  var GENTE_UM = '(?:funcionari[oa]|colaborador(?:a)?|profissional|atendente|dentista|cabeleireir[oa]|professor(?:a)?)';
+  var PARENTE = '(?:o |a )?(?:meu |minha )?(?:socio|socia|espos[oa]|marido|mulher|irma|irmao|filh[oa]|mae|pai|namorad[oa])';
+  /* depois do número de "somos": fim da oração, "e", ou palavra de gente (nunca "anos", "mil", "clientes") */
+  var GENTE_DEPOIS = '(?=$|[,;.!?\\n]| (?:e|aqui|ao todo|no total|na|no|nesta|neste|em|pessoas|socios|socias|irmaos|irmas|amigos|amigas|trabalhando|profissionais|funcionari\\w*|colaborador\\w*)\\b)';
+  var grupo = function (m) { return numero(m[1]); };
+  /* [regex, a conta a partir do achado] */
   var EQUIPE = [
-    [new RegExp('\\bsomos (?:em )?' + CERCA + N + '\\b', 'g'), null],
-    [new RegExp('\\b(?:equipe|time) de ' + CERCA + N + '\\b', 'g'), null],
-    [new RegExp('\\b' + CERCA + N + ' ' + GENTE + '\\b', 'g'), null],
-    [new RegExp('\\b' + N + ' pessoas? (?:na|no) (?:equipe|time)\\b', 'g'), null],
-    [new RegExp('\\btrabalham (?:aqui )?' + CERCA + N + ' pessoas\\b', 'g'), null],
-    [/\b(?:so eu|sou so eu|sozinh[oa])\b/g, 1],
-    [/\beu e (?:o |a )?(?:meu |minha )?(?:socio|socia|espos[oa]|marido|mulher|irma|irmao|filh[oa]|mae|pai|namorad[oa])\b/g, 2]
+    [new RegExp('\\bsomos (?:em )?' + CERCA + MAIS_DE_UM + '\\b' + GENTE_DEPOIS, 'g'), grupo],
+    [new RegExp('\\b(?:equipe|time) de ' + CERCA + MAIS_DE_UM + '\\b', 'g'), grupo],
+    [new RegExp('\\b' + CERCA + MAIS_DE_UM + ' ' + GENTE + '\\b', 'g'), grupo],
+    [new RegExp('\\b(?:tenho|temos|com|conto com|contamos com) (?:so |apenas )?(?:um|uma|1) ' + GENTE_UM + '\\b', 'g'), function () { return 1; }],
+    [new RegExp('\\b' + MAIS_DE_UM + ' pessoas (?:na|no) (?:equipe|time)\\b', 'g'), grupo],
+    [new RegExp('\\btrabalham (?:aqui )?' + CERCA + MAIS_DE_UM + ' pessoas\\b', 'g'), grupo],
+    [new RegExp('\\b(?:so eu|sozinh[oa])\\b(?! e ' + PARENTE + '\\b)(?! e mais\\b)', 'g'), function () { return 1; }],
+    [new RegExp('\\beu e ' + PARENTE + '\\b', 'g'), function () { return 2; }],
+    [new RegExp('\\beu e mais ' + QUALQUER + '\\b', 'g'), function (m) { return numero(m[1]) + 1; }],
+    [new RegExp('\\beu e ' + PARENTE + ' e mais ' + QUALQUER + '\\b', 'g'), function (m) { return numero(m[1]) + 2; }]
   ];
-  var numero = function (s) { return /^\d+$/.test(s) ? parseInt(s, 10) : (tem(EXTENSO, s) ? EXTENSO[s] : 0); };
+  function numero(s) { return /^\d+$/.test(s) ? parseInt(s, 10) : (tem(EXTENSO, s) ? EXTENSO[s] : 0); }
 
-  /* equipeDoTexto(texto) -> 1..999 ou null: só o que ela DISSE; a ocorrência mais à esquerda vale */
+  /* equipeDoTexto(texto) -> 1..999 ou null: só o que ela DISSE, e a maior quantidade dita */
   function equipeDoTexto(texto) {
     try {
-      var t = O.semAcento(texto), melhor = null, i;
+      var t = O.semAcento(texto), maior = 0, i;
       if (!t) return null;
       for (i = 0; i < EQUIPE.length; i++) {
-        var m = O.achaSemNegar(t, EQUIPE[i][0]);
-        if (m && (!melhor || m.index < melhor.indice)) melhor = { indice: m.index, n: EQUIPE[i][1] === null ? numero(m[1]) : EQUIPE[i][1] };
+        var m = O.achaSemNegar(t, EQUIPE[i][0]), n = m ? EQUIPE[i][1](m) : 0;
+        if (n >= 1 && n <= 999 && n > maior) maior = n;
       }
-      return melhor && melhor.n >= 1 && melhor.n <= 999 ? melhor.n : null;
+      return maior || null;
     } catch (x) { return null; }
   }
 
@@ -114,7 +138,8 @@
   function destaqueDoCaso(texto, objetivos, regulado) {
     try {
       var obj = lista(objetivos);
-      if (regulado !== true && O.achaSemNegar(O.semAcento(texto), DEPOIMENTO)) return 'depoimentos';
+      /* depoimento só com regulado === false explícito: qualquer outro valor (esquecido, texto) bloqueia (revisões técnica e de segurança) */
+      if (regulado === false && O.achaSemNegar(O.semAcento(texto), DEPOIMENTO)) return 'depoimentos';
       if (obj.indexOf('achado_google') >= 0) return 'localizacao';
       if (obj.indexOf('apresentar') >= 0) return 'fotos';
       return null;
@@ -131,7 +156,7 @@
       for (i = 0; i < c.length && canais.length < F.CANAIS_MAX; i++) if (F.CANAIS.indexOf(c[i]) >= 0 && canais.indexOf(c[i]) < 0) canais.push(c[i]);
       var r = F.validar({
         lugar: lugar, gente: equipe ? Math.min(equipe, F.GENTE_MAX) : 0, canais: canais,
-        oferta: ofertaDoCaso(caso.texto, caso.objetivos), destaque: destaqueDoCaso(caso.texto, caso.objetivos, caso.regulado === true)
+        oferta: ofertaDoCaso(caso.texto, caso.objetivos), destaque: destaqueDoCaso(caso.texto, caso.objetivos, caso.regulado)
       });
       return r.ok ? r.cena : null;
     } catch (x) { return null; }

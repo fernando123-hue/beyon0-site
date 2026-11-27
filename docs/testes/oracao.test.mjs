@@ -26,3 +26,27 @@ test('achaSemNegar nunca lança e deixa a regex pronta para a próxima chamada',
   O.achaSemNegar('x x', re);
   assert.equal(re.lastIndex, 0);
 });
+
+/* (revisão técnica 7) a mesma regra em três lugares: até a migração dos dois antigos para js/oracao.js, as três definições não podem divergir */
+test('a regra de oração e negação é idêntica em js/oracao.js, js/mapa-saber.js e js/orcamento-coerencia.js', async () => {
+  const fs = await import('node:fs');
+  const linha = (arq, nome) => {
+    const m = fs.readFileSync(new URL('../../js/' + arq, import.meta.url), 'utf8').match(new RegExp('var ' + nome + ' = (/.+/);'));
+    assert.ok(m, arq + ' ' + nome);
+    return m[1];
+  };
+  for (const nome of ['NEGACAO', 'NEGACAO_DEPOIS', 'FIM_DA_ORACAO']) {
+    const ref = linha('oracao.js', nome);
+    assert.equal(linha('mapa-saber.js', nome), ref, 'mapa-saber ' + nome);
+    assert.equal(linha('orcamento-coerencia.js', nome), ref, 'coerencia ' + nome);
+  }
+});
+
+test('segurança: o corte de 2000 vale DEPOIS de normalizar; texto enorme com ocorrências negadas custa pouco (janela fixa)', () => {
+  assert.ok(O.semAcento('Å'.repeat(5000)).length <= 2000);
+  const negadas = 'nao somos 4 '.repeat(160);   /* 1920 caracteres: cabe o ", somos 9" no fim */
+  const t0 = performance.now();
+  for (let i = 0; i < 20; i++) O.achaSemNegar(O.semAcento(negadas), /\bsomos (\d+)\b/g);
+  assert.ok((performance.now() - t0) / 20 < 1.5, 'menos de 1,5 ms por chamada');
+  assert.equal(O.achaSemNegar(O.semAcento(negadas + ', somos 9'), /\bsomos (\d+)\b/g)[1], '9');
+});

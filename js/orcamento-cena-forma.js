@@ -40,9 +40,20 @@
       if (e) erros.push({ caminho: 'canais.' + i, codigo: e });
     }
   }
-  function conferir(c) {
+  /* a cópia: cada campo PRÓPRIO lido uma vez só (getter que muda ou campo herdado não enganam a validação; revisões do PR 1) */
+  function copiar(c) {
+    var d = {}, i, v;
+    for (i = 0; i < CAMPOS.length; i++) {
+      if (!Object.prototype.hasOwnProperty.call(c, CAMPOS[i])) continue;
+      v = c[CAMPOS[i]];
+      d[CAMPOS[i]] = Array.isArray(v) ? v.slice() : v;
+    }
+    return d;
+  }
+  /* original: só para achar campo desconhecido; c: a cópia, que é o que se confere */
+  function conferir(original, c) {
     var erros = [], k, e;
-    for (k in c) if (Object.prototype.hasOwnProperty.call(c, k) && CAMPOS.indexOf(k) < 0) erros.push({ caminho: k, codigo: 'campo_desconhecido' });
+    for (k in original) if (Object.prototype.hasOwnProperty.call(original, k) && CAMPOS.indexOf(k) < 0) erros.push({ caminho: k, codigo: 'campo_desconhecido' });
     if ((e = conferirCodigo(LUGARES, c.lugar, true))) erros.push({ caminho: 'lugar', codigo: e });
     if (typeof c.gente !== 'number' || c.gente % 1 !== 0 || c.gente < 0 || c.gente > GENTE_MAX) erros.push({ caminho: 'gente', codigo: 'fora_do_limite' });
     conferirCanais(c.canais, erros);
@@ -55,11 +66,11 @@
   function validar(c) {
     try {
       if (!ehObjeto(c)) return { ok: false, erros: [{ caminho: '', codigo: 'objeto' }] };
-      var erros = conferir(c);
+      var d = copiar(c), erros = conferir(c, d);
       if (erros.length) return { ok: false, erros: erros };
       return { ok: true, cena: Object.freeze({
-        lugar: c.lugar, gente: c.gente, canais: Object.freeze(c.canais.slice()),
-        oferta: c.oferta === undefined ? null : c.oferta, destaque: c.destaque === undefined ? null : c.destaque
+        lugar: d.lugar, gente: d.gente, canais: Object.freeze(d.canais),
+        oferta: d.oferta === undefined ? null : d.oferta, destaque: d.destaque === undefined ? null : d.destaque
       }) };
     } catch (x) {
       return { ok: false, erros: [{ caminho: '', codigo: 'objeto' }] };

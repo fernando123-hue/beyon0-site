@@ -15,9 +15,13 @@
   var NEGACAO_DEPOIS = /^ *(?:(?!(?:e|ou) )\w+ +){0,2}(?:nao|nunca)\b/;
   var FIM_DA_ORACAO = /[,;.!?\n]|\b(?:mas|so|porem)\b/;
 
-  /* minúsculas, sem acento, no máximo TEXTO_MAX caracteres; o que não é texto vira '' */
+  /* a negação olha no máximo 4 palavras antes e 3 depois: janelas fixas dão o mesmo resultado que a oração inteira (salvo 4 palavras com mais de
+     JANELA_ANTES caracteres) e deixam o custo linear no tamanho do texto (revisão de segurança do PR 1 da Fase 2) */
+  var JANELA_ANTES = 200, JANELA_DEPOIS = 100;
+
+  /* minúsculas, sem acento, no máximo TEXTO_MAX caracteres DEPOIS de normalizar (o NFD pode crescer o texto); o que não é texto vira '' */
   function semAcento(t) {
-    return typeof t === 'string' ? t.slice(0, TEXTO_MAX).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '') : '';
+    return typeof t === 'string' ? t.slice(0, 2 * TEXTO_MAX).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').slice(0, TEXTO_MAX) : '';
   }
   /* a 1ª ocorrência de re (flag g) que não está negada na sua oração, ou null. texto: já passado por semAcento */
   function achaSemNegar(texto, re) {
@@ -25,8 +29,9 @@
     var m, achou = null;
     re.lastIndex = 0;
     while ((m = re.exec(texto))) {
-      var antes = texto.slice(0, m.index).split(FIM_DA_ORACAO).pop().trim();
-      var depois = texto.slice(m.index + m[0].length).split(FIM_DA_ORACAO)[0];
+      var fim = m.index + m[0].length;
+      var antes = texto.slice(Math.max(0, m.index - JANELA_ANTES), m.index).split(FIM_DA_ORACAO).pop().trim();
+      var depois = texto.slice(fim, fim + JANELA_DEPOIS).split(FIM_DA_ORACAO)[0];
       if (!NEGACAO.test(antes) && !NEGACAO_DEPOIS.test(depois)) { achou = m; break; }
       if (m[0] === '') re.lastIndex++;
     }
