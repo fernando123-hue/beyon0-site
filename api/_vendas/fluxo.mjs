@@ -43,6 +43,7 @@ import { criarAcoesDaPrevia } from './fluxo-previa.mjs';
 import { criarAcoesDoRecado } from './fluxo-recado.mjs';
 import { criarAcoesDaReacao } from './fluxo-reacao.mjs';
 import { reacaoLigada } from './reacao.mjs';
+import { coerenciaDaConversa } from './coerencia.mjs';
 import { entregaLigada, FRASE_DESLIGADA } from '../_material/interruptor.mjs';
 import { plantaLigada, semChavesDaPlanta, montarPlanta, leituraParaTela } from './planta.mjs';
 import { avisarDono } from '../_aviso.mjs';
@@ -122,6 +123,8 @@ const MUDAR_MAX = 4;
 const MUDAR_DEMAIS = 'Você já mudou as respostas algumas vezes. Conte aqui na conversa o que mudou, ou deixe um recado.';
 const mudancasFeitas = b => (b && Number.isInteger(b.fluxo_mudancas) ? b.fluxo_mudancas : 0);
 const DETALHE_GOOGLE = 'ser achado no Google';
+/* (mapa vivo, fase 4) a dúvida de coerência do ramo tocado com o que ela escreveu: só no fluxo novo, ao lado do reacao: true (api/_vendas/coerencia.mjs) */
+const coerenciaNoEstado = (briefing, mensagens) => { const c = fluxoConversa(briefing) ? coerenciaDaConversa(briefing, mensagens) : null; return c ? { coerencia: c } : {}; };
 const ordenada = l => JSON.stringify([...(l || [])].sort());
 const CAMPOS_TOCADOS = ['ramo', 'objetivos', 'site_atual', 'material'];
 const semChave = (o, chave) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== chave));
@@ -529,7 +532,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* (dono, 15/11) com os modelos prontos, o Zero recomenda um, pelo objetivo que a pessoa deu (regra fixa, api/_vendas/recomendacao.mjs) */
       const recomendacao = recomendar(e.conversa?.briefing, e.direcoes);
       return { ...e, ...(recomendacao ? { recomendacao } : {}), painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env),
-        ...(planta ? { ...(planta.planta ? { planta: planta.planta } : {}), ...(planta.leitura ? { leitura: planta.leitura } : {}), planta_editavel: planta.planta_editavel, ...(reacaoLigada(env) ? { reacao: true } : {}) } : {}),
+        ...(planta ? { ...(planta.planta ? { planta: planta.planta } : {}), ...(planta.leitura ? { leitura: planta.leitura } : {}), planta_editavel: planta.planta_editavel, ...(reacaoLigada(env) ? { reacao: true, ...coerenciaNoEstado(briefingBruto, e.mensagens) } : {}) } : {}),
         /* (fluxo novo, spec §2) a tela segura o valor até o caso ser entendido; fora do fluxo novo a chave não existe (a resposta é a de hoje) */
         ...(fluxoConversa(briefingBruto) ? { valor_liberado: valorLiberado({ briefing: briefingBruto, estimativa: e.estimativa, mensagens: e.mensagens }) } : {}) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
     },
