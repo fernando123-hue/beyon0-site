@@ -13,7 +13,7 @@ const N = require('../../js/orcamento-nasce.js');
 test('sem ramo não há miniatura; com ramo, o nome do ramo e a chamada do tipo de negócio', () => {
   for (const r of [null, undefined, {}, { objetivos: ['agendamentos'] }, { ramo: 'inexistente' }, { ramo: '__proto__' }, 'saude', 7]) assert.equal(N.planoDoSite(r, R), null, JSON.stringify(r));
   const p = N.planoDoSite({ ramo: 'saude', objetivos: [] }, R);
-  assert.deepEqual([p.ramo, p.nome, p.titulo, p.pecas], ['saude', 'Saúde', 'Agende em 1 toque', []]);
+  assert.deepEqual([p.ramo, p.nome, p.titulo, p.pecas], ['saude', 'Saúde', 'Agende em 1 toque', []]);
 });
 
 test('todo ramo da lista fechada tem uma chamada, e todo objetivo tem a sua peça (nenhuma opção fica sem desenho)', () => {
@@ -736,4 +736,13 @@ test('a seção dos modelos: lead curto, a regra do ajuste dita, sem a descriç�
   const selo = /\n\.dir__recomendado \{([^}]*)\}/.exec(semComentario(lerTexto('css/orcamento-modelos.css')));
   assert.ok(selo, 'a regra do selo');
   assert.doesNotMatch(selo[1], /position:\s*(absolute|fixed)|transform:|top:/, 'o selo não flutua sobre a prévia');
+});
+
+/* (revisão visual da Fase 2, regra do dono "quebra de linha pelo sentido") "em 1 toque" e "a matrícula" nunca se separam; "Peça o seu orçamento"
+   só quebra antes de "em 1 toque" */
+test('os títulos da miniatura quebram só pelo sentido (espaço que não quebra)', () => {
+  const T = N.TITULOS;
+  assert.ok(T.servicos.includes('Peça o seu orçamento em 1 toque'));
+  assert.ok(T.saude.includes('em 1 toque'));
+  assert.ok(T.educacao.includes('a matrícula'));
 });

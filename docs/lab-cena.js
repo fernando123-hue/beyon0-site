@@ -29,7 +29,7 @@
     nasce.className = 'caso__nasce';
     var titulo = document.createElement('p');
     titulo.className = 'caso__titulo';
-    titulo.textContent = c[4];
+    titulo.textContent = window.BZOrcNasce.TITULOS[c[0]];   /* os títulos reais da miniatura (js/orcamento-nasce.js) */
     var alvo = document.createElement('div');
     nasce.appendChild(titulo);
     nasce.appendChild(alvo);

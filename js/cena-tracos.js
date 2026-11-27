@@ -40,30 +40,48 @@
 
   /* ---------- a sala (grade 320 x 120): piso em y 104, teto em y 28, parede esquerda em x 60 com a porta de 64 a 104, parede direita em x 304 ---------- */
   var PISO = [t('M44 104H316')];
-  var SALA = [t('M60 64V28H304V104'), t('M56 64H64')];
-  /* o móvel de cada lugar, de pé no piso, do lado direito da sala (x 196 a 300) */
+  /* a porta: batente e a folha entreaberta (revisão visual: o "⊥" solto não lia como porta) */
+  var PORTA = [t('M60 64H70'), t('M60 104L70 100V64')];
+  var SALA = [t('M60 64V28H304V104')].concat(PORTA);
+  /* a obra não é sala fechada: paredes por terminar e sem teto (revisão visual: diferencia o nicho) */
+  var SALA_DA_OBRA = [t('M60 64V44'), t('M304 104V58')].concat(PORTA);
+  /* o móvel de cada lugar, de pé no piso, do lado direito da sala (x 196 a 300). Nenhuma linha horizontal a menos de 8 do piso (y 104) nem
+     vertical a menos de 8 da parede (x 304): linha dupla empilhada é proibida (revisão visual) */
   var MOVEIS = {
-    consultorio: [t('M212 96H248L258 78'), t('M222 96V104M240 96V104'), t('M258 78L264 74'), t('M232 28V44L246 52'), t(C(248, 54, 3))],
-    /* espelho em arco na parede; a cadeira de salão: pé central, base, assento e encosto alto com apoio de cabeça */
-    salao: [t('M222 72V50a18 18 0 0 1 36 0V72Z'), t('M240 104V94M230 104H250'), t('M226 94H254'), t('M230 94V76Q240 72 250 76V94'), t('M236 72H244')],
-    cozinha: [t(R(200, 84, 96, 20, 0)), t('M232 28V36H220L214 46H274L268 36H256V28'), t('M216 84V80H232V84M252 84V80H268V84')],
-    loja: [t('M196 44H296M196 60H296M196 76H296'), t(R(204, 48, 8, 12, 0)), t(R(230, 64, 10, 12, 0)), t(R(212, 88, 60, 16, 0))],
-    oficina: [t('M196 86H296'), t('M204 86V104M288 86V104'), t(R(206, 40, 80, 30, 1)), t('M220 50L236 62'), t('M250 48V64M244 48H256')],
-    escritorio: [t('M200 84H280'), t('M208 84V104M272 84V104'), t(R(226, 62, 28, 18, 1)), t('M240 80V84'), t('M286 104V90M286 94H298V104')],
-    sala_aula: [t(R(196, 38, 100, 34, 1)), t('M206 50H250M206 58H238'), t('M220 90H272'), t('M226 90V104M266 90V104')],
-    sede: [t('M248 92H300V104'), t(R(266, 74, 14, 18, 0)), t('M200 104V96H212V104M214 104V96H226V104')],
-    estudio: [t('M200 102H270'), t('M282 104L290 66L298 104'), t('M290 66V52'), t(R(284, 44, 12, 8, 1))],
-    obra: [t('M200 104V40M240 104V40M280 104V40M200 40H280M200 62H280M200 84H280'), t('M200 62L240 40M240 84L280 62')]
+    /* cadeira de atendimento sobre coluna central, encosto reclinado com apoio de cabeça; luminária de braço com cabeça chata */
+    consultorio: [t('M212 94H248L256 76'), t('M256 76L261 72'), t('M232 104V94'), t('M224 104L232 98L240 104'), t('M236 28V42L250 48'), t(R(244, 48, 14, 6, 3))],
+    /* espelho em arco fora do eixo; a cadeira de salão com pé central, assento e encosto alto, com vão claro até o espelho */
+    salao: [t('M262 66V48a14 14 0 0 1 28 0V66Z'), t('M236 104V94'), t('M230 104L236 99L242 104'), t('M222 94H250'), t('M226 94V80Q236 76 246 80V94')],
+    /* bancada com a porta do forno, coifa no teto, as bocas do fogão */
+    cozinha: [t(R(200, 84, 96, 20, 0)), t(R(214, 90, 22, 10, 1)), t('M232 28V36H220L214 46H274L268 36H256V28'), t('M216 84V80H232V84M252 84V80H268V84')],
+    /* arara com cabides e roupas; balcão pequeno no canto */
+    loja: [t('M204 50H268'), t('M204 50V104M268 50V104'), t('M214 50V54M214 54L208 60H220ZM208 60L207 78H221L220 60'),
+      t('M230 50V54M230 54L224 60H236ZM224 60L223 74H237L236 60'), t('M246 50V54M246 54L240 60H252ZM240 60L239 80H253L252 60'),
+      t(R(276, 84, 20, 20, 1))],
+    /* carrinho de ferramentas com gavetas e o pneu */
+    oficina: [t(R(206, 70, 32, 34, 1)), t('M206 80H238M206 90H238'), t('M218 75H226M218 85H226M218 95H226'), t(C(270, 90, 14)), t(C(270, 90, 6))],
+    escritorio: [t('M200 84H280'), t('M208 84V104M272 84V104'), t(R(226, 62, 28, 18, 1)), t('M240 80V84'), t('M286 104V90M286 94H296V104')],
+    /* o quadro e duas carteiras de perfil (assento e encosto), mesmo sem alunos não vira sala de reunião */
+    sala_aula: [t(R(196, 36, 100, 32, 1)), t('M206 48H250M206 56H238'), t('M214 104V92H228M214 92V80'), t('M248 104V92H262M248 92V80'), t('M232 86H240M266 86H274')],
+    /* mesa longa de reunião com dois pés, uma cadeira de perfil e o mural de avisos */
+    sede: [t('M200 86H280'), t('M206 86V104M274 86V104'), t(R(214, 38, 56, 28, 1)), t(R(220, 44, 12, 9, 0)), t(R(238, 44, 12, 9, 0)), t(R(256, 46, 8, 13, 0)),
+      t('M286 104V94H294M286 94V80')],
+    /* aparelho de pilates (reformer) visto de lado: base, pés, carrinho e a haste com alça */
+    estudio: [t('M200 92H272'), t('M206 92V104M266 92V104'), t(R(214, 86, 24, 6, 1)), t('M272 92L282 70'), t('M278 70H286')],
+    /* andaime leve de 2 vãos e 2 níveis, uma diagonal e a escada */
+    obra: [t('M216 104V48M246 104V48M276 104V48'), t('M216 48H276M216 76H276'), t('M216 76L246 48'), t('M254 104V76M262 104V76M254 96H262M254 86H262')]
   };
-  /* a pessoa: cabeça e tronco, sem rosto; x = o centro */
+  /* a pessoa: cabeça e tronco, sem rosto; x = o centro. A equipe fica perto do móvel, com espaçamento irregular (revisão visual: em fila na porta
+     parecia fila de clientes) */
   var pessoa = function (x) { return [t(C(x, 80, 4.5)), t('M' + (x - 7) + ' 104V96a7 7 0 0 1 14 0V104')]; };
-  var PESSOA_X0 = 82, PESSOA_PASSO = 20;
+  var PESSOA_X = [182, 160, 140, 117, 98, 80];
   /* a oferta: o ícone de js/planta-pecas.js na moldura da parede (grade 40, escala 0,7) */
   var ICONE_DA_OFERTA = {
     cardapio: 'cardapio', encomenda: 'caixa', entrega: 'chegada', reserva: 'confirmacao', agenda: 'agenda', orcamento: 'proposta', vitrine: 'vitrine',
     catalogo: 'catalogo', aulas: 'aula', galeria: 'galeria', loja_online: 'carrinho', projeto: 'documento'
   };
-  var MOLDURA = { x: 120, y: 38, lado: 34 }, ICONE_ESCALA = 0.7;
+  /* (revisão visual) moldura mais alta e menor: 12 de folga até as cabeças */
+  var MOLDURA = { x: 120, y: 33, lado: 30 }, ICONE_ESCALA = 0.6;
   /* o destaque, pequeno, no alto à direita (fora da sala) */
   var DESTAQUES = {
     localizacao: [t('M290 22C286 17 284 14 284 11a6 6 0 0 1 12 0c0 3-2 6-6 11Z'), t(C(290, 11, 2))],
@@ -98,9 +116,9 @@
       if (!r.ok) return null;
       var cena = r.cena, gs = [], ordem = 0, i;
       gs.push(grupo('piso', ordem++, PISO));
-      gs.push(grupo('sala', ordem++, SALA.concat(linhasDosCanais(cena.canais))));
+      gs.push(grupo('sala', ordem++, (cena.lugar === 'obra' ? SALA_DA_OBRA : SALA).concat(linhasDosCanais(cena.canais))));
       gs.push(grupo('movel', ordem++, MOVEIS[cena.lugar]));
-      for (i = 0; i < cena.gente; i++) gs.push(grupo('gente', ordem++, pessoa(PESSOA_X0 + i * PESSOA_PASSO)));
+      for (i = 0; i < cena.gente; i++) gs.push(grupo('gente', ordem++, pessoa(PESSOA_X[i])));
       gs = gs.concat(canais(cena.canais, ordem));
       ordem += cena.canais.length;
       if (cena.oferta && tem(ICONE_DA_OFERTA, cena.oferta)) {
@@ -109,7 +127,9 @@
         gs.push(grupo('oferta', ordem, acento(icone), MOLDURA.x + 3, MOLDURA.y + 3, ICONE_ESCALA));
         ordem++;
       }
-      if (cena.destaque && tem(DESTAQUES, cena.destaque)) gs.push(grupo('destaque', ordem, DESTAQUES[cena.destaque]));
+      /* (revisão visual) o canal do mapa já desenha o pino: o destaque de localização não repete */
+      var repete = cena.destaque === 'localizacao' && cena.canais.indexOf('google_mapa') >= 0;
+      if (cena.destaque && tem(DESTAQUES, cena.destaque) && !repete) gs.push(grupo('destaque', ordem, DESTAQUES[cena.destaque]));
       return Object.freeze({ viewBox: '0 0 320 120', grupos: Object.freeze(gs) });
     } catch (x) { return null; }
   }

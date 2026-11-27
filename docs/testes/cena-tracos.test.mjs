@@ -100,3 +100,11 @@ test('fonte com sintaxe ES5, sem DOM; nenhuma página carrega ainda', () => {
     assert.ok(!/cena-tracos/.test(fs.readFileSync(new URL('../../' + p, import.meta.url), 'utf8')), p);
   }
 });
+
+test('revisão visual: a obra não tem teto; o destaque de localização não repete o pino quando o canal já é o mapa', () => {
+  const sala = d => grupos(d, 'sala')[0].tracos.map(tr => tr.d).join(' ');
+  assert.match(sala(T.tracosDaCena(BASE)), /H304V104/, 'as outras têm teto');
+  assert.doesNotMatch(sala(T.tracosDaCena({ ...BASE, lugar: 'obra' })), /H304/, 'obra sem teto');
+  assert.equal(grupos(T.tracosDaCena({ ...BASE, destaque: 'localizacao', canais: ['google_mapa'] }), 'destaque').length, 0);
+  assert.equal(grupos(T.tracosDaCena({ ...BASE, destaque: 'localizacao', canais: ['instagram'] }), 'destaque').length, 1);
+});
