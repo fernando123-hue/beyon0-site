@@ -63,6 +63,42 @@ const CASOS = [
   ['saude', null, null]
 ];
 
+/* falsos alarmes achados pela revisão técnica (typescript-reviewer), executados contra a 1ª versão: a palavra descreve o CLIENTE
+   ou o assunto do trabalho, não o negócio dela; ou é palavra fraca sozinha. Todos têm de ficar quietos */
+const FALSOS_ALARMES_DA_REVISAO = [
+  ['servicos', 'Sou designer e faço identidade visual para restaurantes'],
+  ['comercio', 'Atendo clientes nos bares e restaurantes da região'],
+  ['servicos', 'contabilidade para padarias e mercados do bairro'],
+  ['servicos', 'Minha empresa organiza eventos com buffet e cardápio'],
+  ['saude', 'Estou vendo como ter um site novo para a clínica'],
+  ['servicos', 'Estou vendo como ter um site novo'],
+  ['beleza', 'Instituto de beleza e bem-estar no centro'],
+  ['servicos', 'clube de assinatura de vinhos com entrega'],
+  ['beleza', 'estúdio de dança com aulas para crianças'],
+  ['comercio', 'produtos de limpeza e materiais para revenda'],
+  ['educacao', 'oficinas de arte e pintura para adultos'],
+  ['servicos', 'desenvolvo SPA em React e sistemas web'],
+  ['servicos', 'consultoria para e-commerce e moda'],
+  ['servicos', 'software para clínicas e consultórios'],
+  ['educacao', 'cursinho preparatório para exames de residência']
+];
+for (const [ramo, texto] of FALSOS_ALARMES_DA_REVISAO) {
+  test(`revisão técnica, falso alarme: ramo ${ramo} + "${texto}" -> quieto`, () => {
+    assert.deepEqual(Coerencia.conferirCoerencia({ ramo }, texto), { ok: true });
+  });
+}
+
+test('negação DEPOIS da palavra, na mesma oração ("padaria não, é consultoria")', () => {
+  assert.deepEqual(Coerencia.conferirCoerencia({ ramo: 'servicos' }, 'padaria nao, faço consultoria de gestão'), { ok: true });
+  assert.deepEqual(Coerencia.conferirCoerencia({ ramo: 'servicos' }, 'padaria eu nunca tive, faço consultoria'), { ok: true });
+});
+
+test('o retorno só tem ok, duvida e palpite, e o palpite está na tabela de nomes', () => {
+  const r = Coerencia.conferirCoerencia({ ramo: 'saude' }, 'tenho uma padaria no centro, fazemos pão e bolo todo dia');
+  assert.deepEqual(Object.keys(r).sort(), ['duvida', 'ok', 'palpite']);
+  assert.ok(Object.prototype.hasOwnProperty.call(Coerencia.NOMES, r.palpite));
+});
+
 test('são pelo menos 40 casos escritos antes do código (aceite 1 da Fase 4)', () => {
   assert.ok(CASOS.length >= 40, String(CASOS.length));
 });
