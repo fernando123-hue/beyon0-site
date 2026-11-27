@@ -571,3 +571,14 @@ test('instruções: o Perfil no Google só entra se a tabela traz o item; oferec
     assert.ok(!montarSistema(r).includes('Perfil no Google ('), 'item ' + Object.keys(marca)[0] + ': a Zero não o oferece como adicional comum');
   }
 });
+
+/* 27/11, avaliação com IA real (docs/avaliacao/consultor.mjs): 26 de 52 respostas passaram de 3 frases, mediana 50 palavras, embora o
+   "COMO VOCÊ SOA" pedisse "uma a três frases". A regra de tamanho vai também para o FIM do prompt, onde o modelo a lê por último. */
+test('o prompt termina com a conta de frases: até 3 contando a pergunta (a do valor, até 4), cortando a explicação e não a pergunta', () => {
+  const s = montarSistema(REGRAS);
+  const fim = s.slice(-700);
+  assert.match(fim, /ANTES DE ENVIAR/);
+  assert.match(fim, /no máximo três frases, contando a pergunta/);
+  assert.match(fim, /fala do valor[^.]*quatro/);
+  assert.match(fim, /corte a explicação, nunca a pergunta/);
+});
