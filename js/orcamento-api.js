@@ -14,6 +14,7 @@
   var MENSAGEM_MS = 90e3;   /* tempo limite de um turno com a IA (a conversa; auditoria 2026-10-09, F2): sem ele, a rede caída deixava a página esperando para sempre */
   var configDaSessao = null;   /* a resposta de sessao-config, uma por página: o consultor e o microfone leem a mesma (cada GET a mais gasta o freio de 90 por minuto do IP) */
   var ESTADO_MS = 15e3;     /* a leitura do estado: curta, para a releitura depois de uma falha não pendurar a tela */
+  var REAGIR_MS = 6e3;      /* a anotação da IA (mapa vivo 1b): o servidor espera o Haiku até 4 s; depois disso a linha já não serve */
   var DESISTIR_MS = 70e3;   /* a desistência: o servidor consulta o Mercado Pago, devolve a entrada e consulta de novo (até 15 s cada) */
   var ESQUECIDA = 'bz-orcamento-esquecida';   /* a conversa que a pessoa mandou recomeçar: nenhuma aba a grava de novo */
 
@@ -217,6 +218,8 @@
     },
     /* (orçamento como conversa) as respostas tocadas seguem junto, quando houver (js/orcamento-toques.js) */
     mensagem: async function (texto, respostas) { await garantirSessao(); return chamar('POST', 'mensagem', comConversa(respostas ? { texto: texto, respostas: respostas } : { texto: texto }), undefined, MENSAGEM_MS); },
+    /* (mapa vivo 1b) a anotação curta da IA enquanto a pessoa escreve (js/orcamento-anotacao.js): nunca abre sessão; sem ela, não chama */
+    reagir: function (texto, seq) { if (!sessao || !sessao.conversa_id) return Promise.reject(new Falha(0, { erro: 'Sem sessão.' })); return chamar('POST', 'reagir', comConversa({ texto: texto, seq: seq }), undefined, REAGIR_MS); },
     /* os detalhes do negócio (PR 2a): viram o pedido com código; o servidor redige e confere tudo de novo */
     detalhes: function (dados) { return chamar('POST', 'detalhes', comConversa(dados), undefined, ESTADO_MS); },
     gerar: function () { return chamar('POST', 'gerar', comConversa()); },

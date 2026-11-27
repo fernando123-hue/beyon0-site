@@ -158,6 +158,15 @@ function conversa({ mensagens, contexto, ferramentas = [] }) {
   return resposta('', chamadas);
 }
 
+/* (mapa vivo 1b) a reação na prévia, sem IA de verdade: até 5 palavras longas do que a pessoa escreveu (6 letras ou mais), sem repetir, para o dono
+   ver a linha chegar no celular. Só palavras, nunca a frase dela: "tenho", "quero" na boca da IA soariam como se ela fosse a pessoa (a trava de
+   identidade descarta). A conferência de verdade (api/_vendas/reacao.mjs: fidelidade, preço, oferta, identidade) roda igual sobre ela */
+export function reacaoSimulada(pedido) {
+  const bruto = String(pedido?.mensagens?.[0]?.content || '').replace(/^<texto>|<\/texto>$/g, '');
+  const palavras = [...new Set(bruto.match(/\p{L}{6,}/gu) || [])].slice(0, 5);
+  return { json: { anotacao: palavras.length ? '(simulada) ' + palavras.join(', ') : '', entendeu: palavras.length > 0 }, custo_usd: 0 };
+}
+
 export function criarSimulada({ geracao = gerarSimulado, extracao = null } = {}) {
   return {
     nome: 'simulada',
@@ -166,6 +175,7 @@ export function criarSimulada({ geracao = gerarSimulado, extracao = null } = {})
       if (pedido.papel === 'atendente') return atendenteSimulado(pedido);
       if (pedido.papel === 'geracao' && geracao) return geracao(pedido);
       if (pedido.papel === 'extracao' && extracao) return extracao(pedido);
+      if (pedido.papel === 'reacao') return reacaoSimulada(pedido);
       throw new Error('simulada: papel sem dublê: ' + pedido.papel);
     }
   };

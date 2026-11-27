@@ -47,10 +47,11 @@
       "triggers": { "crons": ["23 * * * *", "41 6 * * *"] },
       "ai": { "binding": "AI" },
       // BZ_PLANTA: a planta viva e o mapa do caso ficam LIGADOS só na prévia (dono, chat 20/11) para ele ver no celular; na produção segue desligada (decisão de 07/11)
-      "vars": { "BZ_AMBIENTE": "previa", "MP_AMBIENTE": "teste", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "", "BZ_IA": "simulada", "BZ_VOZ": "1", "BZ_PLANTA": "ligada" },
+      // BZ_REACAO: a anotação curta da IA (mapa vivo 1b) também só na prévia, onde a IA é simulada; na produção fica desligada até a migration do disjuntor (papel extracao)
+      "vars": { "BZ_AMBIENTE": "previa", "MP_AMBIENTE": "teste", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "", "BZ_IA": "simulada", "BZ_VOZ": "1", "BZ_PLANTA": "ligada", "BZ_REACAO": "ligada" },
       // as prévias de branch NÃO herdam vars: sem este bloco elas rodariam como produção (2ª revisão, ALTO-2)
       "previews": {
-        "vars": { "BZ_AMBIENTE": "previa", "MP_AMBIENTE": "teste", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "", "BZ_IA": "simulada", "BZ_VOZ": "1", "BZ_PLANTA": "ligada" }
+        "vars": { "BZ_AMBIENTE": "previa", "MP_AMBIENTE": "teste", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "", "BZ_IA": "simulada", "BZ_VOZ": "1", "BZ_PLANTA": "ligada", "BZ_REACAO": "ligada" }
       }
     }
   }
