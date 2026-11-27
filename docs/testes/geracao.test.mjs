@@ -136,4 +136,5 @@ test('premium 3 e 4: o documento do padrão traz o aviso de cookies que bloqueia
 import './direcao-icones-ritmo.test.mjs';
 import './modelos-trilho.test.mjs';
 import './modelos-molde.test.mjs';
+import './modelos-passos.test.mjs';
 import './suite-completa.test.mjs';
