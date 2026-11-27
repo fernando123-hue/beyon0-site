@@ -11,7 +11,7 @@ import { validarBase, HOSTS_VERCEL } from './direcoes.mjs';
 import { hostDoStaging } from '../docs/acesso.mjs';
 import { LIMITES } from '../api/_entrega/alarmes.mjs';
 
-/* a ordem de aplicação no Supabase real: 3b-1 (1), 3b-2 (4), 3b-3 (5), a correção do aviso "no ar" (1, de 28/10), os recados (1, de 29/10), a confirmação automática (1, de 30/10), o atendente (1, de 30/10) o modo sombra do JEV (1, de 10/11), o WhatsApp do recado (1, de 10/11) a versão do aceite do pedido na conversa (1, de 13/11) a memória do vigia (1, de 15/11), a confirmação da entrada por e-mail (1, de 15/11) a segurança dos pagamentos na entrega (1, de 19/11: reembolso bloqueia a entrega, o restante na aprovação, o ar só com ele pago), a desistência do cliente (1, de 20/11) e o link do pedido no e-mail da confirmação (1, de 26/11). Um teste confere esta lista com a pasta supabase/migrations */
+/* a ordem de aplicação no Supabase real: 3b-1 (1), 3b-2 (4), 3b-3 (5), a correção do aviso "no ar" (1, de 28/10), os recados (1, de 29/10), a confirmação automática (1, de 30/10), o atendente (1, de 30/10) o modo sombra do JEV (1, de 10/11), o WhatsApp do recado (1, de 10/11) a versão do aceite do pedido na conversa (1, de 13/11) a memória do vigia (1, de 15/11), a confirmação da entrada por e-mail (1, de 15/11) a segurança dos pagamentos na entrega (1, de 19/11: reembolso bloqueia a entrega, o restante na aprovação, o ar só com ele pago), a desistência do cliente (1, de 20/11) o link do pedido no e-mail da confirmação (1, de 26/11) e o disjuntor que ignora as reações do Mapa vivo (1, de 27/11). Um teste confere esta lista com a pasta supabase/migrations */
 export const MIGRATIONS = [
   '20261022120000_pr3b1_entrada.sql',
   '20261023120000_pr3b2_entrega.sql', '20261023120100_pr3b2_material.sql', '20261023120200_pr3b2_link_pedido.sql', '20261023120300_pr3b2_dono.sql',
@@ -19,7 +19,7 @@ export const MIGRATIONS = [
   '20261028120000_aviso_no_ar_so_no_ar.sql', '20261029120000_recados.sql', '20261030120000_confirmacao_automatica.sql', '20261030130000_atendente.sql',
   '20261110120000_jev_sombra.sql', '20261111120000_recado_whatsapp.sql', '20261113120000_aceite_versao.sql', '20261115120000_vigia.sql',
   '20261115130000_confirmacao_entrada.sql', '20261119120000_seguranca_pagamentos.sql', '20261120120000_desistencia_cliente.sql',
-  '20261126120000_link_no_email.sql'
+  '20261126120000_link_no_email.sql', '20261127120000_disjuntor_sem_reacao.sql'
 ];
 /* o endereço do envio assinado, token inteiro; o grupo 1 é o projeto */
 const SUPABASE_EXATO = /^https:\/\/([a-z0-9]{20})\.supabase\.co\/storage\/v1\/object\/upload\/sign\/$/;
