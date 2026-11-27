@@ -200,3 +200,12 @@ test('equipe (3ª rodada da revisão técnica): a recusa olha só o verbo colado
   ];
   for (const [t, n] of casos) assert.equal(D.equipeDoTexto(t), n, t);
 });
+
+test('equipe (4ª rodada da revisão técnica): "antes eram", "cheguei a ter", "sonho em ter", "em breve teremos" não contam', () => {
+  const casos = [
+    ['Antes eram 10 funcionários, hoje tenho 3 funcionários', 3], ['Já cheguei a ter 10 funcionários', null], ['Sonho em ter 10 funcionários', null],
+    ['Em breve teremos 8 funcionários', null], ['Antigamente havia 6 atendentes', null], ['A meta é 10 colaboradores', null], ['Na época éramos 6', null],
+    ['Antes de tudo, somos 4', 4]
+  ];
+  for (const [t, n] of casos) assert.equal(D.equipeDoTexto(t), n, t);
+});

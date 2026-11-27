@@ -87,7 +87,7 @@
   /* passado e intenção COLADOS ao número (no máximo 2 palavras no meio) não contam: "já tive 10 funcionários", "quero contratar 5", "preciso
      de 3 atendentes". Só o verbo perto: o da oração inteira apagava o presente ("Quero um site e somos 4", "antes era sozinha e agora somos 4";
      3ª rodada da revisão técnica) */
-  var NAO_E_HOJE = /\b(?:tive|tinha|tivemos|tinhamos|teve|era|eramos|fomos|quero|queremos|queria|queriamos|pretendo|pretendemos|preciso|precisamos|planejo|planejamos|vou|vamos|contratar|chegar a)(?: \w+){0,2}$/;
+  var NAO_E_HOJE = /\b(?:tive|tinha|tivemos|tinhamos|teve|era|eramos|eram|fomos|foram|havia|antes|antigamente|na epoca|cheguei a|chegamos a|sonho|sonhamos|meta|em breve|teremos|seremos|quero|queremos|queria|queriamos|pretendo|pretendemos|preciso|precisamos|planejo|planejamos|vou|vamos|contratar|chegar a)(?: \w+){0,2}$/;
   var grupo = function (m) { return numero(m[1]); };
   /* [regex, a conta a partir do achado] */
   var EQUIPE = [
