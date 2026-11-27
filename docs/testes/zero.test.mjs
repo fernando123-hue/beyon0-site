@@ -1334,6 +1334,7 @@ import './orcamento-anotacao.test.mjs';
 import './reacao.test.mjs';
 /* mapa vivo, fase 4 (coerência do ramo com o texto) */
 import './coerencia.test.mjs';
+import './coerencia-servidor.test.mjs';
 /* o guarda da suíte também daqui (também em geracao.test.mjs): só some se os dois imports saírem */
 import './suite-completa.test.mjs';
 import './planta-todos.test.mjs';

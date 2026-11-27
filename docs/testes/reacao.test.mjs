@@ -323,3 +323,28 @@ test('borda: só 4 falhas do Zero na janela, mais reações, não fecham o disju
   for (let i = 0; i < 4; i++) await ins(i % 2 ? c1 : c2, 'extracao', 'tempo');
   assert.equal((await local.rpc('vendas_ia_disponivel', { org_slug: ORG })).disponivel, true);
 });
+
+/* ============ mapa vivo, fase 4, parte 2: o estado traz a dúvida de coerência (api/_vendas/coerencia.mjs) ============ */
+test('ponta a ponta: tocou Saúde e escreveu de padaria: o estado traz coerencia só com a planta e a reação ligadas, sem texto dela', async () => {
+  const { ia } = iaContada();
+  const texto = 'tenho uma padaria no centro, fazemos pão e bolo todo dia';
+  const ligada = navegador(ia, { BZ_REACAO: 'ligada', BZ_PLANTA: 'ligada' });
+  const s = await ligada.iniciar();
+  const enviada = await ligada.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto, respostas: { ramo: 'saude' } });
+  assert.equal(enviada.status, 200, JSON.stringify(enviada.corpo));
+  const e = (await ligada.chamar('GET', 'estado&conversa=' + s.conversa_id)).corpo;
+  assert.deepEqual(e.coerencia, { palpite: 'alimentacao', nome: 'Alimentação', tocado: 'Saúde' });
+  assert.ok(!JSON.stringify(e.coerencia).includes('padaria'));
+  const desligada = navegador(ia, { BZ_PLANTA: 'ligada' });
+  const s2 = await desligada.iniciar();
+  await desligada.chamar('POST', 'mensagem', { conversa_id: s2.conversa_id, texto, respostas: { ramo: 'saude' } });
+  assert.equal((await desligada.chamar('GET', 'estado&conversa=' + s2.conversa_id)).corpo.coerencia, undefined);
+});
+
+test('ponta a ponta: tocou Alimentação e escreveu de padaria: coerente, o estado não traz coerencia', async () => {
+  const { ia } = iaContada();
+  const n = navegador(ia, { BZ_REACAO: 'ligada', BZ_PLANTA: 'ligada' });
+  const s = await n.iniciar();
+  await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'tenho uma padaria no centro, fazemos pão e bolo todo dia', respostas: { ramo: 'alimentacao' } });
+  assert.equal((await n.chamar('GET', 'estado&conversa=' + s.conversa_id)).corpo.coerencia, undefined);
+});
