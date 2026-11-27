@@ -244,7 +244,7 @@ test('26/11 (dono): /condicoes diz, logo depois do encerramento por restante nã
   assert.match(pagamento, /Passados os 6&nbsp;meses, o projeto recomeça do zero, com um orçamento novo, e a entrada paga antes não&nbsp;conta\./);
   /* a privacidade diz o mesmo prazo de guarda (dono, 26/11: o site e o material ficam para a volta funcionar) */
   const priv = readFileSync(new URL('../../privacidade.html', import.meta.url), 'utf8');
-  assert.match(priv, /Se o projeto for encerrado porque o restante não foi pago, a cópia de trabalho da Beyon Zero \(o material e o site pronto, fora do Supabase\) fica guardada por 6 meses, contados do dia do encerramento, para você poder voltar pagando só o restante; no dia seguinte ao fim desse prazo, ela é apagada\./);
+  assert.match(priv, /Se o projeto for encerrado porque o restante não foi pago, a cópia de trabalho da Beyon Zero \(o material e o site pronto, fora do Supabase\) fica guardada por 6&nbsp;meses, contados do dia do encerramento, para você poder voltar pagando só o restante; no dia seguinte ao fim desse prazo, ela é apagada\./);
   /* revisão de 27/11: a regra geral de "Por quanto tempo" (90 dias) ressalva o encerramento pelo restante, sem contradizer o item do material */
-  assert.match(priv, /ficam durante o projeto e por mais 90 dias, salvo pedido por escrito; se o projeto for encerrado porque o restante não foi pago, a cópia de trabalho fica 6 meses, para você poder voltar\./);
+  assert.match(priv, /ficam durante o projeto e por mais 90 dias, salvo pedido por escrito; se o projeto for encerrado porque o restante não foi pago, a cópia de trabalho fica 6&nbsp;meses, para você poder voltar\./);
 });
