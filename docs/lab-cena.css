@@ -1,0 +1,7 @@
+/* laboratório da cena: a moldura imita a vitrine do palco (css/orcamento-palco.css, .orc-vitrine .nasce) */
+body { margin: 0; padding: 16px; background: #0B0E0F; color: #C9CFD1; font: 13px/1.4 system-ui, sans-serif; }
+.caso { margin: 0 0 18px; }
+.caso__legenda { margin: 0 0 6px; color: #8A9497; overflow-wrap: anywhere; }
+.caso__vitrine { padding: 12px; border: 1px solid #2A3134; border-radius: 18px; }
+.caso__nasce { padding: 16px; border-radius: 10px; background: #F7F6F2; color: #101314; }
+.caso__titulo { margin: 0 0 10px; font-weight: 600; font-size: 21px; line-height: 1.15; }

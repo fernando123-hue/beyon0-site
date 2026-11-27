@@ -1,0 +1,13 @@
+/* A CENA DO CASO (Mapa vivo v2, Fase 2; js/cena-desenho.js): o corte arquitetônico do lugar, em traço de 1px, na vitrine do palco (direção C).
+   Tinta da vitrine em tudo; o piso mais claro; sala, canais e destaque em cinza; SÓ a oferta em petróleo. Sem preenchimento, sombra, filtro
+   nem desfoque. Uma entrada só (opacity/transform, na ordem da geometria); com movimento reduzido, o quadro final. */
+.cena { display: block; width: 100%; height: auto; aspect-ratio: 320 / 120; overflow: visible; }
+.cena path { fill: none; stroke: #101314; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+.cena__piso path { stroke: #CFCBBF; }
+.cena__sala path, .cena__canal path, .cena__destaque path { stroke: #5C6466; }
+.cena .cena__ac { stroke: #0B6F82; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.menos-movimento) .cena__g { animation: cena-entra .42s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--cena-ordem, 0) * 90ms); }
+}
+@keyframes cena-entra { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
