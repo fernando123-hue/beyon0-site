@@ -23,8 +23,8 @@
   var CHANFRO = 8;
   var TITULO = 'O mapa do seu caso';
   var PERGUNTA = 'Montei o mapa do seu caso. Ficou certo?', CERTO = 'Está certo', AJUSTAR = 'Quero ajustar algo';
-  /* o nó em esboço da Fase 3 (o rascunho do aparelho): a mesma opacidade do esboço fantasma já aprovado; o CSS (.is-rascunho) usa o mesmo valor */
-  var ESBOCO = 0.34;
+  /* (Fase 3) o nó em esboço: a opacidade do esboço fantasma aprovado; a mesma do CSS (.is-rascunho) */
+  var ESBOCO = 0.34, AJUSTEI = 'Ajustei o mapa do seu caso.';
   var T = { no: 320, passo: 240, seta: 480, volta: 900, chega: 520, ouro: 420, depoisSeta: 160, pausa: 420, pulso: 520, voo: 700, repouso: 6000, repousos: 8 };
   var tem = function (o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); };
   /* papel -> classe (lista fechada; nada do plano vira classe) */
@@ -140,7 +140,7 @@
     var pedidos = Layout.pedidos(plano, larg), nos = Object.create(null), rots = [], medidas = {};
     var dados = Object.create(null), esb = Object.create(null);
     plano.nos.forEach(function (n) { dados[n.id] = n; });
-    (i.esboco || []).forEach(function (id) { esb[id] = true; });   /* (vale também ao recompor por largura nova e na espera das fontes) */
+    (i.esboco || []).forEach(function (id) { esb[id] = true; });
     dados.objetivo = { id: 'objetivo', papel: 'objetivo', titulo: plano.objetivo.titulo, frase: plano.objetivo.frase };
     while (quadro.firstChild) quadro.removeChild(quadro.firstChild);
     quadro.classList.add('is-medindo');
@@ -263,8 +263,9 @@
   /* (revisão do 5c) três casos: com as fontes ainda chegando, só troca o plano e os textos (a composição e a entrada esperam as fontes); no meio da
      entrada, vai direto ao quadro final do plano novo (e libera o valor que esperava); com o mapa pronto, o ajuste animado. A composição vem ANTES
      de qualquer troca: se ela falha (sem largura), o mapa de antes fica inteiro e a mesma versão pode entrar depois. */
-  /* (Fase 3, PR 2) rascunho = o ajuste QUIETO do aparelho: o nó novo nasce em esboço (is-rascunho, parado, só aparece até ESBOCO depois do
-     deslize), sem status, sem som, sem luz, e a pergunta "Ficou certo?" não volta (ninguém decidiu nada ainda). Quem fica desliza como sempre. */
+  /* (Fase 3) rascunho = ajuste QUIETO: o nó novo em esboço, sem status, som nem luz, e a pergunta não volta */
+  var parado = function (i) { return i.opcoes.animar === false || reduzido() || typeof i.quadro.animate !== 'function'; };
+  function deslizar(i, id, a, b) { i.rel.anim(i.nos[id], [{ transform: 'translate(' + a.x + 'px,' + a.y + 'px)' }, { transform: 'translate(' + b.x + 'px,' + b.y + 'px)' }], { duration: T.voo, easing: 'cubic-bezier(.3,.1,.2,1)', fill: 'backwards' }); }
   function ajuste(i, plano, novos, rascunho) {
     var antes = Object.create(null), novo = Object.create(null), velho = { plano: i.plano, json: i.json, esboco: i.esboco };
     i.esboco = rascunho ? novos.slice() : [];
@@ -286,13 +287,13 @@
     refazerAcoes(i);
     if (!i.pronto) { final(i); return true; }
     i.quadro.classList.add('is-aceso', 'is-ouro');
-    i.status.textContent = 'Ajustei o mapa do seu caso.';
-    if (i.opcoes.animar === false || reduzido() || typeof i.quadro.animate !== 'function') return true;
+    i.status.textContent = AJUSTEI;
+    if (parado(i)) return true;
     var rel = i.rel, cresce = T.voo + T.chega, som = typeof i.opcoes.som === 'function' ? i.opcoes.som : function () {};
     Object.keys(i.nos).forEach(function (id) {
       var b = i.g.caixas[id], pos = 'translate(' + b.x + 'px,' + b.y + 'px)', a = antes[id];
       if (novo[id] || !a) rel.anim(i.nos[id], [{ opacity: 0, transform: pos + ' translateY(5px)' }, { opacity: 1, transform: pos }], { duration: T.no, delay: cresce, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' });
-      else if (a.x !== b.x || a.y !== b.y) rel.anim(i.nos[id], [{ transform: 'translate(' + a.x + 'px,' + a.y + 'px)' }, { transform: pos }], { duration: T.voo, easing: 'cubic-bezier(.3,.1,.2,1)', fill: 'backwards' });
+      else if (a.x !== b.x || a.y !== b.y) deslizar(i, id, a, b);
     });
     i.setas.forEach(function (x) {
       if (novo[x.r.de] || novo[x.r.para]) {
@@ -396,41 +397,32 @@
       if (r.repouso !== null) luz(i, i.setas[r.repouso].r, T.repouso, 0, T.repousos, 0.18);
     });
   }
-  /* o esboço na tela: quem ficou desliza; o nó em esboço e as setas dele esperam o deslize e só aparecem (até ESBOCO), sem crescer nem se desenhar.
-     No meio da entrada ou com movimento reduzido: o quadro, parado. */
+  /* (Fase 3) o esboço: quem fica desliza; o nó e as setas do esboço só aparecem (até ESBOCO) depois do deslize */
   function esbocar(i, antes, novo) {
     if (!i.pronto) { final(i); return true; }
-    i.quadro.classList.add('is-aceso', 'is-ouro');
-    if (i.opcoes.animar === false || reduzido() || typeof i.quadro.animate !== 'function') return true;
-    var rel = i.rel, aparece = { duration: 240, delay: T.voo, fill: 'backwards' };
+    if (parado(i)) return true;
+    var ap = { duration: 240, delay: T.voo, fill: 'backwards' };
     Object.keys(i.nos).forEach(function (id) {
-      var b = i.g.caixas[id], a = antes[id];
-      if (novo[id] || !a) rel.anim(i.nos[id], [{ opacity: 0 }, { opacity: novo[id] ? ESBOCO : 1 }], aparece);
-      else if (a.x !== b.x || a.y !== b.y) rel.anim(i.nos[id], [{ transform: 'translate(' + a.x + 'px,' + a.y + 'px)' }, { transform: 'translate(' + b.x + 'px,' + b.y + 'px)' }], { duration: T.voo, easing: 'cubic-bezier(.3,.1,.2,1)', fill: 'backwards' });
+      var a = antes[id], b = i.g.caixas[id];
+      if (novo[id] || !a) i.rel.anim(i.nos[id], [{ opacity: 0 }, { opacity: novo[id] ? ESBOCO : 1 }], ap);
+      else if (a.x !== b.x || a.y !== b.y) deslizar(i, id, a, b);
     });
-    i.setas.forEach(function (x) {
-      var ate = x.esboco ? ESBOCO : 1;
-      rel.anim(x.g, [{ opacity: 0 }, { opacity: ate }], aparece);
-      rel.anim(x.rot, [{ opacity: 0 }, { opacity: ate }], aparece);
-    });
+    i.setas.forEach(function (x) { var k = [{ opacity: 0 }, { opacity: x.esboco ? ESBOCO : 1 }]; i.rel.anim(x.g, k, ap); i.rel.anim(x.rot, k, ap); });
     return true;
   }
-  /* FIRMAR (o Enter dela): o esboço vira nó do mapa ("Ajustado" já vem do papel), a luz passa pelas setas que o tocam e o status anuncia. O mapa
-     mudou de verdade: a pergunta volta. Movimento reduzido: só a troca, sem animação. Devolve os ids firmados. */
+  /* (Fase 3) firmar, o Enter dela: recompõe sem o esboço (tudo no mesmo lugar), anuncia, a pergunta volta, a luz passa pelas setas do nó */
   function firmar(i) {
-    var ids = i.esboco, eram = Object.create(null);
-    ids.forEach(function (id) { eram[id] = true; });
-    /* o quadro se recompõe sem o esboço (o mesmo plano, a mesma largura: tudo no mesmo lugar); a classe nunca sai por texto montado */
+    var ids = i.esboco;
     i.esboco = [];
     if (!compor(i)) { i.esboco = ids; return []; }
-    try { i.rel.parar(); } catch (e1) { aviso(e1); }
+    try { i.rel.parar(); } catch (e) { aviso(e); }
     i.rel = novoRelogio(i);
-    i.status.textContent = 'Ajustei o mapa do seu caso.';
+    i.status.textContent = AJUSTEI;
     refazerAcoes(i);
-    if (!i.pronto || i.opcoes.animar === false || reduzido() || typeof i.quadro.animate !== 'function') return ids;
-    ids.forEach(function (id) { if (i.nos[id]) i.rel.anim(i.nos[id], [{ opacity: ESBOCO }, { opacity: 1 }], { duration: 300, fill: 'backwards' }); });
-    i.setas.forEach(function (x) { if (eram[x.r.de] || eram[x.r.para]) luz(i, x.r, T.seta, 0, 1); });
-    if (typeof i.opcoes.som === 'function') { try { i.opcoes.som('passa'); } catch (e) { aviso(e); } }
+    if (!i.pronto || parado(i)) return ids;
+    ids.forEach(function (id) { i.rel.anim(i.nos[id], [{ opacity: ESBOCO }, { opacity: 1 }], { duration: 300, fill: 'backwards' }); });
+    i.setas.forEach(function (x) { if (ids.indexOf(x.r.de) >= 0 || ids.indexOf(x.r.para) >= 0) luz(i, x.r, T.seta, 0, 1); });
+    if (typeof i.opcoes.som === 'function') i.opcoes.som('passa');
     return ids;
   }
   /* a luz: um ponto em HTML (o compositor anima transform; SVG não), amostrado na própria seta. "fração" < 1: corre só no começo de cada volta */
@@ -508,16 +500,13 @@
     if (!inst) return { ok: false, motivos: ['sem_faixa'] };
     var v = Forma.validarFormaMapa(plano);
     if (!v || !v.ok) return { ok: false, motivos: (v && v.motivos) || ['forma'] };
-    /* (Fase 3, PR 2) rascunho vale SÓ nesta chamada: não entra nas opções guardadas (o próximo ajuste da cola é o de sempre) */
+    /* (Fase 3) rascunho vale só nesta chamada; o mesmo plano sem ele, com esboço na tela, firma */
     var op = inst.opcoes, k, rascunho = !!opcoes && opcoes.rascunho === true;
     if (opcoes) for (k in opcoes) if (k !== 'rascunho' && Object.prototype.hasOwnProperty.call(opcoes, k)) op[k] = opcoes[k];
     editavel(inst);
     if (JSON.stringify(v.plano) === inst.json) {
-      /* o mesmo plano sem rascunho, com um esboço na tela: é o Enter dela (firmar) */
-      if (!rascunho && inst.esboco && inst.esboco.length) {
-        try { return { ok: true, refeita: false, firmou: firmar(inst) }; } catch (e0) { aviso(e0); return { ok: false, motivos: ['excecao'] }; }
-      }
-      return { ok: true, refeita: false };
+      if (rascunho || !inst.esboco || !inst.esboco.length) return { ok: true, refeita: false };
+      try { return { ok: true, refeita: false, firmou: firmar(inst) }; } catch (e0) { aviso(e0); return { ok: false, motivos: ['excecao'] }; }
     }
     /* com nós em comum é o AJUSTE (o resto fica); sem nenhum, outro mapa: a entrada de novo */
     var antigos = Object.create(null), novos = [], comuns = 0;

@@ -129,7 +129,7 @@
       if (aj.carga !== 'nao') return;
       aj.carga = 'baixando';
       (function proximo(k) {
-        if (k >= AJUSTE.length) { aj.carga = win.BZMapaAjuste ? 'pronta' : 'falhou'; return; }
+        if (k >= AJUSTE.length) { aj.carga = win.BZMapaAjuste ? 'pronta' : 'falhou'; if (aj.carga === 'pronta' && st.campo && st.campo.value.trim()) esbocar(); return; }
         if (win[AJUSTE[k].global]) { proximo(k + 1); return; }
         var s = doc.createElement('script');
         s.src = AJUSTE[k].src;
@@ -146,6 +146,8 @@
     }
     /* na pausa da digitação: o pedido dela vira o esboço; nada roteado (ou não coube) e havia esboço: o oficial volta */
     function esbocar() {
+      /* (visto na página real) o desenho do mapa é baixado à parte e chega DEPOIS do render que trouxe o plano: confere de novo ao digitar */
+      if (!aj.falhou && !aj.oficial && st.E) ajustar(st.E);
       if (aj.falhou || !aj.oficial || aj.carga !== 'pronta' || !st.campo) return;
       try {
         var texto = st.campo.value, pedido = texto.trim() ? win.BZMapaAjuste.rotear(texto) : null;
@@ -184,10 +186,11 @@
       try {
         var of = oficialDe(E);
         if (!of) { aj.oficial = null; aj.oficialJson = ''; aj.esboco = null; aj.esbocoJson = ''; aj.firme = null; return; }
-        carregarAjuste();
+        var j = JSON.stringify(of), novo = j !== aj.oficialJson;
+        if (novo) { aj.oficial = of; aj.oficialJson = j; aj.esboco = null; aj.esbocoJson = ''; aj.firme = null; }
         ouvirEnvio();
-        var j = JSON.stringify(of);
-        if (j !== aj.oficialJson) { aj.oficial = of; aj.oficialJson = j; aj.esboco = null; aj.esbocoJson = ''; aj.firme = null; return; }
+        carregarAjuste();   /* (depois do oficial: ao chegar, o ajuste já esboça o que estiver na caixa) */
+        if (novo) return;
         var n = Array.isArray(E.mensagens) ? E.mensagens.length : 0;
         if (aj.firme && n >= aj.firmeEm + 2) voltarAoOficial();
       } catch (e) { falharAjuste(e); }

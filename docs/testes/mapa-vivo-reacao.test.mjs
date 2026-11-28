@@ -321,3 +321,17 @@ test('o desenho lança: o esboço desliga (aviso), a fileira da fase 1a segue; n
   a.form.disparar('submit');
   assert.equal(fetches, 0);
 });
+
+test('o desenho do mapa chega DEPOIS do render (é baixado à parte): ao digitar, o ajuste confere de novo, baixa e põe o esboço', () => {
+  const a = ambienteMapa();
+  const mapa = a.w.BZMapa;
+  delete a.w.BZMapa;
+  a.api.atualizar(comPlanta());
+  assert.ok(!a.baixados.includes('js/mapa-ajuste.js'), 'sem o desenho, nada');
+  a.w.BZMapa = mapa;
+  a.digitar('quero também um formulário');
+  a.w.avancar(300);
+  assert.deepEqual(a.baixados.filter((s) => s === 'js/oracao.js' || s === 'js/mapa-ajuste.js'), ['js/oracao.js', 'js/mapa-ajuste.js']);
+  const ult = a.chamadas[a.chamadas.length - 1];
+  assert.ok(ult && ult.op.rascunho === true && a.ids(ult.plano).includes('aj_form'), 'o esboço sai na mesma pausa, quando o ajuste chega');
+});
