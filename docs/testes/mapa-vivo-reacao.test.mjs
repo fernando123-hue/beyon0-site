@@ -484,3 +484,34 @@ test('PR 3a: Enter com o esboço do servidor firma o mesmo plano; com o firme na
   assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: esboco, op: { rascunho: false } });
   assert.equal(a.api.precisaDoServidor(SEM_ROTA), false, 'firme: espera o Zero');
 });
+
+test('PR 3a (revisão técnica 1): a continuação que desdiz tira o esboço do servidor; a resposta "nada" para a frase de agora também', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta());
+  a.digitar(SEM_ROTA);
+  a.w.avancar(300);
+  a.api.ajusteDoServidor(GALERIA, SEM_ROTA);
+  a.digitar(SEM_ROTA + ', ah na verdade não quero');
+  a.w.avancar(300);
+  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } }, 'negação na continuação: o oficial volta');
+  /* a mesma frase continuada sem negação, e a reação lida dela volta sem ajuste ("nada"): o esboço sai */
+  const b = ambienteMapa();
+  b.api.atualizar(comPlanta());
+  b.digitar(SEM_ROTA);
+  b.w.avancar(300);
+  b.api.ajusteDoServidor(GALERIA, SEM_ROTA);
+  const mais = SEM_ROTA + ' e também atendo em casa';
+  b.digitar(mais);
+  b.w.avancar(300);
+  const n = b.chamadas.length;
+  assert.equal(b.api.ajusteDoServidor(null, mais), false);
+  assert.equal(b.chamadas.length, n + 1);
+  assert.deepEqual(b.chamadas[b.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } });
+  /* sem esboço do servidor na tela, a resposta "nada" não redesenha nada */
+  const c = ambienteMapa();
+  c.api.atualizar(comPlanta());
+  c.digitar(SEM_ROTA);
+  c.w.avancar(300);
+  assert.equal(c.api.ajusteDoServidor(null, SEM_ROTA), false);
+  assert.equal(c.chamadas.length, 0);
+});

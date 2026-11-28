@@ -213,7 +213,8 @@
         if (!st.caixa || st.falhou || desligada() || st.pensando || mensagem !== st.mensagem || seq < st.respondido) return;
         st.respondido = seq;
         var Esb = win.BZOrcReacao;
-        if (lido && r && ehObjeto(r.reacao) && ehObjeto(r.reacao.ajuste) && Esb && typeof Esb.ajusteDoServidor === 'function') Esb.ajusteDoServidor(r.reacao.ajuste, lido);
+        /* (revisão técnica 1) a resposta sem ajuste também vai (null): o esboço tira o do servidor que ficou da frase de antes */
+        if (lido && Esb && typeof Esb.ajusteDoServidor === 'function') Esb.ajusteDoServidor(r && ehObjeto(r.reacao) && ehObjeto(r.reacao.ajuste) ? r.reacao.ajuste : null, lido);
         var a = r && ehObjeto(r.reacao) && typeof r.reacao.anotacao === 'string' ? r.reacao.anotacao.replace(/\s+/g, ' ').trim().slice(0, ANOTACAO_MAX) : '';
         if (!a) return;   /* (sem frase: a linha que já está fica) */
         st.anotacao = a;

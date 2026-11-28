@@ -428,3 +428,13 @@ test('PR 3a: resposta velha, desligada ou durante o envio não entrega o ajuste'
   await esvaziar();
   assert.deepEqual(e.entregues, []);
 });
+
+test('PR 3a (revisão técnica 1): a resposta de uma chamada com mapa SEM ajuste também vai ao esboço (null), para ele tirar o esboço velho', async () => {
+  const a = ambiente();
+  const e = comEsboco(a, true);
+  a.abrir();
+  a.digitar(PEDIDO); a.w.avancar(700);
+  a.chamadas[0].resolver({ reacao: null, seq: 1, motivo: 'vazio' });
+  await esvaziar();
+  assert.deepEqual(e.entregues, [{ aj: null, t: PEDIDO }]);
+});

@@ -53,7 +53,7 @@ function montar(resposta) {
     gravarChamadas: async () => true, somarCusto: async () => {}, segundoPlano: p => p
   });
   const reagir = corpo => acoes.reagir({ request: { ok: true, headers: new Headers() }, corpo: { conversa_id: '11111111-2222-4333-8444-555555555555', texto: TEXTO, seq: 2, ...corpo } });
-  return { reagir, chamadas };
+  return { reagir, chamadas, acoes };
 }
 const ANOTA = 'marcenaria em Campo Grande, quer mostrar fotos dos móveis';
 
@@ -74,7 +74,7 @@ test('ação: mapa só vale como booleano verdadeiro; "true" em texto é o pedid
 
 test('ação: anotação que cai na conferência não leva o ajuste junto; ajuste ruim não leva a anotação', async () => {
   const soAjuste = await montar({ anotacao: 'marcenaria com site por R$ 900', entendeu: true, ajuste: { acao: 'entra', peca: 'galeria' } }).reagir({ mapa: true });
-  assert.deepEqual(soAjuste, { reacao: { ajuste: { acao: 'entra', peca: 'galeria' } }, seq: 2, motivo: 'trava' });
+  assert.deepEqual(soAjuste, { reacao: { ajuste: { acao: 'entra', peca: 'galeria' } }, seq: 2, motivo: 'ajuste' });
   const soAnota = await montar({ anotacao: ANOTA, entendeu: true, ajuste: { acao: 'entra', peca: 'loja' } }).reagir({ mapa: true });
   assert.deepEqual(soAnota, { reacao: { anotacao: ANOTA }, seq: 2, motivo: 'ok' });
   const nada = await montar({ anotacao: '', entendeu: false, ajuste: { acao: 'nada', peca: '' } }).reagir({ mapa: true });
@@ -86,4 +86,19 @@ test('a reação simulada da prévia também escolhe a peça quando o pedido tra
   assert.deepEqual(conferirAjuste(reacaoSimulada(montarPedidoReacao(TEXTO, { mapa: true })).json), { acao: 'entra', peca: 'galeria' });
   assert.equal(conferirAjuste(reacaoSimulada(montarPedidoReacao('tenho uma padaria em Campinas e vendo bolo por encomenda', { mapa: true })).json), null);
   assert.equal('ajuste' in reacaoSimulada(montarPedidoReacao(TEXTO)).json, false, 'sem mapa, o json de hoje');
+});
+
+test('revisão técnica 2: o sistema com mapa manda "nada" para negação, condição e desistência; pergunta no texto não vira ajuste', async () => {
+  const com = montarPedidoReacao(TEXTO, { mapa: true });
+  assert.match(com.sistema, /nega[cç][aã]o/i);
+  assert.match(com.sistema, /talvez/);
+  const FIEL = 'marcenaria que quer galeria de fotos dos trabalhos';
+  const d = montar({ anotacao: FIEL, entendeu: true, ajuste: { acao: 'entra', peca: 'galeria' } });
+  const r = await d.acoes.reagir({ request: { ok: true, headers: new Headers() }, corpo: { conversa_id: '11111111-2222-4333-8444-555555555555', texto: 'vocês fazem galeria de fotos dos trabalhos da marcenaria? quanto fica', seq: 3, mapa: true } });
+  assert.deepEqual(r.reacao, { anotacao: FIEL }, 'pergunta: o Zero decide no turno');
+});
+
+test('revisão técnica 4: só o ajuste passou: o motivo é "ajuste" (a medição separa os dois casos)', async () => {
+  const r = await montar({ anotacao: 'marcenaria com site por R$ 900', entendeu: true, ajuste: { acao: 'entra', peca: 'galeria' } }).reagir({ mapa: true });
+  assert.equal(r.motivo, 'ajuste');
 });

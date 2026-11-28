@@ -154,10 +154,13 @@
         var r = pedido ? win.BZMapaAjuste.aplicarAjuste(aj.oficial, pedido) : null;
         if (r && r.ok) { desenharEsboco(r.plano, ''); return; }
         /* (PR 3a) o esboço que veio da reação fica enquanto ela continua a MESMA frase (o texto de agora começa com o que foi lido) */
-        if (!pedido && aj.doServidor && aj.esboco && texto.trim().indexOf(aj.doServidor) === 0) return;
+        if (!pedido && aj.doServidor && aj.esboco && texto.trim().indexOf(aj.doServidor) === 0 && !desdiz(texto.trim().slice(aj.doServidor.length))) return;
         if (aj.esboco || aj.firme) voltarAoOficial();   /* (revisão técnica) o firme também sai se ela troca ou apaga a frase */
       } catch (e) { falharAjuste(e); }
     }
+    /* (revisão técnica 1) o que ela escreveu DEPOIS da frase lida: negação, desistência, condição ou pergunta tiram o esboço do servidor */
+    var DESDIZ = /(?:^|[^a-z])(?:nao|nem|nunca|sem|esquec\w*|desist\w*|cancel\w*|tir\w*|talvez|deixa)(?:[^a-z]|$)|\?/;
+    function desdiz(resto) { return !!resto && DESDIZ.test(win.BZOracao && win.BZOracao.semAcento ? win.BZOracao.semAcento(resto) : String(resto).toLowerCase()); }
     function desenharEsboco(plano, doServidor) {
       var j = JSON.stringify(plano);
       if (j === aj.esbocoJson) { aj.doServidor = doServidor; return; }
@@ -175,9 +178,11 @@
     }
     function ajusteDoServidor(ajuste, texto) {
       try {
-        if (!prontoParaAjuste() || aj.firme || typeof texto !== 'string' || !ehObjeto(ajuste)) return false;
+        if (!prontoParaAjuste() || aj.firme || typeof texto !== 'string') return false;
         var agora = st.campo.value.trim();
         if (!agora || agora !== texto.trim() || win.BZMapaAjuste.rotear(agora) !== null) return false;
+        /* (revisão técnica 1) a reação da frase de AGORA voltou sem ajuste ("nada", trava, limite): o esboço do servidor que estava na tela sai */
+        if (!ehObjeto(ajuste)) { if (aj.doServidor && aj.esboco) voltarAoOficial(); return false; }
         var r = win.BZMapaAjuste.aplicarAjuste(aj.oficial, { acao: ajuste.acao, peca: ajuste.peca });
         if (!r || !r.ok) return false;
         desenharEsboco(r.plano, agora);

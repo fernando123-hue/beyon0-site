@@ -71,12 +71,13 @@ export function criarAcoesDaReacao({ ia, env, custoDoDia, visitante, donoDaConve
     gasto.somar(hoje(), custo);
     registrar(corpo.conversa_id, vid, custo);
     const c = conferirReacao(r.json, texto);
-    const ajuste = mapa ? conferirAjuste(r.json) : null;
+    const ajuste = mapa ? conferirAjuste(r.json, texto) : null;
     /* (o ajuste no log é só a peça da tabela, nunca o texto: mede quantos pedidos o servidor resolveu quando o aparelho não soube) */
     log({ nivel: 'info', evento: 'reação', motivo: c.motivo, ms: Date.now() - t0, custo_usd: custo, seq, request_id: requestId,
       ...(mapa ? { mapa: true, ajuste: ajuste ? ajuste.acao + ':' + ajuste.peca : null } : {}) });
     if (!c.anotacao && !ajuste) return sem(seq, c.motivo);
-    return { reacao: { ...(c.anotacao ? { anotacao: c.anotacao } : {}), ...(ajuste ? { ajuste } : {}) }, seq, motivo: c.motivo };
+    /* (revisão técnica 4) só o ajuste passou: o motivo diz isso, e não o da anotação que caiu */
+    return { reacao: { ...(c.anotacao ? { anotacao: c.anotacao } : {}), ...(ajuste ? { ajuste } : {}) }, seq, motivo: c.anotacao ? c.motivo : 'ajuste' };
   }
   return { reagir };
 }

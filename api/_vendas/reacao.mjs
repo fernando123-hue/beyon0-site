@@ -58,7 +58,8 @@ const ACOES_DO_AJUSTE = Object.freeze(['entra', 'sai']);
 const SISTEMA_COM_MAPA = SISTEMA_REACAO + '\n' + [
   'A pessoa já vê na tela o mapa do site dela. Se o texto PEDE para pôr ou para tirar UMA destas peças do site, devolva em ajuste a acao "entra" ou "sai" e a peca:',
   'whatsapp (conversa pelo WhatsApp), formulario (formulário de pedido), agendamento (agenda de horários), mapa (como chegar), catalogo (catálogo ou cardápio), galeria (fotos dos trabalhos), blog (artigos).',
-  'Pergunta, dúvida, peça fora da lista, mais de uma peça ou nenhum pedido: acao "nada" e peca vazia.'
+  'Pergunta, dúvida, peça fora da lista, mais de uma peça ou nenhum pedido: acao "nada" e peca vazia.',
+  'Negação ("não quero", "não precisa"), condição ("se der", "talvez", "quem sabe") ou desistência ("esquece", "deixa pra lá"): acao "nada".'
 ].join('\n');
 const ESQUEMA_COM_MAPA = Object.freeze({
   type: 'object', additionalProperties: false, required: ['anotacao', 'entendeu', 'ajuste'],
@@ -69,8 +70,10 @@ const ESQUEMA_COM_MAPA = Object.freeze({
   }
 });
 
-/* json do modelo -> { acao, peca } do conjunto fechado, ou null (só as duas chaves voltam; "nada", peça fora da tabela ou tipo errado = null) */
-export function conferirAjuste(json) {
+/* json do modelo -> { acao, peca } do conjunto fechado, ou null (só as duas chaves voltam; "nada", peça fora da tabela ou tipo errado = null).
+   (revisão técnica 2) texto com pergunta também é null, como no roteador do aparelho: pergunta não é pedido, o Zero decide no turno */
+export function conferirAjuste(json, texto = '') {
+  if (String(texto).includes('?')) return null;
   const a = json && typeof json === 'object' ? json.ajuste : null;
   if (!a || typeof a !== 'object' || typeof a.acao !== 'string' || typeof a.peca !== 'string') return null;
   if (!ACOES_DO_AJUSTE.includes(a.acao) || !PECAS_DO_AJUSTE.includes(a.peca)) return null;
