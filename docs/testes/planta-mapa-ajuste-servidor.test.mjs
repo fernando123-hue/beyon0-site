@@ -80,3 +80,10 @@ test('ação: anotação que cai na conferência não leva o ajuste junto; ajust
   const nada = await montar({ anotacao: '', entendeu: false, ajuste: { acao: 'nada', peca: '' } }).reagir({ mapa: true });
   assert.deepEqual(nada, { reacao: null, seq: 2, motivo: 'vazio' });
 });
+
+test('a reação simulada da prévia também escolhe a peça quando o pedido traz o mapa (fotos -> galeria), e nada sem ele', async () => {
+  const { reacaoSimulada } = await import('../../api/_ia/simulado.mjs');
+  assert.deepEqual(conferirAjuste(reacaoSimulada(montarPedidoReacao(TEXTO, { mapa: true })).json), { acao: 'entra', peca: 'galeria' });
+  assert.equal(conferirAjuste(reacaoSimulada(montarPedidoReacao('tenho uma padaria em Campinas e vendo bolo por encomenda', { mapa: true })).json), null);
+  assert.equal('ajuste' in reacaoSimulada(montarPedidoReacao(TEXTO)).json, false, 'sem mapa, o json de hoje');
+});

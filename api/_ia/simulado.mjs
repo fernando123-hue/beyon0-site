@@ -164,7 +164,10 @@ function conversa({ mensagens, contexto, ferramentas = [] }) {
 export function reacaoSimulada(pedido) {
   const bruto = String(pedido?.mensagens?.[0]?.content || '').replace(/^<texto>|<\/texto>$/g, '');
   const palavras = [...new Set(bruto.match(/\p{L}{6,}/gu) || [])].slice(0, 5);
-  return { json: { anotacao: palavras.length ? '(simulada) ' + palavras.join(', ') : '', entendeu: palavras.length > 0 }, custo_usd: 0 };
+  const json = { anotacao: palavras.length ? '(simulada) ' + palavras.join(', ') : '', entendeu: palavras.length > 0 };
+  /* (mapa vivo, Fase 3, PR 3a) com o mapa na tela, a simulada escolhe a peça só pelas "fotos" (galeria): dá para ver o esboço do servidor na prévia */
+  if (!pedido?.esquema?.properties?.ajuste) return { json, custo_usd: 0 };
+  return { json: { ...json, ajuste: /\bfotos?\b/i.test(bruto) ? { acao: 'entra', peca: 'galeria' } : { acao: 'nada', peca: '' } }, custo_usd: 0 };
 }
 
 export function criarSimulada({ geracao = gerarSimulado, extracao = null } = {}) {
