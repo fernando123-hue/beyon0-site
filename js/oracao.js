@@ -25,21 +25,28 @@
   }
   /* a 1ª ocorrência de re (flag g) que não está negada na sua oração, ou null. texto: já passado por semAcento. recusa (opcional, RegExp sem
      flag g): a ocorrência cuja oração, ANTES dela, casa a recusa também é pulada ("já tive 10 funcionários", "quero contratar 5") */
-  function achaSemNegar(texto, re, recusa) {
-    if (typeof texto !== 'string' || !(re instanceof RegExp) || !re.global) return null;
-    var m, achou = null;
+  function valeAOcorrencia(texto, m, recusa) {
+    var fim = m.index + m[0].length;
+    var antes = texto.slice(Math.max(0, m.index - JANELA_ANTES), m.index).split(FIM_DA_ORACAO).pop().trim();
+    var depois = texto.slice(fim, fim + JANELA_DEPOIS).split(FIM_DA_ORACAO)[0];
+    var recusada = recusa instanceof RegExp && !recusa.global && recusa.test(antes);
+    return !recusada && !NEGACAO.test(antes) && !NEGACAO_DEPOIS.test(depois);
+  }
+  /* as ocorrências válidas (não negadas, não recusadas), na ordem; no máximo max (sem max: todas) */
+  function varrer(texto, re, recusa, max) {
+    if (typeof texto !== 'string' || !(re instanceof RegExp) || !re.global) return [];
+    var m, achadas = [];
     re.lastIndex = 0;
     while ((m = re.exec(texto))) {
-      var fim = m.index + m[0].length;
-      var antes = texto.slice(Math.max(0, m.index - JANELA_ANTES), m.index).split(FIM_DA_ORACAO).pop().trim();
-      var depois = texto.slice(fim, fim + JANELA_DEPOIS).split(FIM_DA_ORACAO)[0];
-      var recusada = recusa instanceof RegExp && !recusa.global && recusa.test(antes);
-      if (!recusada && !NEGACAO.test(antes) && !NEGACAO_DEPOIS.test(depois)) { achou = m; break; }
+      if (valeAOcorrencia(texto, m, recusa)) { achadas.push(m); if (achadas.length === max) break; }
       if (m[0] === '') re.lastIndex++;
     }
     re.lastIndex = 0;
-    return achou;
+    return achadas;
   }
+  function achaSemNegar(texto, re, recusa) { return varrer(texto, re, recusa, 1)[0] || null; }
+  /* todas as ocorrências válidas ("somos 2. Na verdade somos 4": as duas) */
+  function todasSemNegar(texto, re, recusa) { return varrer(texto, re, recusa, 0); }
 
-  return Object.freeze({ TEXTO_MAX: TEXTO_MAX, semAcento: semAcento, achaSemNegar: achaSemNegar });
+  return Object.freeze({ TEXTO_MAX: TEXTO_MAX, semAcento: semAcento, achaSemNegar: achaSemNegar, todasSemNegar: todasSemNegar });
 });

@@ -18,14 +18,15 @@
 })(typeof window !== 'undefined' ? window : null, function () {
   'use strict';
 
-  /* a chamada de cada ramo: uma frase curta que um site desse tipo diria (texto de modelo, não dado do cliente) */
+  /* a chamada de cada ramo: uma frase curta que um site desse tipo diria (texto de modelo, não dado do cliente). A linha só quebra pelo sentido
+     (regra do dono): "em 1 toque" e "a matrícula" presos por espaço que não quebra; "Peça o seu orçamento" inteiro (revisão visual da Fase 2) */
   var TITULOS = Object.freeze({
-    servicos: 'Peça o seu orçamento em 1 toque',
-    saude: 'Agende em 1 toque',
+    servicos: 'Peça o seu orçamento em 1 toque',
+    saude: 'Agende em 1 toque',
     beleza: 'Seu horário, sem espera',
     alimentacao: 'Peça agora pelo celular',
     comercio: 'Veja e peça pelo celular',
-    educacao: 'Conheça e faça a matrícula',
+    educacao: 'Conheça e faça a matrícula',
     associacao: 'Faça parte e participe',
     outro: 'O seu negócio, no ar'
   });

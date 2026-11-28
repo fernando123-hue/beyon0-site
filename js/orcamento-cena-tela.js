@@ -1,0 +1,122 @@
+/* A CENA NA MINIATURA (Mapa vivo v2, Fase 2, PR 2; cofre: 01 Empresa/Mapa vivo v2 - especificação 2026-11-21.md, "FASE 2").
+   Dentro da miniatura do site dela (#o-nasce), abaixo do título, o corte arquitetônico do lugar (js/cena-tracos.js + js/cena-desenho.js), montado
+   por código no aparelho (js/cena-dicionario.js) do ramo que ela tocou, dos objetivos e do que ela escreveu (só as falas DELA no estado).
+   - Só com o mapa vivo ligado (o estado traz reacao: true; BZ_REACAO). Desligado: o lugar some e NADA é baixado (a página é a de hoje).
+   - Ligado: o lugar é reservado na hora (aspect-ratio no CSS estático, sem empurrar a página depois) e os 7 módulos e o CSS da cena vêm sob
+     demanda, uma vez, em ordem, de URL CONSTANTE (padrão de js/orcamento-reacao.js). Falhou ao baixar: o lugar some, sem novas tentativas.
+   - Depoimento nunca aparece aqui: a tela não sabe se o nicho é regulado (regulado vai sem valor, e o dicionário falha fechado).
+   - O desenho só se refaz quando a cena muda (não reanima a cada render); o toque novo (bz:respostas) redesenha com o último estado: o ramo
+     e os objetivos já são os novos, as falas são as do render anterior; se o render seguinte mudar a cena (ex.: a equipe), ela entra de novo
+     (aceito: o toque responde na hora, sem esperar o servidor).
+   Decorativo (o SVG é aria-hidden). ES5: window.BZOrcCenaTela; nunca lança. */
+(function (raiz, fabrica) {
+  'use strict';
+  var api = fabrica(raiz);
+  if (typeof module === 'object' && module && module.exports) module.exports = api;
+  if (raiz) raiz.BZOrcCenaTela = api;
+})(typeof window !== 'undefined' ? window : null, function (raiz) {
+  'use strict';
+
+  var CSS = 'css/orcamento-cena.css';
+  /* [URL constante, o global que o arquivo define], na ordem em que um depende do outro */
+  var MODULOS = [
+    ['js/oracao.js', 'BZOracao'], ['js/orcamento-cena-forma.js', 'BZCenaForma'], ['js/cena-dicionario.js', 'BZCenaDicionario'],
+    ['js/planta-pecas.js', 'BZPlantaPecas'], ['js/mapa-saber.js', 'BZMapaSaber'], ['js/cena-tracos.js', 'BZCenaTracos'], ['js/cena-desenho.js', 'BZCenaDesenho']
+  ];
+  var TEXTO_MAX = 2000;
+  var st = { carga: 'nao', cssPedido: false, ligado: false, ultimoE: null, assinatura: null, ouvindo: false };
+  var ehObjeto = function (v) { return !!v && typeof v === 'object' && !Array.isArray(v); };
+
+  function janela() { return raiz || {}; }
+  function prontos(w) { for (var i = 0; i < MODULOS.length; i++) if (!w[MODULOS[i][1]]) return false; return true; }
+
+  /* o CSS da cena, uma vez (mesmo que os módulos já estejam na página); sem ele a cena é traço sem tinta: falha como os scripts */
+  function pedirCss(doc, aoFalhar) {
+    if (st.cssPedido) return;
+    st.cssPedido = true;
+    var link = doc.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = CSS;
+    link.onerror = aoFalhar;
+    doc.head.appendChild(link);
+  }
+  /* baixa, um de cada vez, o que ainda falta; aoFim(true) com tudo pronto, aoFim(false) se algum falhou */
+  function baixar(w, doc, aoFim) {
+    var i = 0;
+    function proximo() {
+      if (st.carga === 'falhou') return;   /* (o CSS falhou no meio: não pede o resto) */
+      while (i < MODULOS.length && w[MODULOS[i][1]]) i++;
+      if (i >= MODULOS.length) { aoFim(prontos(w)); return; }
+      var s = doc.createElement('script');
+      s.src = MODULOS[i][0];
+      s.async = false;
+      s.onload = function () { i++; proximo(); };
+      s.onerror = function () { aoFim(false); };
+      doc.head.appendChild(s);
+    }
+    proximo();
+  }
+  function falhou(alvo) { st.carga = 'falhou'; st.ligado = false; alvo.hidden = true; }
+  function carregar(w, doc, alvo) {
+    if (st.carga !== 'nao') return;
+    st.carga = 'baixando';
+    baixar(w, doc, function (ok) {
+      if (st.carga === 'falhou') return;
+      if (!ok) { falhou(alvo); return; }
+      st.carga = 'pronta';
+      if (st.ligado) desenhar(w, doc, alvo, st.ultimoE);   /* (desligado enquanto baixava: só fica pronta) */
+    });
+  }
+
+  /* o que ela escreveu: só as falas DELA (o que o Zero disse não conta), as últimas TEXTO_MAX letras */
+  function falasDela(E) {
+    /* de trás para frente, parando ao juntar TEXTO_MAX letras (o custo não cresce com a conversa) */
+    var m = Array.isArray(E.mensagens) ? E.mensagens : [], partes = [], total = 0, i;
+    for (i = m.length - 1; i >= 0 && total < TEXTO_MAX + 2; i--) {   /* (+2: o '. ' da junção) */
+      if (ehObjeto(m[i]) && m[i].papel === 'visitante' && typeof m[i].conteudo === 'string') { partes.unshift(m[i].conteudo); total += m[i].conteudo.length + 2; }
+    }
+    var t = partes.join('. ');
+    return t.length > TEXTO_MAX ? t.slice(t.length - TEXTO_MAX) : t;
+  }
+  function cenaDoEstado(w, E) {
+    var r = w.BZToques && typeof w.BZToques.respostas === 'function' ? w.BZToques.respostas() : null;
+    if (!ehObjeto(r)) return null;
+    var texto = falasDela(E);
+    return w.BZCenaDicionario.cenaDoCaso({
+      ramo: r.ramo, texto: texto, canais: w.BZMapaSaber.origensDoCaso(texto), objetivos: r.objetivos,
+      regulado: undefined   /* (a tela não sabe o nicho: depoimento nunca na tela) */
+    });
+  }
+  /* sem cena (sem ramo ainda), o lugar se esconde: nada de vão em branco na miniatura */
+  function desenhar(w, doc, alvo, E) {
+    if (!E || !prontos(w)) return false;
+    var cena = cenaDoEstado(w, E), assinatura = JSON.stringify(cena);
+    alvo.hidden = !cena;
+    if (assinatura === st.assinatura) return !!cena;
+    st.assinatura = assinatura;
+    if (!cena) { while (alvo.firstChild) alvo.removeChild(alvo.firstChild); return false; }
+    return !!w.BZCenaDesenho.desenhar(doc, alvo, w.BZCenaTracos.tracosDaCena(cena));
+  }
+
+  /* o estado chegou (js/orcamento.js, a cada render) */
+  function atualizar(E) {
+    try {
+      var w = janela(), doc = w.document, alvo = doc && doc.getElementById ? doc.getElementById('o-nasce-cena') : null;
+      if (!alvo) return false;
+      st.ligado = ehObjeto(E) && E.reacao === true && st.carga !== 'falhou';
+      if (!st.ligado) { alvo.hidden = true; return false; }
+      alvo.hidden = false;
+      st.ultimoE = E;
+      if (!st.ouvindo && typeof doc.addEventListener === 'function') {
+        st.ouvindo = true;
+        doc.addEventListener('bz:respostas', function () { try { if (st.ligado && st.carga === 'pronta') desenhar(w, doc, alvo, st.ultimoE); } catch (x) { /* a cena é enfeite */ } });
+      }
+      pedirCss(doc, function () { falhou(alvo); });
+      if (prontos(w)) { st.carga = 'pronta'; return desenhar(w, doc, alvo, E); }
+      carregar(w, doc, alvo);
+      return false;
+    } catch (x) { return false; }
+  }
+
+  return Object.freeze({ atualizar: atualizar, MODULOS: MODULOS, CSS: CSS });
+});

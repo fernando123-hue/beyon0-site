@@ -25,22 +25,26 @@ export function criarDoc() {
     activeElement: null, ouvintes: {},
     getElementById: id => porId[id] || null,
     createElement: tag => elemento(tag, doc, porId),
+    /* (a cena do mapa vivo, fase 2: SVG, head para os scripts sob demanda) */
+    createElementNS: (ns, tag) => elemento(tag, doc, porId),
     addEventListener(t, f) { (doc.ouvintes[t] = doc.ouvintes[t] || []).push(f); },
     removeEventListener(t, f) { doc.ouvintes[t] = (doc.ouvintes[t] || []).filter(x => x !== f); },
     dispatchEvent(ev) { (doc.ouvintes[ev.type] || []).slice().forEach(f => f(ev)); return true; }
   };
+  doc.head = elemento('head', doc, porId);
   return doc;
 }
 function elemento(tag, doc, porId) {
   const attrs = {}, classes = new Set(), ouvintes = {};
   const e = {
     tagName: tag, children: [], parentNode: null, disabled: false, hidden: false, value: '', type: '', scrollTop: 0, scrollHeight: 0,
-    _texto: '', _id: '',
+    _texto: '', _id: '', style: { props: {}, setProperty(k, v) { this.props[k] = String(v); } },
+    get firstChild() { return e.children[0] || null; }, removeChild(c) { c.remove(); return c; },
     get id() { return e._id; }, set id(v) { e._id = v; porId[v] = e; },
     get textContent() { return e._texto + e.children.map(c => c.textContent).join(''); }, set textContent(v) { e._texto = String(v); e.children = []; },
     get className() { return [...classes].join(' '); }, set className(v) { classes.clear(); String(v).split(/\s+/).filter(Boolean).forEach(c => classes.add(c)); },
     classList: { add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c) },
-    setAttribute(k, v) { attrs[k] = String(v); if (k === 'id') e.id = v; }, getAttribute: k => (k in attrs ? attrs[k] : null), hasAttribute: k => k in attrs, removeAttribute(k) { delete attrs[k]; },
+    setAttribute(k, v) { attrs[k] = String(v); if (k === 'id') e.id = v; if (k === 'class') e.className = v; }, getAttribute: k => (k in attrs ? attrs[k] : null), hasAttribute: k => k in attrs, removeAttribute(k) { delete attrs[k]; },
     get lastElementChild() { return e.children[e.children.length - 1] || null; },
     appendChild(c) { return e.insertBefore(c, null); },
     /* (como no navegador: mover um nó que tem o foco, ou que o contém, tira o foco dele) */

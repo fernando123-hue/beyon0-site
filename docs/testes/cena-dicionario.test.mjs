@@ -209,3 +209,8 @@ test('equipe (4ª rodada da revisão técnica): "antes eram", "cheguei a ter", "
   ];
   for (const [t, n] of casos) assert.equal(D.equipeDoTexto(t), n, t);
 });
+
+test('equipe: a 2ª afirmação do mesmo jeito também conta ("somos 2. Na verdade somos 4" = 4)', () => {
+  assert.equal(D.equipeDoTexto('Barbearia, somos 2. Na verdade somos 4'), 4);
+  assert.equal(D.equipeDoTexto('temos 2 funcionarios e depois contratamos, hoje temos 5 funcionarios'), 5);
+});

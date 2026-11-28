@@ -58,3 +58,12 @@ test('achaSemNegar com recusa: pula a ocorrência cuja oração (antes dela) cas
   assert.equal(O.achaSemNegar('tenho 3 funcionarios', re, recusa)[1], '3');
   assert.equal(O.achaSemNegar('tenho 3 funcionarios', re, 'nao é regex')[1], '3', 'recusa inválida é ignorada');
 });
+
+test('todasSemNegar: todas as ocorrências válidas, na ordem; as negadas e as recusadas ficam de fora', () => {
+  const re = /\bsomos (\d+)\b/g;
+  assert.deepEqual(O.todasSemNegar('somos 2. na verdade somos 4', re).map(m => m[1]), ['2', '4']);
+  assert.deepEqual(O.todasSemNegar('nao somos 3, somos 4', re).map(m => m[1]), ['4']);
+  assert.deepEqual(O.todasSemNegar('fomos tive somos 9', re, /tive$/).map(m => m[1]), []);
+  assert.deepEqual(O.todasSemNegar(null, re), []);
+  assert.equal(re.lastIndex, 0);
+});

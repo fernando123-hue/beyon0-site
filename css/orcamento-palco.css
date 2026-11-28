@@ -169,6 +169,9 @@ html[data-tema="claro"] .nav__tema__lua { display: inline; }
 .orc-vitrine .nasce__corpo { padding: 0; }
 .orc-vitrine .nasce__titulo { margin: 12px 0 0; font-weight: 600; font-size: clamp(1.3125rem, 1.1rem + .9vw, 1.75rem); line-height: 1.15; letter-spacing: -.01em; color: #101314; overflow-wrap: break-word; }
 .orc-vitrine .nasce__pecas { gap: 8px; margin-top: 12px; }
+/* a cena do mapa vivo (fase 2): o lugar é reservado quando aparece (antes do desenho baixar), para não empurrar a página depois */
+.orc-vitrine .nasce__cena { margin-top: 12px; aspect-ratio: 320 / 120; }
+.orc-vitrine .nasce__cena[hidden] { display: none; }
 .orc-vitrine .nasce__peca { padding: 8px 14px; border: 0; border-radius: 999px; background: #0B6F82; color: #FFFFFF; font-size: .8125rem; font-weight: 600; line-height: 1.25; }
 /* antes do 1º toque a vitrine mostra só o LUGAR do site (traços, nenhum texto: nada é dito antes de a pessoa responder) */
 .orc-vitrine__lugar { display: none; grid-template-columns: 14px minmax(0, 1fr); gap: 12px 8px; padding: 16px; border-radius: 10px; background: #F7F6F2; }
