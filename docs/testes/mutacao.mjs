@@ -700,6 +700,8 @@ export const SABOTAGENS = [
     de: "if (!deOk || !paraOk) { c.add(cam, 'seta_ref'); continue; }", para: "/* seta_ref sabotada */" },
   { nome: "mapa: a seta de volta vale fora do ciclo", fonte: "js/orcamento-mapa-forma.js", testes: ['docs/testes/planta-mapa-forma.test.mjs'],
     de: "if (est === 'ciclo' ? lay.volta.length !== 1 : lay.volta.length > 0) c.add('setas', 'volta');", para: "if (est === 'ciclo' && lay.volta.length !== 1) c.add('setas', 'volta');" },
+  { nome: "mapa vivo, fase 3: o ajuste no aparelho devolve o plano sem revalidar (o rascunho estoura os limites)", fonte: "js/mapa-ajuste.js", testes: ['docs/testes/planta-mapa-ajuste.test.mjs'],
+    de: "var v = valido(novo);", para: "var v = novo;" },
   { nome: "mapa: a seta pula camada sem exigir a faixa vazia", fonte: "js/orcamento-mapa-forma.js", testes: ['docs/testes/planta-mapa-forma.test.mjs'],
     de: "      if (b - a < 2) return;\n      if ((fa >= 0 && fb >= 0 && fa !== fb) || faixa < 0) { c.add('setas', 'pulo'); return; }", para: "      return;\n      if ((fa >= 0 && fb >= 0 && fa !== fb) || faixa < 0) { c.add('setas', 'pulo'); return; }" },
   { nome: "mapa: a máscara do \"hoje\" cobre qualquer preço", fonte: "api/_vendas/planta-textos.mjs", testes: ['docs/testes/planta-mapa-hoje.test.mjs'],
