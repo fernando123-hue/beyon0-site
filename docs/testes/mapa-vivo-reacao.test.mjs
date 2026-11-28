@@ -515,3 +515,18 @@ test('PR 3a (revisão técnica 1): a continuação que desdiz tira o esboço do 
   assert.equal(c.api.ajusteDoServidor(null, SEM_ROTA), false);
   assert.equal(c.chamadas.length, 0);
 });
+
+test('PR 3a (reconferência 2): continuação comum ("que eu tirei", "sem medo", "nem sempre") não tira o esboço do servidor', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta());
+  a.digitar(SEM_ROTA);
+  a.w.avancar(300);
+  a.api.ajusteDoServidor(GALERIA, SEM_ROTA);
+  const n = a.chamadas.length;
+  a.digitar(SEM_ROTA + ' que eu tirei, sem medo, nem sempre dá');
+  a.w.avancar(300);
+  assert.equal(a.chamadas.length, n, 'o esboço fica');
+  a.digitar(SEM_ROTA + ' que eu tirei, mas deixa pra lá');
+  a.w.avancar(300);
+  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } }, 'desistência tira');
+});

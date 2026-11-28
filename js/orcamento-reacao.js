@@ -158,8 +158,9 @@
         if (aj.esboco || aj.firme) voltarAoOficial();   /* (revisão técnica) o firme também sai se ela troca ou apaga a frase */
       } catch (e) { falharAjuste(e); }
     }
-    /* (revisão técnica 1) o que ela escreveu DEPOIS da frase lida: negação, desistência, condição ou pergunta tiram o esboço do servidor */
-    var DESDIZ = /(?:^|[^a-z])(?:nao|nem|nunca|sem|esquec\w*|desist\w*|cancel\w*|tir\w*|talvez|deixa)(?:[^a-z]|$)|\?/;
+    /* (revisão técnica 1) o que ela escreveu DEPOIS da frase lida: negação, desistência, condição ou pergunta tiram o esboço do servidor.
+       (reconferência 2) estreito: "que eu tirei", "sem medo", "nem sempre" são continuação comum, não desdizer */
+    var DESDIZ = /(?:^|[^a-z])(?:nao|nunca|esquec\w*|desist\w*|cancel\w*|talvez|deixa pra la|deixa para la)(?:[^a-z]|$)|\?/;
     function desdiz(resto) { return !!resto && DESDIZ.test(win.BZOracao && win.BZOracao.semAcento ? win.BZOracao.semAcento(resto) : String(resto).toLowerCase()); }
     function desenharEsboco(plano, doServidor) {
       var j = JSON.stringify(plano);
