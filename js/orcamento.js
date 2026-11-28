@@ -424,6 +424,7 @@
       ocupado(false);
       if (!leu) {   /* não dá para saber se entrou: não manda de novo, e o texto não se perde */
         if (!$('o-texto').value) $('o-texto').value = texto;
+        document.dispatchEvent(new CustomEvent('bz:envio-nao-entrou'));
         avisar(AVISO_INCERTO, function () { reenviar(texto); });
         return false;
       }
@@ -472,6 +473,7 @@
     if (!gravada) {
       if (minha.isConnected) minha.remove();
       if (!$('o-texto').value) $('o-texto').value = texto;
+      document.dispatchEvent(new CustomEvent('bz:envio-nao-entrou'));   /* (o mapa vivo desfaz o esboço firmado no Enter: js/orcamento-reacao.js) */
     }
     if (sessaoTerminou(e)) { anunciar(''); avisarSessao(); return gravada; }
     if (gravada) {
