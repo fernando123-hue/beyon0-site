@@ -5,7 +5,9 @@
    Confere: o esboço aparece (1 nó .is-rascunho a ~34%) sem rolagem lateral; apagar a caixa tira o esboço; o Enter firma (nenhum .is-rascunho,
    a marca "Ajustado" à vista); a resposta do dublê não traz plano novo, então o oficial volta (sem o nó do formulário); nenhuma requisição
    nova enquanto ela digita (o esboço é do aparelho); deslocamento de layout (CLS) somado nesse trecho; nenhum erro nem aviso [beyon] no
-   console. Fotos: esboço, firme e de volta. Sai com 1 se algo falhar. Um IP novo por largura. */
+   console. Fotos: esboço, firme e de volta. Sai com 1 se algo falhar. Um IP novo por largura.
+   SERVIDOR=1 (Fase 3, PR 3a; servidor com BZ_REACAO=ligada): a frase que o aparelho NÃO roteia ("fotos dos trabalhos"); o esboço vem da
+   reação (a simulada escolhe a galeria), então aqui a requisição de reagir é esperada e o nó conferido é o da galeria. */
 import { chromium } from 'playwright';
 import { esperarToques, responderAteADor } from './e2e-toques.mjs';
 import { mkdir } from 'node:fs/promises';
@@ -14,7 +16,10 @@ import path from 'node:path';
 const BASE = process.env.BASE || 'http://127.0.0.1:8899';
 const PASTA = process.argv[2] || '.';
 const LARGURAS = (process.argv[3] || '390,320,1280').split(',').map(Number);
-const PEDIDO = process.env.PEDIDO || 'quero também um formulário no site';   /* (PEDIDO=outra frase: a mesma conversa sem esboço, para comparar o CLS) */
+const SERVIDOR = process.env.SERVIDOR === '1';
+const PEDIDO = process.env.PEDIDO || (SERVIDOR ? 'quero um lugar no site para mostrar as fotos dos trabalhos' : 'quero também um formulário no site');
+const NO = SERVIDOR ? 'Galeria de trabalhos' : 'Formulário de pedido';
+const PAUSA = SERVIDOR ? 5000 : 2500;   /* (com o servidor: a pausa de 700 ms da anotação e a ida e volta da reação) */   /* (PEDIDO=outra frase: a mesma conversa sem esboço, para comparar o CLS) */
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const ip = () => '10.' + (1 + Math.floor(Math.random() * 250)) + '.' + Math.floor(Math.random() * 250) + '.' + (1 + Math.floor(Math.random() * 250));
 let falhou = false;
@@ -28,19 +33,19 @@ async function turno(page, texto) {
   await page.waitForSelector('#o-pensando[hidden]', { state: 'attached', timeout: 40000 });
 }
 /* o estado do mapa: quantos nós em esboço (e a opacidade calculada do 1º), se há o nó do formulário e a marca "Ajustado" */
-const estado = (page, sel) => page.evaluate((s) => {
+const estado = (page, sel) => page.evaluate(([s, no]) => {
   const q = document.querySelector(s);
   const esb = q ? [...q.querySelectorAll('.mpc-no.is-rascunho')] : [];
   const nos = q ? [...q.querySelectorAll('.mpc-no')] : [];
   return {
     esboco: esb.length,
     opacidade: esb[0] ? Number(getComputedStyle(esb[0]).opacity) : null,
-    formulario: nos.some((n) => n.textContent.includes('Formulário de pedido')),
-    ajustado: nos.some((n) => n.textContent.includes('Ajustado') && n.textContent.includes('Formulário de pedido')),
+    formulario: nos.some((n) => n.textContent.includes(no)),
+    ajustado: nos.some((n) => n.textContent.includes('Ajustado') && n.textContent.includes(no)),
     lateral: document.documentElement.scrollWidth - innerWidth,
     cls: window.__cls
   };
-}, sel);
+}, [sel, NO]);
 
 await mkdir(PASTA, { recursive: true });
 const nav = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
@@ -80,8 +85,9 @@ for (const larg of LARGURAS) {
   page.on('request', (r) => { if (!/\.(js|css|woff2?|png|svg|ico)(\?|$)/.test(r.url())) pedidos.push(r.url()); });
   await page.evaluate(() => { window.__cls = 0; window.__medirCls = true; });
 
+  await page.focus('#o-texto');
   await page.fill('#o-texto', PEDIDO);
-  await espera(2500);   /* a pausa de 250 ms, a 1ª carga do ajuste e o deslize (700 ms) com a entrada do esboço */
+  await espera(PAUSA);   /* a pausa de 250 ms, a 1ª carga do ajuste e o deslize (700 ms) com a entrada do esboço */
   let s = await estado(page, sel);
   ok(s.esboco === 1, 'o esboço aparece (' + s.esboco + ' nó em esboço)');
   ok(s.opacidade !== null && Math.abs(s.opacidade - 0.34) < 0.02, 'o esboço a 34% (' + s.opacidade + ')');
@@ -94,10 +100,11 @@ for (const larg of LARGURAS) {
   s = await estado(page, sel);
   ok(s.esboco === 0 && !s.formulario, 'apagar a caixa tira o esboço');
   cls.apagar = s.cls - cls.esboco;
-  ok(pedidos.length === 0, 'nenhuma requisição enquanto ela digita' + (pedidos.length ? ': ' + pedidos.join(' ') : ''));
+  if (SERVIDOR) ok(pedidos.length > 0 && pedidos.every((u) => /acao=reagir/.test(u)), 'só a reação foi ao servidor (' + pedidos.length + ')' + (pedidos.some((u) => !/acao=reagir/.test(u)) ? ': ' + pedidos.join(' ') : ''));
+  else ok(pedidos.length === 0, 'nenhuma requisição enquanto ela digita' + (pedidos.length ? ': ' + pedidos.join(' ') : ''));
 
   await page.fill('#o-texto', PEDIDO);
-  await espera(2500);
+  await espera(PAUSA);
   const n = await page.locator('#o-log .msg--agente').count();
   /* o dublê responde em menos de 1 s (o Zero real leva ~20 s): a resposta atrasa 3 s para o esboço firme ficar à vista */
   await page.route('**/api/vendas**', async (r) => { if (r.request().method() === 'POST') await espera(3000); await r.continue(); });

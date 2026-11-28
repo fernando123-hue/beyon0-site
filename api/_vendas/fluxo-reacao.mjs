@@ -13,7 +13,7 @@ import { criarFreio, ipDe } from '../_freio.mjs';
 import { criarGastoLocal } from '../_classificador/sombra.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import { TETOS } from '../_ia/config.mjs';
-import { reacaoLigada, LIMITES_REACAO, textoParaReacao, montarPedidoReacao, conferirReacao } from './reacao.mjs';
+import { reacaoLigada, LIMITES_REACAO, textoParaReacao, montarPedidoReacao, conferirReacao, conferirAjuste } from './reacao.mjs';
 
 const exigir = (cond, status, msg) => { if (!cond) throw new Recusa(status, msg); };
 const DIA_MS = 24 * 60 * 60e3;
@@ -57,7 +57,9 @@ export function criarAcoesDaReacao({ ia, env, custoDoDia, visitante, donoDaConve
     if (!(Number(dia) < LIMITES_REACAO.fatia_do_dia * TETOS.dia_usd)) return sem(seq, 'teto');
     const t0 = Date.now();
     let r;
-    try { r = await ia.mensagem(montarPedidoReacao(texto)); }
+    /* (Fase 3, PR 3a) com o mapa na tela, o Haiku também escolhe a peça do ajuste; só o booleano verdadeiro vale */
+    const mapa = corpo.mapa === true;
+    try { r = await ia.mensagem(montarPedidoReacao(texto, { mapa })); }
     catch (e) {
       const custo = (e && e.custo_usd) || 0;
       gasto.somar(hoje(), Math.max(custo, LIMITES_REACAO.custo_minimo_usd));
@@ -69,8 +71,13 @@ export function criarAcoesDaReacao({ ia, env, custoDoDia, visitante, donoDaConve
     gasto.somar(hoje(), custo);
     registrar(corpo.conversa_id, vid, custo);
     const c = conferirReacao(r.json, texto);
-    log({ nivel: 'info', evento: 'reação', motivo: c.motivo, ms: Date.now() - t0, custo_usd: custo, seq, request_id: requestId });
-    return c.anotacao ? { reacao: { anotacao: c.anotacao }, seq, motivo: 'ok' } : sem(seq, c.motivo);
+    const ajuste = mapa ? conferirAjuste(r.json, texto) : null;
+    /* (o ajuste no log é só a peça da tabela, nunca o texto: mede quantos pedidos o servidor resolveu quando o aparelho não soube) */
+    log({ nivel: 'info', evento: 'reação', motivo: c.anotacao || !ajuste ? c.motivo : 'ajuste', ms: Date.now() - t0, custo_usd: custo, seq, request_id: requestId,
+      ...(mapa ? { mapa: true, ajuste: ajuste ? ajuste.acao + ':' + ajuste.peca : null } : {}) });
+    if (!c.anotacao && !ajuste) return sem(seq, c.motivo);
+    /* (revisão técnica 4) só o ajuste passou: o motivo diz isso, e não o da anotação que caiu */
+    return { reacao: { ...(c.anotacao ? { anotacao: c.anotacao } : {}), ...(ajuste ? { ajuste } : {}) }, seq, motivo: c.anotacao ? c.motivo : 'ajuste' };
   }
   return { reagir };
 }

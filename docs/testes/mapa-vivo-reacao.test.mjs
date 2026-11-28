@@ -419,3 +419,114 @@ test('(5) a cola da planta redesenhou o oficial (outra origem ou editável, mesm
   assert.equal(a.chamadas.length, n + 1, 'o esboço é pedido de novo');
   assert.ok(a.ids(a.chamadas[n].plano).includes('aj_form'));
 });
+
+/* ---------- Fase 3, PR 3a: o ajuste que vem da reação (plano docs/superpowers/plans/2026-11-28-mapa-vivo-fase3-pr3-servidor.md) ---------- */
+const SEM_ROTA = 'bota um lugar pra ver as fotos dos trabalhos que a gente faz';
+const GALERIA = { acao: 'entra', peca: 'galeria' };
+
+test('PR 3a: precisaDoServidor só com o mapa oficial, o ajuste carregado e o roteador daqui sem resposta', () => {
+  const sem = ambienteMapa();
+  sem.api.atualizar(LIGADA);
+  assert.equal(sem.api.precisaDoServidor(SEM_ROTA), false, 'sem mapa oficial');
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta());
+  assert.equal(Ajuste.rotear(SEM_ROTA), null);
+  assert.equal(a.api.precisaDoServidor(SEM_ROTA), true);
+  assert.equal(a.api.precisaDoServidor('quero também um formulário'), false, 'o roteador daqui já sabe');
+  assert.equal(a.api.precisaDoServidor('   '), false);
+  assert.equal(a.api.precisaDoServidor(null), false);
+});
+
+test('PR 3a: o ajuste do servidor vira o esboço da tabela quando a caixa ainda tem a MESMA frase; frase trocada ou peça fora da lista, nada', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta());
+  a.digitar(SEM_ROTA);
+  a.w.avancar(300);
+  assert.equal(a.chamadas.length, 0, 'o aparelho não soube');
+  assert.equal(a.api.ajusteDoServidor({ acao: 'entra', peca: 'loja' }, SEM_ROTA), false, 'peça fora da tabela');
+  assert.equal(a.api.ajusteDoServidor('entra galeria', SEM_ROTA), false);
+  assert.equal(a.api.ajusteDoServidor(GALERIA, 'outra frase qualquer'), false, 'a caixa já mudou');
+  assert.equal(a.chamadas.length, 0);
+  assert.equal(a.api.ajusteDoServidor(GALERIA, SEM_ROTA), true);
+  const ult = a.chamadas[a.chamadas.length - 1];
+  assert.deepEqual(ult, { plano: Ajuste.aplicarAjuste(OFICIAL, GALERIA).plano, op: { rascunho: true } }, 'o mesmo plano do roteador daqui');
+});
+
+test('PR 3a: o esboço do servidor fica enquanto ela continua a frase; trocar ou apagar devolve o oficial; o roteador daqui manda', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta());
+  a.digitar(SEM_ROTA);
+  a.w.avancar(300);
+  a.api.ajusteDoServidor(GALERIA, SEM_ROTA);
+  const n = a.chamadas.length;
+  a.digitar(SEM_ROTA + ' aqui na oficina');
+  a.w.avancar(300);
+  assert.equal(a.chamadas.length, n, 'continuar a frase não tira o esboço');
+  a.digitar('meu horário é de segunda a sexta');
+  a.w.avancar(300);
+  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } }, 'outra frase: o oficial volta');
+  /* o roteador daqui decide: a resposta do servidor que chega depois não passa por cima */
+  a.digitar('quero também um formulário');
+  a.w.avancar(300);
+  const m = a.chamadas.length;
+  assert.equal(a.api.ajusteDoServidor(GALERIA, 'quero também um formulário'), false);
+  assert.equal(a.chamadas.length, m);
+});
+
+test('PR 3a: Enter com o esboço do servidor firma o mesmo plano; com o firme na tela, nada de novo pedido ao servidor', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta({ mensagens: [1, 2] }));
+  a.digitar(SEM_ROTA);
+  a.w.avancar(300);
+  a.api.ajusteDoServidor(GALERIA, SEM_ROTA);
+  const esboco = a.chamadas[a.chamadas.length - 1].plano;
+  a.form.disparar('submit');
+  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: esboco, op: { rascunho: false } });
+  assert.equal(a.api.precisaDoServidor(SEM_ROTA), false, 'firme: espera o Zero');
+});
+
+test('PR 3a (revisão técnica 1): a continuação que desdiz tira o esboço do servidor; a resposta "nada" para a frase de agora também', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta());
+  a.digitar(SEM_ROTA);
+  a.w.avancar(300);
+  a.api.ajusteDoServidor(GALERIA, SEM_ROTA);
+  a.digitar(SEM_ROTA + ', ah na verdade não quero');
+  a.w.avancar(300);
+  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } }, 'negação na continuação: o oficial volta');
+  /* a mesma frase continuada sem negação, e a reação lida dela volta sem ajuste ("nada"): o esboço sai */
+  const b = ambienteMapa();
+  b.api.atualizar(comPlanta());
+  b.digitar(SEM_ROTA);
+  b.w.avancar(300);
+  b.api.ajusteDoServidor(GALERIA, SEM_ROTA);
+  const mais = SEM_ROTA + ' e também atendo em casa';
+  b.digitar(mais);
+  b.w.avancar(300);
+  const n = b.chamadas.length;
+  assert.equal(b.api.ajusteDoServidor(null, mais), false);
+  assert.equal(b.chamadas.length, n + 1);
+  assert.deepEqual(b.chamadas[b.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } });
+  /* sem esboço do servidor na tela, a resposta "nada" não redesenha nada */
+  const c = ambienteMapa();
+  c.api.atualizar(comPlanta());
+  c.digitar(SEM_ROTA);
+  c.w.avancar(300);
+  assert.equal(c.api.ajusteDoServidor(null, SEM_ROTA), false);
+  assert.equal(c.chamadas.length, 0);
+});
+
+test('PR 3a (reconferência 2): continuação comum ("que eu tirei", "sem medo", "nem sempre") não tira o esboço do servidor', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta());
+  a.digitar(SEM_ROTA);
+  a.w.avancar(300);
+  a.api.ajusteDoServidor(GALERIA, SEM_ROTA);
+  const n = a.chamadas.length;
+  a.digitar(SEM_ROTA + ' que eu tirei, sem medo, nem sempre dá');
+  a.w.avancar(300);
+  assert.equal(a.chamadas.length, n, 'o esboço fica');
+  a.digitar(SEM_ROTA + ' que eu tirei, mas deixa pra lá');
+  a.w.avancar(300);
+  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } }, 'desistência tira');
+});

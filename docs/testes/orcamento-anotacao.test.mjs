@@ -44,7 +44,7 @@ function ambiente({ reduzido = false, guardado = {}, comSessao = true, comFileir
   const chamadas = [];
   w.BZOrcamento = {
     temSessao: () => comSessao,
-    reagir: (texto, seq) => new Promise((resolver) => { chamadas.push({ texto, seq, resolver }); })
+    reagir: (texto, seq, mapa) => new Promise((resolver) => { chamadas.push({ texto, seq, mapa, resolver }); })
   };
   const api = Anotacao.criar(w);
   const digitar = (t) => { campo.value = t; campo.disparar('input'); };
@@ -256,9 +256,10 @@ test('fonte e página: ES5, sem innerHTML, script na ordem, CSS ligado, chamada 
   assert.ok(i1a > 0 && i1b > i1a && iOrc > i1b, 'o script da 1b depois do da 1a e antes do orcamento.js');
   assert.match(html, /css\/orcamento-anotacao\.css/);
   assert.match(lerFonte('js/orcamento.js'), /BZOrcAnotacao\.atualizar\(E\)/);
-  const reagir = /reagir: function \(texto, seq\) \{[^\n]*\}/.exec(lerFonte('js/orcamento-api.js'));
+  const reagir = /reagir: function \(texto, seq, mapa\) \{[^\n]*\}/.exec(lerFonte('js/orcamento-api.js'));
   assert.ok(reagir, 'a API tem reagir');
   assert.doesNotMatch(reagir[0], /garantirSessao/);
+  assert.match(reagir[0], /mapa === true \? \{ texto: texto, seq: seq, mapa: true \} : \{ texto: texto, seq: seq \}/, '(PR 3a) mapa só como booleano verdadeiro');
   const css = lerFonte('css/orcamento-anotacao.css');
   assert.match(css, /\.orc-anota__texto \{[^}]*min-height: calc\(3/, 'altura fixa: a linha não empurra a caixa');
   assert.doesNotMatch(css, /blur/);
@@ -379,4 +380,61 @@ test('revisão de segurança 3: desligar em outra aba desliga a tela desta; liga
   delete a.loja[Anotacao.CHAVE];
   (a.w.ouvintes.storage || []).forEach((f) => f({ key: Anotacao.CHAVE }));
   assert.equal(a.rotulo(), 'Anotação ao vivo');
+});
+
+/* ---------- Fase 3, PR 3a: a reação leva o pedido de ajuste do mapa quando o aparelho não soube ---------- */
+const PEDIDO = 'Tenho uma oficina e queria um lugar pra mostrar as fotos dos trabalhos';
+function comEsboco(a, precisa) {
+  const vistos = [], entregues = [];
+  a.w.BZOrcReacao = {
+    precisaDoServidor: (t) => { vistos.push(t); return precisa; },
+    ajusteDoServidor: (aj, t) => { entregues.push({ aj, t }); return true; }
+  };
+  return { vistos, entregues };
+}
+
+test('PR 3a: sem o esboço na página ou sem precisar, a chamada é a de hoje (mapa falso)', async () => {
+  const a = ambiente();
+  a.abrir();
+  a.digitar(PEDIDO); a.w.avancar(700);
+  assert.equal(a.chamadas[0].mapa, false, 'sem BZOrcReacao');
+  const b = ambiente();
+  const e = comEsboco(b, false);
+  b.abrir();
+  b.digitar(PEDIDO); b.w.avancar(700);
+  assert.equal(b.chamadas[0].mapa, false);
+  assert.deepEqual(e.vistos, [PEDIDO], 'pergunta com o texto inteiro da caixa');
+});
+
+test('PR 3a: precisando, a chamada leva mapa; o ajuste da resposta vai ao esboço com o texto que foi lido, mesmo sem anotação', async () => {
+  const a = ambiente();
+  const e = comEsboco(a, true);
+  a.abrir();
+  a.digitar(PEDIDO); a.w.avancar(700);
+  assert.equal(a.chamadas[0].mapa, true);
+  a.chamadas[0].resolver({ reacao: { ajuste: { acao: 'entra', peca: 'galeria' } }, seq: 1, motivo: 'trava' });
+  await esvaziar();
+  assert.deepEqual(e.entregues, [{ aj: { acao: 'entra', peca: 'galeria' }, t: PEDIDO }]);
+  assert.equal(a.rotulo() === 'O Zero (IA) anotou:', false, 'sem anotação, a linha não muda');
+});
+
+test('PR 3a: resposta velha, desligada ou durante o envio não entrega o ajuste', async () => {
+  const a = ambiente();
+  const e = comEsboco(a, true);
+  a.abrir();
+  a.digitar(PEDIDO); a.w.avancar(700);
+  a.pensar(true);
+  a.chamadas[0].resolver({ reacao: { ajuste: { acao: 'entra', peca: 'galeria' } }, seq: 1 });
+  await esvaziar();
+  assert.deepEqual(e.entregues, []);
+});
+
+test('PR 3a (revisão técnica 1): a resposta de uma chamada com mapa SEM ajuste também vai ao esboço (null), para ele tirar o esboço velho', async () => {
+  const a = ambiente();
+  const e = comEsboco(a, true);
+  a.abrir();
+  a.digitar(PEDIDO); a.w.avancar(700);
+  a.chamadas[0].resolver({ reacao: null, seq: 1, motivo: 'vazio' });
+  await esvaziar();
+  assert.deepEqual(e.entregues, [{ aj: null, t: PEDIDO }]);
 });
