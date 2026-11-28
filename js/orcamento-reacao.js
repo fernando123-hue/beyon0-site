@@ -34,7 +34,7 @@
     var st = { carga: 'nao', fila: null, campo: null, timer: 0, ouvindo: false, falhou: false, E: null, espera: 0, tentativas: 0, novas: [] };
     /* o esboço: oficial (o plano validado de E.planta), esboco (o plano em esboço na tela), firme (o esboço firmado no Enter) e firmeEm (quantas
        mensagens havia no Enter) */
-    var aj = { carga: 'nao', falhou: false, oficial: null, oficialJson: '', chave: '', esboco: null, esbocoJson: '', firme: null, firmeEm: 0, form: null, ouveFalha: false };
+    var aj = { carga: 'nao', falhou: false, oficial: null, oficialJson: '', chave: '', esboco: null, esbocoJson: '', doServidor: '', firme: null, firmeEm: 0, form: null, ouveFalha: false };
     var $ = function (id) { return doc.getElementById(id); };
 
     function falhar(e) {
@@ -115,7 +115,7 @@
     /* ---------- o nó em esboço (Fase 3, PR 2) ---------- */
     function falharAjuste(e) {
       aj.falhou = true;
-      aj.esboco = null; aj.esbocoJson = ''; aj.firme = null;
+      aj.esboco = null; aj.esbocoJson = ''; aj.doServidor = ''; aj.firme = null;
       if (win.console) win.console.warn('[beyon] ajuste', e && e.message ? e.message : e);
     }
     /* o plano oficial que a tela mostra: o de E.planta, com a forma do mapa (v3) e o desenho na página; senão, nada de esboço */
@@ -141,7 +141,7 @@
     }
     /* o mapa volta ao oficial, calado (sem status, sem luz): o esboço sai de cena */
     function voltarAoOficial() {
-      aj.esboco = null; aj.esbocoJson = ''; aj.firme = null;
+      aj.esboco = null; aj.esbocoJson = ''; aj.doServidor = ''; aj.firme = null;
       if (aj.oficial) win.BZMapa.atualizar(aj.oficial, { rascunho: true });
     }
     /* na pausa da digitação: o pedido dela vira o esboço; nada roteado (ou não coube) e havia esboço: o oficial volta */
@@ -152,15 +152,43 @@
       try {
         var texto = st.campo.value, pedido = texto.trim() ? win.BZMapaAjuste.rotear(texto) : null;
         var r = pedido ? win.BZMapaAjuste.aplicarAjuste(aj.oficial, pedido) : null;
-        if (r && r.ok) {
-          var j = JSON.stringify(r.plano);
-          if (j === aj.esbocoJson) return;
-          var x = win.BZMapa.atualizar(r.plano, { rascunho: true });
-          if (x && x.ok) { aj.esboco = r.plano; aj.esbocoJson = j; aj.firme = null; }
-          return;
-        }
+        if (r && r.ok) { desenharEsboco(r.plano, ''); return; }
+        /* (PR 3a) o esboço que veio da reação fica enquanto ela continua a MESMA frase (o texto de agora começa com o que foi lido) */
+        if (!pedido && aj.doServidor && aj.esboco && texto.trim().indexOf(aj.doServidor) === 0 && !desdiz(texto.trim().slice(aj.doServidor.length))) return;
         if (aj.esboco || aj.firme) voltarAoOficial();   /* (revisão técnica) o firme também sai se ela troca ou apaga a frase */
       } catch (e) { falharAjuste(e); }
+    }
+    /* (revisão técnica 1) o que ela escreveu DEPOIS da frase lida: negação, desistência, condição ou pergunta tiram o esboço do servidor.
+       (reconferência 2) estreito: "que eu tirei", "sem medo", "nem sempre" são continuação comum, não desdizer */
+    var DESDIZ = /(?:^|[^a-z])(?:nao|nunca|esquec\w*|desist\w*|cancel\w*|talvez|deixa pra la|deixa para la)(?:[^a-z]|$)|\?/;
+    function desdiz(resto) { return !!resto && DESDIZ.test(win.BZOracao && win.BZOracao.semAcento ? win.BZOracao.semAcento(resto) : String(resto).toLowerCase()); }
+    function desenharEsboco(plano, doServidor) {
+      var j = JSON.stringify(plano);
+      if (j === aj.esbocoJson) { aj.doServidor = doServidor; return; }
+      var x = win.BZMapa.atualizar(plano, { rascunho: true });
+      if (x && x.ok) { aj.esboco = plano; aj.esbocoJson = j; aj.firme = null; aj.doServidor = doServidor; }
+    }
+    /* ---------- Fase 3, PR 3a: quando o aparelho não sabe, a reação (js/orcamento-anotacao.js) pergunta ao servidor ----------
+       precisaDoServidor(texto): o mapa oficial está na tela, o ajuste carregou e o roteador daqui não decidiu: a chamada de reação leva mapa: true.
+       ajusteDoServidor(ajuste, texto): a resposta só vale se a caixa ainda tem ESSE texto e o roteador daqui segue sem resposta (o local manda);
+       o plano sai do mesmo aplicarAjuste (tabela fixa, revalidado), então o servidor só escolhe a peça, nunca o desenho */
+    function prontoParaAjuste() { return !aj.falhou && !!aj.oficial && aj.carga === 'pronta' && !!st.campo && !!win.BZMapaAjuste && !!win.BZMapa; }
+    function precisaDoServidor(texto) {
+      try { return typeof texto === 'string' && !!texto.trim() && prontoParaAjuste() && !aj.firme && win.BZMapaAjuste.rotear(texto) === null; }
+      catch (e) { falharAjuste(e); return false; }
+    }
+    function ajusteDoServidor(ajuste, texto) {
+      try {
+        if (!prontoParaAjuste() || aj.firme || typeof texto !== 'string') return false;
+        var agora = st.campo.value.trim();
+        if (!agora || agora !== texto.trim() || win.BZMapaAjuste.rotear(agora) !== null) return false;
+        /* (revisão técnica 1) a reação da frase de AGORA voltou sem ajuste ("nada", trava, limite): o esboço do servidor que estava na tela sai */
+        if (!ehObjeto(ajuste)) { if (aj.doServidor && aj.esboco) voltarAoOficial(); return false; }
+        var r = win.BZMapaAjuste.aplicarAjuste(aj.oficial, { acao: ajuste.acao, peca: ajuste.peca });
+        if (!r || !r.ok) return false;
+        desenharEsboco(r.plano, agora);
+        return aj.doServidor === agora;
+      } catch (e) { falharAjuste(e); return false; }
     }
     /* o Enter dela: o esboço firma ("Ajustado", a luz) e espera a resposta do Zero. Ouvido na CAPTURA (antes do js/orcamento.js, que marca
        aria-busy ao aceitar o envio): ocupada (outro turno no meio) ou caixa vazia, o envio não sai, então nada firma. E o esboço é refeito do
@@ -171,7 +199,7 @@
       if (aj.falhou || !aj.esboco) return;
       try {
         var plano = aj.esboco, n = st.E && Array.isArray(st.E.mensagens) ? st.E.mensagens.length : 0;
-        aj.esboco = null; aj.esbocoJson = '';
+        aj.esboco = null; aj.esbocoJson = ''; aj.doServidor = '';
         win.BZMapa.atualizar(plano, { rascunho: false });
         aj.firme = plano; aj.firmeEm = n;
       } catch (e) { falharAjuste(e); }
@@ -193,11 +221,11 @@
       if (aj.falhou) return;
       try {
         var of = oficialDe(E);
-        if (!of) { aj.oficial = null; aj.oficialJson = ''; aj.esboco = null; aj.esbocoJson = ''; aj.firme = null; return; }
+        if (!of) { aj.oficial = null; aj.oficialJson = ''; aj.esboco = null; aj.esbocoJson = ''; aj.doServidor = ''; aj.firme = null; return; }
         /* (revisão técnica) a cola da planta redesenha o oficial também quando muda a versão, a origem ou o editável com o mesmo plano: o
            esboço na tela some, e a mesma frase tem de poder esboçar de novo */
         var j = JSON.stringify(of), p = E.planta, chave = p.versao + '|' + p.origem + '|' + E.planta_editavel, novo = j !== aj.oficialJson || chave !== aj.chave;
-        if (novo) { aj.oficial = of; aj.oficialJson = j; aj.chave = chave; aj.esboco = null; aj.esbocoJson = ''; aj.firme = null; }
+        if (novo) { aj.oficial = of; aj.oficialJson = j; aj.chave = chave; aj.esboco = null; aj.esbocoJson = ''; aj.doServidor = ''; aj.firme = null; }
         ouvirEnvio();
         carregarAjuste();   /* (depois do oficial: ao chegar, o ajuste já esboça o que estiver na caixa) */
         if (novo) return;
@@ -253,7 +281,7 @@
       } catch (e) { falhar(e); }
     }
 
-    return { atualizar: atualizar, _estado: st, _reagir: reagir };
+    return { atualizar: atualizar, precisaDoServidor: precisaDoServidor, ajusteDoServidor: ajusteDoServidor, _estado: st, _reagir: reagir };
   }
 
   return { criar: criar, ESPERA: ESPERA, LEITOR: LEITOR, ligada: ligada };

@@ -8,6 +8,7 @@
    ========================================================================== */
 import { semPrecoNoTexto, redigir, semInvisiveis, limparMensagem, pareceInjecao } from './seguranca.mjs';
 import { semNegarSerIA } from './travas-identidade.mjs';
+import AJUSTE from '../../js/mapa-ajuste.js';
 
 /* o interruptor: BZ_REACAO = 'ligada' (desligada em produção até o dono ver a fase inteira; na prévia, ligada junto com a planta) */
 export const reacaoLigada = env => !!env && env.BZ_REACAO === 'ligada';
@@ -49,9 +50,39 @@ export function textoParaReacao(bruto) {
   return texto;
 }
 
+/* ---------- Fase 3, PR 3a: o ajuste do mapa (plano docs/superpowers/plans/2026-11-28-mapa-vivo-fase3-pr3-servidor.md) ----------
+   Com o mapa oficial na tela e o roteador do aparelho sem resposta, a tela manda `mapa: true` e o Haiku, na MESMA chamada, só ESCOLHE uma peça
+   da tabela do aparelho (js/mapa-ajuste.js, opção A): o texto do nó é sempre o da tabela, nunca o do modelo. Sem `mapa`, o pedido é o de hoje. */
+export const PECAS_DO_AJUSTE = Object.freeze(Object.keys(AJUSTE.PECAS));
+const ACOES_DO_AJUSTE = Object.freeze(['entra', 'sai']);
+const SISTEMA_COM_MAPA = SISTEMA_REACAO + '\n' + [
+  'A pessoa já vê na tela o mapa do site dela. Se o texto PEDE para pôr ou para tirar UMA destas peças do site, devolva em ajuste a acao "entra" ou "sai" e a peca:',
+  'whatsapp (conversa pelo WhatsApp), formulario (formulário de pedido), agendamento (agenda de horários), mapa (como chegar), catalogo (catálogo ou cardápio), galeria (fotos dos trabalhos), blog (artigos).',
+  'Pergunta, dúvida, peça fora da lista, mais de uma peça ou nenhum pedido: acao "nada" e peca vazia.',
+  'Negação ("não quero", "não precisa"), condição ("se der", "talvez", "quem sabe") ou desistência ("esquece", "deixa pra lá"): acao "nada".'
+].join('\n');
+const ESQUEMA_COM_MAPA = Object.freeze({
+  type: 'object', additionalProperties: false, required: ['anotacao', 'entendeu', 'ajuste'],
+  properties: {
+    ...ESQUEMA_REACAO.properties,
+    ajuste: { type: 'object', additionalProperties: false, required: ['acao', 'peca'],
+      properties: { acao: { type: 'string', enum: [...ACOES_DO_AJUSTE, 'nada'] }, peca: { type: 'string', enum: [...PECAS_DO_AJUSTE, ''] } } }
+  }
+});
+
+/* json do modelo -> { acao, peca } do conjunto fechado, ou null (só as duas chaves voltam; "nada", peça fora da tabela ou tipo errado = null).
+   (revisão técnica 2) texto com pergunta também é null, como no roteador do aparelho: pergunta não é pedido, o Zero decide no turno */
+export function conferirAjuste(json, texto = '') {
+  if (String(texto).includes('?')) return null;
+  const a = json && typeof json === 'object' ? json.ajuste : null;
+  if (!a || typeof a !== 'object' || typeof a.acao !== 'string' || typeof a.peca !== 'string') return null;
+  if (!ACOES_DO_AJUSTE.includes(a.acao) || !PECAS_DO_AJUSTE.includes(a.peca)) return null;
+  return { acao: a.acao, peca: a.peca };
+}
+
 /* "<" e ">" do visitante viram \u003c/\u003e: ele não fecha a marca para escrever fora dela (o mesmo cuidado do briefing na geração) */
-export const montarPedidoReacao = texto => ({
-  papel: 'reacao', sistema: SISTEMA_REACAO, esquema: ESQUEMA_REACAO,
+export const montarPedidoReacao = (texto, { mapa = false } = {}) => ({
+  papel: 'reacao', sistema: mapa === true ? SISTEMA_COM_MAPA : SISTEMA_REACAO, esquema: mapa === true ? ESQUEMA_COM_MAPA : ESQUEMA_REACAO,
   mensagens: [{ role: 'user', content: '<texto>' + String(texto).replace(/</g, '\\u003c').replace(/>/g, '\\u003e') + '</texto>' }]
 });
 
