@@ -82,6 +82,8 @@ html[data-tema="claro"].is-ouro .mpc-no--objetivo .mpc-chip__disco, html[data-te
 .mpc-quadro--cel .mpc-rot { text-align: left; }
 .mpc-rot--sobre { background: var(--bg); }
 .mpc-rot--cinza { color: var(--t3); }
+/* o nó em esboço da Fase 3 (o rascunho do aparelho, antes do Enter): parado, a 34% (ESBOCO em js/mapa-desenho.js), sem tracejado animado e sem brilho */
+.mpc-no.is-rascunho, .mpc-seta.is-rascunho, .mpc-rot.is-rascunho { opacity: .34; }
 .mpc-luz { width: 6px; height: 6px; border-radius: 50%; background: var(--ac-2); opacity: 0; pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) {

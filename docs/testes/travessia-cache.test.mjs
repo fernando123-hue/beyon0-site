@@ -174,7 +174,7 @@ const SEM_V = [
   'js/planta-cresce.js → ./mapa-saber.js ./orcamento-rotulos.js (só o require do Node nos testes)',
   'js/mapa-layout.js → ./orcamento-mapa-forma.js (só o require do Node nos testes)',
   'js/orcamento-planta-esboco.js → js/planta-pecas.js js/mapa-saber.js js/planta-cresce.js js/planta-relogio.js js/planta-som.js js/planta-esboco.js css/planta-esboco.css (revalidam sempre)',
-  'js/orcamento-reacao.js → js/mapa-vivo-ler.js (o leitor do mapa vivo, fase 1a; revalida sempre)',
+  'js/orcamento-reacao.js → js/mapa-vivo-ler.js (o leitor do mapa vivo, fase 1a; revalida sempre) e js/oracao.js js/mapa-ajuste.js (o nó em esboço, Fase 3 PR 2: módulos puros; o velho com a página nova só esboça como antes, e sem o global o esboço não liga)',
   'js/mapa-vivo-ler.js → ./mapa-saber.js (só o require do Node nos testes)',
   'js/cena-dicionario.js → ./oracao.js ./orcamento-cena-forma.js (só o require do Node nos testes e no servidor; na tela, os dois scripts vêm antes)',
   'js/mapa-ajuste.js → ./oracao.js ./orcamento-mapa-forma.js (só o require do Node nos testes; na tela, os dois scripts vêm antes)',
@@ -188,7 +188,7 @@ test('os JS/CSS pedidos por JS sem ?v são exatamente os conhecidos (SEM_V)', ()
     const codigo = fs.readFileSync(path.join(RAIZ, a), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
     for (const [, u] of codigo.matchAll(LITERAL)) achados.push(a + ' ' + u);
   }
-  const conhecidos = new Set(['js/orcamento-reacao.js js/mapa-vivo-ler.js', 'js/mapa-vivo-ler.js ./mapa-saber.js', 'js/nucleo/boot.js /js/nucleo/cena.js', 'js/nucleo/boot.js /js/nucleo/gesto.js', 'js/nucleo/boot.js /js/nucleo/spec.js',
+  const conhecidos = new Set(['js/orcamento-reacao.js js/mapa-vivo-ler.js', 'js/orcamento-reacao.js js/oracao.js', 'js/orcamento-reacao.js js/mapa-ajuste.js', 'js/mapa-vivo-ler.js ./mapa-saber.js', 'js/nucleo/boot.js /js/nucleo/cena.js', 'js/nucleo/boot.js /js/nucleo/gesto.js', 'js/nucleo/boot.js /js/nucleo/spec.js',
     'js/nucleo/boot.js /js/nucleo/pecas.js', 'js/nucleo/boot.js /js/nucleo/coroa.js', 'js/nucleo/boot.js /js/nucleo/shaders.js',
     'js/nucleo/boot.js /vendor/three/three-nucleo.min.js', 'js/nucleo/cena.js ../../vendor/three/three-nucleo.min.js', 'js/nucleo/cena.js ./spec.js',
     'js/nucleo/cena.js ./pecas.js', 'js/nucleo/gesto.js ./spec.js', 'js/nucleo/pecas.js ./coroa.js', 'js/nucleo/pecas.js ./shaders.js',

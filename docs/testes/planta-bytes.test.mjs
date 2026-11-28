@@ -48,13 +48,15 @@ test('a ligação do esboço (js/orcamento-planta-esboco.js), publicada: no máx
 /* (PR 5b, 14/11) O MAPA DO CASO (v3): o que a pessoa baixa quando o plano tem "estrutura" (js/orcamento-planta.js, CONJUNTOS.v3). Medido com LF (o que o
    deploy serve; o CRLF de uma cópia no Windows não conta): 26.523 bytes com as duas peles no código, antes da escolha do dono; 27.202 depois das
    correções da revisão (girar a tela, esperar as fontes, exceção sem nada vivo); 27.764 com o "Ficou certo?" do PR 5c; 28.515 com o ajuste (deslize e nó novo); 29.033 com as correções da revisão do 5c;
-   28.518 só com a pele que o dono escolheu (o trilho, 14/11). Teto 28.800 (o v2 tem 29.300 para a mesma coisa). O CSS do mapa: 2.320 só com o trilho; teto 2.600. */
+   28.518 só com a pele que o dono escolheu (o trilho, 14/11). Teto 28.800 (o v2 tem 29.300 para a mesma coisa). O CSS do mapa: 2.320 só com o trilho; teto 2.600.
+   (28/11, Mapa vivo Fase 3 PR 2) 28.580 na main; 29.332 com o nó em esboço e o firmar (já enxuto: auxiliares parado/deslizar reaproveitados no
+   ajuste de sempre, comentários curtos). Recurso novo de propósito: teto 29.400 (o v2 tem 29.300 sem o esboço). */
 const gzLF = (rel) => zlib.gzipSync(Buffer.from(ler(rel).toString('utf8').replace(/\r\n/g, '\n')), { level: 9 }).length;
 const MODULOS_V3 = ['js/planta-pecas.js', 'js/planta-relogio.js', 'js/mapa-saber.js', 'js/orcamento-mapa-forma.js', 'js/mapa-layout.js', 'js/mapa-desenho.js'];
-test('JS do mapa do caso (v3) que a pessoa baixa: no máximo 28.800 bytes com gzip -9', () => {
+test('JS do mapa do caso (v3) que a pessoa baixa: no máximo 29.400 bytes com gzip -9', () => {
   const por = MODULOS_V3.map((m) => [m, gzLF(m)]);
   const soma = por.reduce((s, [, n]) => s + n, 0);
-  assert.ok(soma <= 28800, 'gzip -9 soma ' + soma + ' (' + por.map(([m, n]) => m + ' ' + n).join(', ') + ')');
+  assert.ok(soma <= 29400, 'gzip -9 soma ' + soma + ' (' + por.map(([m, n]) => m + ' ' + n).join(', ') + ')');
 });
 test('CSS do mapa do caso: no máximo 2.600 bytes com gzip -9', () => {
   assert.ok(gzLF('css/orcamento-mapa.css') <= 2600, String(gzLF('css/orcamento-mapa.css')));
