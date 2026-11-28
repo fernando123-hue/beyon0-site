@@ -44,6 +44,7 @@
   function baixar(w, doc, aoFim) {
     var i = 0;
     function proximo() {
+      if (st.carga === 'falhou') return;   /* (o CSS falhou no meio: não pede o resto) */
       while (i < MODULOS.length && w[MODULOS[i][1]]) i++;
       if (i >= MODULOS.length) { aoFim(prontos(w)); return; }
       var s = doc.createElement('script');
@@ -63,7 +64,7 @@
       if (st.carga === 'falhou') return;
       if (!ok) { falhou(alvo); return; }
       st.carga = 'pronta';
-      desenhar(w, doc, alvo, st.ultimoE);
+      if (st.ligado) desenhar(w, doc, alvo, st.ultimoE);   /* (desligado enquanto baixava: só fica pronta) */
     });
   }
 

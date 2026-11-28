@@ -194,6 +194,25 @@ test('os módulos já na página antes do 1º render: o CSS da cena é pedido me
   assert.equal(p.alvo.children[0].tagName, 'svg');
 });
 
+test('o mapa vivo desligado enquanto os módulos baixavam: quando chegam, a cena não aparece', () => {
+  const p = montar();
+  p.T.atualizar(ESTADO(['Barbearia, somos 2']));
+  p.T.atualizar({ reacao: false, conversa: { id: 'c1' }, mensagens: [] });
+  p.baixarTudo();
+  assert.equal(p.alvo.hidden, true);
+  p.T.atualizar(ESTADO(['Barbearia, somos 2']));
+  assert.equal(p.alvo.hidden, false, 'religado, a cena volta (os módulos já estão prontos)');
+  assert.equal(p.alvo.children[0].tagName, 'svg');
+});
+
+test('o CSS falhou: os scripts que faltavam não são mais pedidos', () => {
+  const p = montar();
+  p.T.atualizar(ESTADO(['Barbearia']));
+  p.doc.head.children[0].onerror();
+  p.baixarTudo();
+  assert.deepEqual(p.pedidos(), ['css/orcamento-cena.css', MODULOS[0]]);
+});
+
 test('página: o lugar da cena dentro da miniatura, o script antes do orcamento.js, o render e o lugar reservado no CSS estático', () => {
   const html = ler('orcamento.html');
   assert.match(html, /<div class="nasce__cena" id="o-nasce-cena" hidden><\/div>/);
