@@ -169,7 +169,7 @@ try {
   const tocar = async texto => { const b = page.locator('#o-log .orc-toque:not([data-feito]) button', { hasText: texto }).first(); await b.scrollIntoViewIfNeeded(); await b.click(); };
   await tocar('Serviços');   /* (o caminho até o Pix por um nicho comum; a saúde e a advocacia, que fecham pelo site com a ciência do dono, em docs/testes/saude-pedido.test.mjs) */
   ok(await espera(page, () => localStorage.getItem('bz-orcamento') !== null, 15000), 'a sessão nasce no 1º toque (com o anti-robô), não ao abrir a página');
-  ok(await espera(page, () => !document.getElementById('o-nasce').hidden && /Peça o seu orçamento/.test(document.getElementById('o-nasce-titulo').textContent), 8000), 'casca: o site nasce no 1º toque (o ramo vira a chamada do site)');
+  ok(await espera(page, () => !document.getElementById('o-nasce').hidden && /Peça\so\sseu\sorçamento/.test(document.getElementById('o-nasce-titulo').textContent), 8000), 'casca: o site nasce no 1º toque (o ramo vira a chamada do site)');
   ok(await falaInteira(), 'casca: depois do 1º toque, a pergunta seguinte aparece inteira (com a miniatura em cima)');
   await tocar('Agendamentos');
   await tocar('Pronto');
