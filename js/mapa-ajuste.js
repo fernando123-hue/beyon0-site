@@ -17,51 +17,62 @@
 })(typeof window !== 'undefined' ? window : null, function (O, F) {
   'use strict';
 
-  var tabela = function (o) { var t = Object.create(null), k; for (k in o) if (Object.prototype.hasOwnProperty.call(o, k)) t[k] = Object.freeze(o[k]); return Object.freeze(t); };
+  /* congela até o fundo: ninguém mexe nos ícones que uma peça reconhece (revisão técnica) */
+  var fundo = function (v) { if (v && typeof v === 'object') { Object.keys(v).forEach(function (k) { fundo(v[k]); }); Object.freeze(v); } return v; };
+  var tabela = function (o) { var t = Object.create(null), k; for (k in o) if (Object.prototype.hasOwnProperty.call(o, k)) t[k] = fundo(o[k]); return Object.freeze(t); };
   var tem = function (o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); };
   var falha = function (motivo) { return { ok: false, motivo: motivo }; };
 
   /* id do nó novo (aj_ + curto, até 12 caracteres, a regra da forma); icone: o desenho do nó novo; icones: os que contam como esta peça
-     num mapa que já existe (para "já tem" e para "sai"); a frase é da Beyon, na voz das BASES de api/_vendas/mapa-padrao.mjs */
+     num mapa que já existe ("já tem"); sai: os ícones que "tira a peça" pode tirar (estreito: "mensagem" pode ser lembrete e "documento"
+     pode ser proposta, então o blog só sai se foi o ajuste dele); a frase é da Beyon, na voz das BASES de api/_vendas/mapa-padrao.mjs */
   var PECAS = tabela({
-    whatsapp: { id: 'aj_conversa', icone: 'conversa', icones: ['conversa', 'mensagem'], titulo: 'Conversa direto do site', frase: 'Um toque no site abre a conversa já com o assunto', rotulo: 'chama para conversar' },
-    formulario: { id: 'aj_form', icone: 'formulario', icones: ['formulario', 'briefing'], titulo: 'Formulário de pedido', frase: 'Os dados chegam organizados, sem ida e volta', rotulo: 'preenche' },
-    agendamento: { id: 'aj_agenda', icone: 'agenda', icones: ['agenda'], titulo: 'Agenda no site', frase: 'Vê os horários livres e marca ali mesmo', rotulo: 'marca o horário' },
-    mapa: { id: 'aj_mapa', icone: 'mapa', icones: ['mapa'], titulo: 'Como chegar', frase: 'O endereço com o mapa, para achar sem perguntar', rotulo: 'acha o endereço' },
-    catalogo: { id: 'aj_catalogo', icone: 'catalogo', icones: ['catalogo', 'cardapio'], titulo: 'Catálogo no site', frase: 'Cada item com foto e descrição, fácil de escolher', rotulo: 'escolhe' },
-    galeria: { id: 'aj_galeria', icone: 'galeria', icones: ['galeria'], titulo: 'Galeria de trabalhos', frase: 'As fotos do que já foi feito, antes de decidir', rotulo: 'vê os trabalhos' },
-    blog: { id: 'aj_blog', icone: 'documento', icones: ['documento'], titulo: 'Artigos no site', frase: 'Textos que respondem as dúvidas mais comuns', rotulo: 'lê e entende' }
+    whatsapp: { id: 'aj_conversa', icone: 'conversa', icones: ['conversa', 'mensagem'], sai: ['conversa'], titulo: 'Conversa direto do site', frase: 'Um toque no site abre a conversa já com o assunto', rotulo: 'chama para conversar' },
+    formulario: { id: 'aj_form', icone: 'formulario', icones: ['formulario', 'briefing'], sai: ['formulario'], titulo: 'Formulário de pedido', frase: 'Os dados chegam organizados, sem ida e volta', rotulo: 'preenche' },
+    agendamento: { id: 'aj_agenda', icone: 'agenda', icones: ['agenda'], sai: ['agenda'], titulo: 'Agenda no site', frase: 'Vê os horários livres e marca ali mesmo', rotulo: 'marca o horário' },
+    mapa: { id: 'aj_mapa', icone: 'mapa', icones: ['mapa'], sai: ['mapa'], titulo: 'Como chegar', frase: 'O endereço com o mapa, para achar sem perguntar', rotulo: 'acha o endereço' },
+    catalogo: { id: 'aj_catalogo', icone: 'catalogo', icones: ['catalogo', 'cardapio'], sai: ['catalogo'], titulo: 'Catálogo no site', frase: 'Cada item com foto e descrição, fácil de escolher', rotulo: 'escolhe' },
+    galeria: { id: 'aj_galeria', icone: 'galeria', icones: ['galeria'], sai: ['galeria'], titulo: 'Galeria de trabalhos', frase: 'As fotos do que já foi feito, antes de decidir', rotulo: 'vê os trabalhos' },
+    blog: { id: 'aj_blog', icone: 'documento', icones: ['documento'], sai: [], titulo: 'Artigos no site', frase: 'Textos que respondem as dúvidas mais comuns', rotulo: 'lê e entende' }
   });
   var ACOES = ['entra', 'sai'];
   /* só estes papéis podem sair: o site, o hoje, a trava e a origem são o caso dela, não uma peça */
   var PODEM_SAIR = ['acao', 'conversa', 'volta', 'ajustado'];
   var OBJETIVO = 'objetivo';
 
-  /* ---------- o roteador por palavras (texto já pode vir cru: passa por O.semAcento) ---------- */
+  /* ---------- o roteador por palavras (texto já pode vir cru: passa por O.semAcento) ----------
+     Na dúvida, null (o Zero decide no turno). Revisão técnica: pergunta não é pedido; o verbo de sair negado é "manter"; duas peças citadas,
+     ou um verbo de sair que não casa a peça, ficam com o Zero; "entra" pede um verbo de pedir (menção solta, "a agenda de clientes", não). */
   var PALAVRAS = tabela({
-    whatsapp: '(?:whats\\w*|zap\\w*|wpp)',
+    whatsapp: '(?:whatsapp|whats|zap|zapzap|wpp)',
     formulario: 'formularios?',
-    agendamento: '(?:agend\\w*|marcar horarios?)',
-    mapa: '(?:mapa|como chegar|localizacao)',
+    agendamento: '(?:agenda|agendamentos?|agendar horarios?|marcar horarios?)',
+    mapa: '(?:como chegar|mapa de localizacao|localizacao)',
     catalogo: 'catalogos?',
     galeria: '(?:galeria|portfolio)',
-    blog: '(?:blog|artigos?)'
+    blog: 'blog'
   });
-  var SAI_ANTES = '\\b(?:tir\\w*|remov\\w*|sem|nao (?:quero|preciso|precisa)(?: de)?)\\s+(?:(?:o|a|os|as|de|do|da|mais|um|uma)\\s+){0,2}';
-  var RE_ACHA = {}, RE_SAI = {};
+  var VERBO_SAI = '(?:tir|retir|remov|exclu|cancel|dispens)\\w*';
+  var SAI_ANTES = '\\b(?:' + VERBO_SAI + '|sem|nao (?:quero|preciso|precisa)(?: de)?)\\s+(?:(?:o|a|os|as|de|do|da|mais|um|uma)\\s+){0,2}';
+  var RE_VERBO_SAI = new RegExp('\\b' + VERBO_SAI);
+  var RE_SAI_NEGADO = new RegExp('\\b(?:nao|nunca|nem)\\s+(?:\\w+\\s+)?' + VERBO_SAI);
+  var RE_PEDE = /\b(?:quero|queria|queremos|gostaria|poe|ponha|bota|bote|coloca\w*|coloque\w*|adiciona\w*|adicione|acrescent\w*|inclui\w*|tambem|precis\w*)\b/;
+  var RE_ACHA = {}, RE_CITA = {}, RE_SAI = {};
   Object.keys(PALAVRAS).forEach(function (k) {
     RE_ACHA[k] = new RegExp('\\b' + PALAVRAS[k] + '\\b', 'g');
+    RE_CITA[k] = new RegExp('\\b' + PALAVRAS[k] + '\\b');
     RE_SAI[k] = new RegExp(SAI_ANTES + PALAVRAS[k] + '\\b');
   });
   function rotear(bruto) {
     if (!O || typeof bruto !== 'string') return null;
-    var texto = O.semAcento(bruto), sai = [], entra = [];
-    Object.keys(PALAVRAS).forEach(function (k) {
-      if (RE_SAI[k].test(texto)) sai.push(k);
-      else if (O.achaSemNegar(texto, RE_ACHA[k])) entra.push(k);
-    });
-    if (sai.length + entra.length !== 1) return null;
-    return sai.length ? { acao: 'sai', peca: sai[0] } : { acao: 'entra', peca: entra[0] };
+    var texto = O.semAcento(bruto);
+    if (texto.indexOf('?') >= 0 || RE_SAI_NEGADO.test(texto)) return null;
+    var citadas = Object.keys(PALAVRAS).filter(function (k) { return RE_CITA[k].test(texto); });
+    if (citadas.length !== 1) return null;
+    var k = citadas[0];
+    if (RE_SAI[k].test(texto)) return { acao: 'sai', peca: k };
+    if (RE_VERBO_SAI.test(texto) || !RE_PEDE.test(texto) || !O.achaSemNegar(texto, RE_ACHA[k])) return null;
+    return { acao: 'entra', peca: k };
   }
 
   /* ---------- aplicarAjuste ---------- */
@@ -85,20 +96,27 @@
     return falha('nao_cabe');
   }
 
-  /* sai: tira o 1º nó da peça (só papéis que podem sair) e liga cada um que chegava nele a cada um aonde ele ia, com o rótulo da saída */
+  /* sai: tira o 1º nó da peça (o ajuste dela, ou um nó de papel que pode sair com um dos ícones "sai") e liga cada um que chegava nele a cada
+     um aonde ele ia, com o rótulo da saída. As setas novas ficam no lugar da 1ª que saiu: a ordem decide o lado nos ramos (revisão técnica),
+     e entrar e sair devolve o plano de antes */
   function sair(plano, peca) {
     var alvo = null;
-    plano.nos.forEach(function (n) { if (!alvo && daPeca(peca, n) && PODEM_SAIR.indexOf(n.papel) >= 0) alvo = n.id; });
+    plano.nos.forEach(function (n) {
+      if (!alvo && (n.id === peca.id || (PODEM_SAIR.indexOf(n.papel) >= 0 && peca.sai.indexOf(n.icone) >= 0))) alvo = n.id;
+    });
     if (!alvo) return falha('nao_tem');
-    var novo = copiar(plano), chegam = [], vao = [], setas = [], visto = {};
-    novo.setas.forEach(function (s) { if (s.para === alvo) chegam.push(s); else if (s.de === alvo) vao.push(s); else setas.push(s); });
-    setas.forEach(function (s) { visto[s.de + '>' + s.para] = 1; });
+    var novo = copiar(plano), chegam = [], vao = [], visto = {}, ligacoes = [], setas = [], posto = false;
+    novo.setas.forEach(function (s) { if (s.para === alvo) chegam.push(s); else if (s.de === alvo) vao.push(s); else visto[s.de + '>' + s.para] = 1; });
     chegam.forEach(function (c) {
       vao.forEach(function (v) {
         if (c.de === v.para || visto[c.de + '>' + v.para]) return;
         visto[c.de + '>' + v.para] = 1;
-        setas.push({ de: c.de, para: v.para, rotulo: v.rotulo });
+        ligacoes.push({ de: c.de, para: v.para, rotulo: v.rotulo });
       });
+    });
+    novo.setas.forEach(function (s) {
+      if (s.para !== alvo && s.de !== alvo) { setas.push(s); return; }
+      if (!posto) { setas = setas.concat(ligacoes); posto = true; }
     });
     novo.nos = novo.nos.filter(function (n) { return n.id !== alvo; });
     novo.setas = setas;

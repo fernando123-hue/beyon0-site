@@ -71,14 +71,17 @@ test('peça que já está no mapa não entra de novo; "sai" tira o nó e reencai
 });
 
 test('"sai" nunca tira o nó do site, do hoje, da trava nem da origem (só ação, conversa, volta e ajustado)', () => {
-  for (const chave of CHAVES_DO_MAPA) for (const peca of PECAS) {
-    const p = planoDoCaso(chave, SABERES[2]);
+  let tirou = 0;
+  for (const chave of CHAVES_DO_MAPA) for (const saber of SABERES) for (const peca of PECAS) {
+    const p = planoDoCaso(chave, saber);
     const r = A.aplicarAjuste(p, { acao: 'sai', peca });
     if (!r.ok) continue;
+    tirou++;
     const saiu = p.nos.filter((n) => !r.plano.nos.some((x) => x.id === n.id));
     assert.equal(saiu.length, 1);
     assert.ok(['acao', 'conversa', 'volta', 'ajustado'].includes(saiu[0].papel), chave + ' ' + peca + ': ' + saiu[0].papel);
   }
+  assert.ok(tirou >= 6, 'o teste não passa vazio (' + tirou + ' saídas)');
 });
 
 test('o que estouraria os limites não vira rascunho: 6 nós, 5 camadas, 2 ajustados (o Zero assume no turno)', () => {
@@ -91,11 +94,53 @@ test('o que estouraria os limites não vira rascunho: 6 nós, 5 camadas, 2 ajust
   });
   assert.equal(F.validarFormaMapa(cinco).ok, true, 'o plano de partida é válido');
   assert.deepEqual(A.aplicarAjuste(cinco, { acao: 'entra', peca: 'galeria' }), { ok: false, motivo: 'nao_cabe' });
-  let p = planoDoCaso('servico_orcamento', SABERES[0]);
+  const p = planoDoCaso('servico_orcamento', SABERES[0]);
   const r1 = A.aplicarAjuste(p, { acao: 'entra', peca: 'galeria' });
   assert.equal(r1.ok, true, JSON.stringify(r1));
   const r2 = A.aplicarAjuste(r1.plano, { acao: 'entra', peca: 'mapa' });
-  if (r2.ok) assert.deepEqual(A.aplicarAjuste(r2.plano, { acao: 'entra', peca: 'blog' }).ok, false, 'no máximo 2 ajustados');
+  assert.equal(r2.ok, true, JSON.stringify(r2));
+  assert.deepEqual(A.aplicarAjuste(r2.plano, { acao: 'entra', peca: 'blog' }), { ok: false, motivo: 'nao_cabe' }, 'no máximo 2 ajustados');
+  /* o 3º caberia nas camadas: quem recusa é o limite de ajustados da forma */
+  const terceiro = { ...r2.plano, nos: r2.plano.nos.map((n) => n.papel === 'ajustado' && n.id === 'aj_galeria' ? { ...n, papel: 'acao' } : n) };
+  assert.equal(A.aplicarAjuste(terceiro, { acao: 'entra', peca: 'blog' }).ok, true, 'com 1 ajustado, o 3º nó entra');
+});
+
+test('por estrutura: no ciclo o nó novo não cabe (o objetivo já tem a volta); nos ramos, tirar um dos dois caminhos desfaz a estrutura', () => {
+  for (const chave of ['saude_agenda', 'servico_agenda']) for (const peca of ['galeria', 'mapa', 'blog']) {
+    assert.deepEqual(A.aplicarAjuste(planoDoCaso(chave, SABERES[1]), { acao: 'entra', peca }), { ok: false, motivo: 'nao_cabe' }, chave + ' ' + peca);
+  }
+  for (const chave of ['servico_orcamento', 'educacao', 'industria_b2b']) {
+    assert.equal(A.aplicarAjuste(planoDoCaso(chave, SABERES[1]), { acao: 'entra', peca: 'galeria' }).ok, true, chave);
+  }
+  /* a "visita" (conversa, ícone agenda) é um dos dois caminhos: sem ela não há ramos */
+  assert.deepEqual(A.aplicarAjuste(planoDoCaso('servico_orcamento', SABERES[0]), { acao: 'sai', peca: 'agendamento' }), { ok: false, motivo: 'nao_cabe' });
+});
+
+test('"sai" só tira o nó da peça: o catálogo da loja é o SITE (fica); o blog só sai se foi um ajuste (documento pode ser proposta)', () => {
+  assert.deepEqual(A.aplicarAjuste(planoDoCaso('loja_online', SABERES[0]), { acao: 'sai', peca: 'catalogo' }), { ok: false, motivo: 'nao_tem' });
+  const doc = { id: 'prop', papel: 'acao', icone: 'documento', titulo: 'Recebe a proposta', frase: 'A proposta chega organizada para decidir' };
+  const p = planoDoCaso('industria_b2b', SABERES[0]);
+  const comDoc = { ...p, nos: p.nos.concat(doc), setas: p.setas.map((s) => s.para === 'objetivo' ? { ...s, para: 'prop' } : s).concat({ de: 'prop', para: 'objetivo', rotulo: 'decide' }) };
+  assert.equal(F.validarFormaMapa(comDoc).ok, true);
+  assert.deepEqual(A.aplicarAjuste(comDoc, { acao: 'sai', peca: 'blog' }), { ok: false, motivo: 'nao_tem' });
+  const r = A.aplicarAjuste(p, { acao: 'entra', peca: 'blog' });
+  assert.equal(r.ok, true);
+  assert.deepEqual(A.aplicarAjuste(r.plano, { acao: 'sai', peca: 'blog' }).mudou, ['aj_blog']);
+});
+
+test('ida e volta: entra e depois sai devolve o plano de antes, com as setas na mesma ordem (a ordem decide o lado nos ramos)', () => {
+  for (const chave of ['servico_orcamento', 'educacao', 'loja_online', 'industria_b2b', 'alimentacao']) for (const peca of ['galeria', 'mapa', 'blog']) {
+    const p = planoDoCaso(chave, SABERES[1]);
+    const ida = A.aplicarAjuste(p, { acao: 'entra', peca });
+    if (!ida.ok) continue;
+    const volta = A.aplicarAjuste(ida.plano, { acao: 'sai', peca });
+    assert.equal(volta.ok, true, chave + ' ' + peca);
+    assert.deepEqual(volta.plano, F.validarFormaMapa(p).plano, chave + ' ' + peca);
+  }
+});
+
+test('a tabela é congelada até o fundo (ninguém mexe nos ícones que a peça reconhece)', () => {
+  for (const k of PECAS) { assert.ok(Object.isFrozen(A.PECAS[k])); assert.ok(Object.isFrozen(A.PECAS[k].icones), k); assert.ok(Object.isFrozen(A.PECAS[k].sai), k); }
 });
 
 test('entrada ruim nunca lança: plano inválido, ajuste sem forma, ação fora da lista', () => {
@@ -111,14 +156,29 @@ test('entrada ruim nunca lança: plano inválido, ajuste sem forma, ação fora 
 test('rotear: palavras viram { acao, peca } só quando há UMA peça e nada ambíguo; o resto fica com o Zero (null)', () => {
   const casos = [
     ['quero também um formulário de pedido', { acao: 'entra', peca: 'formulario' }],
-    ['Dá pra colocar a agenda online?', { acao: 'entra', peca: 'agendamento' }],
+    ['coloca a agenda online', { acao: 'entra', peca: 'agendamento' }],
     ['põe o mapa de como chegar', { acao: 'entra', peca: 'mapa' }],
     ['quero um catálogo com as peças', { acao: 'entra', peca: 'catalogo' }],
-    ['uma galeria com os trabalhos', { acao: 'entra', peca: 'galeria' }],
+    ['adiciona uma galeria com os trabalhos', { acao: 'entra', peca: 'galeria' }],
     ['tira o agendamento', { acao: 'sai', peca: 'agendamento' }],
     ['pode remover o formulário', { acao: 'sai', peca: 'formulario' }],
+    ['pode retirar o formulário', { acao: 'sai', peca: 'formulario' }],
+    ['excluir a agenda', { acao: 'sai', peca: 'agendamento' }],
+    ['cancela o blog', { acao: 'sai', peca: 'blog' }],
     ['não preciso de agenda', { acao: 'sai', peca: 'agendamento' }],
     ['quero o site sem blog', { acao: 'sai', peca: 'blog' }],
+    /* revisão técnica: o verbo de sair negado é "manter" (null); pergunta e menção não são pedido; duas peças, o Zero decide */
+    ['não quero tirar o formulário', null],
+    ['não tira o formulário', null],
+    ['Dá pra colocar a agenda online?', null],
+    ['já tem agenda?', null],
+    ['a agenda de clientes hoje é no caderno', null],
+    ['quero ver o mapa', null],
+    ['vendo artigos de couro', null],
+    ['não quero formulário nem agenda', null],
+    ['sem blog nem formulário', null],
+    ['tira o whatsapp e coloca agenda', null],
+    ['pode excluir isso', null],
     ['quero cobrar um sinal pelo Pix', null],
     ['quero uma área restrita para alunos', null],
     ['quero agenda e formulário', null],
@@ -127,4 +187,8 @@ test('rotear: palavras viram { acao, peca } só quando há UMA peça e nada amb�
   ];
   for (const [texto, esperado] of casos) assert.deepEqual(A.rotear(texto), esperado, texto);
   for (const ruim of [null, 7, {}, ['agenda']]) assert.equal(A.rotear(ruim), null);
+  /* custo linear: 2000 caracteres hostis em poucos ms */
+  for (const hostil of ['sem' + ' '.repeat(1990) + 'blog', 'tira '.repeat(400), 'nao quero de '.repeat(150) + 'agenda', 'agenda '.repeat(285)]) {
+    const t0 = performance.now(); A.rotear(hostil); assert.ok(performance.now() - t0 < 50, 'rápido');
+  }
 });
