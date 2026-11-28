@@ -183,6 +183,11 @@ test('rotear: palavras viram { acao, peca } só quando há UMA peça e nada amb�
     ['quero uma área restrita para alunos', null],
     ['quero agenda e formulário', null],
     ['tenho uma barbearia no centro', null],
+    /* 2ª revisão técnica: pedir para VER, SABER ou MUDAR a peça não é colocá-la */
+    ['quero ver a galeria', null],
+    ['quero mudar a agenda', null],
+    ['gostaria de saber como chegar', null],
+    ['nao gostei tira a agenda', null],
     ['', null]
   ];
   for (const [texto, esperado] of casos) assert.deepEqual(A.rotear(texto), esperado, texto);

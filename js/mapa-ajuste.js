@@ -57,6 +57,8 @@
   var RE_VERBO_SAI = new RegExp('\\b' + VERBO_SAI);
   var RE_SAI_NEGADO = new RegExp('\\b(?:nao|nunca|nem)\\s+(?:\\w+\\s+)?' + VERBO_SAI);
   var RE_PEDE = /\b(?:quero|queria|queremos|gostaria|poe|ponha|bota|bote|coloca\w*|coloque\w*|adiciona\w*|adicione|acrescent\w*|inclui\w*|tambem|precis\w*)\b/;
+  /* (2ª revisão técnica) pedir para ver, saber, mudar ou trocar a peça não é colocá-la: o Zero decide */
+  var RE_OUTRO_PEDIDO = /\b(?:ver|saber|entender|mudar|trocar|alterar|mexer)\b/;
   var RE_ACHA = {}, RE_CITA = {}, RE_SAI = {};
   Object.keys(PALAVRAS).forEach(function (k) {
     RE_ACHA[k] = new RegExp('\\b' + PALAVRAS[k] + '\\b', 'g');
@@ -71,7 +73,7 @@
     if (citadas.length !== 1) return null;
     var k = citadas[0];
     if (RE_SAI[k].test(texto)) return { acao: 'sai', peca: k };
-    if (RE_VERBO_SAI.test(texto) || !RE_PEDE.test(texto) || !O.achaSemNegar(texto, RE_ACHA[k])) return null;
+    if (RE_VERBO_SAI.test(texto) || RE_OUTRO_PEDIDO.test(texto) || !RE_PEDE.test(texto) || !O.achaSemNegar(texto, RE_ACHA[k])) return null;
     return { acao: 'entra', peca: k };
   }
 
