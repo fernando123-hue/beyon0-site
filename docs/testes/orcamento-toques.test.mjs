@@ -269,3 +269,27 @@ test('a equipe (dono 27/11): 4 faixas de lista fechada, opcional ("Prefiro não 
   assert.equal(puro(q.T.pendentes()).equipe, 'ate_15');
   assert.equal(puro(q.T.respostas()).equipe, 'ate_15', 'a miniatura e a cena leem a faixa');
 });
+
+test('a equipe na conversa retomada (revisão técnica 28/11): a faixa tocada volta do briefing para a cena, fora do "Mudar"; faixa fora da lista não entra', () => {
+  const p = montar();
+  p.T.configurar({ consultor: true });
+  p.T.atualizar({ conversa: { briefing: { fluxo_conversa: true, fluxo_toques: { ramo: 'saude', objetivos: ['agendamentos'], equipe: 'ate_5' } } }, mensagens: [{ papel: 'visitante', conteudo: 'x' }] });
+  assert.equal(puro(p.T.respostas()).equipe, 'ate_5', 'a miniatura e a cena leem a faixa');
+  assert.equal(p.T.pendentes(), null, 'já entregue: nada segue junto');
+  const q = montar();
+  q.T.configurar({ consultor: true });
+  q.T.atualizar({ conversa: { briefing: { fluxo_conversa: true, fluxo_toques: { ramo: 'saude', equipe: '__proto__' } } }, mensagens: [{ papel: 'visitante', conteudo: 'x' }] });
+  assert.equal(puro(q.T.respostas()).equipe, undefined, 'fora da lista: some');
+});
+
+test('"Seguir tocando" no passo da equipe (revisão técnica 28/11): as faixas voltam sem repetir a pergunta e o caminho segue até a dor', async () => {
+  const p = montar();
+  p.T.iniciar({ consultor: true });
+  await ate(p, 'Saúde', 'Agendamentos', 'Pronto', 'Só o Instagram', 'Tenho');
+  const antes = p.falas().length;
+  p.T.semConsultor();
+  assert.equal(p.falas().length, antes, 'nenhuma fala repetida');
+  assert.ok(p.botao('Só eu') && p.botao('Prefiro não dizer'), 'as faixas voltam');
+  await ate(p, 'Só eu');
+  assert.match(p.falas().at(-1), /como os clientes chegam/);
+});

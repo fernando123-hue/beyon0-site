@@ -155,10 +155,10 @@
     } catch (x) { return null; }
   }
 
-  /* cenaDoCaso({ ramo, texto, canais, objetivos, regulado }) -> a cena congelada (BZCenaForma.validar) ou null */
   /* a faixa tocada (dono 27/11, js/orcamento-rotulos.js EQUIPE) vira um número só para o DESENHO, quando o texto não diz quantos são */
   var GENTE_DA_FAIXA = { so_eu: 1, ate_5: 3, ate_15: 5, mais_15: 6 };
   function genteDaFaixa(v) { return typeof v === 'string' && Object.prototype.hasOwnProperty.call(GENTE_DA_FAIXA, v) ? GENTE_DA_FAIXA[v] : 0; }
+  /* cenaDoCaso({ ramo, texto, canais, objetivos, regulado }) -> a cena congelada (BZCenaForma.validar) ou null */
   function cenaDoCaso(caso) {
     try {
       if (!caso || typeof caso !== 'object' || Array.isArray(caso)) return null;

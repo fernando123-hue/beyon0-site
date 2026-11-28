@@ -228,6 +228,9 @@
   function passoEquipe() {
     s.passo = 'equipe';
     fala(FALAS.equipe);
+    opcoesEquipe();
+  }
+  function opcoesEquipe() {
     opcoes('Quantas pessoas trabalham aí', itensDe(R.EQUIPE), function (v, rotulo) {
       s.respostas = v ? comCampo(s.respostas, 'equipe', v) : semCampo(s.respostas, 'equipe');
       bolha(rotulo || PULAR_EQUIPE);
@@ -418,7 +421,11 @@
       ultimoE = E || null;
       if (s.iniciado || !E || !E.conversa) return;
       var b = E.conversa.briefing || {}, t = b.fluxo_toques;
-      if (t && typeof t === 'object') s.respostas = soMudanca(copiar(t));
+      if (t && typeof t === 'object') {
+        s.respostas = soMudanca(copiar(t));
+        /* (revisão técnica 28/11) a faixa tocada volta para a cena; fica fora do "Mudar" (pendentes() já é null: a conversa está entregue) */
+        if (typeof t.equipe === 'string' && Object.prototype.hasOwnProperty.call(R.EQUIPE, t.equipe)) s.respostas = comCampo(s.respostas, 'equipe', t.equipe);
+      }
       if (s.respostas && s.respostas.ramo) avisarRespostas();   /* (conversa retomada: o site dela já nasce com o que ela tocou) */
       if (b.fluxo_conversa === true && E.mensagens && E.mensagens.length) s.entregue = true;
     },
@@ -468,6 +475,7 @@
       fecharAbertos();
       if (s.entregue) { s.iniciado = true; resumoSemConsultor(); return; }
       if (s.passo === 'dor') opcoesDor(s.situacao);
+      else if (s.passo === 'equipe') opcoesEquipe();   /* (revisão técnica 28/11) as faixas voltam sem repetir a pergunta */
     },
     situacao: function () { return s.situacao.slice(); },
     respostas: function () { return copiar(s.respostas); },
