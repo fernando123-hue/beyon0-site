@@ -176,6 +176,8 @@ try {
   ok(await espera(page, () => [].some.call(document.querySelectorAll('#o-nasce-pecas li'), l => l.textContent === 'Agenda de horários'), 8000), 'casca: cada objetivo tocado vira uma peça do site');
   await tocar('Só o Instagram');
   await tocar('Tenho');
+  ok(await espera(page, () => [].some.call(document.querySelectorAll('#o-log .orc-toque:not([data-feito]) button'), b => b.textContent === '16 ou mais'), 8000), 'a equipe (dono 27/11): a pergunta aparece com as 4 faixas e o "Prefiro não dizer"');
+  await tocar('2 a 5');
   await page.waitForFunction(() => /Site com/.test(document.getElementById('o-rde-entrega').textContent), null, { timeout: 15000 });
   ok((await page.textContent('#o-rde-valor')).trim() === '—' && /Entendendo/.test(await page.textContent('#o-rde-estado')), 'o valor espera o caso: os cantos do radar se preenchem, o miolo fica sem número');
   ok(await page.locator('#o-est-cheio').isHidden(), 'o cartão do investimento também espera');
@@ -1000,6 +1002,7 @@ try {
       await tocarEm('Pronto');
       await tocarEm('Só o Instagram');
       await tocarEm('Tenho');
+      await tocarEm('Prefiro não dizer');   /* (a equipe é opcional: pular segue) */
       await tocarEm('Pelo Instagram');
       await tocarEm('Pronto');
     };
@@ -1091,6 +1094,7 @@ try {
     await tocarEm('Pronto');
     await tocarEm('Não sei, escolha por mim');
     await tocarEm('Não sei, escolha por mim');
+    await tocarEm('Prefiro não dizer');   /* (a equipe, dono 27/11: opcional) */
     ok(await semRolagemLateral(p), w + 'px nos toques: sem rolagem lateral');
     await foto(p, nome + '-toques');
     if (CONSULTOR) { await c.close(); continue; }   /* (com o consultor, a dor vai à IA: o caminho inteiro já passou no fluxo principal) */

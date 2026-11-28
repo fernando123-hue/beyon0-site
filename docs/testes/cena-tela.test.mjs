@@ -213,6 +213,14 @@ test('o CSS falhou: os scripts que faltavam não são mais pedidos', () => {
   assert.deepEqual(p.pedidos(), ['css/orcamento-cena.css', MODULOS[0]]);
 });
 
+test('a faixa da equipe tocada põe gente na cena quando o texto não diz o número (dono 27/11)', () => {
+  const p = montar();
+  p.toques.equipe = 'ate_5';
+  p.T.atualizar(ESTADO(['Barbearia']));
+  p.baixarTudo();
+  assert.equal(p.alvo.children[0].querySelectorAll('.cena__gente').length, 3);
+});
+
 test('página: o lugar da cena dentro da miniatura, o script antes do orcamento.js, o render e o lugar reservado no CSS estático', () => {
   const html = ler('orcamento.html');
   assert.match(html, /<div class="nasce__cena" id="o-nasce-cena" hidden><\/div>/);

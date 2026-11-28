@@ -192,3 +192,11 @@ test('Perfil no Google pronto (R$ 900, 17/11): principal nos ramos que recebem c
   assert.match(FRASES.perfil_google, /você confirma .* e cola/i, 'a frase diz que a confirmação no Google e a colagem são do cliente');
   assert.match(e.beneficio, /você confirma .* e cola/i, 'o cartão também');
 });
+
+test('negocio.equipe: o briefing aceita só as 4 faixas (o consultor também pode registrar a que ela disse); fora da lista some', async () => {
+  const { respostasParaBriefingParcial } = await import('../../api/_vendas/catalogo.mjs');
+  assert.deepEqual(limparAtualizacao({ negocio: { segmento: 'saúde', equipe: 'ate_5' } }).negocio, { segmento: 'saúde', equipe: 'ate_5' });
+  for (const v of ['7', 'x', 3, '__proto__']) assert.equal(limparAtualizacao({ negocio: { segmento: 'saúde', equipe: v } }).negocio.equipe, undefined, String(v));
+  assert.deepEqual(respostasParaBriefingParcial({ ramo: 'saude', equipe: 'mais_15' }).negocio, { segmento: 'saúde', equipe: 'mais_15' });
+  assert.deepEqual(respostasParaBriefingParcial({ equipe: 'so_eu' }).negocio, { equipe: 'so_eu' });
+});

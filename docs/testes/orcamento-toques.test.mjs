@@ -8,7 +8,7 @@ import { montarConversa, tique, puro } from './_dom-falso.mjs';
 
 const montar = o => montarConversa(o);
 const ate = async (p, ...toques) => { for (const t of toques) { p.tocar(t); await tique(); } };
-const ATE_DOR = ['Saúde', 'Agendamentos', 'Pronto', 'Só o Instagram', 'Tenho'];
+const ATE_DOR = ['Saúde', 'Agendamentos', 'Pronto', 'Só o Instagram', 'Tenho', 'Só eu'];
 
 test('os passos fixos: cada toque vira a bolha da pessoa, pede a conta (o radar) e traz a próxima fala, anunciada e rotulando o grupo', async () => {
   const p = montar();
@@ -23,7 +23,9 @@ test('os passos fixos: cada toque vira a bolha da pessoa, pede a conta (o radar)
   const rotulo = grupo.getAttribute('aria-labelledby');
   assert.ok(rotulo && p.doc.getElementById(rotulo).textContent === p.falas().at(-1), 'o grupo é rotulado pela própria fala');
   await ate(p, 'Agendamentos', 'Pronto', 'Só o Instagram', 'Tenho');
-  assert.deepEqual(p.bolhas(), ['Saúde', 'Agendamentos', 'Só o Instagram', 'Tenho']);
+  assert.match(p.falas().at(-1), /quantas pessoas trabalham/i, 'depois do material, a equipe (dono 27/11)');
+  await ate(p, 'Só eu');
+  assert.deepEqual(p.bolhas(), ['Saúde', 'Agendamentos', 'Só o Instagram', 'Tenho', 'Só eu']);
   assert.match(p.falas().at(-1), /como os clientes chegam/);
 });
 
@@ -31,7 +33,7 @@ test('pendentes: os toques (e, no passo da dor, responde dor e as sugestões) se
   const p = montar();
   p.T.iniciar({ consultor: true });
   await ate(p, ...ATE_DOR);
-  assert.deepEqual(puro(p.T.pendentes()), { ramo: 'saude', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho', responde: 'dor' });
+  assert.deepEqual(puro(p.T.pendentes()), { ramo: 'saude', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho', equipe: 'so_eu', responde: 'dor' });
   p.tocar('Pelo Instagram');
   p.tocar('Pronto');
   await tique();
@@ -159,7 +161,7 @@ test('o foco nunca se perde: com o teclado ele segue para o próximo grupo; sem 
   saude.clicar(0);   /* (detail 0: Enter ou espaço no botão) */
   await tique();
   assert.equal(p.doc.activeElement, p.abertos()[0].querySelectorAll('button')[0], 'o 1º botão do grupo seguinte');
-  for (const t of ['Agendamentos', 'Pronto', 'Só o Instagram', 'Tenho', 'Pelo Instagram', 'Pronto']) { p.botao(t).clicar(0); await tique(); }
+  for (const t of ['Agendamentos', 'Pronto', 'Só o Instagram', 'Tenho', 'Só eu', 'Pelo Instagram', 'Pronto']) { p.botao(t).clicar(0); await tique(); }
   assert.equal(p.doc.activeElement, p.texto, 'depois do "Pronto" da dor: a caixa de texto');
 });
 
@@ -248,4 +250,46 @@ test('trocarRamo que não entrou: a fala montada não fica na caixa de texto (a 
   q = retomada({ enviar: async () => { q.texto.value = 'o que ela escreveu'; return false; } });
   await q.T.trocarRamo('alimentacao');
   assert.equal(q.texto.value, 'o que ela escreveu', 'o texto dela fica');
+});
+
+test('a equipe (dono 27/11): 4 faixas de lista fechada, opcional ("Prefiro não dizer" segue sem o campo), e a resposta vai com a 1ª mensagem', async () => {
+  const p = montar();
+  assert.deepEqual(Object.keys(p.win.BZOrcRotulos.EQUIPE), ['so_eu', 'ate_5', 'ate_15', 'mais_15']);
+  assert.deepEqual(Object.values(p.win.BZOrcRotulos.EQUIPE), ['Só eu', '2 a 5', '6 a 15', '16 ou mais']);
+  p.T.iniciar({ consultor: true });
+  await ate(p, 'Saúde', 'Agendamentos', 'Pronto', 'Só o Instagram', 'Tenho');
+  assert.ok(p.botao('Só eu') && p.botao('16 ou mais'), 'os 4 botões');
+  await ate(p, 'Prefiro não dizer');
+  assert.equal(p.bolhas().at(-1), 'Prefiro não dizer');
+  assert.match(p.falas().at(-1), /como os clientes chegam/);
+  assert.equal(puro(p.T.pendentes()).equipe, undefined, 'pulou: nada de equipe');
+  const q = montar();
+  q.T.iniciar({ consultor: true });
+  await ate(q, 'Saúde', 'Agendamentos', 'Pronto', 'Só o Instagram', 'Tenho', '6 a 15');
+  assert.equal(puro(q.T.pendentes()).equipe, 'ate_15');
+  assert.equal(puro(q.T.respostas()).equipe, 'ate_15', 'a miniatura e a cena leem a faixa');
+});
+
+test('a equipe na conversa retomada (revisão técnica 28/11): a faixa tocada volta do briefing para a cena, fora do "Mudar"; faixa fora da lista não entra', () => {
+  const p = montar();
+  p.T.configurar({ consultor: true });
+  p.T.atualizar({ conversa: { briefing: { fluxo_conversa: true, fluxo_toques: { ramo: 'saude', objetivos: ['agendamentos'], equipe: 'ate_5' } } }, mensagens: [{ papel: 'visitante', conteudo: 'x' }] });
+  assert.equal(puro(p.T.respostas()).equipe, 'ate_5', 'a miniatura e a cena leem a faixa');
+  assert.equal(p.T.pendentes(), null, 'já entregue: nada segue junto');
+  const q = montar();
+  q.T.configurar({ consultor: true });
+  q.T.atualizar({ conversa: { briefing: { fluxo_conversa: true, fluxo_toques: { ramo: 'saude', equipe: '__proto__' } } }, mensagens: [{ papel: 'visitante', conteudo: 'x' }] });
+  assert.equal(puro(q.T.respostas()).equipe, undefined, 'fora da lista: some');
+});
+
+test('"Seguir tocando" no passo da equipe (revisão técnica 28/11): as faixas voltam sem repetir a pergunta e o caminho segue até a dor', async () => {
+  const p = montar();
+  p.T.iniciar({ consultor: true });
+  await ate(p, 'Saúde', 'Agendamentos', 'Pronto', 'Só o Instagram', 'Tenho');
+  const antes = p.falas().length;
+  p.T.semConsultor();
+  assert.equal(p.falas().length, antes, 'nenhuma fala repetida');
+  assert.ok(p.botao('Só eu') && p.botao('Prefiro não dizer'), 'as faixas voltam');
+  await ate(p, 'Só eu');
+  assert.match(p.falas().at(-1), /como os clientes chegam/);
 });

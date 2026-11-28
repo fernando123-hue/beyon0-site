@@ -8,9 +8,9 @@ const require = createRequire(import.meta.url);
 const R = require('../../js/orcamento-rotulos.js');
 const I = require('../../js/orcamento-icones.js');
 
-test('toda opção das listas fechadas tem um ícone (ramo, objetivos, site, material, dores)', () => {
+test('toda opção das listas fechadas tem um ícone (ramo, objetivos, site, material, equipe, dores)', () => {
   const faltam = [];
-  for (const [grupo, lista] of [['ramo', R.RAMOS], ['objetivos', R.OBJETIVOS], ['site', R.SITE_ATUAL], ['material', R.MATERIAL]]) {
+  for (const [grupo, lista] of [['ramo', R.RAMOS], ['objetivos', R.OBJETIVOS], ['site', R.SITE_ATUAL], ['material', R.MATERIAL], ['equipe', R.EQUIPE]]) {
     for (const valor of Object.keys(lista)) if (!I.nomeDe(valor, grupo)) faltam.push(grupo + ':' + valor);
   }
   for (const valor of Object.keys(R.SUGESTOES)) if (!I.nomeDe(valor, 'dor')) faltam.push('dor:' + valor);
@@ -27,6 +27,7 @@ test('todo ícone apontado existe na lista de traços, e todo traço é só coma
 
 test('o mesmo valor em grupos diferentes pode ter ícones diferentes ("nao": sem site x sem logo); valor desconhecido não tem ícone', () => {
   assert.notEqual(I.nomeDe('nao', 'site'), I.nomeDe('nao', 'material'));
+  assert.equal(new Set(Object.keys(R.EQUIPE).map(v => I.nomeDe(v, 'equipe'))).size, 4, 'cada faixa da equipe com o seu desenho (o olho acha sem ler)');
   assert.equal(I.nomeDe('qualquer_coisa', 'ramo'), '');
   assert.equal(I.nomeDe('__proto__', 'ramo'), '');
   assert.equal(I.nomeDe('constructor'), '');
@@ -45,7 +46,7 @@ test('desenhar monta um <svg> decorativo só com <path> (aria-hidden, sem foco),
 test('os nomes de grupo que js/orcamento-toques.js passa (conversa e "Mudar") são os que a lista de ícones conhece: um erro de digitação não some em silêncio', () => {
   const fonte = fs.readFileSync(new URL('../../js/orcamento-toques.js', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const grupos = [...new Set(Object.keys(I.DE).map(k => k.split(':')[0]))].sort();
-  assert.deepEqual(grupos, ['ajuste', 'dor', 'material', 'objetivos', 'ramo', 'site']);
+  assert.deepEqual(grupos, ['ajuste', 'dor', 'equipe', 'material', 'objetivos', 'ramo', 'site']);
   for (const g of grupos.filter(x => x !== 'ajuste')) assert.ok(fonte.includes("grupo: '" + g + "'"), 'a conversa não passa grupo: ' + g);   /* (o grupo "ajuste" é do orcamento-ajustes.js, conferido no teste de baixo) */
   for (const g of ['ramo', 'objetivos', 'site', 'material']) assert.ok(fonte.includes(", '" + g + "'));"), 'o "Mudar" não passa o grupo ' + g);
 });
