@@ -448,3 +448,17 @@ test('voltar ao oficial em esboço: o nó sai calado (sem status, sem luz) e nad
   assert.equal(a.raiz.porClasse('mpc-status')[0].textContent, status);
   assert.deepEqual(a.D.atualizar(planoDe('caminho')), { ok: true, refeita: false }, 'nada para firmar');
 });
+
+test('(revisão técnica, achado 4) esboço e firmar durante a espera das fontes: quando elas chegam, o mapa entra uma vez, sem esboço e com o nó', async () => {
+  const a = ambiente({ reduzido: true });
+  let soltar;
+  a.w.document.fonts = { status: 'loading', ready: new Promise((r) => { soltar = r; }) };
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true });
+  assert.equal(a.D.atualizar(ajustado(), { rascunho: true }).ok, true);
+  assert.deepEqual(a.D.atualizar(ajustado()), { ok: true, refeita: false, firmou: ['lembrete'] });
+  soltar();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.ok(noDe(a.raiz, 'Lembrete na véspera'), 'o nó firmado');
+  assert.equal(a.raiz.porClasse('mpc-no').filter((n) => temClasse(n, 'is-rascunho')).length, 0, 'nada em esboço');
+  assert.deepEqual(a.prontas, ['bz:planta-pronta']);
+});

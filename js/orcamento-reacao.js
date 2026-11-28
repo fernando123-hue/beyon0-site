@@ -34,7 +34,9 @@
     var st = { carga: 'nao', fila: null, campo: null, timer: 0, ouvindo: false, falhou: false, E: null, espera: 0, tentativas: 0, novas: [] };
     /* o esboço: oficial (o plano validado de E.planta), esboco (o plano em esboço na tela), firme (o esboço firmado no Enter) e firmeEm (quantas
        mensagens havia no Enter) */
-    var aj = { carga: 'nao', falhou: false, oficial: null, oficialJson: '', esboco: null, esbocoJson: '', firme: null, firmeEm: 0, form: null };
+    var aj = { carga: 'nao', falhou: false, oficial: null, oficialJson: '', chave: '', esboco: null, esbocoJson: '', firme: null, firmeEm: 0, form: null, ouvePensando: false, timerEnvio: 0 };
+    /* (revisão técnica) depois do "pensando", quanto esperar o render com a resposta antes de dar o envio por não entrado */
+    var ESPERA_RESPOSTA = 1500;
     var $ = function (id) { return doc.getElementById(id); };
 
     function falhar(e) {
@@ -159,11 +161,15 @@
           if (x && x.ok) { aj.esboco = r.plano; aj.esbocoJson = j; aj.firme = null; }
           return;
         }
-        if (aj.esboco) voltarAoOficial();
+        if (aj.esboco || aj.firme) voltarAoOficial();   /* (revisão técnica) o firme também sai se ela troca ou apaga a frase */
       } catch (e) { falharAjuste(e); }
     }
-    /* o Enter dela: o esboço firma ("Ajustado", a luz) e espera a resposta do Zero */
+    /* o Enter dela: o esboço firma ("Ajustado", a luz) e espera a resposta do Zero. Ouvido na CAPTURA (antes do js/orcamento.js, que marca
+       aria-busy ao aceitar o envio): ocupada (outro turno no meio) ou caixa vazia, o envio não sai, então nada firma. E o esboço é refeito do
+       que está NA CAIXA agora (Enter antes da pausa de 250 ms não firma a frase velha) */
     function aoEnviar() {
+      if (aj.falhou || !aj.form || aj.form.getAttribute('aria-busy') === 'true' || !st.campo || !st.campo.value.trim()) return;
+      esbocar();
       if (aj.falhou || !aj.esboco) return;
       try {
         var plano = aj.esboco, n = st.E && Array.isArray(st.E.mensagens) ? st.E.mensagens.length : 0;
@@ -172,12 +178,24 @@
         aj.firme = plano; aj.firmeEm = n;
       } catch (e) { falharAjuste(e); }
     }
+    /* (revisão técnica) o envio que não entrou (rede, servidor ocupado): acabado o "pensando", se a conversa não cresceu, o firme sai */
+    function aoPensar(ev) {
+      if (!ev || !ev.detail || ev.detail.ativo !== false || !aj.firme) return;
+      win.clearTimeout(aj.timerEnvio);
+      aj.timerEnvio = win.setTimeout(function () {
+        try {
+          var n = st.E && Array.isArray(st.E.mensagens) ? st.E.mensagens.length : 0;
+          if (aj.firme && n < aj.firmeEm + 2) voltarAoOficial();
+        } catch (e) { falharAjuste(e); }
+      }, ESPERA_RESPOSTA);
+    }
     function ouvirEnvio() {
       var form = $('o-form');
+      if (!aj.ouvePensando) { aj.ouvePensando = true; doc.addEventListener('bz:pensando', aoPensar); }
       if (aj.form === form) return;
-      if (aj.form) aj.form.removeEventListener('submit', aoEnviar);
+      if (aj.form) aj.form.removeEventListener('submit', aoEnviar, true);
       aj.form = form;
-      if (form) form.addEventListener('submit', aoEnviar);
+      if (form) form.addEventListener('submit', aoEnviar, true);
     }
     /* a cada render: o oficial mudou (o Zero mandou plano novo): a cola da planta já o desenhou, o esboço só sai de cena. O mesmo oficial com a
        resposta do Zero depois do Enter: o oficial volta */
@@ -186,8 +204,10 @@
       try {
         var of = oficialDe(E);
         if (!of) { aj.oficial = null; aj.oficialJson = ''; aj.esboco = null; aj.esbocoJson = ''; aj.firme = null; return; }
-        var j = JSON.stringify(of), novo = j !== aj.oficialJson;
-        if (novo) { aj.oficial = of; aj.oficialJson = j; aj.esboco = null; aj.esbocoJson = ''; aj.firme = null; }
+        /* (revisão técnica) a cola da planta redesenha o oficial também quando muda a versão, a origem ou o editável com o mesmo plano: o
+           esboço na tela some, e a mesma frase tem de poder esboçar de novo */
+        var j = JSON.stringify(of), p = E.planta, chave = p.versao + '|' + p.origem + '|' + E.planta_editavel, novo = j !== aj.oficialJson || chave !== aj.chave;
+        if (novo) { aj.oficial = of; aj.oficialJson = j; aj.chave = chave; aj.esboco = null; aj.esbocoJson = ''; aj.firme = null; }
         ouvirEnvio();
         carregarAjuste();   /* (depois do oficial: ao chegar, o ajuste já esboça o que estiver na caixa) */
         if (novo) return;

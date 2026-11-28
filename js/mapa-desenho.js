@@ -414,12 +414,14 @@
   function firmar(i) {
     var ids = i.esboco;
     i.esboco = [];
+    if (i.esperaFontes) return ids;   /* (a composição das fontes já vem sem o esboço) */
     if (!compor(i)) { i.esboco = ids; return []; }
     try { i.rel.parar(); } catch (e) { aviso(e); }
     i.rel = novoRelogio(i);
     i.status.textContent = AJUSTEI;
     refazerAcoes(i);
-    if (!i.pronto || parado(i)) return ids;
+    if (!i.pronto) final(i);
+    if (parado(i)) return ids;
     ids.forEach(function (id) { i.rel.anim(i.nos[id], [{ opacity: ESBOCO }, { opacity: 1 }], { duration: 300, fill: 'backwards' }); });
     i.setas.forEach(function (x) { if (ids.indexOf(x.r.de) >= 0 || ids.indexOf(x.r.para) >= 0) luz(i, x.r, T.seta, 0, 1); });
     if (typeof i.opcoes.som === 'function') i.opcoes.som('passa');

@@ -335,3 +335,73 @@ test('o desenho do mapa chega DEPOIS do render (é baixado à parte): ao digitar
   const ult = a.chamadas[a.chamadas.length - 1];
   assert.ok(ult && ult.op.rascunho === true && a.ids(ult.plano).includes('aj_form'), 'o esboço sai na mesma pausa, quando o ajuste chega');
 });
+
+/* ---------- revisão técnica do PR 2 (achados 1, 2, 3 e 5) ---------- */
+const OFICIAL_V = () => Forma.validarFormaMapa(OFICIAL).plano;
+const pensando = (a, ativo) => (a.doc.ouvintes['bz:pensando'] || []).forEach((f) => f({ type: 'bz:pensando', detail: { ativo } }));
+const esbocado = (a) => { a.digitar('quero também um formulário'); a.w.avancar(300); };
+
+test('(1) o envio não entrou (rede caiu): ao acabar o "pensando" sem a conversa crescer, o firme sai e o oficial volta', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta({ mensagens: [1, 2] }));
+  esbocado(a);
+  a.form.disparar('submit');
+  pensando(a, true);
+  pensando(a, false);
+  a.w.avancar(2000);
+  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } });
+});
+
+test('(1) com o firme na tela, apagar ou trocar a frase devolve o oficial', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta({ mensagens: [1, 2] }));
+  esbocado(a);
+  a.form.disparar('submit');
+  a.digitar('meu horário é de segunda a sexta');
+  a.w.avancar(300);
+  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } });
+});
+
+test('(2) Enter com a conversa ocupada (aria-busy) ou com a caixa vazia não firma', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta({ mensagens: [1, 2] }));
+  esbocado(a);
+  const n = a.chamadas.length;
+  a.form.setAttribute('aria-busy', 'true');
+  a.form.disparar('submit');
+  assert.equal(a.chamadas.length, n, 'ocupada: nada firmado');
+  a.form.setAttribute('aria-busy', 'false');
+  a.campo.value = '   ';
+  a.form.disparar('submit');
+  assert.ok(!a.chamadas.slice(n).some((c) => c.op.rascunho === false), 'vazia: nada firmado');
+});
+
+test('(3) Enter antes da pausa de 250 ms firma o que está NA CAIXA, não o esboço velho', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta({ mensagens: [1, 2] }));
+  esbocado(a);
+  a.campo.value = 'quero também uma galeria de fotos';
+  a.form.disparar('submit');
+  const ult = a.chamadas[a.chamadas.length - 1];
+  assert.equal(ult.op.rascunho, false);
+  assert.ok(a.ids(ult.plano).includes('aj_galeria') && !a.ids(ult.plano).includes('aj_form'), 'firmou a galeria: ' + a.ids(ult.plano));
+  const b = ambienteMapa();
+  b.api.atualizar(comPlanta({ mensagens: [1, 2] }));
+  esbocado(b);
+  b.campo.value = 'meu horário é de segunda a sexta';
+  b.form.disparar('submit');
+  assert.ok(!b.chamadas.some((c) => c.op.rascunho === false), 'a frase nova não pede peça: nada firmado');
+  assert.deepEqual(b.chamadas[b.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } }, 'e o esboço velho sai');
+});
+
+test('(5) a cola da planta redesenhou o oficial (outra origem ou editável, mesmo plano): a mesma frase esboça de novo', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta({ mensagens: [1, 2] }));
+  esbocado(a);
+  const n = a.chamadas.length;
+  a.api.atualizar(comPlanta({ mensagens: [1, 2], planta_editavel: false }));
+  a.digitar('quero também um formulário.');
+  a.w.avancar(300);
+  assert.equal(a.chamadas.length, n + 1, 'o esboço é pedido de novo');
+  assert.ok(a.ids(a.chamadas[n].plano).includes('aj_form'));
+});
