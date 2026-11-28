@@ -177,6 +177,7 @@ const SEM_V = [
   'js/orcamento-reacao.js → js/mapa-vivo-ler.js (o leitor do mapa vivo, fase 1a; revalida sempre)',
   'js/mapa-vivo-ler.js → ./mapa-saber.js (só o require do Node nos testes)',
   'js/cena-dicionario.js → ./oracao.js ./orcamento-cena-forma.js (só o require do Node nos testes e no servidor; na tela, os dois scripts vêm antes)',
+  'js/mapa-ajuste.js → ./oracao.js ./orcamento-mapa-forma.js (só o require do Node nos testes; na tela, os dois scripts vêm antes)',
   'js/orcamento-cena-tela.js → css/orcamento-cena.css js/oracao.js js/orcamento-cena-forma.js js/cena-dicionario.js js/planta-pecas.js js/mapa-saber.js js/cena-tracos.js js/cena-desenho.js (a cena do mapa vivo, fase 2: sob demanda, só com reacao: true; módulos puros, o velho com a página nova só desenha a cena de antes)',
   'js/cena-tracos.js → ./orcamento-cena-forma.js ./planta-pecas.js (só o require do Node nos testes)'
 ];
@@ -199,7 +200,7 @@ test('os JS/CSS pedidos por JS sem ?v são exatamente os conhecidos (SEM_V)', ()
     'js/orcamento-planta-esboco.js js/planta-som.js', 'js/orcamento-planta-esboco.js js/planta-esboco.js', 'js/orcamento-planta-esboco.js css/planta-esboco.css',
     'js/orcamento-planta-esboco.js js/mapa-saber.js', 'js/orcamento-planta.js js/planta-relogio.js', 'js/orcamento-planta.js js/mapa-saber.js', 'js/orcamento-planta.js js/orcamento-mapa-forma.js',
     'js/orcamento-planta.js js/mapa-layout.js', 'js/mapa-layout.js ./orcamento-mapa-forma.js', 'js/orcamento-planta.js js/mapa-desenho.js', 'js/orcamento-planta.js css/orcamento-mapa.css', 'js/planta-cresce.js ./mapa-saber.js', 'js/planta-cresce.js ./orcamento-rotulos.js',
-    'js/cena-dicionario.js ./oracao.js', 'js/cena-dicionario.js ./orcamento-cena-forma.js',
+    'js/cena-dicionario.js ./oracao.js', 'js/cena-dicionario.js ./orcamento-cena-forma.js', 'js/mapa-ajuste.js ./oracao.js', 'js/mapa-ajuste.js ./orcamento-mapa-forma.js',
     'js/orcamento-cena-tela.js css/orcamento-cena.css', 'js/orcamento-cena-tela.js js/oracao.js', 'js/orcamento-cena-tela.js js/orcamento-cena-forma.js', 'js/orcamento-cena-tela.js js/cena-dicionario.js',
     'js/orcamento-cena-tela.js js/planta-pecas.js', 'js/orcamento-cena-tela.js js/mapa-saber.js', 'js/orcamento-cena-tela.js js/cena-tracos.js', 'js/orcamento-cena-tela.js js/cena-desenho.js',
     'js/cena-tracos.js ./orcamento-cena-forma.js', 'js/cena-tracos.js ./planta-pecas.js']);
