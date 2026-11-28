@@ -160,3 +160,48 @@ test('sem o CSS (ainda não chegou), o SVG não vira mancha preta: sem preenchim
   assert.ok(caminhos.length > 0);
   for (const c of caminhos) assert.equal(c.getAttribute('fill'), 'none');
 });
+
+test('o mapa vivo desligado no meio da sessão: o toque seguinte não traz a cena de volta', () => {
+  const p = montar();
+  p.T.atualizar(ESTADO(['Barbearia, somos 2']));
+  p.baixarTudo();
+  assert.equal(p.alvo.hidden, false);
+  p.T.atualizar({ reacao: false, conversa: { id: 'c1' }, mensagens: [] });
+  assert.equal(p.alvo.hidden, true);
+  p.toques.ramo = 'alimentacao';
+  p.doc.dispatchEvent({ type: 'bz:respostas', detail: { ramo: 'alimentacao' } });
+  assert.equal(p.alvo.hidden, true);
+});
+
+test('o CSS falha depois de a cena já estar desenhada: o lugar some e o toque não a traz de volta', () => {
+  const p = montar();
+  p.T.atualizar(ESTADO(['Barbearia, somos 2']));
+  p.baixarTudo();
+  assert.equal(p.alvo.hidden, false);
+  p.doc.head.children[0].onerror();
+  assert.equal(p.alvo.hidden, true);
+  p.doc.dispatchEvent({ type: 'bz:respostas', detail: { ramo: 'beleza' } });
+  p.T.atualizar(ESTADO(['Barbearia, somos 2']));
+  assert.equal(p.alvo.hidden, true);
+});
+
+test('os módulos já na página antes do 1º render: o CSS da cena é pedido mesmo assim (uma vez)', () => {
+  const p = montar();
+  for (const m of MODULOS) vm.runInContext(ler(m), p.ctx);
+  p.T.atualizar(ESTADO(['Barbearia, somos 2']));
+  p.T.atualizar(ESTADO(['Barbearia, somos 3']));
+  assert.deepEqual(p.pedidos(), ['css/orcamento-cena.css']);
+  assert.equal(p.alvo.children[0].tagName, 'svg');
+});
+
+test('página: o lugar da cena dentro da miniatura, o script antes do orcamento.js, o render e o lugar reservado no CSS estático', () => {
+  const html = ler('orcamento.html');
+  assert.match(html, /<div class="nasce__cena" id="o-nasce-cena" hidden><\/div>/);
+  const pos = s => html.indexOf('<script src="js/' + s + '" defer></script>');
+  assert.ok(pos('orcamento-cena-tela.js') > 0 && pos('orcamento-cena-tela.js') < pos('orcamento.js'));
+  for (const m of MODULOS.filter(m => !/planta-pecas|mapa-saber/.test(m))) assert.ok(!html.includes('src="' + m), m + ' vem só sob demanda');
+  assert.match(ler('js/orcamento.js'), /window\.BZOrcCenaTela\.atualizar\(E\)/);
+  assert.match(ler('css/orcamento-palco.css'), /\.nasce__cena \{[^}]*aspect-ratio: 320 \/ 120/);
+  const fonte = ler('js/orcamento-cena-tela.js');
+  assert.ok(!/innerHTML|=>|\blet\b|\bconst\b|`/.test(fonte));
+});

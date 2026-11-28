@@ -24,20 +24,25 @@
     ['js/planta-pecas.js', 'BZPlantaPecas'], ['js/mapa-saber.js', 'BZMapaSaber'], ['js/cena-tracos.js', 'BZCenaTracos'], ['js/cena-desenho.js', 'BZCenaDesenho']
   ];
   var TEXTO_MAX = 2000;
-  var st = { carga: 'nao', ultimoE: null, assinatura: null, ouvindo: false };
+  var st = { carga: 'nao', cssPedido: false, ligado: false, ultimoE: null, assinatura: null, ouvindo: false };
   var ehObjeto = function (v) { return !!v && typeof v === 'object' && !Array.isArray(v); };
 
   function janela() { return raiz || {}; }
   function prontos(w) { for (var i = 0; i < MODULOS.length; i++) if (!w[MODULOS[i][1]]) return false; return true; }
 
-  /* baixa, um de cada vez, o que ainda falta; aoFim(true) com tudo pronto, aoFim(false) se algum falhou */
-  function baixar(w, doc, aoFim, aoFalharCss) {
-    var i = 0;
+  /* o CSS da cena, uma vez (mesmo que os módulos já estejam na página); sem ele a cena é traço sem tinta: falha como os scripts */
+  function pedirCss(doc, aoFalhar) {
+    if (st.cssPedido) return;
+    st.cssPedido = true;
     var link = doc.createElement('link');
     link.rel = 'stylesheet';
     link.href = CSS;
-    link.onerror = aoFalharCss;   /* sem o CSS a cena é traço sem tinta: falha como os scripts */
+    link.onerror = aoFalhar;
     doc.head.appendChild(link);
+  }
+  /* baixa, um de cada vez, o que ainda falta; aoFim(true) com tudo pronto, aoFim(false) se algum falhou */
+  function baixar(w, doc, aoFim) {
+    var i = 0;
     function proximo() {
       while (i < MODULOS.length && w[MODULOS[i][1]]) i++;
       if (i >= MODULOS.length) { aoFim(prontos(w)); return; }
@@ -50,23 +55,23 @@
     }
     proximo();
   }
+  function falhou(alvo) { st.carga = 'falhou'; st.ligado = false; alvo.hidden = true; }
   function carregar(w, doc, alvo) {
     if (st.carga !== 'nao') return;
     st.carga = 'baixando';
-    function falhou() { st.carga = 'falhou'; alvo.hidden = true; }
     baixar(w, doc, function (ok) {
       if (st.carga === 'falhou') return;
-      if (!ok) { falhou(); return; }
+      if (!ok) { falhou(alvo); return; }
       st.carga = 'pronta';
       desenhar(w, doc, alvo, st.ultimoE);
-    }, falhou);
+    });
   }
 
   /* o que ela escreveu: só as falas DELA (o que o Zero disse não conta), as últimas TEXTO_MAX letras */
   function falasDela(E) {
     /* de trás para frente, parando ao juntar TEXTO_MAX letras (o custo não cresce com a conversa) */
     var m = Array.isArray(E.mensagens) ? E.mensagens : [], partes = [], total = 0, i;
-    for (i = m.length - 1; i >= 0 && total < TEXTO_MAX; i--) {
+    for (i = m.length - 1; i >= 0 && total < TEXTO_MAX + 2; i--) {   /* (+2: o '. ' da junção) */
       if (ehObjeto(m[i]) && m[i].papel === 'visitante' && typeof m[i].conteudo === 'string') { partes.unshift(m[i].conteudo); total += m[i].conteudo.length + 2; }
     }
     var t = partes.join('. ');
@@ -97,13 +102,15 @@
     try {
       var w = janela(), doc = w.document, alvo = doc && doc.getElementById ? doc.getElementById('o-nasce-cena') : null;
       if (!alvo) return false;
-      if (!ehObjeto(E) || E.reacao !== true || st.carga === 'falhou') { alvo.hidden = true; return false; }
+      st.ligado = ehObjeto(E) && E.reacao === true && st.carga !== 'falhou';
+      if (!st.ligado) { alvo.hidden = true; return false; }
       alvo.hidden = false;
       st.ultimoE = E;
       if (!st.ouvindo && typeof doc.addEventListener === 'function') {
         st.ouvindo = true;
-        doc.addEventListener('bz:respostas', function () { try { if (st.carga === 'pronta') desenhar(w, doc, alvo, st.ultimoE); } catch (x) { /* a cena é enfeite */ } });
+        doc.addEventListener('bz:respostas', function () { try { if (st.ligado && st.carga === 'pronta') desenhar(w, doc, alvo, st.ultimoE); } catch (x) { /* a cena é enfeite */ } });
       }
+      pedirCss(doc, function () { falhou(alvo); });
       if (prontos(w)) { st.carga = 'pronta'; return desenhar(w, doc, alvo, E); }
       carregar(w, doc, alvo);
       return false;
