@@ -34,9 +34,7 @@
     var st = { carga: 'nao', fila: null, campo: null, timer: 0, ouvindo: false, falhou: false, E: null, espera: 0, tentativas: 0, novas: [] };
     /* o esboço: oficial (o plano validado de E.planta), esboco (o plano em esboço na tela), firme (o esboço firmado no Enter) e firmeEm (quantas
        mensagens havia no Enter) */
-    var aj = { carga: 'nao', falhou: false, oficial: null, oficialJson: '', chave: '', esboco: null, esbocoJson: '', firme: null, firmeEm: 0, form: null, ouvePensando: false, timerEnvio: 0 };
-    /* (revisão técnica) depois do "pensando", quanto esperar o render com a resposta antes de dar o envio por não entrado */
-    var ESPERA_RESPOSTA = 1500;
+    var aj = { carga: 'nao', falhou: false, oficial: null, oficialJson: '', chave: '', esboco: null, esbocoJson: '', firme: null, firmeEm: 0, form: null, ouveFalha: false };
     var $ = function (id) { return doc.getElementById(id); };
 
     function falhar(e) {
@@ -178,20 +176,12 @@
         aj.firme = plano; aj.firmeEm = n;
       } catch (e) { falharAjuste(e); }
     }
-    /* (revisão técnica) o envio que não entrou (rede, servidor ocupado): acabado o "pensando", se a conversa não cresceu, o firme sai */
-    function aoPensar(ev) {
-      if (!ev || !ev.detail || ev.detail.ativo !== false || !aj.firme) return;
-      win.clearTimeout(aj.timerEnvio);
-      aj.timerEnvio = win.setTimeout(function () {
-        try {
-          var n = st.E && Array.isArray(st.E.mensagens) ? st.E.mensagens.length : 0;
-          if (aj.firme && n < aj.firmeEm + 2) voltarAoOficial();
-        } catch (e) { falharAjuste(e); }
-      }, ESPERA_RESPOSTA);
-    }
+    /* (revisão técnica) o envio que não entrou (rede, servidor ocupado, releitura sem resposta): o js/orcamento.js avisa com
+       bz:envio-nao-entrou (o texto volta à caixa) e o firme sai. Nada de relógio: a releitura lenta de um envio que deu certo não o desfaz */
+    function aoNaoEntrar() { try { if (aj.firme) voltarAoOficial(); } catch (e) { falharAjuste(e); } }
     function ouvirEnvio() {
       var form = $('o-form');
-      if (!aj.ouvePensando) { aj.ouvePensando = true; doc.addEventListener('bz:pensando', aoPensar); }
+      if (!aj.ouveFalha) { aj.ouveFalha = true; doc.addEventListener('bz:envio-nao-entrou', aoNaoEntrar); }
       if (aj.form === form) return;
       if (aj.form) aj.form.removeEventListener('submit', aoEnviar, true);
       aj.form = form;

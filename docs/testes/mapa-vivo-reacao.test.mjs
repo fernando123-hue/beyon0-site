@@ -341,15 +341,29 @@ const OFICIAL_V = () => Forma.validarFormaMapa(OFICIAL).plano;
 const pensando = (a, ativo) => (a.doc.ouvintes['bz:pensando'] || []).forEach((f) => f({ type: 'bz:pensando', detail: { ativo } }));
 const esbocado = (a) => { a.digitar('quero também um formulário'); a.w.avancar(300); };
 
-test('(1) o envio não entrou (rede caiu): ao acabar o "pensando" sem a conversa crescer, o firme sai e o oficial volta', () => {
+test('(1) o envio não entrou (o js/orcamento.js avisa bz:envio-nao-entrou): o firme sai e o oficial volta', () => {
   const a = ambienteMapa();
   a.api.atualizar(comPlanta({ mensagens: [1, 2] }));
   esbocado(a);
   a.form.disparar('submit');
+  a.doc.disparar('bz:envio-nao-entrou');
+  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } });
+  const fonte = lerFonte('js/orcamento.js');
+  assert.equal((fonte.match(/new CustomEvent\('bz:envio-nao-entrou'\)/g) || []).length, 2, 'a falha do envio e a releitura sem resposta avisam');
+});
+
+test('(reconferência) o envio que DEU certo com releitura lenta: o fim do "pensando" sem a resposta ainda no estado NÃO desfaz o firme', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta({ mensagens: [1, 2] }));
+  esbocado(a);
+  a.form.disparar('submit');
+  const n = a.chamadas.length;
   pensando(a, true);
   pensando(a, false);
-  a.w.avancar(2000);
-  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } });
+  a.w.avancar(20000);
+  assert.equal(a.chamadas.length, n, 'o firme fica até a resposta');
+  a.api.atualizar(comPlanta({ mensagens: [1, 2, 3, 4] }));
+  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: OFICIAL_V(), op: { rascunho: true } }, 'a resposta sem plano novo devolve o oficial');
 });
 
 test('(1) com o firme na tela, apagar ou trocar a frase devolve o oficial', () => {
