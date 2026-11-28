@@ -1094,6 +1094,7 @@ try {
     await tocarEm('Pronto');
     await tocarEm('Não sei, escolha por mim');
     await tocarEm('Não sei, escolha por mim');
+    await tocarEm('Prefiro não dizer');   /* (a equipe, dono 27/11: opcional) */
     ok(await semRolagemLateral(p), w + 'px nos toques: sem rolagem lateral');
     await foto(p, nome + '-toques');
     if (CONSULTOR) { await c.close(); continue; }   /* (com o consultor, a dor vai à IA: o caminho inteiro já passou no fluxo principal) */
