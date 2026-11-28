@@ -219,7 +219,8 @@
     /* (orçamento como conversa) as respostas tocadas seguem junto, quando houver (js/orcamento-toques.js) */
     mensagem: async function (texto, respostas) { await garantirSessao(); return chamar('POST', 'mensagem', comConversa(respostas ? { texto: texto, respostas: respostas } : { texto: texto }), undefined, MENSAGEM_MS); },
     /* (mapa vivo 1b) a anotação curta da IA enquanto a pessoa escreve (js/orcamento-anotacao.js): nunca abre sessão; sem ela, não chama */
-    reagir: function (texto, seq) { if (!sessao || !sessao.conversa_id) return Promise.reject(new Falha(0, { erro: 'Sem sessão.' })); return chamar('POST', 'reagir', comConversa({ texto: texto, seq: seq }), undefined, REAGIR_MS); },
+    /* (Fase 3, PR 3a) mapa: o aparelho não soube ajustar o mapa na tela: a mesma chamada pede a peça (api/_vendas/reacao.mjs) */
+    reagir: function (texto, seq, mapa) { if (!sessao || !sessao.conversa_id) return Promise.reject(new Falha(0, { erro: 'Sem sessão.' })); return chamar('POST', 'reagir', comConversa(mapa === true ? { texto: texto, seq: seq, mapa: true } : { texto: texto, seq: seq }), undefined, REAGIR_MS); },
     /* os detalhes do negócio (PR 2a): viram o pedido com código; o servidor redige e confere tudo de novo */
     detalhes: function (dados) { return chamar('POST', 'detalhes', comConversa(dados), undefined, ESTADO_MS); },
     gerar: function () { return chamar('POST', 'gerar', comConversa()); },

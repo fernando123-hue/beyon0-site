@@ -203,13 +203,17 @@
         if (st.porMensagem >= POR_MENSAGEM || st.porConversa >= POR_CONVERSA) return;
         st.porMensagem++; st.porConversa++; st.ultimo = t;
         var seq = ++st.seq, mensagem = st.mensagem;
-        Promise.resolve(Api.reagir(t.slice(-FINAL), seq)).then(function (r) { receber(r, seq, mensagem); }, function () { /* sem reação: a tela segue a de hoje */ });
+        /* (Fase 3, PR 3a) o esboço do mapa (js/orcamento-reacao.js) não soube: a mesma chamada pede a peça; nenhuma chamada a mais */
+        var Esb = win.BZOrcReacao, mapa = !!(Esb && typeof Esb.precisaDoServidor === 'function' && Esb.precisaDoServidor(t) === true);
+        Promise.resolve(Api.reagir(t.slice(-FINAL), seq, mapa)).then(function (r) { receber(r, seq, mensagem, mapa ? t : ''); }, function () { /* sem reação: a tela segue a de hoje */ });
       } catch (e) { falhar(e); }
     }
-    function receber(r, seq, mensagem) {
+    function receber(r, seq, mensagem, lido) {
       try {
         if (!st.caixa || st.falhou || desligada() || st.pensando || mensagem !== st.mensagem || seq < st.respondido) return;
         st.respondido = seq;
+        var Esb = win.BZOrcReacao;
+        if (lido && r && ehObjeto(r.reacao) && ehObjeto(r.reacao.ajuste) && Esb && typeof Esb.ajusteDoServidor === 'function') Esb.ajusteDoServidor(r.reacao.ajuste, lido);
         var a = r && ehObjeto(r.reacao) && typeof r.reacao.anotacao === 'string' ? r.reacao.anotacao.replace(/\s+/g, ' ').trim().slice(0, ANOTACAO_MAX) : '';
         if (!a) return;   /* (sem frase: a linha que já está fica) */
         st.anotacao = a;
