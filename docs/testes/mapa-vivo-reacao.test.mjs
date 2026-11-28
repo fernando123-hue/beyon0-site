@@ -200,3 +200,124 @@ test('quando as peças não cabem numa linha (320 px), a fileira fica só com os
   const css = lerFonte('css/orcamento.css').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.match(css, /\.orc-reacao\.is-compacta \.orc-reacao__nome\s*\{\s*display:\s*none/);
 });
+
+/* ---------- Fase 3, PR 2: o nó em esboço no mapa (plano docs/superpowers/plans/2026-11-28-mapa-vivo-fase3-pr2-desenho.md) ----------
+   Com o mapa oficial (E.planta, forma v3) e o desenho na página, baixa js/oracao.js e js/mapa-ajuste.js (URL constante, uma vez, em ordem) e,
+   ao digitar, pede ao desenho o esboço (atualizar com rascunho). Tudo local: nenhum fetch, nada vai ao servidor. */
+const Forma = require('../../js/orcamento-mapa-forma.js');
+const Oracao = require('../../js/oracao.js');
+const Ajuste = require('../../js/mapa-ajuste.js');
+const { planoDoCaso } = await import('../../api/_vendas/mapa-padrao.mjs');
+const OFICIAL = planoDoCaso('saude_agenda', { origens: [], trava: null });
+const comPlanta = (extra) => Object.assign({ planta_editavel: true, mensagens: [], planta: { plano: OFICIAL, versao: 1, n_mensagens: 2, origem: 'padrao' } }, extra || {});
+
+function ambienteMapa({ falhar = false } = {}) {
+  const a = ambiente();
+  const chamadas = [];
+  a.w.BZMapaForma = Forma;
+  a.w.BZMapa = { atualizar: (plano, op) => { chamadas.push({ plano: JSON.parse(JSON.stringify(plano)), op: Object.assign({}, op) }); return { ok: true, refeita: false }; } };
+  /* o carregador falso: cada URL publica o seu global (o leitor da fase 1a, a oração e o ajuste) */
+  const head = a.doc.head, anexar = head.appendChild;
+  head.appendChild = (s) => {
+    a.baixados.push(s.src);
+    if (falhar && s.src !== 'js/mapa-vivo-ler.js') { s.onerror && s.onerror(); return s; }
+    if (s.src === 'js/mapa-vivo-ler.js') a.w.BZMapaVivoLer = Ler;
+    if (s.src === 'js/oracao.js') a.w.BZOracao = Oracao;
+    if (s.src === 'js/mapa-ajuste.js') a.w.BZMapaAjuste = Ajuste;
+    s.onload && s.onload();
+    return s;
+  };
+  void anexar;
+  const ids = (p) => p.nos.map((n) => n.id);
+  return Object.assign(a, { chamadas, ids });
+}
+
+test('sem o mapa oficial (ou sem o desenho na página): a oração e o ajuste não são baixados', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(LIGADA);
+  assert.ok(!a.baixados.includes('js/mapa-ajuste.js'));
+  delete a.w.BZMapa;
+  a.api.atualizar(comPlanta());
+  assert.ok(!a.baixados.includes('js/mapa-ajuste.js'), 'sem BZMapa, nada');
+});
+
+test('com o mapa oficial: oracao.js e mapa-ajuste.js baixados UMA vez, nessa ordem; digitar o pedido põe o nó em esboço', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta());
+  a.api.atualizar(comPlanta());
+  const baixe = a.baixados.filter((s) => s === 'js/oracao.js' || s === 'js/mapa-ajuste.js');
+  assert.deepEqual(baixe, ['js/oracao.js', 'js/mapa-ajuste.js']);
+  a.digitar('quero também um formulário no site');
+  a.w.avancar(300);
+  const ult = a.chamadas[a.chamadas.length - 1];
+  assert.deepEqual(ult.op, { rascunho: true });
+  assert.ok(a.ids(ult.plano).includes('aj_form'), 'o nó do formulário');
+  const n = a.chamadas.length;
+  a.digitar('quero também um formulário no site.');
+  a.w.avancar(300);
+  assert.equal(a.chamadas.length, n, 'o mesmo esboço não é pedido de novo');
+});
+
+test('a frase muda para outra coisa ou a caixa é apagada: o oficial volta, em esboço (calado); sem esboço, nada é pedido', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta());
+  a.digitar('meu horário é de segunda a sexta');
+  a.w.avancar(300);
+  assert.equal(a.chamadas.length, 0, 'nada para desfazer');
+  a.digitar('quero também um formulário');
+  a.w.avancar(300);
+  a.digitar('');
+  a.w.avancar(300);
+  const ult = a.chamadas[a.chamadas.length - 1];
+  assert.deepEqual(ult, { plano: Forma.validarFormaMapa(OFICIAL).plano, op: { rascunho: true } });
+});
+
+test('Enter com esboço: firma (o mesmo plano, sem rascunho); o Zero responde sem plano novo: o oficial volta; com plano novo: não mexe', () => {
+  const a = ambienteMapa();
+  a.api.atualizar(comPlanta({ mensagens: [1, 2] }));
+  a.digitar('quero também um formulário');
+  a.w.avancar(300);
+  const esboco = a.chamadas[a.chamadas.length - 1].plano;
+  a.form.disparar('submit');
+  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: esboco, op: { rascunho: false } });
+  const n = a.chamadas.length;
+  a.campo.value = '';
+  a.api.atualizar(comPlanta({ mensagens: [1, 2, 3] }));
+  assert.equal(a.chamadas.length, n, 'só a fala dela entrou: o esboço firme espera o Zero');
+  a.api.atualizar(comPlanta({ mensagens: [1, 2, 3, 4] }));
+  assert.deepEqual(a.chamadas[a.chamadas.length - 1], { plano: Forma.validarFormaMapa(OFICIAL).plano, op: { rascunho: true } }, 'o Zero não ajustou: o oficial manda');
+  /* outra rodada, agora o Zero manda um plano novo: quem desenha é a cola da planta, o esboço só sai de cena */
+  a.digitar('quero também um formulário');
+  a.w.avancar(300);
+  a.form.disparar('submit');
+  const m = a.chamadas.length;
+  const novo = Ajuste.aplicarAjuste(OFICIAL, { acao: 'entra', peca: 'galeria' }).plano;
+  a.api.atualizar(comPlanta({ mensagens: [1, 2, 3, 4, 5, 6], planta: { plano: novo, versao: 2, n_mensagens: 6, origem: 'modelo' } }));
+  assert.equal(a.chamadas.length, m, 'o plano novo é da cola da planta');
+});
+
+test('falha ao baixar o ajuste: sem esboço, sem nova tentativa, a fileira da fase 1a segue', () => {
+  const a = ambienteMapa({ falhar: true });
+  a.api.atualizar(comPlanta());
+  a.api.atualizar(comPlanta({ mensagens: [1] }));
+  assert.equal(a.baixados.filter((s) => s === 'js/oracao.js').length, 1);
+  assert.ok(!a.baixados.includes('js/mapa-ajuste.js'), 'parou no 1º que falhou');
+  a.digitar('quero também um formulário');
+  a.w.avancar(300);
+  assert.equal(a.chamadas.length, 0);
+  assert.ok(a.fila(), 'a fileira continua');
+});
+
+test('o desenho lança: o esboço desliga (aviso), a fileira da fase 1a segue; nenhum fetch em todo o caminho', () => {
+  const a = ambienteMapa();
+  let fetches = 0;
+  a.w.fetch = () => { fetches++; return Promise.resolve(); };
+  a.api.atualizar(comPlanta());
+  a.w.BZMapa.atualizar = () => { throw new Error('quebrou'); };
+  a.digitar('quero também um formulário');
+  a.w.avancar(300);
+  assert.ok(a.avisos.some((x) => x.includes('[beyon] ajuste')));
+  assert.ok(a.fila(), 'a fileira continua');
+  a.form.disparar('submit');
+  assert.equal(fetches, 0);
+});

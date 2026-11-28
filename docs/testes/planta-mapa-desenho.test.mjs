@@ -358,3 +358,93 @@ test('"Está certo" é anunciado (status) e o foco não se perde: vai para a fal
   assert.equal(fala.getAttribute('tabindex'), '-1');
   assert.equal(a.w.document.ativo, fala, 'o foco vai para a fala');
 });
+
+/* ---------- Fase 3, PR 2: o nó em esboço (rascunho) e o firmar (cofre: Mapa vivo v2, "FASE 3"; plano 2026-11-28-mapa-vivo-fase3-pr2-desenho.md) ---------- */
+const temClasse = (n, c) => n.classList ? n.classList.contains(c) : (n.getAttribute('class') || '').split(' ').includes(c);
+const noDe = (raiz, txt) => raiz.porClasse('mpc-no').find((n) => n.textContent.includes(txt));
+/* luzes criadas desde a marca (os pontos de luz somem quando o quadro se recompõe; conta-se pelas animações) */
+const marca = (a) => a.w.document.animacoes.length;
+const luzesDesde = (a, m) => a.w.document.animacoes.slice(m).filter((an) => temClasse(an.elemento, 'mpc-luz')).length;
+
+test('rascunho: o nó novo nasce em esboço (classe), parado, e as setas dele também; sem status, sem som, sem luz, a pergunta não volta', () => {
+  const a = ambiente({ reduzido: false });
+  const sons = [];
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true, som: (s) => sons.push(s) });
+  a.w.avancar(20000);
+  botaoDe(a.raiz, 'Está certo').disparar('click');
+  const status = a.raiz.porClasse('mpc-status')[0].textContent, sonsAntes = sons.length;
+  const antes = marca(a);
+  const r = a.D.atualizar(ajustado(), { rascunho: true });
+  assert.deepEqual(r, { ok: true, refeita: false, novos: ['lembrete'] });
+  const lembrete = noDe(a.raiz, 'Lembrete na véspera');
+  assert.ok(temClasse(lembrete, 'is-rascunho'), 'o nó novo em esboço');
+  assert.ok(!temClasse(noDe(a.raiz, planoDe('caminho').nos[0].titulo), 'is-rascunho'), 'quem já estava fica firme');
+  assert.equal(svgDe(a.raiz, 'is-rascunho').length, 2, 'as 2 setas que tocam o nó novo');
+  assert.equal(a.raiz.porClasse('mpc-rot').filter((n) => temClasse(n, 'is-rascunho')).length, 2, 'e os rótulos delas');
+  const novas = a.w.document.animacoes.slice(antes);
+  const doEsboco = novas.filter((an) => an.elemento === lembrete || temClasse(an.elemento, 'is-rascunho'));
+  assert.ok(doEsboco.every((an) => an.keyframes.every((k) => !('transform' in k) && (!('opacity' in k) || k.opacity <= 0.34))), 'o esboço só aparece, até 34%: nada cresce nem desliza');
+  assert.ok(!novas.some((an) => an.keyframes.some((k) => 'strokeDashoffset' in k)), 'nenhuma seta se desenha');
+  a.w.avancar(20000);
+  assert.equal(luzesDesde(a, antes), 0, 'sem luz');
+  assert.equal(sons.length, sonsAntes, 'sem som');
+  assert.equal(a.raiz.porClasse('mpc-status')[0].textContent, status, 'o status não muda');
+  assert.equal(acoesDe(a.raiz).porTag('button').length, 0, 'o esboço não traz a pergunta de volta');
+});
+
+test('rascunho vale só naquela chamada: o próximo ajuste sem a opção é o ajuste de sempre (luz, status, classe nenhuma)', () => {
+  const a = ambiente({ reduzido: false });
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true });
+  a.w.avancar(20000);
+  a.D.atualizar(planoDe('caminho'), { rascunho: true });
+  const antes = a.w.document.animacoes.length;
+  a.D.atualizar(ajustado());
+  assert.ok(!temClasse(noDe(a.raiz, 'Lembrete na véspera'), 'is-rascunho'));
+  assert.ok(a.w.document.animacoes.slice(antes).some((an) => an.keyframes[0].opacity === 0), 'o nó novo cresce');
+  assert.equal(a.raiz.porClasse('mpc-status')[0].textContent, 'Ajustei o mapa do seu caso.');
+});
+
+test('firmar: o mesmo plano sem a opção tira o esboço, anuncia, passa a luz pelas setas do nó e devolve quem firmou', () => {
+  const a = ambiente({ reduzido: false });
+  const sons = [];
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true, som: (s) => sons.push(s) });
+  a.w.avancar(20000);
+  a.D.atualizar(ajustado(), { rascunho: true });
+  const m = marca(a);
+  const r = a.D.atualizar(ajustado(), { rascunho: false });
+  assert.deepEqual(r, { ok: true, refeita: false, firmou: ['lembrete'] });
+  assert.ok(!temClasse(noDe(a.raiz, 'Lembrete na véspera'), 'is-rascunho'));
+  assert.equal(svgDe(a.raiz, 'is-rascunho').length, 0);
+  assert.equal(a.raiz.porClasse('mpc-status')[0].textContent, 'Ajustei o mapa do seu caso.');
+  assert.equal(luzesDesde(a, m), 2, 'a luz nas 2 setas do nó');
+  assert.ok(sons.includes('passa'));
+  assert.ok(botaoDe(a.raiz, 'Está certo'), 'o mapa mudou de verdade: a pergunta volta');
+  assert.deepEqual(a.D.atualizar(ajustado()), { ok: true, refeita: false }, 'firmado, o mesmo plano não refaz nada');
+});
+
+test('firmar com movimento reduzido: sem animação nenhuma, o status anuncia', () => {
+  const a = ambiente({ reduzido: true });
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true });
+  a.D.atualizar(ajustado(), { rascunho: true });
+  const antes = a.w.document.animacoes.length;
+  assert.deepEqual(a.D.atualizar(ajustado()), { ok: true, refeita: false, firmou: ['lembrete'] });
+  assert.equal(a.w.document.animacoes.length, antes);
+  assert.equal(luzesDesde(a, 0), 0);
+  assert.equal(a.raiz.porClasse('mpc-status')[0].textContent, 'Ajustei o mapa do seu caso.');
+});
+
+test('voltar ao oficial em esboço: o nó sai calado (sem status, sem luz) e nada fica em esboço', () => {
+  const a = ambiente({ reduzido: false });
+  a.D.montar(a.raiz, planoDe('caminho'), { editavel: true });
+  a.w.avancar(20000);
+  const status = a.raiz.porClasse('mpc-status')[0].textContent;
+  a.D.atualizar(ajustado(), { rascunho: true });
+  const m = marca(a);
+  assert.deepEqual(a.D.atualizar(planoDe('caminho'), { rascunho: true }), { ok: true, refeita: false, novos: [] });
+  assert.equal(noDe(a.raiz, 'Lembrete na véspera'), undefined);
+  assert.equal(a.raiz.porClasse('mpc-no').length, planoDe('caminho').nos.length + 1);
+  a.w.avancar(20000);
+  assert.equal(luzesDesde(a, m), 0);
+  assert.equal(a.raiz.porClasse('mpc-status')[0].textContent, status);
+  assert.deepEqual(a.D.atualizar(planoDe('caminho')), { ok: true, refeita: false }, 'nada para firmar');
+});

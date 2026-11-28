@@ -23,6 +23,8 @@
   var CHANFRO = 8;
   var TITULO = 'O mapa do seu caso';
   var PERGUNTA = 'Montei o mapa do seu caso. Ficou certo?', CERTO = 'Está certo', AJUSTAR = 'Quero ajustar algo';
+  /* o nó em esboço da Fase 3 (o rascunho do aparelho): a mesma opacidade do esboço fantasma já aprovado; o CSS (.is-rascunho) usa o mesmo valor */
+  var ESBOCO = 0.34;
   var T = { no: 320, passo: 240, seta: 480, volta: 900, chega: 520, ouro: 420, depoisSeta: 160, pausa: 420, pulso: 520, voo: 700, repouso: 6000, repousos: 8 };
   var tem = function (o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); };
   /* papel -> classe (lista fechada; nada do plano vira classe) */
@@ -136,8 +138,9 @@
     var plano = i.plano, quadro = i.quadro, larg = quadro.clientWidth || i.raiz.clientWidth || 0;
     if (!(larg > 0)) return false;
     var pedidos = Layout.pedidos(plano, larg), nos = Object.create(null), rots = [], medidas = {};
-    var dados = Object.create(null);
+    var dados = Object.create(null), esb = Object.create(null);
     plano.nos.forEach(function (n) { dados[n.id] = n; });
+    (i.esboco || []).forEach(function (id) { esb[id] = true; });   /* (vale também ao recompor por largura nova e na espera das fontes) */
     dados.objetivo = { id: 'objetivo', papel: 'objetivo', titulo: plano.objetivo.titulo, frase: plano.objetivo.frase };
     while (quadro.firstChild) quadro.removeChild(quadro.firstChild);
     quadro.classList.add('is-medindo');
@@ -145,7 +148,7 @@
     quadro.classList.toggle('mpc-quadro--desk', !(pedidos[0] && pedidos[0].celular));
     /* 1. escreve tudo */
     pedidos.forEach(function (p) {
-      if (p.chave.indexOf('no:') === 0) { var e = noEl(dados[p.id]); e.style.width = p.largura + 'px'; quadro.appendChild(e); nos[p.id] = e; }
+      if (p.chave.indexOf('no:') === 0) { var e = noEl(dados[p.id]); if (esb[p.id]) e.classList.add('is-rascunho'); e.style.width = p.largura + 'px'; quadro.appendChild(e); nos[p.id] = e; }
       else { var r = el('span', 'mpc-rot', plano.setas[+p.chave.slice(4)].rotulo, quadro); r.setAttribute('aria-hidden', 'true'); r.style.maxWidth = p.larguraMax + 'px'; rots[+p.chave.slice(4)] = r; }
     });
     /* 2. lê tudo, uma vez */
@@ -166,7 +169,8 @@
     var setas = g.setas.map(function (r) {
       var fim = r.curva ? r.curva[3] : r.linha[r.linha.length - 1], ini = r.curva ? r.curva[0] : r.linha[0];
       var cinza = tem(CINZA, dados[r.de].papel) || tem(CINZA, dados[r.para].papel);
-      var gg = sv('g', 'mpc-seta' + (cinza ? ' mpc-seta--cinza' : '') + (r.volta ? ' mpc-seta--volta' : ''), svg);
+      var noEsboco = !!(esb[r.de] || esb[r.para]);
+      var gg = sv('g', 'mpc-seta' + (cinza ? ' mpc-seta--cinza' : '') + (r.volta ? ' mpc-seta--volta' : '') + (noEsboco ? ' is-rascunho' : ''), svg);
       var linha = sv('path', 'mpc-seta__linha', gg);
       linha.setAttribute('d', r.curva ? 'M' + r.curva[0] + 'C' + r.curva[1] + ' ' + r.curva[2] + ' ' + r.curva[3] : cantos(r.linha, 6));
       linha.setAttribute('pathLength', '1');
@@ -176,10 +180,11 @@
       o.setAttribute('cx', ini[0]); o.setAttribute('cy', ini[1]); o.setAttribute('r', 2);
       var rot = rots[r.i];
       if (cinza) rot.classList.add('mpc-rot--cinza');
+      if (noEsboco) rot.classList.add('is-rascunho');
       /* no computador, o rótulo no meio de uma curva (ou da volta) fica SOBRE a linha: ganha o fundo da página para tapar o trecho */
       if (!g.celular && r.rot.lado === 'meio' && !r.rot.topo) rot.classList.add('mpc-rot--sobre');
       rot.style.transform = 'translate(' + r.rot.left + 'px,' + r.rot.top + 'px)';
-      return { r: r, g: gg, linha: linha, rot: rot };
+      return { r: r, g: gg, linha: linha, rot: rot, esboco: noEsboco };
     });
     g.cabecalhos.forEach(function (c) {
       var h = el('span', 'mpc-cab', CABECALHOS[c.faixa], quadro);
@@ -258,22 +263,26 @@
   /* (revisão do 5c) três casos: com as fontes ainda chegando, só troca o plano e os textos (a composição e a entrada esperam as fontes); no meio da
      entrada, vai direto ao quadro final do plano novo (e libera o valor que esperava); com o mapa pronto, o ajuste animado. A composição vem ANTES
      de qualquer troca: se ela falha (sem largura), o mapa de antes fica inteiro e a mesma versão pode entrar depois. */
-  function ajuste(i, plano, novos) {
-    var antes = Object.create(null), novo = Object.create(null), velho = { plano: i.plano, json: i.json };
-    if (i.esperaFontes) { i.plano = plano; i.json = JSON.stringify(plano); trocarTextos(i, plano); refazerAcoes(i); return true; }
+  /* (Fase 3, PR 2) rascunho = o ajuste QUIETO do aparelho: o nó novo nasce em esboço (is-rascunho, parado, só aparece até ESBOCO depois do
+     deslize), sem status, sem som, sem luz, e a pergunta "Ficou certo?" não volta (ninguém decidiu nada ainda). Quem fica desliza como sempre. */
+  function ajuste(i, plano, novos, rascunho) {
+    var antes = Object.create(null), novo = Object.create(null), velho = { plano: i.plano, json: i.json, esboco: i.esboco };
+    i.esboco = rascunho ? novos.slice() : [];
+    if (i.esperaFontes) { i.plano = plano; i.json = JSON.stringify(plano); trocarTextos(i, plano); if (!rascunho) refazerAcoes(i); return true; }
     Object.keys(i.g.caixas).forEach(function (id) { antes[id] = i.g.caixas[id]; });
     novos.forEach(function (id) { novo[id] = true; });
     i.plano = plano; i.json = JSON.stringify(plano);
     var deu = false;
     try { deu = compor(i); } catch (e) { aviso(e); }
     if (!deu) {
-      i.plano = velho.plano; i.json = velho.json;
+      i.plano = velho.plano; i.json = velho.json; i.esboco = velho.esboco;
       try { compor(i); } catch (e2) { aviso(e2); }
       return false;
     }
     try { i.rel.parar(); } catch (e3) { aviso(e3); }
     i.rel = novoRelogio(i);
     trocarTextos(i, plano);
+    if (rascunho) return esbocar(i, antes, novo);
     refazerAcoes(i);
     if (!i.pronto) { final(i); return true; }
     i.quadro.classList.add('is-aceso', 'is-ouro');
@@ -387,6 +396,43 @@
       if (r.repouso !== null) luz(i, i.setas[r.repouso].r, T.repouso, 0, T.repousos, 0.18);
     });
   }
+  /* o esboço na tela: quem ficou desliza; o nó em esboço e as setas dele esperam o deslize e só aparecem (até ESBOCO), sem crescer nem se desenhar.
+     No meio da entrada ou com movimento reduzido: o quadro, parado. */
+  function esbocar(i, antes, novo) {
+    if (!i.pronto) { final(i); return true; }
+    i.quadro.classList.add('is-aceso', 'is-ouro');
+    if (i.opcoes.animar === false || reduzido() || typeof i.quadro.animate !== 'function') return true;
+    var rel = i.rel, aparece = { duration: 240, delay: T.voo, fill: 'backwards' };
+    Object.keys(i.nos).forEach(function (id) {
+      var b = i.g.caixas[id], a = antes[id];
+      if (novo[id] || !a) rel.anim(i.nos[id], [{ opacity: 0 }, { opacity: novo[id] ? ESBOCO : 1 }], aparece);
+      else if (a.x !== b.x || a.y !== b.y) rel.anim(i.nos[id], [{ transform: 'translate(' + a.x + 'px,' + a.y + 'px)' }, { transform: 'translate(' + b.x + 'px,' + b.y + 'px)' }], { duration: T.voo, easing: 'cubic-bezier(.3,.1,.2,1)', fill: 'backwards' });
+    });
+    i.setas.forEach(function (x) {
+      var ate = x.esboco ? ESBOCO : 1;
+      rel.anim(x.g, [{ opacity: 0 }, { opacity: ate }], aparece);
+      rel.anim(x.rot, [{ opacity: 0 }, { opacity: ate }], aparece);
+    });
+    return true;
+  }
+  /* FIRMAR (o Enter dela): o esboço vira nó do mapa ("Ajustado" já vem do papel), a luz passa pelas setas que o tocam e o status anuncia. O mapa
+     mudou de verdade: a pergunta volta. Movimento reduzido: só a troca, sem animação. Devolve os ids firmados. */
+  function firmar(i) {
+    var ids = i.esboco, eram = Object.create(null);
+    ids.forEach(function (id) { eram[id] = true; });
+    /* o quadro se recompõe sem o esboço (o mesmo plano, a mesma largura: tudo no mesmo lugar); a classe nunca sai por texto montado */
+    i.esboco = [];
+    if (!compor(i)) { i.esboco = ids; return []; }
+    try { i.rel.parar(); } catch (e1) { aviso(e1); }
+    i.rel = novoRelogio(i);
+    i.status.textContent = 'Ajustei o mapa do seu caso.';
+    refazerAcoes(i);
+    if (!i.pronto || i.opcoes.animar === false || reduzido() || typeof i.quadro.animate !== 'function') return ids;
+    ids.forEach(function (id) { if (i.nos[id]) i.rel.anim(i.nos[id], [{ opacity: ESBOCO }, { opacity: 1 }], { duration: 300, fill: 'backwards' }); });
+    i.setas.forEach(function (x) { if (eram[x.r.de] || eram[x.r.para]) luz(i, x.r, T.seta, 0, 1); });
+    if (typeof i.opcoes.som === 'function') { try { i.opcoes.som('passa'); } catch (e) { aviso(e); } }
+    return ids;
+  }
   /* a luz: um ponto em HTML (o compositor anima transform; SVG não), amostrado na própria seta. "fração" < 1: corre só no começo de cada volta */
   function luz(i, seta, dura, atraso, vezes, fracao) {
     var ponto = el('span', 'mpc-luz', null, i.quadro), pts = Layout.amostrar(seta, 16), fr = fracao || 1;
@@ -462,18 +508,27 @@
     if (!inst) return { ok: false, motivos: ['sem_faixa'] };
     var v = Forma.validarFormaMapa(plano);
     if (!v || !v.ok) return { ok: false, motivos: (v && v.motivos) || ['forma'] };
-    var op = inst.opcoes, k;
-    if (opcoes) for (k in opcoes) if (Object.prototype.hasOwnProperty.call(opcoes, k)) op[k] = opcoes[k];
+    /* (Fase 3, PR 2) rascunho vale SÓ nesta chamada: não entra nas opções guardadas (o próximo ajuste da cola é o de sempre) */
+    var op = inst.opcoes, k, rascunho = !!opcoes && opcoes.rascunho === true;
+    if (opcoes) for (k in opcoes) if (k !== 'rascunho' && Object.prototype.hasOwnProperty.call(opcoes, k)) op[k] = opcoes[k];
     editavel(inst);
-    if (JSON.stringify(v.plano) === inst.json) return { ok: true, refeita: false };
+    if (JSON.stringify(v.plano) === inst.json) {
+      /* o mesmo plano sem rascunho, com um esboço na tela: é o Enter dela (firmar) */
+      if (!rascunho && inst.esboco && inst.esboco.length) {
+        try { return { ok: true, refeita: false, firmou: firmar(inst) }; } catch (e0) { aviso(e0); return { ok: false, motivos: ['excecao'] }; }
+      }
+      return { ok: true, refeita: false };
+    }
     /* com nós em comum é o AJUSTE (o resto fica); sem nenhum, outro mapa: a entrada de novo */
     var antigos = Object.create(null), novos = [], comuns = 0;
     inst.plano.nos.forEach(function (n) { antigos[n.id] = true; });
     v.plano.nos.forEach(function (n) { if (antigos[n.id]) comuns++; else novos.push(n.id); });
     if (comuns) {
-      try { if (!ajuste(inst, v.plano, novos)) return { ok: false, motivos: ['sem_largura'] }; } catch (e) { aviso(e); return { ok: false, motivos: ['excecao'] }; }
+      try { if (!ajuste(inst, v.plano, novos, rascunho)) return { ok: false, motivos: ['sem_largura'] }; } catch (e) { aviso(e); return { ok: false, motivos: ['excecao'] }; }
       return { ok: true, refeita: false, novos: novos };
     }
+    /* um esboço nunca refaz o mapa inteiro (seria outra entrada, com som e valor): sem nó em comum, recusa e o mapa de antes fica */
+    if (rascunho) return { ok: false, motivos: ['rascunho_sem_comum'] };
     var r = montar(inst.raiz, v.plano, op);
     return r.ok ? { ok: true, refeita: true } : r;
   }

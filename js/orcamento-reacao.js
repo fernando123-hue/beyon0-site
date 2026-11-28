@@ -6,7 +6,13 @@
    - O leitor (js/mapa-vivo-ler.js) vem sob demanda, de URL CONSTANTE, uma vez.
    - A fileira é decoração do que a pessoa mesma escreveu: aria-hidden (o leitor de tela já lê a caixa).
    - Lê com 250 ms de pausa na digitação; caixa vazia (depois de enviar) apaga a fileira.
-   - Falha fechada: qualquer erro tira a fileira, com aviso "[beyon] reacao". ES5. */
+   - Falha fechada: qualquer erro tira a fileira, com aviso "[beyon] reacao". ES5.
+   FASE 3, PR 2 (o nó em esboço; plano docs/superpowers/plans/2026-11-28-mapa-vivo-fase3-pr2-desenho.md): com o mapa oficial na página (E.planta
+   de forma v3 e window.BZMapa), baixa js/oracao.js e js/mapa-ajuste.js (URL CONSTANTE, uma vez, em ordem; falhou: sem esboço, sem nova
+   tentativa). Na mesma pausa da fileira, rotear(texto) + aplicarAjuste(oficial) viram BZMapa.atualizar(plano, { rascunho: true }); nada
+   roteado com esboço na tela: o oficial volta (calado). O Enter (submit) firma o esboço; quando o Zero responde (+2 mensagens) com o MESMO
+   plano oficial, o oficial volta; com plano novo, quem desenha é a cola da planta (js/orcamento-planta.js). Tudo local: nada sai do aparelho.
+   Erro no esboço: ele desliga com aviso "[beyon] ajuste" e a fileira segue. */
 (function (raiz, fabrica) {
   'use strict';
   var api = fabrica();
@@ -15,6 +21,8 @@
 })(typeof window !== 'undefined' ? window : null, function () {
   'use strict';
   var LEITOR = 'js/mapa-vivo-ler.js';
+  /* o ajuste no aparelho, nesta ordem (o mapa-ajuste lê o BZOracao ao carregar); o BZMapaForma já veio com o mapa (js/orcamento-planta.js, v3) */
+  var AJUSTE = [{ src: 'js/oracao.js', global: 'BZOracao' }, { src: 'js/mapa-ajuste.js', global: 'BZMapaAjuste' }];
   var ESPERA = 250, NOVA_MS = 1200;
   var NS = 'http://www.w3.org/2000/svg';
   var ehObjeto = function (o) { return !!o && typeof o === 'object' && !Array.isArray(o); };
@@ -24,6 +32,9 @@
   function criar(win) {
     var doc = win.document;
     var st = { carga: 'nao', fila: null, campo: null, timer: 0, ouvindo: false, falhou: false, E: null, espera: 0, tentativas: 0, novas: [] };
+    /* o esboço: oficial (o plano validado de E.planta), esboco (o plano em esboço na tela), firme (o esboço firmado no Enter) e firmeEm (quantas
+       mensagens havia no Enter) */
+    var aj = { carga: 'nao', falhou: false, oficial: null, oficialJson: '', esboco: null, esbocoJson: '', firme: null, firmeEm: 0, form: null };
     var $ = function (id) { return doc.getElementById(id); };
 
     function falhar(e) {
@@ -87,7 +98,7 @@
       st.fila.classList.remove('is-compacta');
       if ((st.fila.scrollWidth || 0) > (st.fila.clientWidth || 0) + 1) st.fila.classList.add('is-compacta');
     }
-    function aoDigitar() { win.clearTimeout(st.timer); st.timer = win.setTimeout(reagir, ESPERA); }
+    function aoDigitar() { win.clearTimeout(st.timer); st.timer = win.setTimeout(function () { reagir(); esbocar(); }, ESPERA); }
 
     function carregarLeitor() {
       if (win.BZMapaVivoLer) { st.carga = 'pronta'; return; }
@@ -99,6 +110,87 @@
       s.onload = function () { st.carga = win.BZMapaVivoLer ? 'pronta' : 'falhou'; if (st.carga === 'pronta') reagir(); };
       s.onerror = function () { st.carga = 'falhou'; };
       doc.head.appendChild(s);
+    }
+
+    /* ---------- o nó em esboço (Fase 3, PR 2) ---------- */
+    function falharAjuste(e) {
+      aj.falhou = true;
+      aj.esboco = null; aj.esbocoJson = ''; aj.firme = null;
+      if (win.console) win.console.warn('[beyon] ajuste', e && e.message ? e.message : e);
+    }
+    /* o plano oficial que a tela mostra: o de E.planta, com a forma do mapa (v3) e o desenho na página; senão, nada de esboço */
+    function oficialDe(E) {
+      var p = ehObjeto(E) ? E.planta : null;
+      if (!ehObjeto(p) || !ehObjeto(p.plano) || !win.BZMapa || !win.BZMapaForma) return null;
+      var v = win.BZMapaForma.validarFormaMapa(p.plano);
+      return v && v.ok ? v.plano : null;
+    }
+    function carregarAjuste() {
+      if (aj.carga !== 'nao') return;
+      aj.carga = 'baixando';
+      (function proximo(k) {
+        if (k >= AJUSTE.length) { aj.carga = win.BZMapaAjuste ? 'pronta' : 'falhou'; return; }
+        if (win[AJUSTE[k].global]) { proximo(k + 1); return; }
+        var s = doc.createElement('script');
+        s.src = AJUSTE[k].src;
+        s.async = false;
+        s.onload = function () { if (win[AJUSTE[k].global]) proximo(k + 1); else aj.carga = 'falhou'; };
+        s.onerror = function () { aj.carga = 'falhou'; };
+        doc.head.appendChild(s);
+      })(0);
+    }
+    /* o mapa volta ao oficial, calado (sem status, sem luz): o esboço sai de cena */
+    function voltarAoOficial() {
+      aj.esboco = null; aj.esbocoJson = ''; aj.firme = null;
+      if (aj.oficial) win.BZMapa.atualizar(aj.oficial, { rascunho: true });
+    }
+    /* na pausa da digitação: o pedido dela vira o esboço; nada roteado (ou não coube) e havia esboço: o oficial volta */
+    function esbocar() {
+      if (aj.falhou || !aj.oficial || aj.carga !== 'pronta' || !st.campo) return;
+      try {
+        var texto = st.campo.value, pedido = texto.trim() ? win.BZMapaAjuste.rotear(texto) : null;
+        var r = pedido ? win.BZMapaAjuste.aplicarAjuste(aj.oficial, pedido) : null;
+        if (r && r.ok) {
+          var j = JSON.stringify(r.plano);
+          if (j === aj.esbocoJson) return;
+          var x = win.BZMapa.atualizar(r.plano, { rascunho: true });
+          if (x && x.ok) { aj.esboco = r.plano; aj.esbocoJson = j; aj.firme = null; }
+          return;
+        }
+        if (aj.esboco) voltarAoOficial();
+      } catch (e) { falharAjuste(e); }
+    }
+    /* o Enter dela: o esboço firma ("Ajustado", a luz) e espera a resposta do Zero */
+    function aoEnviar() {
+      if (aj.falhou || !aj.esboco) return;
+      try {
+        var plano = aj.esboco, n = st.E && Array.isArray(st.E.mensagens) ? st.E.mensagens.length : 0;
+        aj.esboco = null; aj.esbocoJson = '';
+        win.BZMapa.atualizar(plano, { rascunho: false });
+        aj.firme = plano; aj.firmeEm = n;
+      } catch (e) { falharAjuste(e); }
+    }
+    function ouvirEnvio() {
+      var form = $('o-form');
+      if (aj.form === form) return;
+      if (aj.form) aj.form.removeEventListener('submit', aoEnviar);
+      aj.form = form;
+      if (form) form.addEventListener('submit', aoEnviar);
+    }
+    /* a cada render: o oficial mudou (o Zero mandou plano novo): a cola da planta já o desenhou, o esboço só sai de cena. O mesmo oficial com a
+       resposta do Zero depois do Enter: o oficial volta */
+    function ajustar(E) {
+      if (aj.falhou) return;
+      try {
+        var of = oficialDe(E);
+        if (!of) { aj.oficial = null; aj.oficialJson = ''; aj.esboco = null; aj.esbocoJson = ''; aj.firme = null; return; }
+        carregarAjuste();
+        ouvirEnvio();
+        var j = JSON.stringify(of);
+        if (j !== aj.oficialJson) { aj.oficial = of; aj.oficialJson = j; aj.esboco = null; aj.esbocoJson = ''; aj.firme = null; return; }
+        var n = Array.isArray(E.mensagens) ? E.mensagens.length : 0;
+        if (aj.firme && n >= aj.firmeEm + 2) voltarAoOficial();
+      } catch (e) { falharAjuste(e); }
     }
 
     function montar() {
@@ -132,6 +224,7 @@
       st.E = E;
       try {
         if (!ligada(E)) { win.clearTimeout(st.espera); st.tentativas = 0; tirar(); return; }
+        ajustar(E);
         /* precisa das peças e dos canais que o esboço traz; sem eles (ainda), a página de hoje */
         if (!win.BZPlantaPecas || !win.BZMapaSaber) { tirar(); esperarPecas(E); return; }
         win.clearTimeout(st.espera);
