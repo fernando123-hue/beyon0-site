@@ -155,6 +155,9 @@
     } catch (x) { return null; }
   }
 
+  /* a faixa tocada (dono 27/11, js/orcamento-rotulos.js EQUIPE) vira um número só para o DESENHO, quando o texto não diz quantos são */
+  var GENTE_DA_FAIXA = { so_eu: 1, ate_5: 3, ate_15: 5, mais_15: 6 };
+  function genteDaFaixa(v) { return typeof v === 'string' && Object.prototype.hasOwnProperty.call(GENTE_DA_FAIXA, v) ? GENTE_DA_FAIXA[v] : 0; }
   /* cenaDoCaso({ ramo, texto, canais, objetivos, regulado }) -> a cena congelada (BZCenaForma.validar) ou null */
   function cenaDoCaso(caso) {
     try {
@@ -164,7 +167,7 @@
       var equipe = equipeDoTexto(caso.texto), canais = [], c = lista(caso.canais), i;
       for (i = 0; i < c.length && canais.length < F.CANAIS_MAX; i++) if (F.CANAIS.indexOf(c[i]) >= 0 && canais.indexOf(c[i]) < 0) canais.push(c[i]);
       var r = F.validar({
-        lugar: lugar, gente: equipe ? Math.min(equipe, F.GENTE_MAX) : 0, canais: canais,
+        lugar: lugar, gente: Math.min(equipe || genteDaFaixa(caso.equipe), F.GENTE_MAX), canais: canais,
         oferta: ofertaDoCaso(caso.texto, caso.objetivos), destaque: destaqueDoCaso(caso.texto, caso.objetivos, caso.regulado)
       });
       return r.ok ? r.cena : null;

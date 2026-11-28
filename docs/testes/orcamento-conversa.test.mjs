@@ -126,3 +126,8 @@ test('fluxo novo: na 2ª pergunta de preço o estimar passa, mesmo sem a dor', a
     conversa: { etapa: 'descoberta', briefing: BRIEF_SEM_DOR, mensagens: [{ papel: 'visitante', conteudo: 'quanto custa?' }, { papel: 'agente', conteudo: 'Falta só uma coisa.' }], estimativa: null }, mensagem: 'mas quanto fica?' });
   assert.ok(r.estimativa);
 });
+
+test('a equipe tocada (dono 27/11): só as 4 faixas da lista; fora da lista, protótipo ou número solto são recusados', () => {
+  for (const c of ['so_eu', 'ate_5', 'ate_15', 'mais_15']) assert.deepEqual(respostasParciais({ equipe: c }).dados, { equipe: c });
+  for (const v of ['7', 7, '__proto__', 'constructor', 'toString', ['ate_5'], { a: 1 }, 'SO_EU']) assert.ok(respostasParciais({ equipe: v }).erro, String(v));
+});

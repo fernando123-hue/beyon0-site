@@ -23,6 +23,8 @@
     agendamentos: 'Agendamentos', vender_online: 'Vender online', apresentar: 'Apresentar a empresa', campanha: 'Uma campanha ou lançamento' });
   var SITE_ATUAL = congelar({ nao: 'Não tenho site', instagram: 'Só o Instagram', tenho_site: 'Tenho site', so_endereco: 'Tenho só o endereço (.com.br)' });
   var MATERIAL = congelar({ tenho: 'Tenho', parte: 'Tenho uma parte', nao: 'Não tenho' });
+  /* quantas pessoas trabalham (dono 27/11, toque opcional): descreve o negócio e põe gente na cena; nunca mexe no preço nem tira nada da oferta */
+  var EQUIPE = congelar({ so_eu: 'Só eu', ate_5: '2 a 5', ate_15: '6 a 15', mais_15: '16 ou mais' });
 
   /* as sugestões do passo 4 ("como os clientes chegam hoje e o que mais dá trabalho"): a pessoa toca em vez de escrever.
      campo: em que parte de situacao_atual o rótulo entra (o briefing já tem os dois campos) */
@@ -132,7 +134,7 @@
 
   return congelar({
     VENDE_POR_RAMO: VENDE_POR_RAMO,
-    RAMOS: RAMOS, OBJETIVOS: OBJETIVOS, SITE_ATUAL: SITE_ATUAL, MATERIAL: MATERIAL,
+    RAMOS: RAMOS, OBJETIVOS: OBJETIVOS, SITE_ATUAL: SITE_ATUAL, MATERIAL: MATERIAL, EQUIPE: EQUIPE,
     SUGESTOES: SUGESTOES, SUGESTOES_POR_RAMO: SUGESTOES_POR_RAMO,
     MOLDE_MUDAR: MOLDE_MUDAR, falaDoMudar: falaDoMudar, resumoFixo: resumoFixo, ACEITE: ACEITE
   });

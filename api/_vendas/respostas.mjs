@@ -9,7 +9,7 @@ import R from '../../js/orcamento-rotulos.js';
 import { textoLimpo } from '../_classificador/contrato.mjs';
 import { redigir, pareceInjecao, semInvisiveis } from './seguranca.mjs';
 
-const CAMPOS = new Set(['ramo', 'outro', 'objetivos', 'site_atual', 'material', 'situacao', 'responde']);
+const CAMPOS = new Set(['ramo', 'outro', 'objetivos', 'site_atual', 'material', 'equipe', 'situacao', 'responde']);
 const RESPONDE = new Set(['dor']);
 const OUTRO_MAX = 60, SITUACAO_MAX = 6;
 const ERRO = 'Resposta fora da lista.';
@@ -40,8 +40,8 @@ export function respostasParciais(bruto) {
   for (const k of chaves) {
     const v = bruto[k];
     if (v === undefined || v === null) continue;
-    if (k === 'ramo' || k === 'site_atual' || k === 'material') {
-      const lista = k === 'ramo' ? R.RAMOS : k === 'site_atual' ? R.SITE_ATUAL : R.MATERIAL;
+    if (k === 'ramo' || k === 'site_atual' || k === 'material' || k === 'equipe') {
+      const lista = k === 'ramo' ? R.RAMOS : k === 'site_atual' ? R.SITE_ATUAL : k === 'material' ? R.MATERIAL : R.EQUIPE;
       const c = codigoDe(lista, v);
       if (!c) return { erro: ERRO };
       dados[k] = c;

@@ -22,12 +22,13 @@
     objetivos: 'E o que o site precisa trazer para você? Pode tocar em mais de um.',
     site: 'Duas coisas práticas. Já tem site ou endereço próprio?',
     material: 'E logo e textos, você já tem?',
+    equipe: 'E quantas pessoas trabalham aí, contando com você?',
     dor: 'Agora me conta como os clientes chegam até você hoje e o que mais dá trabalho no dia a dia. Pode escrever do seu jeito ou tocar no que for a sua cara.',
     dorSem: 'Agora me conta como os clientes chegam até você hoje e o que mais dá trabalho. Toque no que for a sua cara.',
     outro: 'Qual é o seu negócio, em poucas palavras?',
     mudar: 'Claro. Toque no que mudou e depois em "Pronto".'
   };
-  var PRONTO = 'Pronto', NAO_SEI = 'Não sei, escolha por mim', OUTRO_MAX = 60, FALTA_ESCOLHER = 'Escolha ao menos uma opção.';
+  var PRONTO = 'Pronto', NAO_SEI = 'Não sei, escolha por mim', PULAR_EQUIPE = 'Prefiro não dizer', OUTRO_MAX = 60, FALTA_ESCOLHER = 'Escolha ao menos uma opção.';
   var ESPERA_RESUMO_MS = 1200;   /* (o respiro entre o resumo fixo e o valor, o mesmo do cartão da planta) */
 
   var s = { iniciado: false, consultor: true, passo: null, respostas: { objetivos: [] }, situacao: [], entregue: false, liberado: false, aEnviar: null };
@@ -126,7 +127,7 @@
       li.appendChild(pronto);
     }
     if (o.naoSei) {
-      var ns = el('button', 'orc-toque__naosei', NAO_SEI);
+      var ns = el('button', 'orc-toque__naosei', o.textoNaoSei || NAO_SEI);
       ns.type = 'button';
       ns.addEventListener('click', function (ev) { if (li.hasAttribute('data-feito')) return; porTeclado = !!ev && ev.detail === 0; fechar(li, null); aoEscolher(null, null); });
       li.appendChild(ns);
@@ -220,8 +221,22 @@
       s.respostas = v ? comCampo(s.respostas, 'material', v) : semCampo(s.respostas, 'material');
       bolha(rotulo || NAO_SEI);
       contar();
-      passoDor();
+      passoEquipe();
     }, { naoSei: true, falaId: ultimaFala, grupo: 'material' });
+  }
+  /* a equipe (dono 27/11): opcional; pular segue sem o campo. Não entra no "Mudar" (descreve o negócio, não muda o caso): quem quiser corrigir escreve */
+  function passoEquipe() {
+    s.passo = 'equipe';
+    fala(FALAS.equipe);
+    opcoesEquipe();
+  }
+  function opcoesEquipe() {
+    opcoes('Quantas pessoas trabalham aí', itensDe(R.EQUIPE), function (v, rotulo) {
+      s.respostas = v ? comCampo(s.respostas, 'equipe', v) : semCampo(s.respostas, 'equipe');
+      bolha(rotulo || PULAR_EQUIPE);
+      contar();
+      passoDor();
+    }, { naoSei: true, textoNaoSei: PULAR_EQUIPE, falaId: ultimaFala, grupo: 'equipe' });
   }
   /* a dor: com o consultor, escrever é o caminho principal e as sugestões ajudam (o "Pronto" manda os rótulos como a fala dela);
      sem ele, só as sugestões, e depois o resumo fixo */
@@ -389,6 +404,7 @@
       if (s.aEnviar) return s.aEnviar.respostas;
       if (!s.iniciado || s.entregue) return null;
       var r = soMudanca(s.respostas);
+      if (s.respostas.equipe) r.equipe = s.respostas.equipe;   /* (a equipe vai só na 1ª mensagem: fora do "Mudar") */
       if (s.passo === 'dor') { r.responde = 'dor'; if (s.situacao.length) r.situacao = s.situacao.slice(); }
       return r;
     },
@@ -405,7 +421,11 @@
       ultimoE = E || null;
       if (s.iniciado || !E || !E.conversa) return;
       var b = E.conversa.briefing || {}, t = b.fluxo_toques;
-      if (t && typeof t === 'object') s.respostas = soMudanca(copiar(t));
+      if (t && typeof t === 'object') {
+        s.respostas = soMudanca(copiar(t));
+        /* (revisão técnica 28/11) a faixa tocada volta para a cena; fica fora do "Mudar" (pendentes() já é null: a conversa está entregue) */
+        if (typeof t.equipe === 'string' && Object.prototype.hasOwnProperty.call(R.EQUIPE, t.equipe)) s.respostas = comCampo(s.respostas, 'equipe', t.equipe);
+      }
       if (s.respostas && s.respostas.ramo) avisarRespostas();   /* (conversa retomada: o site dela já nasce com o que ela tocou) */
       if (b.fluxo_conversa === true && E.mensagens && E.mensagens.length) s.entregue = true;
     },
@@ -455,6 +475,7 @@
       fecharAbertos();
       if (s.entregue) { s.iniciado = true; resumoSemConsultor(); return; }
       if (s.passo === 'dor') opcoesDor(s.situacao);
+      else if (s.passo === 'equipe') opcoesEquipe();   /* (revisão técnica 28/11) as faixas voltam sem repetir a pergunta */
     },
     situacao: function () { return s.situacao.slice(); },
     respostas: function () { return copiar(s.respostas); },

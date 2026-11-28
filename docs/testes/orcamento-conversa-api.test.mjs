@@ -285,3 +285,14 @@ test('sem consultor: o confirmar-pacote grava a situação tocada pelos rótulos
   assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
   assert.deepEqual((await briefingDe(c)).situacao_atual, { como_chegam: 'Pelo Instagram', o_que_se_perde: 'Paciente marca e falta' });
 });
+
+test('a equipe tocada vai ao briefing (negocio.equipe) e aos toques, junto com o ramo; não conta como mudança', async () => {
+  const n = navegador(), c = await n.iniciar();
+  const t1 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Os pacientes chegam pelo Instagram', respostas: { ...TOQUES, equipe: 'ate_5', responde: 'dor' } });
+  assert.equal(t1.status, 200, JSON.stringify(t1.corpo));
+  const b = await briefingDe(c);
+  assert.equal(b.negocio.equipe, 'ate_5');
+  assert.equal(b.negocio.segmento, 'saúde', 'o segmento continua');
+  assert.equal(b.fluxo_toques.equipe, 'ate_5');
+  assert.equal(b.fluxo_mudancas, undefined);
+});

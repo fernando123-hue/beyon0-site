@@ -83,7 +83,7 @@
     if (!ehObjeto(r)) return null;
     var texto = falasDela(E);
     return w.BZCenaDicionario.cenaDoCaso({
-      ramo: r.ramo, texto: texto, canais: w.BZMapaSaber.origensDoCaso(texto), objetivos: r.objetivos,
+      ramo: r.ramo, texto: texto, canais: w.BZMapaSaber.origensDoCaso(texto), objetivos: r.objetivos, equipe: r.equipe,
       regulado: undefined   /* (a tela não sabe o nicho: depoimento nunca na tela) */
     });
   }
