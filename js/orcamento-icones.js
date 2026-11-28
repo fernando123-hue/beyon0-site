@@ -43,7 +43,11 @@
     caixa: ['M4 8l8-4 8 4v8l-8 4-8-4z', 'M4 8l8 4 8-4', 'M12 12v8'],
     paleta: ['M12 4.2c4.7 0 8 3 8 6.9 0 2.6-2 3.9-4 3.9h-1.3a1.6 1.6 0 0 0-1.1 2.7c.6.7.2 2.2-1.6 2.2-4.2 0-8-3.2-8-7.9S7 4.2 12 4.2z', 'M8.4 10.4h.01', 'M12 8.2h.01', 'M15.6 10.4h.01'],
     fonte: ['M3.5 19l5-13 5 13', 'M5.3 14.5h6.4', 'M16.5 11.8c1-1 3.5-1 3.5 1.5v5.7', 'M20 15.5c-2.3-.2-3.8.5-3.8 1.9s1.3 1.9 2.4 1.9c.8 0 1.4-.4 1.4-.4'],
-    pergunta: ['M12 3.5a8.5 8.5 0 1 1 0 17 8.5 8.5 0 0 1 0-17z', 'M9.4 9.4a2.7 2.7 0 1 1 3.9 2.4c-.8.4-1.3 1-1.3 1.8', 'M12 17.1h.01']
+    pergunta: ['M12 3.5a8.5 8.5 0 1 1 0 17 8.5 8.5 0 0 1 0-17z', 'M9.4 9.4a2.7 2.7 0 1 1 3.9 2.4c-.8.4-1.3 1-1.3 1.8', 'M12 17.1h.01'],
+    /* a equipe (dono 27/11): uma pessoa, duas, três e um grupo, para o olho achar a faixa antes de ler o número */
+    pessoa: ['M12 5.2a3 3 0 1 1 0 6 3 3 0 0 1 0-6z', 'M6 19.5a6 6 0 0 1 12 0'],
+    tres_pessoas: ['M12 6a2.6 2.6 0 1 1 0 5.2 2.6 2.6 0 0 1 0-5.2z', 'M7 19.5a5 5 0 0 1 10 0', 'M6.4 7.6a2.2 2.2 0 1 0 0 4.4', 'M3 18.6a4.2 4.2 0 0 1 2.6-3.9', 'M17.6 7.6a2.2 2.2 0 1 1 0 4.4', 'M21 18.6a4.2 4.2 0 0 0-2.6-3.9'],
+    grupo: ['M5 7.2a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4z', 'M12 5.8a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4z', 'M19 7.2a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4z', 'M2.4 16a2.6 2.6 0 0 1 5.2 0', 'M9.4 14.6a2.6 2.6 0 0 1 5.2 0', 'M16.4 16a2.6 2.6 0 0 1 5.2 0', 'M3.5 19.5h17']
   });
 
   /* qual desenho vai em qual opção. Chave "grupo:valor" (o mesmo valor pode querer coisas diferentes em grupos diferentes:
@@ -59,6 +63,8 @@
     'site:nao': 'mais', 'site:instagram': 'camera', 'site:tenho_site': 'globo', 'site:so_endereco': 'elo',
     /* logo e textos */
     'material:tenho': 'certo', 'material:parte': 'metade', 'material:nao': 'traco',
+    /* quantas pessoas trabalham */
+    'equipe:so_eu': 'pessoa', 'equipe:ate_5': 'pessoas', 'equipe:ate_15': 'tres_pessoas', 'equipe:mais_15': 'grupo',
     /* as dores do passo 4 (como chegam hoje e o que dá trabalho) */
     'dor:instagram': 'camera', 'dor:whatsapp': 'conversa', 'dor:indicacao': 'pessoas', 'dor:google': 'local',
     'dor:passa_na_frente': 'loja', 'dor:responde_na_mao': 'conversa', 'dor:pergunta_e_some': 'conversa',

@@ -11,6 +11,8 @@ import { FORMATOS } from './precos.mjs';   /* (os formatos que o briefing aceita
 import { registroValido } from './regras-conselhos.mjs';   /* (o registro profissional de saúde e advocacia) */
 
 export const FUNCIONALIDADES = ['whatsapp', 'formulario', 'agendamento', 'mapa', 'blog', 'integracao', 'ia', 'area_restrita', 'automacao', 'catalogo', 'loja', 'idioma', 'galeria', 'depoimentos'];
+/* quantas pessoas trabalham: as faixas do toque (js/orcamento-rotulos.js, EQUIPE); o consultor pode registrar a que ela disse */
+export const EQUIPE = ['so_eu', 'ate_5', 'ate_15', 'mais_15'];
 export const OBJETIVOS = ['gerar_leads', 'apresentar_empresa', 'vender', 'agendamentos', 'autoridade', 'captar_contatos', 'lancar_produto', 'outro'];
 const POSSE = ['tem', 'parcial', 'nao'];
 const t = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : undefined);
@@ -26,7 +28,7 @@ export const ESQUEMA_ATUALIZACAO = {
   additionalProperties: false,
   properties: {
     /* registro: o registro profissional que a pessoa deu, em saúde e advocacia (CRO-RJ 12345, OAB/SP 123456); vai ao site, nunca ao mapa */
-    negocio: { type: 'object', additionalProperties: false, properties: { nome: { type: 'string' }, segmento: { type: 'string' }, descricao: { type: 'string' }, cidade: { type: 'string' }, registro: { type: 'string' } } },
+    negocio: { type: 'object', additionalProperties: false, properties: { nome: { type: 'string' }, segmento: { type: 'string' }, descricao: { type: 'string' }, cidade: { type: 'string' }, registro: { type: 'string' }, equipe: { type: 'string', enum: EQUIPE } } },
     objetivos: { type: 'array', items: { type: 'string', enum: OBJETIVOS } },
     objetivo_detalhe: { type: 'string' },
     /* a dor (consultor v2): como os clientes chegam hoje e o que se perde; não pesa na confiança, só registra que a pergunta foi feita */
@@ -48,7 +50,7 @@ export const ESQUEMA_ATUALIZACAO = {
 export function limparAtualizacao(a) {
   if (!a || typeof a !== 'object' || Array.isArray(a)) return {};
   const o = {};
-  if (a.negocio) o.negocio = limpar({ nome: t(a.negocio.nome, 120), segmento: t(a.negocio.segmento, 80), descricao: t(a.negocio.descricao, 600), cidade: t(a.negocio.cidade, 80), registro: registroValido(a.negocio.registro) || undefined });
+  if (a.negocio) o.negocio = limpar({ nome: t(a.negocio.nome, 120), segmento: t(a.negocio.segmento, 80), descricao: t(a.negocio.descricao, 600), cidade: t(a.negocio.cidade, 80), registro: registroValido(a.negocio.registro) || undefined, equipe: EQUIPE.includes(a.negocio.equipe) ? a.negocio.equipe : undefined });
   o.objetivos = enumLista(a.objetivos, OBJETIVOS, 5);
   o.objetivo_detalhe = t(a.objetivo_detalhe, 400);
   if (a.situacao_atual) o.situacao_atual = limpar({ como_chegam: t(a.situacao_atual.como_chegam, 300), o_que_se_perde: t(a.situacao_atual.o_que_se_perde, 300) });

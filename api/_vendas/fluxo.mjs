@@ -147,6 +147,8 @@ function fundirRespostas(briefing, dados) {
   const trocados = primeira ? [] : campos.filter(k => tocadas[k] !== undefined);
   const aplicar = Object.fromEntries(campos.map(k => [k, dados[k]]));
   if (campos.includes('ramo') && dados.outro) aplicar.outro = dados.outro;
+  /* a equipe tocada (dono 27/11) entra uma vez, sem contar como mudança (não está no "Mudar"; depois, quem corrige é a conversa) */
+  if (dados.equipe && tocadas.equipe === undefined) aplicar.equipe = dados.equipe;
   /* a situação tocada também só vale quando muda (o reenvio não desfaz o que o modelo refinou) */
   const situacaoNova = dados.situacao && ordenada(dados.situacao) !== ordenada(tocadas.situacao) ? dados.situacao : null;
   if (situacaoNova) aplicar.situacao = situacaoNova;

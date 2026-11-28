@@ -13,13 +13,14 @@ export async function esperarToques(page, timeout = 30000) {
   await page.waitForSelector('#o-log .orc-toque button', { timeout });
 }
 
-/* o caso de sempre dos E2E (saúde, agendamentos, só o Instagram, tem logo e textos) até a pergunta da dor */
+/* o caso de sempre dos E2E (saúde, agendamentos, só o Instagram, tem logo e textos, só eu) até a pergunta da dor */
 export async function responderAteADor(page) {
   await tocar(page, 'Saúde');
   await tocar(page, 'Agendamentos');
   await tocar(page, 'Pronto');
   await tocar(page, 'Só o Instagram');
   await tocar(page, 'Tenho');
+  await tocar(page, 'Só eu');   /* (a equipe, dono 27/11) */
 }
 
 /* sem o consultor: a dor por toques e o "Pronto" (o resumo fixo vem, e então o valor) */

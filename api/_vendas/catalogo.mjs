@@ -165,6 +165,8 @@ export function respostasParaBriefingParcial(d, situacao = null) {
   const b = {};
   const segmento = d.ramo === 'outro' && d.outro ? d.outro : (d.ramo ? NOME_RAMO[d.ramo] : null);
   if (segmento) b.negocio = { segmento };
+  /* a equipe tocada (dono 27/11): descreve o negócio; nunca entra no preço */
+  if (d.equipe) b.negocio = { ...(b.negocio || {}), equipe: d.equipe };
   if (d.objetivos && d.objetivos.length) {
     b.objetivos = [...new Set(d.objetivos.map(o => OBJETIVO_BRIEFING[o] || 'outro'))];
     if (d.objetivos.includes('achado_google')) b.objetivo_detalhe = 'ser achado no Google';

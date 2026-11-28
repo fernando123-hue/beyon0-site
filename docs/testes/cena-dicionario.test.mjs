@@ -214,3 +214,14 @@ test('equipe: a 2ª afirmação do mesmo jeito também conta ("somos 2. Na verda
   assert.equal(D.equipeDoTexto('Barbearia, somos 2. Na verdade somos 4'), 4);
   assert.equal(D.equipeDoTexto('temos 2 funcionarios e depois contratamos, hoje temos 5 funcionarios'), 5);
 });
+
+test('a equipe tocada (dono 27/11) desenha gente quando o texto não diz o número; o que ela escreve vence; faixa fora da lista não conta', () => {
+  const D = require('../../js/cena-dicionario.js');
+  const caso = (texto, equipe) => D.cenaDoCaso({ ramo: 'beleza', texto, canais: [], objetivos: [], equipe });
+  assert.equal(caso('Tenho um salão', 'so_eu').gente, 1);
+  assert.equal(caso('Tenho um salão', 'ate_5').gente, 3);
+  assert.equal(caso('Tenho um salão', 'ate_15').gente, 5);
+  assert.equal(caso('Tenho um salão', 'mais_15').gente, 6, 'o teto da forma');
+  assert.equal(caso('Somos 2 no salão', 'mais_15').gente, 2, 'o número escrito vence a faixa');
+  for (const v of [undefined, 'x', '__proto__', 7, ['ate_5']]) assert.equal(caso('Tenho um salão', v).gente, 0, String(v));
+});
